@@ -21,7 +21,7 @@ func RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version INT PRIMARY KEY,
 			name TEXT NOT NULL,
-			applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			applied_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)`)
 	if err != nil {
 		return fmt.Errorf("create migrations table: %w", err)
@@ -53,7 +53,7 @@ func RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
 	for _, m := range migrations {
 		var exists bool
 		err := db.QueryRowContext(ctx,
-			"SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)", m.version).Scan(&exists)
+			"SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = ?)", m.version).Scan(&exists)
 		if err != nil {
 			return fmt.Errorf("check migration %d: %w", m.version, err)
 		}
@@ -77,7 +77,7 @@ func RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
 		}
 
 		if _, err := tx.Exec(
-			"INSERT INTO schema_migrations (version, name) VALUES ($1, $2)",
+			"INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
 			m.version, m.filename); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("record migration %d: %w", m.version, err)

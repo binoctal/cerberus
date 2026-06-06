@@ -129,17 +129,14 @@ func runCmd() *cobra.Command {
 			projCfg := loadProjectConfig(configFlag, urlFlag, goalFlag, logger)
 			projCfg = project.ResolveCredentials(projCfg)
 
-			dbURL := cfg.DBURL()
+			dbPath := cfg.DBPath
 			if dbFlag != "" {
-				dbURL = dbFlag
-			}
-			if projCfg.Databases != nil && len(projCfg.Databases) > 0 && projCfg.Databases[0].URL != "" {
-				dbURL = projCfg.Databases[0].URL
+				dbPath = dbFlag
 			}
 
-			s, err := store.New(dbURL)
+			s, err := store.New(dbPath)
 			if err != nil {
-				return fmt.Errorf("connect to DB: %w", err)
+				return fmt.Errorf("open database: %w", err)
 			}
 			defer s.Close()
 

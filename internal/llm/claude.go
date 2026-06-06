@@ -3,6 +3,7 @@ package llm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -94,7 +95,7 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 			"source": map[string]any{
 				"type":       "base64",
 				"media_type": "image/png",
-				"data":       fmt.Sprintf("%x", img),
+				"data":       base64.StdEncoding.EncodeToString(img),
 			},
 		})
 	}
@@ -147,9 +148,3 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 	}, nil
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

@@ -10,11 +10,8 @@ import (
 )
 
 func TestSessionCRUD(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	s, cleanup := testStore(t)
-	defer cleanup()
+	s := testStoreWithMigrations(t)
+	defer s.Close()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "test all APIs", "my-project")
@@ -33,7 +30,7 @@ func TestSessionCRUD(t *testing.T) {
 	got, err = s.GetSession(ctx, sess.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "completed", got.Status)
-	assert.NotNil(t, got.FinishedAt)
+	assert.NotEmpty(t, got.FinishedAt)
 
 	sessions, err := s.ListSessions(ctx, 10)
 	require.NoError(t, err)
@@ -41,11 +38,8 @@ func TestSessionCRUD(t *testing.T) {
 }
 
 func TestTraceCRUD(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	s, cleanup := testStore(t)
-	defer cleanup()
+	s := testStoreWithMigrations(t)
+	defer s.Close()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "trace test", "")
@@ -66,11 +60,8 @@ func TestTraceCRUD(t *testing.T) {
 }
 
 func TestVerdictCRUD(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	s, cleanup := testStore(t)
-	defer cleanup()
+	s := testStoreWithMigrations(t)
+	defer s.Close()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "verdict test", "")
@@ -92,11 +83,8 @@ func TestVerdictCRUD(t *testing.T) {
 }
 
 func TestEpisodicMemory(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	s, cleanup := testStore(t)
-	defer cleanup()
+	s := testStoreWithMigrations(t)
+	defer s.Close()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "memory test", "")
@@ -110,4 +98,26 @@ func TestEpisodicMemory(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(memories), 1)
 	assert.Equal(t, "pass", memories[0].Status)
+}
+
+func TestUpdateSessionStats(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "run", "stats test", "")
+	require.NoError(t, err)
+
+	stats := map[string]any{
+		"total_tokens": 54000,
+		"ai_calls":    23,
+		"steps":       20,
+	}
+	err = s.UpdateSessionStats(ctx, sess.ID, 75.5, stats)
+	require.NoError(t, err)
+
+	got, err := s.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	assert.InDelta(t, 75.5, got.CoveragePct, 0.01)
+	assert.Contains(t, got.Stats, "54000")
 }

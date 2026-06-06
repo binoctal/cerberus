@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,34 +9,37 @@ import (
 )
 
 func TestRunMigrations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	s, cleanup := testStore(t)
-	defer cleanup()
+	s := testStoreWithMigrations(t)
+	defer s.Close()
 
 	ctx := context.Background()
-	err := RunMigrations(ctx, s.DB(), "../../migrations")
-	require.NoError(t, err)
 
+	// Verify tables exist (SQLite uses sqlite_master)
 	var count int
-	err = s.DB().QueryRowContext(ctx,
-		"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'").Scan(&count)
+	err := s.DB().QueryRowContext(ctx,
+		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&count)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, count, 7, "expected at least 7 tables")
 
+	// Idempotent
 	err = RunMigrations(ctx, s.DB(), "../../migrations")
 	assert.NoError(t, err)
 }
 
+// testStore creates an in-memory SQLite database for testing.
 func testStore(t *testing.T) (*Store, func()) {
 	t.Helper()
-	dbURL := os.Getenv("CERBERUS_TEST_DB_URL")
-	if dbURL == "" {
-		dbURL = "postgres://cerberus:cerberus@localhost:5432/cerberus_test?sslmode=disable"
-	}
-	s, err := New(dbURL)
-	require.NoError(t, err, "connect to test DB — create cerberus_test DB first")
+	s, err := New(":memory:")
+	require.NoError(t, err)
 	return s, func() { s.Close() }
+}
+
+// testStoreWithMigrations creates an in-memory SQLite DB and runs all migrations.
+func testStoreWithMigrations(t *testing.T) *Store {
+	t.Helper()
+	s, err := New(":memory:")
+	require.NoError(t, err)
+	err = RunMigrations(context.Background(), s.DB(), "../../migrations")
+	require.NoError(t, err, "run migrations")
+	return s
 }

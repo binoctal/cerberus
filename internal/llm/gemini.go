@@ -3,6 +3,7 @@ package llm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,8 +20,7 @@ func NewGeminiClient(apiKey, model string) *GeminiClient {
 }
 
 func (c *GeminiClient) baseURL() string {
-	return fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s",
-		c.model, c.apiKey)
+	return fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", c.model)
 }
 
 func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, error) {
@@ -52,6 +52,7 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", c.apiKey)
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
@@ -102,7 +103,7 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 		parts = append(parts, map[string]any{
 			"inline_data": map[string]any{
 				"mime_type": "image/png",
-				"data":      fmt.Sprintf("%x", img),
+				"data":      base64.StdEncoding.EncodeToString(img),
 			},
 		})
 	}
@@ -120,6 +121,7 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", c.apiKey)
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {

@@ -9,7 +9,6 @@ import (
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +21,7 @@ const (
 )
 
 type Session struct {
-	ID        uuid.UUID
+	ID        string
 	Mode      Mode
 	Goal      string
 	Config    *project.Config
@@ -57,7 +56,7 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 	sess.ID = dbSess.ID
 
 	logger.Info("session created",
-		zap.String("id", sess.ID.String()),
+		zap.String("id", sess.ID),
 		zap.String("mode", string(mode)),
 		zap.String("goal", goal))
 
@@ -65,9 +64,18 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 }
 
 func (s *Session) Run(ctx context.Context) (err error) {
-	s.Logger.Info("session starting", zap.String("id", s.ID.String()))
+	s.Logger.Info("session starting", zap.String("id", s.ID))
 
 	defer func() {
+		// Write final stats
+		stats := map[string]any{
+			"total_tokens": s.Driver.Budget().SessionTotal - s.Driver.Budget().Remaining(),
+		}
+		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, 0, stats); statsErr != nil {
+			s.Logger.Error("update session stats", zap.Error(statsErr))
+		}
+
+		// Update status (terminal)
 		status := "completed"
 		if err != nil {
 			status = "failed"
@@ -78,13 +86,13 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	}()
 
 	s.Logger.Info("session completed (skeleton — no heads wired yet)",
-		zap.String("id", s.ID.String()))
+		zap.String("id", s.ID))
 
 	return nil
 }
 
 func (s *Session) Close() {
 	s.Logger.Info("session closed",
-		zap.String("id", s.ID.String()),
+		zap.String("id", s.ID),
 		zap.Int("tokens_spent", s.Driver.Budget().SessionTotal-s.Driver.Budget().Remaining()))
 }

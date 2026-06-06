@@ -1,6 +1,7 @@
 package project
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -122,20 +123,59 @@ func TestCredentialFileFallback(t *testing.T) {
 	assert.Equal(t, "file-admin@test.dev", resolved.Actors[0].Credentials.Email)
 }
 
-func TestProjectModelMaturity(t *testing.T) {
-	pm := &ProjectModel{
+func TestProjectModelInfoScore(t *testing.T) {
+	// Empty model → score 0
+	pm := &ProjectModel{}
+	assert.InDelta(t, 0.0, pm.InfoScore(false), 0.01)
+
+	// Model with some endpoints + pages, no schema, no history
+	pm = &ProjectModel{
 		Navigation: NavigationModel{Pages: []PageDef{
-			{Path: "/"}, {Path: "/login"}, {Path: "/admin"},
-		}, TotalPages: 10},
+			{Path: "/", Confidence: 0.9},
+			{Path: "/login", Confidence: 0.9},
+			{Path: "/admin", Confidence: 0.8},
+		}},
 		API: APIModel{Endpoints: []EndpointDef{
-			{Method: "GET", Path: "/api/v1/users"},
-		}, TotalEndpoints: 5},
+			{Method: "GET", Path: "/api/v1/users", Confidence: 0.95},
+			{Method: "POST", Path: "/api/v1/users", Confidence: 0.95},
+		}},
 		SchemaAnalyzed: false,
 	}
-	score := pm.MaturityScore()
-	assert.InDelta(t, 0.17, score, 0.01)
+	score := pm.InfoScore(false)
+	// endpointScore = min(2,20)/20 * 0.95 * 0.4 = 0.1*0.95*0.4 = 0.038
+	// pageScore = min(3,30)/30 * avg(0.9,0.9,0.8) * 0.3 = 0.1*0.867*0.3 = 0.026
+	// total ≈ 0.064
+	assert.Greater(t, score, 0.05)
+	assert.Less(t, score, 0.1)
 
+	// With schema + history → significant boost
 	pm.SchemaAnalyzed = true
-	score = pm.MaturityScore()
-	assert.Greater(t, score, 0.3)
+	scoreWithHistory := pm.InfoScore(true)
+	assert.Greater(t, scoreWithHistory, score, "history should increase score")
+
+	// Saturated model (20+ endpoints, 30+ pages, all high confidence)
+	saturated := &ProjectModel{
+		Navigation: NavigationModel{Pages: makePages(35, 0.95)},
+		API:        APIModel{Endpoints: makeEndpoints(25, 0.95)},
+	}
+	saturated.SchemaAnalyzed = true
+	satScore := saturated.InfoScore(true)
+	assert.Greater(t, satScore, 0.8, "saturated model should score high")
+	assert.LessOrEqual(t, satScore, 1.0, "score should not exceed 1.0")
+}
+
+func makePages(n int, conf float64) []PageDef {
+	pages := make([]PageDef, n)
+	for i := range pages {
+		pages[i] = PageDef{Path: fmt.Sprintf("/page/%d", i), Confidence: conf}
+	}
+	return pages
+}
+
+func makeEndpoints(n int, conf float64) []EndpointDef {
+	endpoints := make([]EndpointDef, n)
+	for i := range endpoints {
+		endpoints[i] = EndpointDef{Method: "GET", Path: fmt.Sprintf("/api/v1/res%d", i), Confidence: conf}
+	}
+	return endpoints
 }

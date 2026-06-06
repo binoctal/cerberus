@@ -2,7 +2,8 @@ package store
 
 import "encoding/json"
 
-func jsonb(v any) any {
+// jsonText marshals a value to JSON text for SQLite TEXT columns.
+func jsonText(v any) *string {
 	if v == nil {
 		return nil
 	}
@@ -10,5 +11,6 @@ func jsonb(v any) any {
 	if err != nil {
 		return nil
 	}
-	return b
+	s := string(b)
+	return &s
 }

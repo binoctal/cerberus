@@ -4,11 +4,7 @@ import "os"
 
 type Config struct {
 	Port         string
-	DBHost       string
-	DBPort       string
-	DBUser       string
-	DBPassword   string
-	DBName       string
+	DBPath       string // SQLite file path (default: "cerberus.db", use ":memory:" for tests)
 	MigrationDir string
 	LogLevel     string
 	LLMModel     string
@@ -16,23 +12,42 @@ type Config struct {
 }
 
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		Port:         getEnv("CERBERUS_PORT", "8090"),
-		DBHost:       getEnv("CERBERUS_DB_HOST", "localhost"),
-		DBPort:       getEnv("CERBERUS_DB_PORT", "5432"),
-		DBUser:       getEnv("CERBERUS_DB_USER", "cerberus"),
-		DBPassword:   getEnv("CERBERUS_DB_PASSWORD", "cerberus"),
-		DBName:       getEnv("CERBERUS_DB_NAME", "cerberus"),
+		DBPath:       getEnv("CERBERUS_DB_PATH", "cerberus.db"),
 		MigrationDir: getEnv("CERBERUS_MIGRATION_DIR", "migrations"),
 		LogLevel:     getEnv("CERBERUS_LOG_LEVEL", "info"),
 		LLMModel:     getEnv("CERBERUS_LLM_MODEL", "claude-sonnet-4-6"),
-		LLMAPIKey:    getEnv("CERBERUS_LLM_API_KEY", ""),
 	}
+
+	// API key resolution: explicit CERBERUS key first, then provider-native keys
+	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel)
+
+	return cfg
 }
 
-func (c *Config) DBURL() string {
-	return "postgres://" + c.DBUser + ":" + c.DBPassword + "@" +
-		c.DBHost + ":" + c.DBPort + "/" + c.DBName + "?sslmode=disable"
+// resolveAPIKey finds the API key for the configured LLM model.
+// Priority: CERBERUS_LLM_API_KEY > provider-native env var.
+func resolveAPIKey(model string) string {
+	// Explicit override always wins
+	if key := os.Getenv("CERBERUS_LLM_API_KEY"); key != "" {
+		return key
+	}
+
+	// Auto-detect from provider-native env vars
+	switch {
+	case isModel(model, "claude"):
+		return os.Getenv("ANTHROPIC_API_KEY")
+	case isModel(model, "gpt"):
+		return os.Getenv("OPENAI_API_KEY")
+	case isModel(model, "gemini"):
+		return os.Getenv("GEMINI_API_KEY")
+	}
+	return ""
+}
+
+func isModel(model, prefix string) bool {
+	return len(model) >= len(prefix) && model[:len(prefix)] == prefix
 }
 
 func getEnv(key, fallback string) string {

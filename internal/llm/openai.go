@@ -3,6 +3,7 @@ package llm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -89,7 +90,7 @@ func (c *OpenAIClient) CompleteWithVision(ctx context.Context, prompt string, im
 		content = append(content, map[string]any{
 			"type": "image_url",
 			"image_url": map[string]any{
-				"url": fmt.Sprintf("data:image/png;base64,%x", img),
+				"url": "data:image/png;base64," + base64.StdEncoding.EncodeToString(img),
 			},
 		})
 	}

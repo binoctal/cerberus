@@ -16,17 +16,9 @@ import (
 )
 
 func TestSessionSmokeTest(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping smoke test in short mode")
-	}
-
-	dbURL := os.Getenv("CERBERUS_TEST_DB_URL")
-	if dbURL == "" {
-		dbURL = "postgres://cerberus:cerberus@localhost:5432/cerberus_test?sslmode=disable"
-	}
-
-	s, err := store.New(dbURL)
-	require.NoError(t, err, "need a running PostgreSQL with cerberus_test DB")
+	// In-memory SQLite — no external DB needed
+	s, err := store.New(":memory:")
+	require.NoError(t, err)
 	defer s.Close()
 
 	ctx := context.Background()
