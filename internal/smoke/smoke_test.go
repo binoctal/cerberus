@@ -2,10 +2,14 @@ package smoke
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
@@ -95,4 +99,141 @@ settings:
 	assert.Equal(t, 0.8, cfg.Settings.ConfidenceThreshold)
 
 	assert.Equal(t, 200000, cfg.Settings.AIBudget.SessionTotalTokens)
+}
+
+func TestAgentSmokeTest(t *testing.T) {
+	// Stand up a real HTTP server as the SUT.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/users":
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"users": []string{"alice", "bob"}})
+		case "/api/v1/posts":
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
+		case "/health":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"ok"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	// In-memory store + migrations.
+	s, err := store.New(":memory:")
+	require.NoError(t, err)
+	defer s.Close()
+	ctx := context.Background()
+	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
+	require.NoError(t, err)
+
+	// Mock LLM: for invariants that need Steer, return a valid action pointing to the right endpoint.
+	steerJSON, _ := json.Marshal(agent.SteerOutput{
+		Reasoning: "navigate to the endpoint",
+		Action: agent.Action{
+			Type:   agent.ActionAPIRequest,
+			Target: server.URL + "/api/v1/users",
+			Method: "GET",
+		},
+	})
+	mockClient := llm.NewMockClient(map[string]string{
+		"default": string(steerJSON),
+	})
+	logger := zap.NewNop()
+
+	cfg := project.DefaultConfig()
+	cfg.Project.Name = "agent-smoke"
+	cfg.Services = []project.Service{
+		{Name: "api", URL: server.URL, Health: "/health"},
+	}
+	cfg.Invariants = []project.Invariant{
+		{ID: "users-api", Description: "Users endpoint works", Check: "/api/v1/users", Assertion: "returns 200"},
+		{ID: "posts-api", Description: "Posts endpoint works", Check: "/api/v1/posts", Assertion: "returns 200"},
+	}
+
+	sess, err := session.NewSession(ctx, session.ModeRun, "agent smoke test", &cfg, s, mockClient, logger)
+	require.NoError(t, err)
+
+	err = sess.Run(ctx)
+	require.NoError(t, err)
+
+	// Verify session completed.
+	dbSess, err := s.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", dbSess.Status)
+
+	// Verify traces were created for each test case.
+	traces, err := s.GetTraces(ctx, sess.ID)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(traces), 2, "should have traces for health check and invariants")
+
+	// Verify evidence was recorded.
+	for _, tr := range traces {
+		evidence, err := s.GetEvidenceByTrace(ctx, tr.ID)
+		require.NoError(t, err)
+		assert.NotEmpty(t, evidence, "trace %d should have evidence", tr.ID)
+	}
+
+	sess.Close()
+}
+
+func TestAgentWithReActSmokeTest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/items" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"items":[]}`))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	// Setup store.
+	s, err := store.New(":memory:")
+	require.NoError(t, err)
+	defer s.Close()
+	ctx := context.Background()
+	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
+	require.NoError(t, err)
+
+	// LLM returns a Steer action pointing to /api/v1/items.
+	steerJSON, _ := json.Marshal(agent.SteerOutput{
+		Reasoning: "try the items endpoint",
+		Action: agent.Action{
+			Type:   agent.ActionAPIRequest,
+			Target: server.URL + "/api/v1/items",
+			Method: "GET",
+		},
+	})
+	mockClient := llm.NewMockClient(map[string]string{
+		"default": string(steerJSON),
+	})
+
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	engine := agent.NewRuleEngine(server.URL, nil)
+	exec := agent.NewHTTPActionExecutor(server.URL, zap.NewNop())
+	loop := agent.NewReActLoop(driver, s, engine, exec, agent.DefaultReActConfig(), zap.NewNop())
+
+	// Create session and trace.
+	sess, err := s.CreateSession(ctx, "run", "react smoke", "")
+	require.NoError(t, err)
+
+	plan := &agent.TestPlan{
+		Goal:       "test items endpoint",
+		ProjectURL: server.URL,
+		Cases: []agent.TestCase{
+			{ID: "r1", Name: "find items", Target: "find the items endpoint", Expectation: "returns list"},
+		},
+	}
+
+	results, err := loop.ExecutePlan(ctx, plan, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	assert.Equal(t, agent.StepPassed, results[0].Status)
+	assert.Equal(t, 1, results[0].Attempts)
+
+	// Verify tokens were spent (LLM was called for Steer).
+	assert.Less(t, driver.Budget().Remaining(), 200000, "should have spent tokens on Steer")
 }

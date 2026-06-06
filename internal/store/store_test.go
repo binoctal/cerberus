@@ -100,6 +100,68 @@ func TestEpisodicMemory(t *testing.T) {
 	assert.Equal(t, "pass", memories[0].Status)
 }
 
+func TestEvidenceCRUD(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "run", "evidence test", "")
+	require.NoError(t, err)
+	traceID, err := s.CreateTrace(ctx, sess.ID, "api", "GET /api/v1/users")
+	require.NoError(t, err)
+
+	ev, err := s.CreateEvidence(ctx, traceID, "api_response", `{"status":200,"body":"ok"}`)
+	require.NoError(t, err)
+	assert.Greater(t, ev.ID, int64(0))
+	assert.Equal(t, "api_response", ev.Type)
+
+	ev2, err := s.CreateEvidence(ctx, traceID, "error", "connection refused")
+	require.NoError(t, err)
+
+	evidence, err := s.GetEvidenceByTrace(ctx, traceID)
+	require.NoError(t, err)
+	require.Len(t, evidence, 2)
+	assert.Equal(t, ev.ID, evidence[0].ID)
+	assert.Equal(t, ev2.ID, evidence[1].ID)
+}
+
+func TestProceduralCRUD(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	pm, err := s.StoreProcedural(ctx, "auth-retry",
+		"POST /api/v1/*", "Refresh auth token before retry", "test-project")
+	require.NoError(t, err)
+	assert.Greater(t, pm.ID, int64(0))
+	assert.Equal(t, 0.5, pm.Effectiveness)
+
+	// Match by exact condition
+	matches, err := s.GetProceduralByMatch(ctx, "POST /api/v1/users", 5)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(matches), 1)
+	assert.Equal(t, "auth-retry", matches[0].Name)
+
+	// No match for unrelated target
+	noMatch, err := s.GetProceduralByMatch(ctx, "GET /health", 5)
+	require.NoError(t, err)
+	assert.Empty(t, noMatch)
+
+	// Update effectiveness — success
+	err = s.UpdateProceduralEffectiveness(ctx, pm.ID, true)
+	require.NoError(t, err)
+	matches, _ = s.GetProceduralByMatch(ctx, "POST /api/v1/users", 5)
+	assert.Equal(t, 1, matches[0].UsageCount)
+	assert.InDelta(t, 0.65, matches[0].Effectiveness, 0.01) // 0.7*0.5 + 0.3*1.0
+
+	// Update effectiveness — failure
+	err = s.UpdateProceduralEffectiveness(ctx, pm.ID, false)
+	require.NoError(t, err)
+	matches, _ = s.GetProceduralByMatch(ctx, "POST /api/v1/users", 5)
+	assert.Equal(t, 2, matches[0].UsageCount)
+	assert.InDelta(t, 0.455, matches[0].Effectiveness, 0.01) // 0.7*0.65 + 0.3*0.0
+}
+
 func TestUpdateSessionStats(t *testing.T) {
 	s := testStoreWithMigrations(t)
 	defer s.Close()
