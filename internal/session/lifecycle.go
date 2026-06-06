@@ -7,6 +7,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
@@ -86,15 +87,27 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	// Build Scout head — Analyze + Plan.
+	scoutHead := scout.NewScout(s.Driver, s.Store, s.Config, s.Logger)
+	model, err := scoutHead.Analyze(ctx, scout.TargetInfo{
+		URL:  s.resolveBaseURL(),
+		Goal: s.Goal,
+	})
+	if err != nil {
+		return fmt.Errorf("scout analyze: %w", err)
+	}
+
+	plan, err := scoutHead.Plan(ctx, s.Goal, model)
+	if err != nil {
+		return fmt.Errorf("scout plan: %w", err)
+	}
+
 	// Build Agent head components.
 	baseURL := s.resolveBaseURL()
 	engine := agent.NewRuleEngine(baseURL, s.Config.Actors)
 	httpExec := agent.NewHTTPActionExecutor(baseURL, s.Logger)
 	config := agent.DefaultReActConfig()
 	loop := agent.NewReActLoop(s.Driver, s.Store, engine, httpExec, config, s.Logger)
-
-	// Build a plan from project config (temporary bridge until Scout head is implemented).
-	plan := s.buildPlanFromConfig()
 
 	s.Logger.Info("executing test plan",
 		zap.String("session_id", s.ID),
@@ -140,53 +153,4 @@ func (s *Session) resolveBaseURL() string {
 		return s.Config.Services[0].URL
 	}
 	return ""
-}
-
-// buildPlanFromConfig derives a TestPlan from project config services and invariants.
-// This is a temporary bridge until the Scout head produces real TestPlans (C2a).
-func (s *Session) buildPlanFromConfig() *agent.TestPlan {
-	plan := &agent.TestPlan{
-		Goal:       s.Goal,
-		ProjectURL: s.resolveBaseURL(),
-	}
-
-	caseID := 0
-
-	// Generate cases from services endpoints.
-	for _, svc := range s.Config.Services {
-		if svc.Health != "" {
-			caseID++
-			plan.Cases = append(plan.Cases, agent.TestCase{
-				ID:          fmt.Sprintf("health-%d", caseID),
-				Name:        fmt.Sprintf("Health check: %s", svc.Name),
-				Target:      svc.Health,
-				Method:      "GET",
-				Expectation: "returns 200 OK",
-			})
-		}
-	}
-
-	// Generate cases from invariants.
-	for _, inv := range s.Config.Invariants {
-		caseID++
-		plan.Cases = append(plan.Cases, agent.TestCase{
-			ID:          fmt.Sprintf("inv-%d", caseID),
-			Name:        fmt.Sprintf("Invariant: %s", inv.ID),
-			Target:      inv.Check,
-			Expectation: inv.Assertion,
-		})
-	}
-
-	// If no cases were generated, create a default health check.
-	if len(plan.Cases) == 0 && plan.ProjectURL != "" {
-		plan.Cases = append(plan.Cases, agent.TestCase{
-			ID:          "default-health",
-			Name:        "Default health check",
-			Target:      "/",
-			Method:      "GET",
-			Expectation: "returns 200 OK",
-		})
-	}
-
-	return plan
 }
