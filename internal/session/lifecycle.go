@@ -7,6 +7,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
@@ -136,6 +137,19 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		zap.Int("passed", passed),
 		zap.Int("failed", failed),
 		zap.Int("skipped", skipped),
+	)
+
+	// Examiner head: Judge + Learn.
+	examinerCfg := examiner.DefaultExaminerConfig()
+	examinerHead := examiner.NewExaminer(s.Driver, nil, s.Store, examinerCfg, s.Logger) // No critic driver in C3 base
+	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
+	if err != nil {
+		return fmt.Errorf("examiner: %w", err)
+	}
+
+	s.Logger.Info("examination complete",
+		zap.Int("verdicts", len(verdicts)),
+		zap.Int("reflections_stored", reflections),
 	)
 
 	return nil
