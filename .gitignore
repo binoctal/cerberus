@@ -1,2 +1,17 @@
 bin/
 *.exe
+
+# IDE / tool directories
+.claude/
+.vscode/
+.idea/
+
+# Project docs and learning
+docs/
+learning/
+
+# Cerberus runtime
+.cerberus/
+
+# OS files
+.DS_Store
