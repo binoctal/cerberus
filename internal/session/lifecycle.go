@@ -69,17 +69,36 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 
 func (s *Session) Run(ctx context.Context) (err error) {
 	s.Logger.Info("session starting", zap.String("id", s.ID))
+	runStart := time.Now()
+	var summary *SessionSummary
 
 	defer func() {
-		// Write final stats
-		stats := map[string]any{
-			"total_tokens": s.Driver.Budget().SessionTotal - s.Driver.Budget().Remaining(),
+		elapsed := time.Since(runStart)
+		tokensUsed := s.Driver.Budget().SessionTotal - s.Driver.Budget().Remaining()
+
+		// Build summary if not yet built (e.g. on early error).
+		if summary == nil {
+			summary = &SessionSummary{
+				Goal: s.Goal, TotalTokens: tokensUsed,
+				Duration: elapsed.Round(time.Millisecond).String(),
+				DurationMs: elapsed.Milliseconds(),
+			}
+		} else {
+			summary.TotalTokens = tokensUsed
+			summary.Duration = elapsed.Round(time.Millisecond).String()
+			summary.DurationMs = elapsed.Milliseconds()
 		}
-		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, 0, stats); statsErr != nil {
+
+		// Write stats to store.
+		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, 0, summary); statsErr != nil {
 			s.Logger.Error("update session stats", zap.Error(statsErr))
 		}
 
-		// Update status (terminal)
+		// Print human-readable summary.
+		fmt.Println()
+		fmt.Println(summary.String())
+
+		// Update status (terminal).
 		status := "completed"
 		if err != nil {
 			status = "failed"
@@ -89,7 +108,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	// Build Scout head — Analyze + Plan.
+	// Phase 1: Scout — Analyze + Plan.
 	scoutHead := scout.NewScout(s.Driver, s.Store, s.Config, s.Logger)
 	if s.DeepPlan {
 		scoutHead.SetDeepPlan(scout.DefaultToTConfig())
@@ -107,7 +126,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("scout plan: %w", err)
 	}
 
-	// Build Agent head components.
+	// Phase 2: Agent — Execute.
 	baseURL := s.resolveBaseURL()
 	engine := agent.NewRuleEngine(baseURL, s.Config.Actors)
 	httpExec := agent.NewHTTPActionExecutor(baseURL, s.Logger)
@@ -124,28 +143,9 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("agent execute: %w", err)
 	}
 
-	// Log summary.
-	passed, failed, skipped := 0, 0, 0
-	for _, r := range results {
-		switch r.Status {
-		case agent.StepPassed:
-			passed++
-		case agent.StepFailed:
-			failed++
-		case agent.StepSkipped:
-			skipped++
-		}
-	}
-	s.Logger.Info("session completed",
-		zap.String("id", s.ID),
-		zap.Int("passed", passed),
-		zap.Int("failed", failed),
-		zap.Int("skipped", skipped),
-	)
-
-	// Examiner head: Judge + Learn.
+	// Phase 3: Examiner — Judge + Learn.
 	examinerCfg := examiner.DefaultExaminerConfig()
-	examinerHead := examiner.NewExaminer(s.Driver, nil, s.Store, examinerCfg, s.Logger) // No critic driver in C3 base
+	examinerHead := examiner.NewExaminer(s.Driver, nil, s.Store, examinerCfg, s.Logger)
 	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
 	if err != nil {
 		return fmt.Errorf("examiner: %w", err)
@@ -155,6 +155,19 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		zap.Int("verdicts", len(verdicts)),
 		zap.Int("reflections_stored", reflections),
 	)
+
+	// Build summary.
+	summary = FromResults(
+		s.Goal,
+		s.resolveBaseURL(),
+		len(plan.Cases),
+		results,
+		verdicts,
+		reflections,
+		0, // tokens filled in defer
+		time.Since(runStart),
+	)
+	summary.EndpointsFound = len(model.API.Endpoints)
 
 	return nil
 }
