@@ -183,3 +183,83 @@ func TestUpdateSessionStats(t *testing.T) {
 	assert.InDelta(t, 75.5, got.CoveragePct, 0.01)
 	assert.Contains(t, got.Stats, "54000")
 }
+
+func TestProceduralWithType(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	pm, err := s.StoreProceduralWithType(ctx, "auth_failure", "* returned 401",
+		"Refresh auth token before retry", "test-project", "auth_failure", "failure")
+	require.NoError(t, err)
+	assert.Equal(t, "auth_failure", pm.Category)
+	assert.Equal(t, "failure", pm.Type)
+
+	// Verify retrieval by effectiveness includes type info.
+	results, err := s.GetProceduralByEffectiveness(ctx, 0.2, 10)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "failure", results[0].Type)
+	assert.Equal(t, "auth_failure", results[0].Category)
+}
+
+func TestProceduralArchive(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	pm, err := s.StoreProcedural(ctx, "test", "* pattern", "action", "project")
+	require.NoError(t, err)
+
+	// Archive it.
+	err = s.ArchiveProcedural(ctx, pm.ID)
+	require.NoError(t, err)
+
+	// Should not appear in match results (archived).
+	matches, err := s.GetProceduralByMatch(ctx, "pattern", 10)
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+
+	// Should not appear in effectiveness query either.
+	results, err := s.GetProceduralByEffectiveness(ctx, 0.0, 10)
+	require.NoError(t, err)
+	assert.Empty(t, results)
+}
+
+func TestAutoArchiveLowEffectiveness(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	pm, err := s.StoreProcedural(ctx, "low", "* test", "action", "project")
+	require.NoError(t, err)
+
+	// Drive effectiveness below 0.2 with repeated failures.
+	// Start at 0.5, apply failures until < 0.2.
+	for i := 0; i < 5; i++ {
+		err := s.UpdateProceduralEffectiveness(ctx, pm.ID, false)
+		require.NoError(t, err)
+	}
+
+	// Auto-archive.
+	archived, err := s.AutoArchiveLowEffectiveness(ctx, 0.2)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, archived, 1)
+}
+
+func TestMarkStaleProcedural(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer s.Close()
+	ctx := context.Background()
+
+	// Insert with old created_at directly.
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO memory_procedural (name, condition, action, effectiveness, usage_count, project_name, category, type, archived, created_at)
+		 VALUES ('stale', '* old', 'action', 0.3, 1, 'proj', 'general_failure', 'failure', 0, '2020-01-01T00:00:00Z')`)
+	require.NoError(t, err)
+
+	// Mark stale: older than 90 days + effectiveness < 0.5.
+	stale, err := s.MarkStaleProcedural(ctx, 90, 0.5)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, stale, 1)
+}

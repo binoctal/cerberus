@@ -58,11 +58,13 @@ func (l *Learner) Learn(ctx context.Context, input LearnInput) (int, error) {
 			continue
 		}
 
-		_, err := l.store.StoreProcedural(ctx,
+		_, err := l.store.StoreProceduralWithType(ctx,
 			r.Category,
 			r.ConditionPattern,
 			r.Strategy,
 			input.Project,
+			r.Category,
+			r.Type,
 		)
 		if err != nil {
 			l.logger.Warn("store reflection", zap.Error(err))
