@@ -16,15 +16,23 @@ import (
 // Scout performs project reconnaissance: analyze to build a cognitive model,
 // then plan to generate a test plan.
 type Scout struct {
-	driver *ai.Driver
-	store  *store.Store
-	config *project.Config
-	logger *zap.Logger
+	driver  *ai.Driver
+	store   *store.Store
+	config  *project.Config
+	logger  *zap.Logger
+	deepPlan bool     // Enable ToT deep planning mode
+	totCfg  ToTConfig // ToT configuration (only used when deepPlan=true)
 }
 
 // NewScout creates a Scout head.
 func NewScout(driver *ai.Driver, store *store.Store, config *project.Config, logger *zap.Logger) *Scout {
 	return &Scout{driver: driver, store: store, config: config, logger: logger}
+}
+
+// SetDeepPlan enables ToT deep planning mode with the given config.
+func (s *Scout) SetDeepPlan(cfg ToTConfig) {
+	s.deepPlan = true
+	s.totCfg = cfg
 }
 
 // Analyze builds a ProjectModel from the target info using AI inference
@@ -70,7 +78,20 @@ func (s *Scout) Analyze(ctx context.Context, target TargetInfo) (*project.Projec
 }
 
 // Plan generates a TestPlan from the goal and project model.
+// Uses ToT deep planning if enabled, otherwise direct AI planning.
 func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
+	// ToT deep planning mode.
+	if s.deepPlan {
+		planner := NewToTPlanner(s.driver, s.totCfg, s.logger)
+		return planner.Plan(ctx, goal, model, s.resolveBaseURL())
+	}
+
+	// Direct AI planning (default).
+	return s.directPlan(ctx, goal, model)
+}
+
+// directPlan generates a test plan via a single AI call with deterministic fallback.
+func (s *Scout) directPlan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
 	planCtx := s.buildPlanContext(model)
 	prompt := ai.NewPrompt().
 		System(promptPlanSystem).

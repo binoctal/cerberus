@@ -32,6 +32,7 @@ type Session struct {
 	Driver    *ai.Driver
 	Logger    *zap.Logger
 	StartedAt time.Time
+	DeepPlan  bool
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
@@ -90,6 +91,9 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	// Build Scout head — Analyze + Plan.
 	scoutHead := scout.NewScout(s.Driver, s.Store, s.Config, s.Logger)
+	if s.DeepPlan {
+		scoutHead.SetDeepPlan(scout.DefaultToTConfig())
+	}
 	model, err := scoutHead.Analyze(ctx, scout.TargetInfo{
 		URL:  s.resolveBaseURL(),
 		Goal: s.Goal,

@@ -18,12 +18,13 @@ import (
 )
 
 var (
-	urlFlag    string
-	goalFlag   string
-	actorFlags []string
-	dbFlag     string
-	configFlag string
-	portFlag   string
+	urlFlag      string
+	goalFlag     string
+	actorFlags   []string
+	dbFlag       string
+	configFlag   string
+	portFlag     string
+	deepPlanFlag bool
 )
 
 func main() {
@@ -160,6 +161,7 @@ func runCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
+			sess.DeepPlan = deepPlanFlag
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -184,6 +186,7 @@ func runCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&actorFlags, "actor", nil, "Actor names to use")
 	cmd.Flags().StringVar(&dbFlag, "db", "", "Database URL (enables Checker)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
+	cmd.Flags().BoolVar(&deepPlanFlag, "deep-plan", false, "Enable ToT deep planning for comprehensive test generation")
 	_ = cmd.MarkFlagRequired("url")
 	_ = cmd.MarkFlagRequired("goal")
 	return cmd
