@@ -221,6 +221,99 @@ func TestParallelExecutor_ConcurrencyLimit(t *testing.T) {
 	assert.LessOrEqual(t, atomic.LoadInt64(&maxConcurrent), int64(2))
 }
 
+func TestParallelExecutor_CascadeSkip(t *testing.T) {
+	loop, s := setupParallelTest(t)
+	sess, err := s.CreateSession(context.Background(), "run", "cascade test", "project")
+	require.NoError(t, err)
+
+	// Server: /create and / return 500 (fail), everything else returns 200.
+	// "/" must fail too — the mock LLM navigates there, so ReAct can't recover.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/create" || r.URL.Path == "/" {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"internal"}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	engine := NewRuleEngine(srv.URL, nil)
+	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
+
+	plan := &TestPlan{
+		Goal:       "cascade test",
+		ProjectURL: srv.URL,
+		Cases: []TestCase{
+			{ID: "tc-create", Name: "create resource", Target: "/create", Method: "POST", Expectation: "201"},
+			{ID: "tc-get", Name: "get resource", Target: "/resource/1", Method: "GET", Expectation: "200", DependsOn: "tc-create"},
+			{ID: "tc-update", Name: "update resource", Target: "/resource/1", Method: "PUT", Expectation: "200", DependsOn: "tc-get"},
+			{ID: "tc-list", Name: "list all", Target: "/list", Method: "GET", Expectation: "200"},
+		},
+	}
+
+	pe := NewParallelExecutor(loop2, ParallelConfig{MaxWorkers: 1}, zap.NewNop())
+	results, err := pe.ExecutePlan(context.Background(), plan, sess.ID)
+	require.NoError(t, err)
+	assert.Len(t, results, 4)
+
+	// Build result map.
+	status := make(map[string]StepStatus)
+	for _, r := range results {
+		status[r.TestCase.ID] = r.Status
+	}
+
+	// tc-create should fail (500 response).
+	assert.Equal(t, StepFailed, status["tc-create"], "parent should fail")
+
+	// tc-get depends on tc-create → cascade skip.
+	assert.Equal(t, StepSkipped, status["tc-get"], "child should be cascade-skipped")
+
+	// tc-update depends on tc-get (which was skipped) → cascade skip.
+	assert.Equal(t, StepSkipped, status["tc-update"], "grandchild should be cascade-skipped")
+
+	// tc-list has no dependency → should pass.
+	assert.Equal(t, StepPassed, status["tc-list"], "independent case should pass")
+}
+
+func TestParallelExecutor_CascadeSkip_ErrorMessage(t *testing.T) {
+	loop, s := setupParallelTest(t)
+	sess, err := s.CreateSession(context.Background(), "run", "cascade msg test", "project")
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	engine := NewRuleEngine(srv.URL, nil)
+	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
+
+	plan := &TestPlan{
+		Goal:       "cascade msg test",
+		ProjectURL: srv.URL,
+		Cases: []TestCase{
+			{ID: "parent", Name: "parent", Target: "/fail", Method: "GET", Expectation: "200"},
+			{ID: "child", Name: "child", Target: "/x", Method: "GET", Expectation: "200", DependsOn: "parent"},
+		},
+	}
+
+	pe := NewParallelExecutor(loop2, ParallelConfig{MaxWorkers: 1}, zap.NewNop())
+	results, err := pe.ExecutePlan(context.Background(), plan, sess.ID)
+	require.NoError(t, err)
+
+	// Child should have cascade skip error message.
+	require.Len(t, results, 2)
+	childResult := results[1]
+	assert.Equal(t, StepSkipped, childResult.Status)
+	require.Error(t, childResult.Error)
+	assert.Contains(t, childResult.Error.Error(), "cascade skip")
+	assert.Contains(t, childResult.Error.Error(), "parent")
+}
+
 func fmtID(i int) string {
 	return string(rune('0' + i))
 }

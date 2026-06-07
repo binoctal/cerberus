@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -32,6 +33,7 @@ func NewParallelExecutor(loop *ReActLoop, config ParallelConfig, logger *zap.Log
 // ExecutePlan runs test cases in parallel respecting DependsOn ordering.
 // Cases with no dependencies run concurrently (bounded by MaxWorkers).
 // A case waits for its dependency to complete before starting.
+// If the dependency failed or was skipped, this case is automatically skipped (cascade).
 func (p *ParallelExecutor) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
 	if len(plan.Cases) == 0 {
 		return nil, nil
@@ -67,9 +69,28 @@ func (p *ParallelExecutor) ExecutePlan(ctx context.Context, plan *TestPlan, sess
 				if depCh, exists := completed[dep]; exists {
 					select {
 					case <-depCh:
-						// Dependency completed.
+						// Dependency completed — check if it passed.
+						mu.Lock()
+						depResult, depExists := results[dep]
+						mu.Unlock()
+						if depExists && depResult.Status != StepPassed {
+							// Cascade skip: dependency failed/skipped/uncertain.
+							mu.Lock()
+							results[tc.ID] = StepResult{
+								TestCase: tc,
+								Status:   StepSkipped,
+								Error:    fmt.Errorf("dependency %s %s: cascade skip", dep, depResult.Status),
+							}
+							close(completed[tc.ID])
+							mu.Unlock()
+							p.logger.Info("cascade skip",
+								zap.String("case_id", tc.ID),
+								zap.String("dependency", dep),
+								zap.String("dep_status", string(depResult.Status)),
+							)
+							return
+						}
 					case <-ctx.Done():
-						// Context cancelled.
 						mu.Lock()
 						results[tc.ID] = StepResult{
 							TestCase: tc, Status: StepSkipped,
