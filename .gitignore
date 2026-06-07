@@ -7,7 +7,7 @@ bin/
 .idea/
 
 # Project docs and learning
-docs/
+cerberus-docs/
 learning/
 
 # Cerberus runtime
