@@ -106,6 +106,20 @@ actors:
 			fmt.Println("✓ Created .cerberus/project.yaml")
 			fmt.Println("✓ Created .cerberus/credentials.yaml")
 			fmt.Println("✓ Updated .gitignore")
+
+			// Seed default L3 strategies into the store.
+			dbPath := ".cerberus/cerberus.db"
+			seedDB, seedErr := store.New(dbPath)
+			if seedErr == nil {
+				seedCtx := context.Background()
+				_ = store.RunMigrations(seedCtx, seedDB.DB(), "migrations")
+				seedLogger, _ := zap.NewProduction()
+				count, _ := store.SeedStrategies(seedCtx, seedDB, "", seedLogger)
+				seedDB.Close()
+				if count > 0 {
+					fmt.Printf("✓ Seeded %d default test strategies\n", count)
+				}
+			}
 			fmt.Println()
 			fmt.Println("Next steps:")
 			fmt.Println("  1. Edit .cerberus/project.yaml with your project details")
