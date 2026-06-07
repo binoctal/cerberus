@@ -11,6 +11,7 @@ import (
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/server"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/spf13/cobra"
@@ -271,8 +272,42 @@ func serveCmd() *cobra.Command {
 		Use:   "serve",
 		Short: "Start HTTP API server (CI integration)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("serve mode: not yet implemented (requires C5 + C6)")
-			return nil
+			cfg := config.Load()
+			logger, _ := zap.NewProduction()
+			defer logger.Sync()
+
+			dbPath := cfg.DBPath
+			if dbFlag != "" {
+				dbPath = dbFlag
+			}
+
+			s, err := store.New(dbPath)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer s.Close()
+
+			ctx := context.Background()
+			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
+				return fmt.Errorf("run migrations: %w", err)
+			}
+
+			srv := server.New(s, cfg, logger)
+			addr := ":" + portFlag
+
+			// Graceful shutdown on signal.
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			go func() {
+				sigCh := make(chan os.Signal, 1)
+				signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+				<-sigCh
+				logger.Info("interrupt received, shutting down...")
+				cancel()
+			}()
+
+			logger.Info("cerberus serve starting", zap.String("addr", addr))
+			return srv.ListenAndServe(addr)
 		},
 	}
 	cmd.Flags().StringVar(&portFlag, "port", "8090", "HTTP server port")
