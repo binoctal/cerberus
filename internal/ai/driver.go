@@ -3,17 +3,49 @@ package ai
 import (
 	"context"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/binoctal/cerberus/internal/llm"
 )
 
+// RetryConfig controls LLM call retry behavior.
+type RetryConfig struct {
+	MaxRetries int           // Maximum retries for transient errors (default: 3)
+	BaseDelay  time.Duration // Initial backoff delay (default: 1s)
+	MaxDelay   time.Duration // Maximum backoff delay (default: 10s)
+}
+
+// DefaultRetryConfig returns sensible defaults.
+func DefaultRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxRetries: 3,
+		BaseDelay:  1 * time.Second,
+		MaxDelay:   10 * time.Second,
+	}
+}
+
 type Driver struct {
 	client llm.Client
 	budget *TokenBudget
+	retry  RetryConfig
 }
 
 func NewDriver(client llm.Client, budget *TokenBudget) *Driver {
-	return &Driver{client: client, budget: budget}
+	return &Driver{
+		client: client,
+		budget: budget,
+		retry:  DefaultRetryConfig(),
+	}
+}
+
+// NewDriverWithRetry creates a driver with custom retry config.
+func NewDriverWithRetry(client llm.Client, budget *TokenBudget, retry RetryConfig) *Driver {
+	return &Driver{
+		client: client,
+		budget: budget,
+		retry:  retry,
+	}
 }
 
 func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
@@ -26,22 +58,40 @@ func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
 			d.budget.Remaining(), d.budget.PerCallLimit)
 	}
 
-	resp, err := d.client.Complete(ctx, llm.Request{
-		Messages: []llm.Message{
-			{Role: "user", Content: prompt},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("llm call: %w", err)
+	var lastErr error
+	for attempt := 0; attempt <= d.retry.MaxRetries; attempt++ {
+		if attempt > 0 {
+			delay := d.backoff(attempt)
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		resp, err := d.client.Complete(ctx, llm.Request{
+			Messages: []llm.Message{
+				{Role: "user", Content: prompt},
+			},
+		})
+		if err != nil {
+			lastErr = err
+			if !isRetryable(err) {
+				return fmt.Errorf("llm call: %w", err)
+			}
+			continue // Retry on transient errors.
+		}
+
+		d.budget.Record(resp.Usage.TotalTokens)
+
+		if err := ParseStructuredOutput(resp.Content, schema); err != nil {
+			return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
+		}
+
+		return nil
 	}
 
-	d.budget.Record(resp.Usage.TotalTokens)
-
-	if err := ParseStructuredOutput(resp.Content, schema); err != nil {
-		return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
-	}
-
-	return nil
+	return fmt.Errorf("llm call failed after %d retries: %w", d.retry.MaxRetries, lastErr)
 }
 
 func (d *Driver) DecideWithVision(ctx context.Context, prompt string, images [][]byte, schema any) error {
@@ -54,20 +104,90 @@ func (d *Driver) DecideWithVision(ctx context.Context, prompt string, images [][
 			d.budget.Remaining(), d.budget.PerCallLimit)
 	}
 
-	resp, err := d.client.CompleteWithVision(ctx, prompt, images)
-	if err != nil {
-		return fmt.Errorf("llm vision call: %w", err)
+	var lastErr error
+	for attempt := 0; attempt <= d.retry.MaxRetries; attempt++ {
+		if attempt > 0 {
+			delay := d.backoff(attempt)
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		resp, err := d.client.CompleteWithVision(ctx, prompt, images)
+		if err != nil {
+			lastErr = err
+			if !isRetryable(err) {
+				return fmt.Errorf("llm vision call: %w", err)
+			}
+			continue
+		}
+
+		d.budget.Record(resp.Usage.TotalTokens)
+
+		if err := ParseStructuredOutput(resp.Content, schema); err != nil {
+			return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
+		}
+
+		return nil
 	}
 
-	d.budget.Record(resp.Usage.TotalTokens)
-
-	if err := ParseStructuredOutput(resp.Content, schema); err != nil {
-		return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
-	}
-
-	return nil
+	return fmt.Errorf("llm vision call failed after %d retries: %w", d.retry.MaxRetries, lastErr)
 }
 
 func (d *Driver) Budget() *TokenBudget {
 	return d.budget
+}
+
+// backoff computes exponential backoff with jitter: base * 2^attempt, capped at maxDelay.
+func (d *Driver) backoff(attempt int) time.Duration {
+	delay := time.Duration(float64(d.retry.BaseDelay) * math.Pow(2, float64(attempt-1)))
+	if delay > d.retry.MaxDelay {
+		delay = d.retry.MaxDelay
+	}
+	return delay
+}
+
+// isRetryable determines if an LLM error is transient and worth retrying.
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+
+	// 5xx server errors.
+	if containsAny(msg, "500", "502", "503", "504", "server error", "internal server error") {
+		return true
+	}
+
+	// Rate limiting.
+	if containsAny(msg, "429", "rate limit", "rate_limit", "too many requests") {
+		return true
+	}
+
+	// Network / timeout errors.
+	if containsAny(msg, "timeout", "connection refused", "connection reset", "temporary failure", "deadline exceeded") {
+		return true
+	}
+
+	// API overloaded.
+	if containsAny(msg, "overloaded", "capacity") {
+		return true
+	}
+
+	return false
+}
+
+func containsAny(s string, substrs ...string) bool {
+	for _, sub := range substrs {
+		if len(s) >= len(sub) {
+			for i := 0; i+len(sub) <= len(s); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
