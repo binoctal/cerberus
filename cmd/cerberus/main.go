@@ -194,11 +194,58 @@ func verifyCmd() *cobra.Command {
 		Use:   "verify",
 		Short: "Verify against known project model (regression mode)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("verify mode: not yet implemented (requires C2a + C3)")
+			cfg := config.Load()
+			logger, _ := zap.NewProduction()
+			defer logger.Sync()
+
+			projCfg := loadProjectConfig(configFlag, urlFlag, goalFlag, logger)
+			projCfg = project.ResolveCredentials(projCfg)
+
+			dbPath := cfg.DBPath
+			if dbFlag != "" {
+				dbPath = dbFlag
+			}
+
+			s, err := store.New(dbPath)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer s.Close()
+
+			ctx := context.Background()
+			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
+				return fmt.Errorf("run migrations: %w", err)
+			}
+
+			model := projCfg.Settings.AIBudget.Model
+			if model == "" {
+				model = cfg.LLMModel
+			}
+			apiKey := cfg.LLMAPIKey
+
+			client, err := llm.NewClient(model, apiKey)
+			if err != nil {
+				return fmt.Errorf("create LLM client: %w", err)
+			}
+
+			sess, err := session.NewSession(ctx, session.ModeVerify, goalFlag, projCfg, s, client, logger)
+			if err != nil {
+				return fmt.Errorf("create session: %w", err)
+			}
+
+			if err := sess.Run(ctx); err != nil {
+				return fmt.Errorf("session verify: %w", err)
+			}
+
+			sess.Close()
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL (required)")
+	cmd.Flags().StringVar(&goalFlag, "goal", "", "Test goal description (required)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
+	_ = cmd.MarkFlagRequired("url")
+	_ = cmd.MarkFlagRequired("goal")
 	return cmd
 }
 
