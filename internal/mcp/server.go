@@ -40,8 +40,24 @@ func NewServer(s *store.Store, logger *zap.Logger) *Server {
 	}
 }
 
+// RecoverOrphanSessions marks all "running" sessions as "interrupted".
+// Called on MCP server startup to handle crashes from previous runs.
+func (srv *Server) RecoverOrphanSessions(ctx context.Context) {
+	sessions, err := srv.store.ListSessions(ctx, 1000)
+	if err != nil {
+		return
+	}
+	for _, sess := range sessions {
+		if sess.Status == "running" {
+			_ = srv.store.UpdateSessionStatus(ctx, sess.ID, "interrupted")
+			srv.logger.Info("recovered orphan session", zap.String("id", sess.ID))
+		}
+	}
+}
+
 // Serve starts the MCP server, reading from r and writing to w.
 func (srv *Server) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
+	srv.RecoverOrphanSessions(ctx)
 	c := newConn(r, w)
 	for {
 		select {
