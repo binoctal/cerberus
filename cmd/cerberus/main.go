@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/mcp"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/server"
 	"github.com/binoctal/cerberus/internal/session"
@@ -34,7 +36,7 @@ func main() {
 		Short: "Cerberus — Universal AI Testing Framework",
 	}
 
-	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd())
+	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -121,6 +123,40 @@ actors:
 					fmt.Printf("✓ Seeded %d default test strategies\n", count)
 				}
 			}
+
+			// Configure MCP server in .claude/settings.json.
+			claudeDir := ".claude"
+			if mkdirErr := os.MkdirAll(claudeDir, 0755); mkdirErr == nil {
+				settingsPath := claudeDir + "/settings.json"
+				mcpEntry := map[string]any{
+					"command": "cerberus",
+					"args":    []string{"mcp"},
+				}
+
+				var settings map[string]any
+				existing, readErr := os.ReadFile(settingsPath)
+				if readErr == nil {
+					_ = json.Unmarshal(existing, &settings)
+				}
+				if settings == nil {
+					settings = make(map[string]any)
+				}
+
+				// Ensure mcpServers.cerberus exists (idempotent).
+				ms, ok := settings["mcpServers"].(map[string]any)
+				if !ok {
+					ms = make(map[string]any)
+					settings["mcpServers"] = ms
+				}
+				if _, exists := ms["cerberus"]; !exists {
+					ms["cerberus"] = mcpEntry
+					data, _ := json.MarshalIndent(settings, "", "  ")
+					if writeErr := os.WriteFile(settingsPath, data, 0644); writeErr == nil {
+						fmt.Println("✓ Configured .claude/settings.json for MCP integration")
+					}
+				}
+			}
+
 			fmt.Println()
 			fmt.Println("Next steps:")
 			fmt.Println("  1. Edit .cerberus/project.yaml with your project details")
@@ -312,6 +348,37 @@ func serveCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&portFlag, "port", "8090", "HTTP server port")
 	return cmd
+}
+
+func mcpCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "mcp",
+		Short: "Start MCP server (for Claude Code integration)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.Load()
+			logger, _ := zap.NewProduction()
+			defer logger.Sync()
+
+			dbPath := cfg.DBPath
+			if dbFlag != "" {
+				dbPath = dbFlag
+			}
+
+			s, err := store.New(dbPath)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer s.Close()
+
+			ctx := context.Background()
+			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
+				return fmt.Errorf("run migrations: %w", err)
+			}
+
+			srv := mcp.NewServer(s, logger)
+			return srv.Serve(ctx, os.Stdin, os.Stdout)
+		},
+	}
 }
 
 func loadProjectConfig(configPath, url, goal string, logger *zap.Logger) *project.Config {
