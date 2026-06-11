@@ -172,7 +172,7 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.ModeRun, goalFlag, projCfg, s, client, logger)
+			sess, err := session.NewSession(ctx, session.ModeRun, goalFlag, projCfg, s, client, logger, nil)
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
@@ -246,7 +246,7 @@ func verifyCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.ModeVerify, goalFlag, projCfg, s, client, logger)
+			sess, err := session.NewSession(ctx, session.ModeVerify, goalFlag, projCfg, s, client, logger, nil)
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}

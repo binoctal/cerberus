@@ -8,6 +8,11 @@ import (
 	"io"
 	"sync"
 
+	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/escalation"
+	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
 	"go.uber.org/zap"
 )
@@ -23,6 +28,7 @@ type Server struct {
 type runningSession struct {
 	progress chan SessionProgress
 	cancel   context.CancelFunc
+	gate     *MCPGate
 }
 
 // NewServer creates a new MCP server.
@@ -188,9 +194,8 @@ func (srv *Server) listTools() []toolDefinition {
 	}
 }
 
-// handleRun creates a session and returns session_id.
-// NOTE: Full session.Run() integration is in Task 6. For now this creates
-// the session in the store and tracks it as running.
+// handleRun creates a session, wires the MCP escalation gate, and starts
+// real session execution in a background goroutine.
 func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolResult {
 	goal, _ := args["goal"].(string)
 	url, _ := args["url"].(string)
@@ -205,17 +210,49 @@ func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolR
 
 	progress := make(chan SessionProgress, 16)
 	runCtx, cancel := context.WithCancel(ctx)
+	mcpGate := NewMCPGate()
 
 	srv.mu.Lock()
-	srv.sessions[sess.ID] = &runningSession{progress: progress, cancel: cancel}
+	srv.sessions[sess.ID] = &runningSession{progress: progress, cancel: cancel, gate: mcpGate}
 	srv.mu.Unlock()
 
-	progress <- SessionProgress{SessionID: sess.ID, Phase: "scout", Status: "running"}
-
-	// Background goroutine waits for context cancellation.
 	go func() {
 		defer cancel()
-		<-runCtx.Done()
+		defer func() {
+			srv.mu.Lock()
+			delete(srv.sessions, sess.ID)
+			srv.mu.Unlock()
+		}()
+
+		progress <- SessionProgress{SessionID: sess.ID, Phase: "scout", Status: "running"}
+
+		// Build project config for this run.
+		projCfg := project.DefaultConfig()
+		projCfg.Services = []project.Service{{Name: "web", URL: url}}
+		cfg := config.Load()
+		projCfg.Settings.AIBudget.Model = cfg.LLMModel
+
+		// Create LLM client.
+		client, clientErr := llm.NewClient(cfg.LLMModel, cfg.LLMAPIKey)
+		if clientErr != nil {
+			progress <- SessionProgress{SessionID: sess.ID, Status: "failed"}
+			_ = srv.store.UpdateSessionStatus(runCtx, sess.ID, "failed")
+			return
+		}
+
+		testSess, sessionErr := session.NewSession(runCtx, session.ModeRun, goal, &projCfg, srv.store, client, srv.logger, mcpGate)
+		if sessionErr != nil {
+			progress <- SessionProgress{SessionID: sess.ID, Status: "failed"}
+			_ = srv.store.UpdateSessionStatus(runCtx, sess.ID, "failed")
+			return
+		}
+
+		if runErr := testSess.Run(runCtx); runErr != nil {
+			progress <- SessionProgress{SessionID: sess.ID, Status: "failed"}
+			return
+		}
+
+		progress <- SessionProgress{SessionID: sess.ID, Status: "completed"}
 	}()
 
 	b, _ := json.Marshal(map[string]string{"session_id": sess.ID, "status": "running"})
@@ -254,6 +291,12 @@ func (srv *Server) handleStatus(args map[string]any) callToolResult {
 		}
 	}
 done:
+	if rs.gate != nil {
+		if evt := rs.gate.PendingEvent(); evt != nil {
+			latest.Status = "pending_decision"
+			latest.Event = &PendingEvent{Type: evt.Type, Message: evt.Message, Data: evt.Data}
+		}
+	}
 	b, _ := json.Marshal(latest)
 	return textResult(string(b))
 }
@@ -274,9 +317,17 @@ func (srv *Server) handleReport(args map[string]any) callToolResult {
 func (srv *Server) handleDecide(args map[string]any) callToolResult {
 	sessionID, _ := args["session_id"].(string)
 	action, _ := args["action"].(string)
+	payload, _ := args["payload"].(string)
 	if sessionID == "" || action == "" {
 		return errorResult("session_id and action are required")
 	}
+	srv.mu.Lock()
+	rs, ok := srv.sessions[sessionID]
+	srv.mu.Unlock()
+	if !ok {
+		return errorResult("session not found or already completed")
+	}
+	rs.gate.SendDecision(escalation.Decision{Action: action, Payload: payload})
 	return textResult(fmt.Sprintf(`{"session_id":"%s","decision_acknowledged":true}`, sessionID))
 }
 

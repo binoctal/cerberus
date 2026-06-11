@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/head/scout"
@@ -33,10 +34,15 @@ type Session struct {
 	Logger    *zap.Logger
 	StartedAt time.Time
 	DeepPlan  bool
+	Gate      escalation.Gate
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
-	s *store.Store, client llm.Client, logger *zap.Logger) (*Session, error) {
+	s *store.Store, client llm.Client, logger *zap.Logger, gate escalation.Gate) (*Session, error) {
+
+	if gate == nil {
+		gate = escalation.NoOpGate{}
+	}
 
 	budget := ai.NewTokenBudget(
 		cfg.Settings.AIBudget.SessionTotalTokens,
@@ -51,6 +57,7 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 		Driver:    ai.NewDriver(client, budget),
 		Logger:    logger,
 		StartedAt: time.Now(),
+		Gate:      gate,
 	}
 
 	dbSess, err := s.CreateSession(ctx, string(mode), goal, cfg.Project.Name)
@@ -131,7 +138,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	engine := agent.NewRuleEngine(baseURL, s.Config.Actors)
 	httpExec := agent.NewHTTPActionExecutor(baseURL, s.Logger)
 	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoop(s.Driver, s.Store, engine, httpExec, config, s.Logger)
+	loop := agent.NewReActLoopWithGate(s.Driver, s.Store, engine, httpExec, config, s.Gate, s.Logger)
 
 	s.Logger.Info("executing test plan",
 		zap.String("session_id", s.ID),

@@ -37,7 +37,7 @@ func TestSessionSmokeTest(t *testing.T) {
 	cfg := project.DefaultConfig()
 	cfg.Project.Name = "smoke-test"
 
-	sess, err := session.NewSession(ctx, session.ModeRun, "smoke test goal", &cfg, s, client, logger)
+	sess, err := session.NewSession(ctx, session.ModeRun, "smoke test goal", &cfg, s, client, logger, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)
 
@@ -152,7 +152,7 @@ func TestAgentSmokeTest(t *testing.T) {
 		{ID: "posts-api", Description: "Posts endpoint works", Check: "/api/v1/posts", Assertion: "returns 200"},
 	}
 
-	sess, err := session.NewSession(ctx, session.ModeRun, "agent smoke test", &cfg, s, mockClient, logger)
+	sess, err := session.NewSession(ctx, session.ModeRun, "agent smoke test", &cfg, s, mockClient, logger, nil)
 	require.NoError(t, err)
 
 	err = sess.Run(ctx)
