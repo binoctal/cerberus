@@ -12,7 +12,7 @@ import (
 func TestSeedStrategies(t *testing.T) {
 	s, err := New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { require.NoError(t, s.Close()) }()
 
 	ctx := context.Background()
 	err = RunMigrations(ctx, s.DB(), "../../migrations")
@@ -37,7 +37,7 @@ func TestSeedStrategies(t *testing.T) {
 func TestSeedStrategies_Idempotent(t *testing.T) {
 	s, err := New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { require.NoError(t, s.Close()) }()
 
 	ctx := context.Background()
 	err = RunMigrations(ctx, s.DB(), "../../migrations")

@@ -332,7 +332,7 @@ func serveCmd() *cobra.Command {
 			addr := ":" + portFlag
 
 			// Graceful shutdown on signal.
-			ctx, cancel := context.WithCancel(ctx)
+			_, cancel := context.WithCancel(ctx)
 			defer cancel()
 			go func() {
 				sigCh := make(chan os.Signal, 1)

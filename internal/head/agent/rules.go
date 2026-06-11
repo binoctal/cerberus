@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"net/url"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/project"
@@ -81,15 +80,3 @@ func isURL(s string) bool {
 	return strings.Contains(s, "://")
 }
 
-// resolveURL joins the base URL with a path, handling edge cases.
-func (r *RuleEngine) resolveURL(path string) string {
-	if isURL(path) {
-		return path
-	}
-	u, err := url.Parse(r.baseURL)
-	if err != nil {
-		return r.baseURL + path
-	}
-	u.Path = path
-	return u.String()
-}

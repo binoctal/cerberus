@@ -122,10 +122,7 @@ func (r *Registry) loadDefaults() {
 				continue
 			}
 			// Strip leading 2-space indent from YAML block scalar.
-			content := line
-			if strings.HasPrefix(content, "  ") {
-				content = content[2:]
-			}
+			content := strings.TrimPrefix(line, "  ")
 			if currentValue.Len() > 0 {
 				currentValue.WriteString("\n")
 			}

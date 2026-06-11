@@ -284,7 +284,7 @@ func formatModelForToT(model *project.ProjectModel) string {
 		}
 	}
 	if len(model.TechStack) > 0 {
-		b.WriteString(fmt.Sprintf("Tech stack: %s\n", strings.Join(model.TechStack, ", ")))
+	fmt.Fprintf(&b, "Tech stack: %s\n", strings.Join(model.TechStack, ", "))
 	}
 	return b.String()
 }

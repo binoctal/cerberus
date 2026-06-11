@@ -77,18 +77,17 @@ func (c *conn) readRequest() (jsonRPCRequest, error) {
 	return req, nil
 }
 
-func (c *conn) writeResponse(resp jsonRPCResponse) error {
+func (c *conn) writeResponse(resp jsonRPCResponse) {
 	data, err := json.Marshal(resp)
 	if err != nil {
-		return fmt.Errorf("marshal: %w", err)
+		return
 	}
 	data = append(data, '\n')
-	_, err = c.writer.Write(data)
-	return err
+	_, _ = c.writer.Write(data)
 }
 
-func (c *conn) writeError(id int, code int, msg string) error {
-	return c.writeResponse(jsonRPCResponse{
+func (c *conn) writeError(id int, code int, msg string) {
+	c.writeResponse(jsonRPCResponse{
 		JSONRPC: "2.0",
 		ID:      id,
 		Error:   &jsonRPCError{Code: code, Message: msg},

@@ -13,7 +13,7 @@ import (
 func TestServer_CrashRecovery(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	ctx := context.Background()
 	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../migrations"))

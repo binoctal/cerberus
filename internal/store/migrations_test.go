@@ -26,13 +26,6 @@ func TestRunMigrations(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// testStore creates an in-memory SQLite database for testing.
-func testStore(t *testing.T) (*Store, func()) {
-	t.Helper()
-	s, err := New(":memory:")
-	require.NoError(t, err)
-	return s, func() { s.Close() }
-}
 
 // testStoreWithMigrations creates an in-memory SQLite DB and runs all migrations.
 func testStoreWithMigrations(t *testing.T) *Store {

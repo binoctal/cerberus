@@ -104,33 +104,33 @@ func (l *Learner) buildReflectionContext(results []agent.StepResult) string {
 	b.WriteString("Test Results:\n\n")
 
 	for i, r := range results {
-		b.WriteString(fmt.Sprintf("### Result %d: %s (%s)\n", i+1, r.TestCase.Name, r.TestCase.ID))
-		b.WriteString(fmt.Sprintf("Status: %s\n", r.Status))
-		b.WriteString(fmt.Sprintf("Target: %s\n", r.TestCase.Target))
-		b.WriteString(fmt.Sprintf("Expectation: %s\n", r.TestCase.Expectation))
-		b.WriteString(fmt.Sprintf("Attempts: %d\n", r.Attempts))
+		fmt.Fprintf(&b, "### Result %d: %s (%s)\n", i+1, r.TestCase.Name, r.TestCase.ID)
+		fmt.Fprintf(&b, "Status: %s\n", r.Status)
+		fmt.Fprintf(&b, "Target: %s\n", r.TestCase.Target)
+		fmt.Fprintf(&b, "Expectation: %s\n", r.TestCase.Expectation)
+		fmt.Fprintf(&b, "Attempts: %d\n", r.Attempts)
 
 		if r.LastObs.StatusCode != 0 {
-			b.WriteString(fmt.Sprintf("HTTP Status: %d\n", r.LastObs.StatusCode))
+			fmt.Fprintf(&b, "HTTP Status: %d\n", r.LastObs.StatusCode)
 		}
 		if r.LastObs.Body != "" {
 			body := r.LastObs.Body
 			if len(body) > 500 {
 				body = body[:500] + "..."
 			}
-			b.WriteString(fmt.Sprintf("Response: %s\n", body))
+			fmt.Fprintf(&b, "Response: %s\n", body)
 		}
 		if r.LastObs.Error != "" {
-			b.WriteString(fmt.Sprintf("Error: %s\n", r.LastObs.Error))
+			fmt.Fprintf(&b, "Error: %s\n", r.LastObs.Error)
 		}
 		if r.Error != nil {
-			b.WriteString(fmt.Sprintf("Step Error: %s\n", r.Error))
+			fmt.Fprintf(&b, "Step Error: %s\n", r.Error)
 		}
 
 		// Include evidence if available.
 		if len(r.Evidence) > 0 {
 			evJSON, _ := json.Marshal(r.Evidence)
-			b.WriteString(fmt.Sprintf("Evidence: %s\n", string(evJSON)))
+			fmt.Fprintf(&b, "Evidence: %s\n", string(evJSON))
 		}
 
 		b.WriteString("\n")
