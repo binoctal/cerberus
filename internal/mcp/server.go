@@ -219,59 +219,54 @@ func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolR
 		return errorResult("goal and url are required")
 	}
 
-	sess, err := srv.store.CreateSession(ctx, "run", goal, "")
-	if err != nil {
-		return errorResult(fmt.Sprintf("create session: %v", err))
-	}
-
 	progress := make(chan SessionProgress, 16)
 	runCtx, cancel := context.WithCancel(ctx)
 	mcpGate := NewMCPGate()
 
+	// Build project config for this run.
+	projCfg := project.DefaultConfig()
+	projCfg.Services = []project.Service{{Name: "web", URL: url}}
+	cfg := config.Load()
+	projCfg.Settings.AIBudget.Model = cfg.LLMModel
+
+	// Create LLM client.
+	client, clientErr := llm.NewClient(cfg.LLMModel, cfg.LLMAPIKey)
+	if clientErr != nil {
+		cancel()
+		return errorResult(fmt.Sprintf("create LLM client: %v", clientErr))
+	}
+
+	// NewSession creates the session row in the database (single source of truth).
+	testSess, sessionErr := session.NewSession(runCtx, session.ModeRun, goal, &projCfg, srv.store, client, srv.logger, mcpGate)
+	if sessionErr != nil {
+		cancel()
+		return errorResult(fmt.Sprintf("create session: %v", sessionErr))
+	}
+	sessionID := testSess.ID
+
 	srv.mu.Lock()
-	srv.sessions[sess.ID] = &runningSession{progress: progress, cancel: cancel, gate: mcpGate}
+	srv.sessions[sessionID] = &runningSession{progress: progress, cancel: cancel, gate: mcpGate}
 	srv.mu.Unlock()
 
 	go func() {
 		defer cancel()
 		defer func() {
 			srv.mu.Lock()
-			delete(srv.sessions, sess.ID)
+			delete(srv.sessions, sessionID)
 			srv.mu.Unlock()
 		}()
 
-		progress <- SessionProgress{SessionID: sess.ID, Phase: "scout", Status: "running"}
-
-		// Build project config for this run.
-		projCfg := project.DefaultConfig()
-		projCfg.Services = []project.Service{{Name: "web", URL: url}}
-		cfg := config.Load()
-		projCfg.Settings.AIBudget.Model = cfg.LLMModel
-
-		// Create LLM client.
-		client, clientErr := llm.NewClient(cfg.LLMModel, cfg.LLMAPIKey)
-		if clientErr != nil {
-			progress <- SessionProgress{SessionID: sess.ID, Status: "failed"}
-			_ = srv.store.UpdateSessionStatus(runCtx, sess.ID, "failed")
-			return
-		}
-
-		testSess, sessionErr := session.NewSession(runCtx, session.ModeRun, goal, &projCfg, srv.store, client, srv.logger, mcpGate)
-		if sessionErr != nil {
-			progress <- SessionProgress{SessionID: sess.ID, Status: "failed"}
-			_ = srv.store.UpdateSessionStatus(runCtx, sess.ID, "failed")
-			return
-		}
+		progress <- SessionProgress{SessionID: sessionID, Phase: "scout", Status: "running"}
 
 		if runErr := testSess.Run(runCtx); runErr != nil {
-			progress <- SessionProgress{SessionID: sess.ID, Status: "failed"}
+			progress <- SessionProgress{SessionID: sessionID, Status: "failed"}
 			return
 		}
 
-		progress <- SessionProgress{SessionID: sess.ID, Status: "completed"}
+		progress <- SessionProgress{SessionID: sessionID, Status: "completed"}
 	}()
 
-	b, _ := json.Marshal(map[string]string{"session_id": sess.ID, "status": "running"})
+	b, _ := json.Marshal(map[string]string{"session_id": sessionID, "status": "running"})
 	return textResult(string(b))
 }
 
@@ -336,6 +331,12 @@ func (srv *Server) handleDecide(args map[string]any) callToolResult {
 	payload, _ := args["payload"].(string)
 	if sessionID == "" || action == "" {
 		return errorResult("session_id and action are required")
+	}
+
+	// Validate action against known escalation decisions.
+	validActions := map[string]bool{escalation.DecisionContinue: true, escalation.DecisionAbort: true, escalation.DecisionSkipCase: true}
+	if !validActions[action] {
+		return errorResult(fmt.Sprintf("invalid action %q: must be one of continue, abort, skip_case", action))
 	}
 	srv.mu.Lock()
 	rs, ok := srv.sessions[sessionID]

@@ -68,8 +68,10 @@ func NewReActLoop(
 func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
 	var results []StepResult
 	consecutiveFailures := 0
+	remainingCases := 0
 	for i := range plan.Cases {
 		tc := &plan.Cases[i]
+		remainingCases = len(plan.Cases) - i
 		r.logger.Info("executing test case",
 			zap.String("case_id", tc.ID),
 			zap.String("target", tc.Target),
@@ -81,6 +83,24 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			zap.String("status", string(result.Status)),
 			zap.Int("attempts", result.Attempts),
 		)
+
+		// Escalation checkpoint: budget warning.
+		// Fire when ≥80% of budget is spent and there are >5 remaining cases.
+		if remainingCases > 5 {
+			budget := r.driver.Budget()
+			usedPct := float64(budget.SessionTotal-budget.Remaining()) / float64(budget.SessionTotal) * 100
+			if usedPct >= 80 {
+				decision := r.gate.Check(ctx, escalation.Event{
+					Type:      "budget_warning",
+					Message:   fmt.Sprintf("budget %.0f%% used, %d cases remaining", usedPct, remainingCases),
+					SessionID: sessionID,
+					Data:      map[string]any{"used_pct": usedPct, "remaining_cases": remainingCases},
+				})
+				if decision.Action == escalation.DecisionAbort {
+					return results, fmt.Errorf("execution aborted: budget warning at %.0f%% usage", usedPct)
+				}
+			}
+		}
 
 		// Track consecutive failures for systemic failure escalation.
 		if result.Status == StepFailed || result.Status == StepSkipped {
@@ -158,6 +178,7 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 	var lastObs Observation
 	var lastAction Action
 	var recoverySkipped bool
+	consecutiveTimeouts := 0
 	for attempt := 1; attempt <= r.config.MaxSteerAttempts; attempt++ {
 		// Steer: AI decides next action.
 		action, err := r.steer(ctx, tc, lastObs, attempt)
@@ -199,6 +220,30 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		r.recordEvidence(ctx, traceID, "steer_attempt", action, obs)
 		lastObs = obs
 		lastAction = action
+
+		// Escalation checkpoint: target unreachable.
+		if !obs.Success && (obs.Error != "" || obs.StatusCode == 0 || obs.StatusCode >= 500) {
+			consecutiveTimeouts++
+		} else {
+			consecutiveTimeouts = 0
+		}
+		if consecutiveTimeouts >= 3 {
+			decision := r.gate.Check(ctx, escalation.Event{
+				Type:      "target_unreachable",
+				Message:   fmt.Sprintf("target %s unreachable after %d consecutive failures", tc.Target, consecutiveTimeouts),
+				SessionID: sessionID,
+				Data:      map[string]any{"target": tc.Target, "consecutive_failures": consecutiveTimeouts},
+			})
+			if decision.Action == escalation.DecisionAbort {
+				return StepResult{
+					TestCase: tc, Status: StepFailed, TraceID: traceID,
+					Attempts: attempt, Duration: time.Since(start),
+					Error: fmt.Errorf("target unreachable: %s", tc.Target),
+				}
+			}
+			// DecisionContinue — reset and retry.
+			consecutiveTimeouts = 0
+		}
 
 		r.logger.Info("steer attempt",
 			zap.Int("attempt", attempt),

@@ -58,11 +58,11 @@ type toolContent struct {
 // conn wraps stdin/stdout for JSON-RPC communication.
 type conn struct {
 	reader *bufio.Reader
-	writer io.Writer
+	writer *bufio.Writer
 }
 
 func newConn(r io.Reader, w io.Writer) *conn {
-	return &conn{reader: bufio.NewReader(r), writer: w}
+	return &conn{reader: bufio.NewReader(r), writer: bufio.NewWriter(w)}
 }
 
 func (c *conn) readRequest() (jsonRPCRequest, error) {
@@ -80,10 +80,16 @@ func (c *conn) readRequest() (jsonRPCRequest, error) {
 func (c *conn) writeResponse(resp jsonRPCResponse) {
 	data, err := json.Marshal(resp)
 	if err != nil {
-		return
+		// Best effort: send a generic error response so the client doesn't hang.
+		data, _ = json.Marshal(jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      resp.ID,
+			Error:   &jsonRPCError{Code: -32603, Message: "internal error"},
+		})
 	}
 	data = append(data, '\n')
 	_, _ = c.writer.Write(data)
+	_ = c.writer.Flush()
 }
 
 func (c *conn) writeError(id int, code int, msg string) {
