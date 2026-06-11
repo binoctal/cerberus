@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/store"
 	"go.uber.org/zap"
 )
@@ -25,15 +27,17 @@ type ReActLoop struct {
 	recovery recoverer
 	config   ReActConfig
 	logger   *zap.Logger
+	gate     escalation.Gate
 }
 
-// NewReActLoop creates a ReAct execution loop.
-func NewReActLoop(
+// NewReActLoopWithGate creates a ReAct execution loop with an explicit escalation gate.
+func NewReActLoopWithGate(
 	driver *ai.Driver,
 	store *store.Store,
 	engine *RuleEngine,
 	executor ActionExecutor,
 	config ReActConfig,
+	gate escalation.Gate,
 	logger *zap.Logger,
 ) *ReActLoop {
 	return &ReActLoop{
@@ -43,13 +47,27 @@ func NewReActLoop(
 		executor: executor,
 		recovery: NewRecovery(driver, store, config, logger),
 		config:   config,
+		gate:     gate,
 		logger:   logger,
 	}
+}
+
+// NewReActLoop creates a ReAct execution loop with a no-op escalation gate.
+func NewReActLoop(
+	driver *ai.Driver,
+	store *store.Store,
+	engine *RuleEngine,
+	executor ActionExecutor,
+	config ReActConfig,
+	logger *zap.Logger,
+) *ReActLoop {
+	return NewReActLoopWithGate(driver, store, engine, executor, config, escalation.NoOpGate{}, logger)
 }
 
 // ExecutePlan runs all TestCases in the plan sequentially and returns results.
 func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
 	var results []StepResult
+	consecutiveFailures := 0
 	for i := range plan.Cases {
 		tc := &plan.Cases[i]
 		r.logger.Info("executing test case",
@@ -63,6 +81,25 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			zap.String("status", string(result.Status)),
 			zap.Int("attempts", result.Attempts),
 		)
+
+		// Track consecutive failures for systemic failure escalation.
+		if result.Status == StepFailed || result.Status == StepSkipped {
+			consecutiveFailures++
+		} else {
+			consecutiveFailures = 0
+		}
+		if consecutiveFailures >= 5 {
+			decision := r.gate.Check(ctx, escalation.Event{
+				Type:      "systemic_failure",
+				Message:   fmt.Sprintf("%d consecutive failures detected", consecutiveFailures),
+				SessionID: sessionID,
+			})
+			if decision.Action == escalation.DecisionAbort {
+				return results, fmt.Errorf("execution aborted after %d consecutive failures", consecutiveFailures)
+			}
+			// DecisionContinue — reset counter and proceed.
+			consecutiveFailures = 0
+		}
 	}
 	return results, nil
 }
@@ -86,6 +123,21 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 
 	// Phase 1: Try rule engine (zero tokens).
 	if action, matched := r.engine.Match(*tc); matched {
+		// Escalation checkpoint: destructive risk.
+		if isDestructive(action) {
+			decision := r.gate.Check(ctx, escalation.Event{
+				Type:      "destructive_risk",
+				Message:   fmt.Sprintf("destructive action detected: %s %s", action.Method, action.Target),
+				SessionID: sessionID,
+			})
+			if decision.Action == escalation.DecisionSkipCase {
+				return StepResult{
+					TestCase: tc, Status: StepSkipped, TraceID: traceID,
+					Attempts: 0, Duration: time.Since(start),
+					Error: fmt.Errorf("skipped destructive action: %s %s", action.Method, action.Target),
+				}
+			}
+		}
 		obs := r.executor.Execute(ctx, action)
 		r.recordEvidence(ctx, traceID, "rule_engine", action, obs)
 		if obs.Success {
@@ -128,6 +180,21 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		}
 
 		// Observe: Execute the action.
+		// Escalation checkpoint: destructive risk.
+		if isDestructive(action) {
+			decision := r.gate.Check(ctx, escalation.Event{
+				Type:      "destructive_risk",
+				Message:   fmt.Sprintf("destructive action detected: %s %s", action.Method, action.Target),
+				SessionID: sessionID,
+			})
+			if decision.Action == escalation.DecisionSkipCase {
+				return StepResult{
+					TestCase: tc, Status: StepSkipped, TraceID: traceID,
+					Attempts: attempt, Duration: time.Since(start),
+					Error: fmt.Errorf("skipped destructive action: %s %s", action.Method, action.Target),
+				}
+			}
+		}
 		obs := r.executor.Execute(ctx, action)
 		r.recordEvidence(ctx, traceID, "steer_attempt", action, obs)
 		lastObs = obs
@@ -270,4 +337,14 @@ func findSubstr(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// isDestructive checks if an action is potentially destructive (DELETE/DROP methods or targets).
+func isDestructive(action Action) bool {
+	upper := strings.ToUpper(action.Method)
+	if upper == "DELETE" || upper == "DROP" {
+		return true
+	}
+	lowerTarget := strings.ToLower(action.Target)
+	return strings.Contains(lowerTarget, "/delete") || strings.Contains(lowerTarget, "/drop")
 }
