@@ -3,8 +3,10 @@ bin/
 
 # IDE / tool directories
 .claude/
+.opencraft/
 .vscode/
 .idea/
+.codegraph/
 
 # Project docs and learning
 cerberus-docs/
