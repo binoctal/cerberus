@@ -34,6 +34,12 @@ const (
 ActionCodeAnalyze ActionType = "code_analyze"
 ActionCodeLint    ActionType = "code_lint"
 ActionCodeSymbols ActionType = "code_symbols"
+
+	// Browser automation
+ActionBrowserGoto  ActionType = "browser_goto"
+ActionBrowserClick ActionType = "browser_click"
+ActionBrowserFill  ActionType = "browser_fill"
+ActionBrowserEval  ActionType = "browser_eval"
 )
 
 // TypedAction is the interface for all concrete action types.
@@ -246,6 +252,63 @@ func (a CodeSymbolsAction) Validate() error {
 	return nil
 }
 
+// --- Browser Actions ---
+
+type BrowserGotoAction struct {
+	URL        string `json:"url"`
+	WaitUntil string `json:"wait_until,omitempty"` // "load", "domcontentloaded", "networkidle"
+}
+
+func (a BrowserGotoAction) GetActionType() ActionType { return ActionBrowserGoto }
+func (a BrowserGotoAction) Target() string             { return a.URL }
+func (a BrowserGotoAction) Validate() error {
+	if a.URL == "" {
+		return fmt.Errorf("url is required")
+	}
+	return nil
+}
+
+type BrowserClickAction struct {
+	Selector string `json:"selector"`
+	Text     string `json:"text,omitempty"`
+}
+
+func (a BrowserClickAction) GetActionType() ActionType { return ActionBrowserClick }
+func (a BrowserClickAction) Target() string             { return a.Selector }
+func (a BrowserClickAction) Validate() error {
+	if a.Selector == "" {
+		return fmt.Errorf("selector is required")
+	}
+	return nil
+}
+
+type BrowserFillAction struct {
+	Selector string `json:"selector"`
+	Value    string `json:"value"`
+}
+
+func (a BrowserFillAction) GetActionType() ActionType { return ActionBrowserFill }
+func (a BrowserFillAction) Target() string             { return a.Selector }
+func (a BrowserFillAction) Validate() error {
+	if a.Selector == "" {
+		return fmt.Errorf("selector is required")
+	}
+	return nil
+}
+
+type BrowserEvalAction struct {
+	Expression string `json:"expression"`
+}
+
+func (a BrowserEvalAction) GetActionType() ActionType { return ActionBrowserEval }
+func (a BrowserEvalAction) Target() string             { return a.Expression }
+func (a BrowserEvalAction) Validate() error {
+	if a.Expression == "" {
+		return fmt.Errorf("expression is required")
+	}
+	return nil
+}
+
 // --- Serialization Registry ---
 
 // unmarshalRegistry maps ActionType to a factory for deserialization.
@@ -265,6 +328,10 @@ var unmarshalRegistry = map[ActionType]func() TypedAction{
 	ActionCodeAnalyze:  func() TypedAction { return &CodeAnalyzeAction{} },
 	ActionCodeLint:     func() TypedAction { return &CodeLintAction{} },
 	ActionCodeSymbols:  func() TypedAction { return &CodeSymbolsAction{} },
+	ActionBrowserGoto:  func() TypedAction { return &BrowserGotoAction{} },
+	ActionBrowserClick: func() TypedAction { return &BrowserClickAction{} },
+	ActionBrowserFill:  func() TypedAction { return &BrowserFillAction{} },
+	ActionBrowserEval:  func() TypedAction { return &BrowserEvalAction{} },
 }
 
 // derefAction returns the value behind a pointer TypedAction.
@@ -294,6 +361,14 @@ func derefAction(a TypedAction) TypedAction {
 	case *CodeLintAction:
 		return *v
 	case *CodeSymbolsAction:
+		return *v
+	case *BrowserGotoAction:
+		return *v
+	case *BrowserClickAction:
+		return *v
+	case *BrowserFillAction:
+		return *v
+	case *BrowserEvalAction:
 		return *v
 	}
 	return a

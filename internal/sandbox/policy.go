@@ -52,3 +52,12 @@ func DefaultCodePolicy(projectDir string) Policy {
 		Network: NetPolicy{AllowOutbound: false},
 	}
 }
+
+// DefaultBrowserPolicy returns a policy for browser automation.
+// Allows outbound network (to reach target URLs) and generous timeout.
+func DefaultBrowserPolicy() Policy {
+	return Policy{
+		Network:   NetPolicy{AllowOutbound: true},
+		Resources: ResPolicy{Timeout: 60},
+	}
+}

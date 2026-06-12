@@ -50,6 +50,7 @@ func DetectProjectType(rootDir string) ProjectInfo {
 			RootDir:  rootDir,
 			BuildCmd: "npm install",
 			TestCmd:  "npm test",
+			LintCmd:  "npx eslint .",
 			Language: "JavaScript/TypeScript",
 		}
 	}

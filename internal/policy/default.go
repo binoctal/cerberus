@@ -25,6 +25,7 @@ func NewDefaultActionPolicy(projectRoot string) *DefaultActionPolicy {
 		allowedCmds: map[string]bool{
 			"go": true, "node": true, "npm": true, "npx": true,
 			"python": true, "pytest": true, "ruff": true,
+			"eslint": true, "tsc": true, "mypy": true,
 			"make": true, "cargo": true, "git": true,
 			"golangci-lint": true, "gofmt": true, "goimports": true,
 		},

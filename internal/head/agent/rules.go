@@ -75,17 +75,17 @@ func (r *RuleEngine) Match(tc TestCase) (types.TypedAction, bool) {
 
 	// Rule 6: code_analyze — target is the path to analyze.
 	if tc.Action == "code_analyze" {
-		return types.CodeAnalyzeAction{TargetPath: r.workDir}, true
+		return types.CodeAnalyzeAction{TargetPath: r.workDir, Language: tc.Language}, true
 	}
 
 	// Rule 7: code_lint — target is the path to lint.
 	if tc.Action == "code_lint" {
-		return types.CodeLintAction{TargetPath: r.workDir}, true
+		return types.CodeLintAction{TargetPath: r.workDir, Language: tc.Language}, true
 	}
 
 	// Rule 8: code_symbols — target is the path for symbol inventory.
 	if tc.Action == "code_symbols" {
-		return types.CodeSymbolsAction{TargetPath: r.workDir}, true
+		return types.CodeSymbolsAction{TargetPath: r.workDir, Language: tc.Language}, true
 	}
 
 	// Rule 9: file_read/write/exists/glob — target is the file path or pattern.
@@ -113,6 +113,30 @@ func (r *RuleEngine) Match(tc TestCase) (types.TypedAction, bool) {
 			Server: tc.Target,
 			Method: tc.Method,
 		}, true
+	}
+
+	// Rule 12: browser_goto — target is the URL to navigate.
+	if tc.Action == "browser_goto" {
+		url := tc.Target
+		if !isURL(url) {
+			url = r.baseURL + url
+		}
+		return types.BrowserGotoAction{URL: url}, true
+	}
+
+	// Rule 13: browser_click — target is the CSS selector.
+	if tc.Action == "browser_click" {
+		return types.BrowserClickAction{Selector: tc.Target}, true
+	}
+
+	// Rule 14: browser_fill — target is the selector, expectation holds the value.
+	if tc.Action == "browser_fill" {
+		return types.BrowserFillAction{Selector: tc.Target, Value: tc.Expectation}, true
+	}
+
+	// Rule 15: browser_eval — target is the JS expression.
+	if tc.Action == "browser_eval" {
+		return types.BrowserEvalAction{Expression: tc.Target}, true
 	}
 
 	// No rule matches — AI Steer needed.

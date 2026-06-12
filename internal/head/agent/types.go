@@ -27,6 +27,7 @@ type TestCase struct {
 	Expectation string  `json:"expectation,omitempty"`
 	Priority    float64 `json:"priority,omitempty"`
 	DependsOn   string  `json:"depends_on,omitempty"`
+	Language    string  `json:"language,omitempty"`
 	Background  bool    `json:"background,omitempty"`
 	WaitFor     string  `json:"wait_for,omitempty"`
 	Cleanup     bool    `json:"cleanup,omitempty"`

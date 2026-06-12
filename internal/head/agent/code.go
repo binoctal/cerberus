@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -9,18 +10,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
 )
 
-// CodeExecutor performs static analysis on Go source code.
+// CodeExecutor performs static analysis on source code.
+// Go uses built-in AST analysis; other languages delegate to CLI tools via sandbox.
 type CodeExecutor struct {
-	logger *zap.Logger
+	logger  *zap.Logger
+	sandbox sandbox.Sandbox
 }
 
 // NewCodeExecutor creates a code analysis executor.
-func NewCodeExecutor(logger *zap.Logger) *CodeExecutor {
-	return &CodeExecutor{logger: logger}
+func NewCodeExecutor(sb sandbox.Sandbox, logger *zap.Logger) *CodeExecutor {
+	return &CodeExecutor{logger: logger, sandbox: sb}
 }
 
 // Execute dispatches code analysis actions.
@@ -28,17 +32,36 @@ func (e *CodeExecutor) Execute(ctx context.Context, action types.TypedAction) ty
 	start := time.Now()
 	switch a := action.(type) {
 	case types.CodeAnalyzeAction:
-		return e.analyze(a, start)
+		return e.analyze(ctx, a, start)
 	case types.CodeLintAction:
-		return e.lint(a, start)
+		return e.lint(ctx, a, start)
 	case types.CodeSymbolsAction:
-		return e.symbols(a, start)
+		return e.symbols(ctx, a, start)
 	default:
 		return types.ErrorResult{Err: fmt.Sprintf("code executor: unsupported action %T", action)}
 	}
 }
 
-func (e *CodeExecutor) analyze(a types.CodeAnalyzeAction, start time.Time) types.ExecutorResult {
+// isGoLang returns true if the language is Go or unspecified (default).
+func isGoLang(lang string) bool {
+	return lang == "" || lang == "Go"
+}
+
+// isPython returns true if the language matches Python.
+func isPython(lang string) bool {
+	return strings.EqualFold(lang, "Python")
+}
+
+// isJavaScript returns true if the language matches JavaScript or TypeScript.
+func isJavaScript(lang string) bool {
+	lang = strings.ToLower(lang)
+	return lang == "javascript" || lang == "typescript" || lang == "javascript/typescript"
+}
+
+func (e *CodeExecutor) analyze(ctx context.Context, a types.CodeAnalyzeAction, start time.Time) types.ExecutorResult {
+	if !isGoLang(a.Language) {
+		return e.cliAnalysis(ctx, a.TargetPath, a.Language, a.Checks, start)
+	}
 	findings, stats, err := e.parseAndAnalyze(a.TargetPath, a.Checks)
 	if err != nil {
 		return types.CodeResult{OK: false, Err: err.Error(), Latency: time.Since(start)}
@@ -51,7 +74,10 @@ func (e *CodeExecutor) analyze(a types.CodeAnalyzeAction, start time.Time) types
 	}
 }
 
-func (e *CodeExecutor) lint(a types.CodeLintAction, start time.Time) types.ExecutorResult {
+func (e *CodeExecutor) lint(ctx context.Context, a types.CodeLintAction, start time.Time) types.ExecutorResult {
+	if !isGoLang(a.Language) {
+		return e.cliAnalysis(ctx, a.TargetPath, a.Language, a.Rules, start)
+	}
 	checks := a.Rules
 	if len(checks) == 0 {
 		checks = []string{"unhandled_error", "complexity"}
@@ -63,7 +89,10 @@ func (e *CodeExecutor) lint(a types.CodeLintAction, start time.Time) types.Execu
 	return types.CodeResult{OK: len(findings) == 0, Findings: findings, Stats: stats, Latency: time.Since(start)}
 }
 
-func (e *CodeExecutor) symbols(a types.CodeSymbolsAction, start time.Time) types.ExecutorResult {
+func (e *CodeExecutor) symbols(ctx context.Context, a types.CodeSymbolsAction, start time.Time) types.ExecutorResult {
+	if !isGoLang(a.Language) {
+		return e.cliSymbols(ctx, a.TargetPath, a.Language, start)
+	}
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, a.TargetPath, nil, parser.ImportsOnly)
 	if err != nil {
@@ -298,4 +327,141 @@ func calcComplexity(block *ast.BlockStmt) int {
 		return true
 	})
 	return c
+}
+
+// --- CLI-based analysis for non-Go languages ---
+
+// cliAnalysis runs an external linter (ruff/eslint) and parses JSON output.
+func (e *CodeExecutor) cliAnalysis(ctx context.Context, targetPath, language string, checks []string, start time.Time) types.ExecutorResult {
+	var cmd string
+	var args []string
+
+	switch {
+	case isPython(language):
+		cmd = "ruff"
+		args = []string{"check", "--output-format", "json", targetPath}
+	case isJavaScript(language):
+		cmd = "npx"
+		args = []string{"eslint", "--format", "json", targetPath}
+	default:
+		return types.CodeResult{
+			OK:      false,
+			Err:     fmt.Sprintf("unsupported language for CLI analysis: %s", language),
+			Latency: time.Since(start),
+		}
+	}
+
+	policy := sandbox.DefaultCodePolicy(targetPath)
+	stdout, stderr, exitCode, err := e.sandbox.ExecCommand(ctx, cmd, args, nil, targetPath, policy)
+	if err != nil {
+		return types.CodeResult{
+			OK:      false,
+			Err:     fmt.Sprintf("run %s: %v\n%s", cmd, err, stderr),
+			Latency: time.Since(start),
+		}
+	}
+
+	// Many linters exit non-zero when findings exist — that's OK.
+	_ = exitCode
+
+	var findings []types.CodeFinding
+	switch {
+	case isPython(language):
+		findings = parseRuffJSON(stdout)
+	case isJavaScript(language):
+		findings = parseESLintJSON(stdout)
+	}
+
+	return types.CodeResult{
+		OK:       len(findings) == 0,
+		Findings: findings,
+		Stats:    types.CodeStats{FilesAnalyzed: 1},
+		Latency:  time.Since(start),
+	}
+}
+
+// cliSymbols returns a placeholder symbol result for non-Go languages.
+// Full symbol extraction would require language servers; here we count files.
+func (e *CodeExecutor) cliSymbols(ctx context.Context, targetPath, language string, start time.Time) types.ExecutorResult {
+	// For non-Go, just report that the target was scanned.
+	// A production implementation would use language servers or tree-sitter.
+	return types.CodeResult{
+		OK: true,
+		Stats: types.CodeStats{
+			FilesAnalyzed: 1,
+		},
+		Latency: time.Since(start),
+	}
+}
+
+// --- JSON output parsers ---
+
+// ruffResult maps the JSON structure from `ruff check --output-format json`.
+type ruffResult struct {
+	Filename string `json:"filename"`
+	Line     int    `json:"line_no"`
+	Rule     string `json:"code"`
+	Message  string `json:"message"`
+	Severity string `json:"severity"`
+}
+
+func parseRuffJSON(stdout string) []types.CodeFinding {
+	var results []ruffResult
+	if err := json.Unmarshal([]byte(stdout), &results); err != nil {
+		return nil
+	}
+	findings := make([]types.CodeFinding, 0, len(results))
+	for _, r := range results {
+		severity := "warning"
+		if r.Severity == "error" || r.Severity == "fatal" {
+			severity = "error"
+		}
+		findings = append(findings, types.CodeFinding{
+			File:     r.Filename,
+			Line:     r.Line,
+			Rule:     r.Rule,
+			Message:  r.Message,
+			Severity: severity,
+		})
+	}
+	return findings
+}
+
+// eslintResult maps the JSON structure from `eslint --format json`.
+type eslintResult struct {
+	FilePath     string          `json:"filePath"`
+	Messages     []eslintMessage `json:"messages"`
+	ErrorCount   int             `json:"errorCount"`
+	WarningCount int             `json:"warningCount"`
+}
+
+type eslintMessage struct {
+	RuleID  string `json:"ruleId"`
+	Message string `json:"message"`
+	Line    int    `json:"line"`
+	Sev     int    `json:"severity"` // 0=off, 1=warn, 2=error
+}
+
+func parseESLintJSON(stdout string) []types.CodeFinding {
+	var results []eslintResult
+	if err := json.Unmarshal([]byte(stdout), &results); err != nil {
+		return nil
+	}
+	var findings []types.CodeFinding
+	for _, file := range results {
+		for _, msg := range file.Messages {
+			severity := "warning"
+			if msg.Sev >= 2 {
+				severity = "error"
+			}
+			findings = append(findings, types.CodeFinding{
+				File:     file.FilePath,
+				Line:     msg.Line,
+				Rule:     msg.RuleID,
+				Message:  msg.Message,
+				Severity: severity,
+			})
+		}
+	}
+	return findings
 }

@@ -97,6 +97,8 @@ func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Polic
 		return sandbox.DefaultMCPPolicy()
 	case types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols:
 		return sandbox.DefaultCodePolicy(".")
+	case types.ActionBrowserGoto, types.ActionBrowserClick, types.ActionBrowserFill, types.ActionBrowserEval:
+		return sandbox.DefaultBrowserPolicy()
 	default:
 		return sandbox.DefaultHTTPPolicy()
 	}
@@ -129,8 +131,17 @@ func BuildMultiExecutor(projectDir string, gate escalation.Gate, logger *zap.Log
 	multi.Register(NewProcessExecutor(sb, logger), types.ActionProcessExec, types.ActionProcessBuild)
 	multi.Register(NewFileExecutor(projectDir, logger), types.ActionFileRead, types.ActionFileWrite, types.ActionFileExists, types.ActionFileGlob)
 	multi.Register(NewMCPExecutor(nil, logger), types.ActionMCPCall)
-	multi.Register(NewCodeExecutor(logger), types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols)
+	multi.Register(NewCodeExecutor(sb, logger), types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols)
 	multi.Register(NewWaitExecutor(), types.ActionWait)
+
+	// Browser executor (optional — requires playwright binary).
+	if browserExec, err := NewBrowserExecutor(logger); err == nil {
+		multi.Register(browserExec, types.ActionBrowserGoto, types.ActionBrowserClick,
+			types.ActionBrowserFill, types.ActionBrowserEval)
+		logger.Info("browser executor registered (playwright)")
+	} else {
+		logger.Warn("browser executor unavailable (install playwright)", zap.Error(err))
+	}
 
 	return multi
 }

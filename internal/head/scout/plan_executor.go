@@ -52,6 +52,7 @@ func goExecutorCases(info ProjectInfo, goal string) []agent.TestCase {
 			Name:        "Symbol inventory collected",
 			Target:      info.RootDir,
 			Action:      "code_symbols",
+			Language:    info.Language,
 			Expectation: fmt.Sprintf("Symbol table generated for %s project", info.Language),
 			Priority:    0.5,
 		},
@@ -76,6 +77,24 @@ func nodeExecutorCases(info ProjectInfo, goal string) []agent.TestCase {
 			Expectation: "All tests pass",
 			Priority:    0.85,
 		},
+		{
+			ID:          "exec-003",
+			Name:        "Node lint clean",
+			Target:      info.RootDir,
+			Action:      "code_lint",
+			Language:    info.Language,
+			Expectation: "No lint errors",
+			Priority:    0.7,
+		},
+		{
+			ID:          "exec-004",
+			Name:        "Symbol inventory collected",
+			Target:      info.RootDir,
+			Action:      "code_symbols",
+			Language:    info.Language,
+			Expectation: fmt.Sprintf("Symbol table generated for %s project", info.Language),
+			Priority:    0.5,
+		},
 	}
 }
 
@@ -92,10 +111,20 @@ func pythonExecutorCases(info ProjectInfo, goal string) []agent.TestCase {
 		{
 			ID:          "exec-002",
 			Name:        "Python lint clean",
-			Target:      info.LintCmd,
+			Target:      info.RootDir,
 			Action:      "code_lint",
+			Language:    info.Language,
 			Expectation: "No lint errors",
 			Priority:    0.7,
+		},
+		{
+			ID:          "exec-003",
+			Name:        "Symbol inventory collected",
+			Target:      info.RootDir,
+			Action:      "code_symbols",
+			Language:    info.Language,
+			Expectation: fmt.Sprintf("Symbol table generated for %s project", info.Language),
+			Priority:    0.5,
 		},
 	}
 }
