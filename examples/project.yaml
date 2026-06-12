@@ -1,0 +1,60 @@
+# Cerberus Project Configuration Example
+# Copy to .cerberus/project.yaml and customize for your project.
+
+project:
+  name: my-saas-app
+
+# Services to test — each gets its own health check and API tests.
+services:
+  - name: web
+    url: "http://localhost:3000"
+    health: "/healthz"
+  - name: api
+    url: "http://localhost:8080"
+    health: "/v1/health"
+
+# Actors represent user roles for authentication tests.
+# Use ${ENV_VAR} syntax to avoid hardcoding secrets.
+actors:
+  - name: admin
+    credentials:
+      email: "${ADMIN_EMAIL}"
+      password: "${ADMIN_PASS}"
+    entry: "/admin"
+  - name: user
+    credentials:
+      email: "${USER_EMAIL}"
+      password: "${USER_PASS}"
+    entry: "/dashboard"
+
+# Database connections for data integrity checks.
+databases: []
+
+# Invariants are assertions that must always hold.
+invariants:
+  - id: no-internal-server-errors
+    description: "API must never return 500 errors on public endpoints"
+    severity: high
+    check: "response.status < 500"
+    assertion: "always"
+
+  - id: auth-required
+    description: "Protected endpoints must require authentication"
+    severity: critical
+    check: "response.status == 401 or response.status == 403"
+    assertion: "when_no_auth"
+
+# Execution settings.
+settings:
+  max_duration: 30m          # Overall test session timeout
+  confidence_threshold: 0.7  # Minimum confidence for Examiner verdicts
+  auto_fix: low_only         # Only auto-fix low-severity issues
+
+  ai_budget:
+    session_total_tokens: 200000  # Token budget per session
+    per_call_limit: 10000         # Max tokens per LLM call
+    model: "claude-sonnet-4-6"    # LLM model to use
+
+    cost_alerts:
+      warn_at_pct: 80   # Log warning at 80% budget
+      stop_at_pct: 100  # Abort at 100% budget

@@ -34,6 +34,11 @@ var (
 	sessionFlag     string
 	formatFlag      string
 	outputFlag      string
+
+	// Set via -ldflags at build time.
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
@@ -42,7 +47,7 @@ func main() {
 		Short: "Cerberus — Universal AI Testing Framework",
 	}
 
-	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd())
+	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd(), versionCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -509,6 +514,16 @@ func dashboardCmd() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func versionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("cerberus %s (commit: %s, built: %s)\n", version, commit, date)
+		},
+	}
 }
 
 func containsLine(content, line string) bool {

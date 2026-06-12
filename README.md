@@ -92,6 +92,9 @@ migrations/          SQL schema versions
 | `cerberus verify` | Regression mode against known model |
 | `cerberus serve` | Start HTTP API server |
 | `cerberus mcp` | Start MCP server (Claude Code) |
+| `cerberus report` | Generate test report (HTML, Markdown, or JSON) |
+| `cerberus dashboard` | Interactive TUI dashboard for monitoring sessions |
+| `cerberus version` | Print version information |
 
 ## API Endpoints
 

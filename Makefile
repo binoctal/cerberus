@@ -11,7 +11,7 @@ lint:
 
 fmt:
 	gofmt -w .
-	goimports -w -local github.com/binoctal/modelsite .
+	goimports -w -local github.com/binoctal/cerberus .
 
 check: fmt lint test
 
