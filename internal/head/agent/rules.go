@@ -2,6 +2,7 @@ package agent
 
 import (
 	"strings"
+	"sync/atomic"
 
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
@@ -12,6 +13,8 @@ type RuleEngine struct {
 	baseURL string
 	actors  []project.Actor
 	workDir string
+	hits    atomic.Int64
+	misses  atomic.Int64
 }
 
 // NewRuleEngine creates a rule engine for the given base URL, actors, and workDir.
@@ -27,6 +30,22 @@ func NewRuleEngine(baseURL string, actors []project.Actor, workDir string) *Rule
 // Match attempts to produce a deterministic TypedAction for the given TestCase.
 // Returns the action and true if matched, nil and false otherwise.
 func (r *RuleEngine) Match(tc TestCase) (types.TypedAction, bool) {
+	action, matched := r.matchRules(tc)
+	if matched {
+		r.hits.Add(1)
+	} else {
+		r.misses.Add(1)
+	}
+	return action, matched
+}
+
+// Stats returns the cumulative hit and miss counts for observability.
+func (r *RuleEngine) Stats() (hits, misses int64) {
+	return r.hits.Load(), r.misses.Load()
+}
+
+// matchRules contains the actual rule matching logic.
+func (r *RuleEngine) matchRules(tc TestCase) (types.TypedAction, bool) {
 	// Rule 1: API test — method is set and target is a path.
 	if tc.Method != "" && strings.HasPrefix(tc.Target, "/") {
 		action := types.HTTPAction{

@@ -130,6 +130,15 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			consecutiveFailures = 0
 		}
 	}
+	// Log rule engine hit rate for observability.
+	if hits, misses := r.engine.Stats(); hits+misses > 0 {
+		r.logger.Info("rule engine stats",
+			zap.Int64("hits", hits),
+			zap.Int64("misses", misses),
+			zap.Float64("hit_rate", float64(hits)/float64(hits+misses)),
+		)
+	}
+
 	return results, nil
 }
 
