@@ -104,7 +104,7 @@ func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Polic
 	}
 }
 
-// BuildMultiExecutor assembles the standard executor with all built-in executors.
+// BuildMultiExecutor assembles the standard executor with all built-in executor plugins.
 // Attempts to use Linux sandbox isolation; falls back to NoOpSandbox if unavailable.
 // Loads optional policy overrides from .cerberus/policy.yaml.
 func BuildMultiExecutor(projectDir string, gate escalation.Gate, logger *zap.Logger) *MultiExecutor {
@@ -127,21 +127,12 @@ func BuildMultiExecutor(projectDir string, gate escalation.Gate, logger *zap.Log
 	}
 	multi := NewMultiExecutor(p, sb, gate, logger)
 
-	multi.Register(NewHTTPExecutor(logger), types.ActionAPIRequest, types.ActionNavigate)
-	multi.Register(NewProcessExecutor(sb, logger), types.ActionProcessExec, types.ActionProcessBuild)
-	multi.Register(NewFileExecutor(projectDir, logger), types.ActionFileRead, types.ActionFileWrite, types.ActionFileExists, types.ActionFileGlob)
-	multi.Register(NewMCPExecutor(nil, logger), types.ActionMCPCall)
-	multi.Register(NewCodeExecutor(sb, logger), types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols)
-	multi.Register(NewWaitExecutor(), types.ActionWait)
-
-	// Browser executor (optional — requires playwright binary).
-	if browserExec, err := NewBrowserExecutor(logger); err == nil {
-		multi.Register(browserExec, types.ActionBrowserGoto, types.ActionBrowserClick,
-			types.ActionBrowserFill, types.ActionBrowserEval)
-		logger.Info("browser executor registered (playwright)")
-	} else {
-		logger.Warn("browser executor unavailable (install playwright)", zap.Error(err))
+	// Register built-in executor plugins.
+	registry := NewPluginRegistry(logger)
+	for _, plugin := range BuiltinPluginsWithSandbox(projectDir, sb, gate, logger) {
+		registry.RegisterExecutor(plugin)
 	}
+	registry.ApplyTo(multi)
 
 	return multi
 }
