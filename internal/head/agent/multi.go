@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/policy"
@@ -103,8 +104,18 @@ func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Polic
 
 // BuildMultiExecutor assembles the standard executor with all built-in executors.
 // Attempts to use Linux sandbox isolation; falls back to NoOpSandbox if unavailable.
+// Loads optional policy overrides from .cerberus/policy.yaml.
 func BuildMultiExecutor(projectDir string, gate escalation.Gate, logger *zap.Logger) *MultiExecutor {
 	p := policy.NewDefaultActionPolicy(projectDir)
+
+	// Load optional policy overrides.
+	if overrides, err := policy.LoadPolicyConfig(filepath.Join(projectDir, ".cerberus", "policy.yaml")); err != nil {
+		logger.Warn("failed to load policy config", zap.Error(err))
+	} else if overrides != nil {
+		overrides.Apply(p)
+		logger.Info("applied policy overrides from .cerberus/policy.yaml")
+	}
+
 	sb := sandbox.Sandbox(sandbox.NoOpSandbox{})
 	if linuxSB := sandbox.TryNewLinuxSandbox(logger); linuxSB != nil {
 		sb = linuxSB

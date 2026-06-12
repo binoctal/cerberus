@@ -162,7 +162,8 @@ actors:
 			fmt.Println("Next steps:")
 			fmt.Println("  1. Edit .cerberus/project.yaml with your project details")
 			fmt.Println("  2. Set credentials in .cerberus/credentials.yaml or env vars")
-			fmt.Println("  3. Run: cerberus run --url http://localhost:3000 --goal \"test all APIs\"")
+			fmt.Println("  3. Run: cerberus run --goal \"test all APIs\"")
+			fmt.Println("     (or: cerberus run --dir . --goal \"test my code\" for local-only testing)")
 			return nil
 		},
 	}
@@ -233,14 +234,13 @@ func runCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL (required)")
+	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL (optional for local-only testing)")
 	cmd.Flags().StringVar(&goalFlag, "goal", "", "Test goal description (required)")
 	cmd.Flags().StringSliceVar(&actorFlags, "actor", nil, "Actor names to use")
 	cmd.Flags().StringVar(&dbFlag, "db", "", "Database URL (enables Checker)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
 	cmd.Flags().BoolVar(&deepPlanFlag, "deep-plan", false, "Enable ToT deep planning for comprehensive test generation")
 	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
-	_ = cmd.MarkFlagRequired("url")
 	_ = cmd.MarkFlagRequired("goal")
 	return cmd
 }
@@ -297,11 +297,10 @@ func verifyCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL (required)")
+	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL (optional for local-only testing)")
 	cmd.Flags().StringVar(&goalFlag, "goal", "", "Test goal description (required)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
 	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
-	_ = cmd.MarkFlagRequired("url")
 	_ = cmd.MarkFlagRequired("goal")
 	return cmd
 }
@@ -385,19 +384,31 @@ func mcpCmd() *cobra.Command {
 }
 
 func loadProjectConfig(configPath, url, goal string, logger *zap.Logger) *project.Config {
+	var cfg *project.Config
 	if configPath != "" {
 		if _, err := os.Stat(configPath); err == nil {
-			cfg, err := project.LoadFromFile(configPath)
+			loaded, err := project.LoadFromFile(configPath)
 			if err != nil {
 				logger.Warn("failed to load project config, using defaults", zap.Error(err))
-				d := project.DefaultConfig()
-				return &d
+			} else {
+				cfg = loaded
 			}
-			return cfg
 		}
 	}
-	d := project.DefaultConfig()
-	return &d
+	if cfg == nil {
+		d := project.DefaultConfig()
+		cfg = &d
+	}
+
+	// If --url was provided and config has no services, create a synthetic one.
+	if url != "" && len(cfg.Services) == 0 {
+		cfg.Services = append(cfg.Services, project.Service{
+			Name: "default",
+			URL:  url,
+		})
+	}
+
+	return cfg
 }
 
 func containsLine(content, line string) bool {

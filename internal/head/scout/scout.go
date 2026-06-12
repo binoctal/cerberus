@@ -54,8 +54,7 @@ func (s *Scout) Analyze(ctx context.Context, target TargetInfo) (*project.Projec
 	prompt := ai.NewPrompt().
 		System(promptAnalyzeSystem).
 		Context(analyzeCtx).
-		Task(fmt.Sprintf("Analyze this SaaS project and infer its API surface.\nBase URL: %s\nGoal: %s",
-			target.URL, target.Goal)).
+		Task(s.buildAnalyzeTask(target)).
 		Output(promptAnalyzeOutput).
 		Build()
 
@@ -75,6 +74,17 @@ func (s *Scout) Analyze(ctx context.Context, target TargetInfo) (*project.Projec
 	)
 
 	return model, nil
+}
+
+// buildAnalyzeTask constructs the analysis task prompt.
+// When URL is empty (local-only mode), the Base URL line is omitted
+// so the LLM skips HTTP test case generation.
+func (s *Scout) buildAnalyzeTask(target TargetInfo) string {
+	if target.URL == "" {
+		return fmt.Sprintf("Analyze this project and infer its testable surface.\nGoal: %s", target.Goal)
+	}
+	return fmt.Sprintf("Analyze this SaaS project and infer its API surface.\nBase URL: %s\nGoal: %s",
+		target.URL, target.Goal)
 }
 
 // Plan generates a TestPlan from the goal and project model.
