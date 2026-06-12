@@ -14,17 +14,17 @@ func RenderMarkdown(data *ReportData) string {
 
 	// Session metadata.
 	b.WriteString("## Session\n\n")
-	b.WriteString(fmt.Sprintf("| Field | Value |\n"))
-	b.WriteString(fmt.Sprintf("|-------|-------|\n"))
-	b.WriteString(fmt.Sprintf("| **ID** | `%s` |\n", s.ID))
-	b.WriteString(fmt.Sprintf("| **Goal** | %s |\n", s.Goal))
-	b.WriteString(fmt.Sprintf("| **Status** | %s |\n", statusEmoji(s.Status)))
+	b.WriteString("| Field | Value |\n")
+	b.WriteString("|-------|-------|\n")
+	fmt.Fprintf(&b, "| **ID** | `%s` |\n", s.ID)
+	fmt.Fprintf(&b, "| **Goal** | %s |\n", s.Goal)
+	fmt.Fprintf(&b, "| **Status** | %s |\n", statusEmoji(s.Status))
 	if s.ProjectName != "" {
-		b.WriteString(fmt.Sprintf("| **Project** | %s |\n", s.ProjectName))
+		fmt.Fprintf(&b, "| **Project** | %s |\n", s.ProjectName)
 	}
-	b.WriteString(fmt.Sprintf("| **Started** | %s |\n", s.StartedAt))
+	fmt.Fprintf(&b, "| **Started** | %s |\n", s.StartedAt)
 	if s.FinishedAt != "" {
-		b.WriteString(fmt.Sprintf("| **Finished** | %s |\n", s.FinishedAt))
+		fmt.Fprintf(&b, "| **Finished** | %s |\n", s.FinishedAt)
 	}
 	b.WriteString("\n")
 
@@ -32,21 +32,21 @@ func RenderMarkdown(data *ReportData) string {
 	if data.Summary != nil && data.Summary.TotalCases > 0 {
 		sum := data.Summary
 		b.WriteString("## Summary\n\n")
-		b.WriteString(fmt.Sprintf("| Metric | Value |\n"))
-		b.WriteString(fmt.Sprintf("|--------|-------|\n"))
-		b.WriteString(fmt.Sprintf("| **Endpoints Found** | %d |\n", sum.EndpointsFound))
-		b.WriteString(fmt.Sprintf("| **Test Cases Planned** | %d |\n", sum.TestCasesPlanned))
-		b.WriteString(fmt.Sprintf("| **Total Cases** | %d |\n", sum.TotalCases))
-		b.WriteString(fmt.Sprintf("| **Passed** | %d |\n", sum.Passed))
-		b.WriteString(fmt.Sprintf("| **Failed** | %d |\n", sum.Failed))
-		b.WriteString(fmt.Sprintf("| **Skipped** | %d |\n", sum.Skipped))
-		b.WriteString(fmt.Sprintf("| **Uncertain** | %d |\n", sum.Uncertain))
-		b.WriteString(fmt.Sprintf("| **Pending Review** | %d |\n", sum.PendingReview))
+		b.WriteString("| Metric | Value |\n")
+		fmt.Fprintf(&b, "|--------|-------|\n")
+		fmt.Fprintf(&b, "| **Endpoints Found** | %d |\n", sum.EndpointsFound)
+		fmt.Fprintf(&b, "| **Test Cases Planned** | %d |\n", sum.TestCasesPlanned)
+		fmt.Fprintf(&b, "| **Total Cases** | %d |\n", sum.TotalCases)
+		fmt.Fprintf(&b, "| **Passed** | %d |\n", sum.Passed)
+		fmt.Fprintf(&b, "| **Failed** | %d |\n", sum.Failed)
+		fmt.Fprintf(&b, "| **Skipped** | %d |\n", sum.Skipped)
+		fmt.Fprintf(&b, "| **Uncertain** | %d |\n", sum.Uncertain)
+		fmt.Fprintf(&b, "| **Pending Review** | %d |\n", sum.PendingReview)
 		if sum.DurationMs > 0 {
-			b.WriteString(fmt.Sprintf("| **Duration** | %s |\n", sum.Duration))
+			fmt.Fprintf(&b, "| **Duration** | %s |\n", sum.Duration)
 		}
 		if sum.TotalTokens > 0 {
-			b.WriteString(fmt.Sprintf("| **Tokens Used** | ~%dK |\n", sum.TotalTokens/1000))
+			fmt.Fprintf(&b, "| **Tokens Used** | ~%dK |\n", sum.TotalTokens/1000)
 		}
 		b.WriteString("\n")
 	}
@@ -57,8 +57,8 @@ func RenderMarkdown(data *ReportData) string {
 		b.WriteString("| # | Target | Status | Confidence | Source |\n")
 		b.WriteString("|---|--------|--------|------------|--------|\n")
 		for i, v := range data.Verdicts {
-			b.WriteString(fmt.Sprintf("| %d | `%s` | %s | %.2f | %s |\n",
-				i+1, v.Target, statusEmoji(v.Status), v.Confidence, v.Source))
+			fmt.Fprintf(&b, "| %d | `%s` | %s | %.2f | %s |\n",
+				i+1, v.Target, statusEmoji(v.Status), v.Confidence, v.Source)
 		}
 		b.WriteString("\n")
 
@@ -76,8 +76,8 @@ func RenderMarkdown(data *ReportData) string {
 				if v.Reasoning == "" {
 					continue
 				}
-				b.WriteString(fmt.Sprintf("**%s** (%s):\n\n", v.Target, v.Status))
-				b.WriteString(fmt.Sprintf("> %s\n\n", v.Reasoning))
+				fmt.Fprintf(&b, "**%s** (%s):\n\n", v.Target, v.Status)
+				fmt.Fprintf(&b, "> %s\n\n", v.Reasoning)
 			}
 		}
 	}
@@ -88,8 +88,8 @@ func RenderMarkdown(data *ReportData) string {
 		b.WriteString("| # | Category | Target | Status | Started |\n")
 		b.WriteString("|---|----------|--------|--------|----------|\n")
 		for i, t := range data.Traces {
-			b.WriteString(fmt.Sprintf("| %d | %s | `%s` | %s | %s |\n",
-				i+1, t.Category, t.Target, statusEmoji(t.Status), t.StartedAt))
+			fmt.Fprintf(&b, "| %d | %s | `%s` | %s | %s |\n",
+				i+1, t.Category, t.Target, statusEmoji(t.Status), t.StartedAt)
 		}
 		b.WriteString("\n")
 	}

@@ -34,7 +34,6 @@ type Model struct {
 	summary  *session.SessionSummary
 	width    int
 	height   int
-	err      error
 	detail   bool // whether detail view is shown
 	quitting bool
 }
@@ -127,25 +126,25 @@ func (m Model) View() string {
 		sess := m.sessions[m.selected]
 
 		// Session header.
-		b.WriteString(fmt.Sprintf("Session: %s  |  Status: %s  |  Goal: %s\n",
-			sess.ID[:8], statusColor(sess.Status), sess.Goal))
+		fmt.Fprintf(&b, "Session: %s  |  Status: %s  |  Goal: %s\n",
+			sess.ID[:8], statusColor(sess.Status), sess.Goal)
 		if sess.ProjectName != "" {
-			b.WriteString(fmt.Sprintf("Project: %s\n", sess.ProjectName))
+			fmt.Fprintf(&b, "Project: %s\n", sess.ProjectName)
 		}
 		b.WriteString("\n")
 
 		// Summary.
 		if m.summary != nil && m.summary.TotalCases > 0 {
 			s := m.summary
-			b.WriteString(fmt.Sprintf("Summary: %s %s %s %s %s\n",
+			fmt.Fprintf(&b,"Summary: %s %s %s %s %s\n",
 				passStyle.Render(fmt.Sprintf("%d pass", s.Passed)),
 				failStyle.Render(fmt.Sprintf("%d fail", s.Failed)),
 				skipStyle.Render(fmt.Sprintf("%d skip", s.Skipped)),
 				uncertainStyle.Render(fmt.Sprintf("%d uncertain", s.Uncertain)),
 				fmt.Sprintf("(%d total)", s.TotalCases),
-			))
+			)
 			if s.Duration != "" {
-				b.WriteString(fmt.Sprintf("Duration: %s  |  Tokens: ~%dK\n", s.Duration, s.TotalTokens/1000))
+				fmt.Fprintf(&b, "Duration: %s  |  Tokens: ~%dK\n", s.Duration, s.TotalTokens/1000)
 			}
 			b.WriteString("\n")
 		}
@@ -156,21 +155,21 @@ func (m Model) View() string {
 				b.WriteString(detailBox.Render("Verdict Details"))
 				b.WriteString("\n")
 				for _, v := range m.verdicts {
-					b.WriteString(fmt.Sprintf("  %s %s  conf:%.2f\n",
-						statusColor(v.Status), v.Target, v.Confidence))
+					fmt.Fprintf(&b, "  %s %s  conf:%.2f\n",
+						statusColor(v.Status), v.Target, v.Confidence)
 					if v.Reasoning != "" {
-						b.WriteString(fmt.Sprintf("    %s\n", v.Reasoning))
+						fmt.Fprintf(&b, "    %s\n", v.Reasoning)
 					}
 				}
 			} else {
 				b.WriteString("Verdicts:\n")
 				maxShow := minInt(len(m.verdicts), 10)
 				for _, v := range m.verdicts[:maxShow] {
-					b.WriteString(fmt.Sprintf("  %s %-40s  conf:%.2f\n",
-						statusColor(v.Status), truncate(v.Target, 40), v.Confidence))
+					fmt.Fprintf(&b, "  %s %-40s  conf:%.2f\n",
+						statusColor(v.Status), truncate(v.Target, 40), v.Confidence)
 				}
 				if len(m.verdicts) > 10 {
-					b.WriteString(fmt.Sprintf("  ... and %d more (press Enter for details)\n", len(m.verdicts)-10))
+					fmt.Fprintf(&b, "  ... and %d more (press Enter for details)\n", len(m.verdicts)-10)
 				}
 			}
 			b.WriteString("\n")

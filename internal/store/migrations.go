@@ -42,7 +42,7 @@ func RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
 			continue
 		}
 		var ver int
-		fmt.Sscanf(matches[1], "%d", &ver)
+		_, _ = fmt.Sscanf(matches[1], "%d", &ver)
 		migrations = append(migrations, migration{version: ver, filename: e.Name()})
 	}
 
@@ -72,14 +72,14 @@ func RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
 		}
 
 		if _, err := tx.Exec(string(content)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %s: %w", m.filename, err)
 		}
 
 		if _, err := tx.Exec(
 			"INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
 			m.version, m.filename); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("record migration %d: %w", m.version, err)
 		}
 

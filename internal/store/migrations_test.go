@@ -10,7 +10,7 @@ import (
 
 func TestRunMigrations(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	ctx := context.Background()
 

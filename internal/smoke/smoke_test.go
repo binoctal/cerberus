@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/ai"
@@ -23,7 +22,7 @@ import (
 func TestSessionSmokeTest(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
@@ -80,8 +79,8 @@ func TestAIDriverSmokeTest(t *testing.T) {
 }
 
 func TestProjectLoaderSmokeTest(t *testing.T) {
-	os.Setenv("TEST_URL", "http://localhost:8080")
-	defer os.Unsetenv("TEST_URL")
+	t.Setenv("TEST_URL", "http://localhost:8080")
+	// t.Setenv auto-cleans
 
 	yaml := `
 project:
@@ -114,13 +113,13 @@ func TestAgentSmokeTest(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/v1/users":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"users": []string{"alice", "bob"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []string{"alice", "bob"}})
 		case "/api/v1/posts":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
 		case "/health":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"ok"}`))
+_, _ = w.Write([]byte(`{"status":"ok"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -129,7 +128,7 @@ func TestAgentSmokeTest(t *testing.T) {
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
@@ -186,7 +185,7 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/items" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"items":[]}`))
+_, _ = w.Write([]byte(`{"items":[]}`))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -195,7 +194,7 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)

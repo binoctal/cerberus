@@ -62,7 +62,7 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 	if err != nil {
 		return nil, fmt.Errorf("call anthropic: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -133,7 +133,7 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Content []struct {
@@ -145,7 +145,7 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 		} `json:"usage"`
 		StopReason string `json:"stop_reason"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	var text string
 	if len(result.Content) > 0 {

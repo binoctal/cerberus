@@ -114,8 +114,8 @@ actors:
 		if !containsLine(string(existing), ".cerberus/credentials.yaml") {
 			f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err == nil {
-				f.WriteString(gitignoreEntry)
-				f.Close()
+				_, _ = f.WriteString(gitignoreEntry)
+				_ = f.Close()
 			}
 		}
 
@@ -131,7 +131,7 @@ actors:
 				_ = store.RunMigrations(seedCtx, seedDB.DB(), "migrations")
 				seedLogger, _ := zap.NewProduction()
 				count, _ := store.SeedStrategies(seedCtx, seedDB, "", seedLogger)
-				seedDB.Close()
+				_ = seedDB.Close()
 				if count > 0 {
 					fmt.Printf("✓ Seeded %d default test strategies\n", count)
 				}
@@ -190,7 +190,7 @@ func runCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
 			logger, _ := zap.NewProduction()
-			defer logger.Sync()
+			defer func() { _ = logger.Sync() }()
 
 			projCfg := loadProjectConfig(configFlag, urlFlag, goalFlag, logger)
 			projCfg = project.ResolveCredentials(projCfg)
@@ -204,7 +204,7 @@ func runCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			ctx := context.Background()
 			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
@@ -268,7 +268,7 @@ func verifyCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
 			logger, _ := zap.NewProduction()
-			defer logger.Sync()
+			defer func() { _ = logger.Sync() }()
 
 			projCfg := loadProjectConfig(configFlag, urlFlag, goalFlag, logger)
 			projCfg = project.ResolveCredentials(projCfg)
@@ -282,7 +282,7 @@ func verifyCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			ctx := context.Background()
 			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
@@ -328,7 +328,7 @@ func serveCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
 			logger, _ := zap.NewProduction()
-			defer logger.Sync()
+			defer func() { _ = logger.Sync() }()
 
 			dbPath := cfg.DBPath
 			if dbFlag != "" {
@@ -339,7 +339,7 @@ func serveCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			ctx := context.Background()
 			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
@@ -375,7 +375,7 @@ func mcpCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
 			logger, _ := zap.NewProduction()
-			defer logger.Sync()
+			defer func() { _ = logger.Sync() }()
 
 			dbPath := cfg.DBPath
 			if dbFlag != "" {
@@ -386,7 +386,7 @@ func mcpCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			ctx := context.Background()
 			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
@@ -443,7 +443,7 @@ func reportCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			ctx := context.Background()
 			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
@@ -509,7 +509,7 @@ func dashboardCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer s.Close()
+			defer func() { _ = s.Close() }()
 
 			ctx := context.Background()
 			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {

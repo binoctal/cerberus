@@ -109,8 +109,8 @@ func (e *MCPExecutor) sendTCP(ctx context.Context, ep MCPEndpoint, body []byte) 
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
-	conn.SetDeadline(time.Now().Add(10 * time.Second))
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 	body = append(body, '\n')
 	if _, err := conn.Write(body); err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (e *MCPExecutor) Close() {
 	defer e.mu.Unlock()
 
 	for name, conn := range e.stdioProcesses {
-		conn.stdin.Close()
+		_ = conn.stdin.Close()
 		if err := conn.cmd.Process.Kill(); err != nil {
 			e.logger.Warn("failed to kill MCP stdio process",
 				zap.String("server", name),

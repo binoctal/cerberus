@@ -22,7 +22,7 @@ func setupParallelTest(t *testing.T) (*ReActLoop, *store.Store) {
 	t.Helper()
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../../migrations")
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestParallelExecutor_AllIndependent(t *testing.T) {
 	// httptest server for action execution.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	}))
 	defer srv.Close()
 
@@ -87,7 +87,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer srv.Close()
 
@@ -240,11 +240,11 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/create" || r.URL.Path == "/" {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error":"internal"}`))
+			_, _ = w.Write([]byte(`{"error":"internal"}`))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer srv.Close()
 

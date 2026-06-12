@@ -31,14 +31,14 @@ func NewBrowserExecutor(logger *zap.Logger) (*BrowserExecutor, error) {
 		Headless: pw.Bool(true),
 	})
 	if err != nil {
-		driver.Stop()
+		_ = driver.Stop()
 		return nil, fmt.Errorf("launch chromium: %w", err)
 	}
 
 	page, err := browser.NewPage()
 	if err != nil {
-		browser.Close()
-		driver.Stop()
+		_ = browser.Close()
+		_ = driver.Stop()
 		return nil, fmt.Errorf("create page: %w", err)
 	}
 
@@ -53,13 +53,13 @@ func NewBrowserExecutor(logger *zap.Logger) (*BrowserExecutor, error) {
 // Close shuts down the browser and Playwright driver.
 func (e *BrowserExecutor) Close() {
 	if e.page != nil {
-		e.page.Close()
+		_ = e.page.Close()
 	}
 	if e.browser != nil {
-		e.browser.Close()
+		_ = e.browser.Close()
 	}
 	if e.pw != nil {
-		e.pw.Stop()
+		_ = e.pw.Stop()
 	}
 }
 

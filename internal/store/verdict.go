@@ -44,7 +44,7 @@ func (s *Store) GetVerdicts(ctx context.Context, sessionID string) ([]Verdict, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var verdicts []Verdict
 	for rows.Next() {

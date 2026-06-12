@@ -34,35 +34,35 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 		switch {
 		case r.URL.Path == "/health":
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, `{"status":"ok"}`)
+			_, _ = fmt.Fprint(w, `{"status":"ok"}`)
 		case r.URL.Path == "/api/v1/users" && r.Method == "GET":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"users": users})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": users})
 		case r.URL.Path == "/api/v1/users" && r.Method == "POST":
 			if auth == "" {
 				w.WriteHeader(http.StatusUnauthorized)
-				fmt.Fprint(w, `{"error":"unauthorized"}`)
+				_, _ = fmt.Fprint(w, `{"error":"unauthorized"}`)
 				return
 			}
 			var u user
-			json.NewDecoder(r.Body).Decode(&u)
+			_ = json.NewDecoder(r.Body).Decode(&u)
 			u.ID = fmt.Sprintf("%d", len(users)+1)
 			users = append(users, u)
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(u)
+			_ = json.NewEncoder(w).Encode(u)
 		case r.URL.Path == "/api/v1/users/1" && r.Method == "GET":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(users[0])
+			_ = json.NewEncoder(w).Encode(users[0])
 		case r.URL.Path == "/api/v1/users/1" && r.Method == "PUT":
 			if auth == "" {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			var u user
-			json.NewDecoder(r.Body).Decode(&u)
+			_ = json.NewDecoder(r.Body).Decode(&u)
 			users[0].Name = u.Name
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(users[0])
+			_ = json.NewEncoder(w).Encode(users[0])
 		case r.URL.Path == "/api/v1/users/1" && r.Method == "DELETE":
 			if auth == "" {
 				w.WriteHeader(http.StatusUnauthorized)
@@ -71,20 +71,20 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 			w.WriteHeader(http.StatusNoContent)
 		case r.URL.Path == "/api/v1/posts":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
 		case r.URL.Path == "/api/v1/stats":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"uptime": 99.9, "requests": 1000})
+			_ = json.NewEncoder(w).Encode(map[string]any{"uptime": 99.9, "requests": 1000})
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, `{"error":"not found","path":"%s"}`, r.URL.Path)
+			_, _ = fmt.Fprintf(w, `{"error":"not found","path":"%s"}`, r.URL.Path)
 		}
 	}))
 	defer srv.Close()
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../migrations"))
 
@@ -178,13 +178,13 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 func TestEndToEnd_ProgressEvents(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"ok":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true}`)
 	}))
 	defer srv.Close()
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../migrations"))
 
@@ -241,13 +241,13 @@ func TestEndToEnd_ProgressEvents(t *testing.T) {
 func TestEndToEnd_RuleEngineStats(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"ok":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true}`)
 	}))
 	defer srv.Close()
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../migrations"))
 

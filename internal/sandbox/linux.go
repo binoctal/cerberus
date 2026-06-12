@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/criyle/go-sandbox/pkg/cgroup"
@@ -24,7 +23,6 @@ import (
 type LinuxSandbox struct {
 	logger    *zap.Logger
 	available bool
-	mu        sync.Mutex
 }
 
 // NewLinuxSandbox creates a Linux sandbox instance.
@@ -229,7 +227,7 @@ func (s *LinuxSandbox) cgroupSync(p Policy) func(pid int) error {
 		if err != nil {
 			return fmt.Errorf("create cgroup: %w", err)
 		}
-		defer cg.Destroy()
+		defer func() { _ = cg.Destroy() }()
 
 		if p.Resources.MaxMemoryMB > 0 {
 			if err := cg.SetMemoryLimit(uint64(p.Resources.MaxMemoryMB) * 1024 * 1024); err != nil {

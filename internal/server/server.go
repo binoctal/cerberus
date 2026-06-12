@@ -202,27 +202,27 @@ func (srv *Server) handleGetReport(w http.ResponseWriter, r *http.Request) {
 
 	// Content negotiation: text/markdown, text/html, text/plain, JSON default.
 	accept := r.Header.Get("Accept")
-	switch {
-	case accept == "text/plain":
+	switch accept {
+	case "text/plain":
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "Session: %s\n", data.Session.ID)
-		fmt.Fprintf(w, "Goal: %s\n", data.Session.Goal)
-		fmt.Fprintf(w, "Status: %s\n", data.Session.Status)
-		fmt.Fprintf(w, "Started: %s\n", data.Session.StartedAt)
+		_, _ = fmt.Fprintf(w, "Session: %s\n", data.Session.ID)
+		_, _ = fmt.Fprintf(w, "Goal: %s\n", data.Session.Goal)
+		_, _ = fmt.Fprintf(w, "Status: %s\n", data.Session.Status)
+		_, _ = fmt.Fprintf(w, "Started: %s\n", data.Session.StartedAt)
 		if data.Session.FinishedAt != "" {
-			fmt.Fprintf(w, "Finished: %s\n", data.Session.FinishedAt)
+			_, _ = fmt.Fprintf(w, "Finished: %s\n", data.Session.FinishedAt)
 		}
-		fmt.Fprintf(w, "Traces: %d\n", len(data.Traces))
-		fmt.Fprintf(w, "Verdicts: %d\n", len(data.Verdicts))
+		_, _ = fmt.Fprintf(w, "Traces: %d\n", len(data.Traces))
+		_, _ = fmt.Fprintf(w, "Verdicts: %d\n", len(data.Verdicts))
 		if data.Session.Stats != "" && data.Session.Stats != "{}" {
-			fmt.Fprintf(w, "Stats: %s\n", data.Session.Stats)
+			_, _ = fmt.Fprintf(w, "Stats: %s\n", data.Session.Stats)
 		}
-	case accept == "text/markdown":
+	case "text/markdown":
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-		w.Write([]byte(report.RenderMarkdown(data)))
-	case accept == "text/html":
+		_, _ = w.Write([]byte(report.RenderMarkdown(data)))
+	case "text/html":
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		report.RenderHTML(w, data)
+		_ = report.RenderHTML(w, data)
 	default:
 		writeJSON(w, http.StatusOK, map[string]any{
 			"session":  data.Session,
@@ -257,7 +257,7 @@ func (srv *Server) handleCancelSession(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeError(w http.ResponseWriter, status int, format string, args ...any) {

@@ -2,7 +2,6 @@ package project
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,13 +62,13 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestLoaderEnvInterpolation(t *testing.T) {
-	os.Setenv("ADMIN_EMAIL", "admin@test.dev")
-	os.Setenv("ADMIN_PASS", "secret123")
-	os.Setenv("DATABASE_URL", "postgres://localhost/mydb")
+	t.Setenv("ADMIN_EMAIL", "admin@test.dev")
+	t.Setenv("ADMIN_PASS", "secret123")
+	t.Setenv("DATABASE_URL", "postgres://localhost/mydb")
 	defer func() {
-		os.Unsetenv("ADMIN_EMAIL")
-		os.Unsetenv("ADMIN_PASS")
-		os.Unsetenv("DATABASE_URL")
+		// t.Setenv auto-cleans
+		// t.Setenv auto-cleans
+		// t.Setenv auto-cleans
 	}()
 
 	input := `
@@ -92,11 +91,11 @@ databases:
 }
 
 func TestCredentialResolution(t *testing.T) {
-	os.Setenv("CERBERUS_ACTOR_ADMIN_EMAIL", "env-admin@test.dev")
-	os.Setenv("CERBERUS_ACTOR_ADMIN_PASSWORD", "env-secret")
+	t.Setenv("CERBERUS_ACTOR_ADMIN_EMAIL", "env-admin@test.dev")
+	t.Setenv("CERBERUS_ACTOR_ADMIN_PASSWORD", "env-secret")
 	defer func() {
-		os.Unsetenv("CERBERUS_ACTOR_ADMIN_EMAIL")
-		os.Unsetenv("CERBERUS_ACTOR_ADMIN_PASSWORD")
+		// t.Setenv auto-cleans
+		// t.Setenv auto-cleans
 	}()
 
 	cfg := &Config{

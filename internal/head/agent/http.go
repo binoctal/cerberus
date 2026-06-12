@@ -59,7 +59,7 @@ func (e *HTTPExecutor) doHTTP(ctx context.Context, a types.HTTPAction, start tim
 	if err != nil {
 		return types.HTTPResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {

@@ -18,7 +18,7 @@ import (
 func TestDogfood_LocalProjectMode(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)

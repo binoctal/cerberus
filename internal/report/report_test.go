@@ -15,7 +15,7 @@ func setupTestStore(t *testing.T) *store.Store {
 	t.Helper()
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	err = store.RunMigrations(context.Background(), s.DB(), "../../migrations")
 	require.NoError(t, err)
 	return s

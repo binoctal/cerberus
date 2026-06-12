@@ -22,10 +22,7 @@ func (NoOpSandbox) ExecCommand(ctx context.Context, cmd string, args []string, e
 		c.Dir = dir
 	}
 	if len(env) > 0 {
-		c.Env = os.Environ()
-		for _, e := range env {
-			c.Env = append(c.Env, e)
-		}
+		c.Env = append(os.Environ(), env...)
 	}
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout

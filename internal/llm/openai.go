@@ -59,7 +59,7 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 	if err != nil {
 		return nil, fmt.Errorf("call openai: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -79,7 +79,7 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 			TotalTokens      int `json:"total_tokens"`
 		} `json:"usage"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	var content string
 	if len(result.Choices) > 0 {
@@ -130,7 +130,7 @@ func (c *OpenAIClient) CompleteWithVision(ctx context.Context, prompt string, im
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -142,7 +142,7 @@ func (c *OpenAIClient) CompleteWithVision(ctx context.Context, prompt string, im
 			TotalTokens int `json:"total_tokens"`
 		} `json:"usage"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	content2 := ""
 	if len(result.Choices) > 0 {

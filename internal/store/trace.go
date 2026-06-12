@@ -42,7 +42,7 @@ func (s *Store) GetTraces(ctx context.Context, sessionID string) ([]Trace, error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var traces []Trace
 	for rows.Next() {

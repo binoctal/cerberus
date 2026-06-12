@@ -130,7 +130,7 @@ func unusedFunc() { _ = 1 }
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "dead.go"), []byte(src), 0644))
 
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, 0)
+	pkgs, err := parser.ParseDir(fset, dir, nil, 0) //nolint:staticcheck // SA1019
 	require.NoError(t, err)
 
 	var findings []types.CodeFinding
@@ -154,7 +154,7 @@ func ExportedButUnused() { _ = 42 }
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "exported.go"), []byte(src), 0644))
 
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, 0)
+	pkgs, err := parser.ParseDir(fset, dir, nil, 0) //nolint:staticcheck // SA1019
 	require.NoError(t, err)
 
 	for _, pkg := range pkgs {
@@ -172,7 +172,7 @@ func init() {}
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0644))
 
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, 0)
+	pkgs, err := parser.ParseDir(fset, dir, nil, 0) //nolint:staticcheck // SA1019
 	require.NoError(t, err)
 
 	for _, pkg := range pkgs {
@@ -190,7 +190,7 @@ func callee() { _ = 42 }
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "called.go"), []byte(src), 0644))
 
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, 0)
+	pkgs, err := parser.ParseDir(fset, dir, nil, 0) //nolint:staticcheck // SA1019
 	require.NoError(t, err)
 
 	for _, pkg := range pkgs {

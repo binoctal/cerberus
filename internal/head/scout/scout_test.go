@@ -21,7 +21,7 @@ func setupTestStore(t *testing.T) *store.Store {
 	t.Helper()
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../../migrations")
@@ -382,10 +382,10 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/v1/users":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"users": []string{}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []string{}})
 		case "/health":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"ok"}`))
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

@@ -76,7 +76,7 @@ func mustJSON(v any) json.RawMessage {
 func TestReActLoop_RuleEngineSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	}))
 	defer server.Close()
 
@@ -104,7 +104,7 @@ func TestReActLoop_SteerSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/complex" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"result":"success"}`))
+			_, _ = w.Write([]byte(`{"result":"success"}`))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -136,7 +136,7 @@ func TestReActLoop_SteerSuccess(t *testing.T) {
 func TestReActLoop_MaxAttemptsExhausted(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"internal"}`))
+		_, _ = w.Write([]byte(`{"error":"internal"}`))
 	}))
 	defer server.Close()
 
@@ -197,7 +197,7 @@ func TestReActExecutePlan_MultipleCases(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"call":%d}`, callCount)
+		_, _ = fmt.Fprintf(w, `{"call":%d}`, callCount)
 	}))
 	defer server.Close()
 

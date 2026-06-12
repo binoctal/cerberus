@@ -24,7 +24,7 @@ func testStoreWithMigrations(t *testing.T) *store.Store {
 
 func TestNewSession(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	mockClient := llm.NewMockClient(map[string]string{"default": `{"status":"pass"}`})
 	logger := zap.NewNop()
@@ -51,7 +51,7 @@ func TestNewSession(t *testing.T) {
 
 func TestNewSession_StoreError(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	s.Close() // Close store to trigger error.
+	_ = s.Close() // Close store to trigger error.
 
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()
@@ -64,7 +64,7 @@ func TestNewSession_StoreError(t *testing.T) {
 
 func TestNewSession_NilGate(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()
@@ -80,7 +80,7 @@ func TestNewSession_NilGate(t *testing.T) {
 
 func TestNewSession_WithExplicitGate(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()
@@ -94,7 +94,7 @@ func TestNewSession_WithExplicitGate(t *testing.T) {
 
 func TestSession_ResolveBaseURL(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()
@@ -119,7 +119,7 @@ func TestSession_ResolveBaseURL(t *testing.T) {
 
 func TestSession_Close(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()

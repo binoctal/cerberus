@@ -10,7 +10,7 @@ import (
 
 func TestDetectProjectType_Go(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\ngo 1.25\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\ngo 1.25\n"), 0o644)
 
 	info := DetectProjectType(dir)
 	assert.Equal(t, ProjectGo, info.Type)
@@ -23,7 +23,7 @@ func TestDetectProjectType_Go(t *testing.T) {
 
 func TestDetectProjectType_Node(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"test"}`), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"test"}`), 0o644)
 
 	info := DetectProjectType(dir)
 	assert.Equal(t, ProjectNode, info.Type)
@@ -36,7 +36,7 @@ func TestDetectProjectType_Python(t *testing.T) {
 	for _, marker := range []string{"pyproject.toml", "setup.py", "requirements.txt"} {
 		t.Run(marker, func(t *testing.T) {
 			dir := t.TempDir()
-			os.WriteFile(filepath.Join(dir, marker), []byte(""), 0o644)
+			_ = os.WriteFile(filepath.Join(dir, marker), []byte(""), 0o644)
 
 			info := DetectProjectType(dir)
 			assert.Equal(t, ProjectPython, info.Type)
@@ -60,8 +60,8 @@ func TestDetectProjectType_HTTP(t *testing.T) {
 
 func TestDetectProjectType_GoTakesPrecedence(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{}`), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{}`), 0o644)
 
 	info := DetectProjectType(dir)
 	assert.Equal(t, ProjectGo, info.Type)

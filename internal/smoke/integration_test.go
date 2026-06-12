@@ -27,29 +27,29 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 		switch {
 		case r.URL.Path == "/health":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"ok"}`))
+_, _ = w.Write([]byte(`{"status":"ok"}`))
 		case r.URL.Path == "/api/v1/users" && r.Method == "GET":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"users": []map[string]string{{"id": "1", "name": "Alice"}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]string{{"id": "1", "name": "Alice"}}})
 		case r.URL.Path == "/api/v1/users" && r.Method == "POST":
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{"id": "2", "name": "Bob"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"id": "2", "name": "Bob"})
 		case r.URL.Path == "/api/v1/users/1":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{"id": "1", "name": "Alice"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"id": "1", "name": "Alice"})
 		case r.URL.Path == "/api/v1/posts":
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error":"not found"}`))
+_, _ = w.Write([]byte(`{"error":"not found"}`))
 		}
 	}))
 	defer srv.Close()
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 func TestEndToEnd_ExaminerDegradation(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestEndToEnd_ExaminerDegradation(t *testing.T) {
 func TestEndToEnd_ScoutFallback(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)

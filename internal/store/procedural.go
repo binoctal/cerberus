@@ -72,7 +72,7 @@ func (s *Store) GetProceduralByMatch(ctx context.Context, target string, limit i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var all []ProceduralMemory
 	for rows.Next() {
@@ -120,7 +120,7 @@ func (s *Store) GetProceduralByEffectiveness(ctx context.Context, threshold floa
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []ProceduralMemory
 	for rows.Next() {

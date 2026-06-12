@@ -17,7 +17,7 @@ func TestHTTPExecutor_APIRequest_GET(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/v1/users", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"users":[]}`))
+		_, _ = w.Write([]byte(`{"users":[]}`))
 	}))
 	defer server.Close()
 
@@ -37,7 +37,7 @@ func TestHTTPExecutor_APIRequest_POST(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id":1}`))
+		_, _ = w.Write([]byte(`{"id":1}`))
 	}))
 	defer server.Close()
 
@@ -57,7 +57,7 @@ func TestHTTPExecutor_Navigate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("<html>Dashboard</html>"))
+		_, _ = w.Write([]byte("<html>Dashboard</html>"))
 	}))
 	defer server.Close()
 

@@ -32,7 +32,7 @@ func (s *Store) GetEpisodicByTarget(ctx context.Context, target string, limit in
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var memories []EpisodicMemory
 	for rows.Next() {

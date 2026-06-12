@@ -70,7 +70,7 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 	if err != nil {
 		return nil, fmt.Errorf("call gemini: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -92,7 +92,7 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 			TotalTokenCount      int `json:"totalTokenCount"`
 		} `json:"usageMetadata"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	var content string
 	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
@@ -139,7 +139,7 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Candidates []struct {
@@ -153,7 +153,7 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 			TotalTokenCount int `json:"totalTokenCount"`
 		} `json:"usageMetadata"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	content := ""
 	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {

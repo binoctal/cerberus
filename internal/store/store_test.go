@@ -11,7 +11,7 @@ import (
 
 func TestSessionCRUD(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "test all APIs", "my-project")
@@ -39,7 +39,7 @@ func TestSessionCRUD(t *testing.T) {
 
 func TestTraceCRUD(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "trace test", "")
@@ -61,7 +61,7 @@ func TestTraceCRUD(t *testing.T) {
 
 func TestVerdictCRUD(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "verdict test", "")
@@ -84,7 +84,7 @@ func TestVerdictCRUD(t *testing.T) {
 
 func TestEpisodicMemory(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "memory test", "")
@@ -102,7 +102,7 @@ func TestEpisodicMemory(t *testing.T) {
 
 func TestEvidenceCRUD(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "evidence test", "")
@@ -127,7 +127,7 @@ func TestEvidenceCRUD(t *testing.T) {
 
 func TestProceduralCRUD(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	pm, err := s.StoreProcedural(ctx, "auth-retry",
@@ -164,7 +164,7 @@ func TestProceduralCRUD(t *testing.T) {
 
 func TestUpdateSessionStats(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	sess, err := s.CreateSession(ctx, "run", "stats test", "")
@@ -186,7 +186,7 @@ func TestUpdateSessionStats(t *testing.T) {
 
 func TestProceduralWithType(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	pm, err := s.StoreProceduralWithType(ctx, "auth_failure", "* returned 401",
@@ -205,7 +205,7 @@ func TestProceduralWithType(t *testing.T) {
 
 func TestProceduralArchive(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	pm, err := s.StoreProcedural(ctx, "test", "* pattern", "action", "project")
@@ -228,7 +228,7 @@ func TestProceduralArchive(t *testing.T) {
 
 func TestAutoArchiveLowEffectiveness(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	pm, err := s.StoreProcedural(ctx, "low", "* test", "action", "project")
@@ -249,7 +249,7 @@ func TestAutoArchiveLowEffectiveness(t *testing.T) {
 
 func TestMarkStaleProcedural(t *testing.T) {
 	s := testStoreWithMigrations(t)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
 	// Insert with old created_at directly.

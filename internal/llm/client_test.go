@@ -94,10 +94,10 @@ func TestClaudeClient_Complete(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 
 		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
+		_ = json.Unmarshal(body, &receivedBody)
 
 		w.WriteHeader(200)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"content": [{"text": "hello from claude"}],
 			"usage": {"input_tokens": 10, "output_tokens": 5},
 			"stop_reason": "end_turn"
@@ -119,7 +119,7 @@ func TestClaudeClient_Complete(t *testing.T) {
 func TestClaudeClient_Complete_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(429)
-		w.Write([]byte(`{"error": "rate limited"}`))
+		_, _ = w.Write([]byte(`{"error": "rate limited"}`))
 	}))
 	defer server.Close()
 
@@ -133,7 +133,7 @@ func TestClaudeClient_CompleteWithVision(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		raw, _ := io.ReadAll(r.Body)
-		json.Unmarshal(raw, &body)
+		_ = json.Unmarshal(raw, &body)
 
 		// Verify messages contain image content block.
 		msgs := body["messages"].([]any)
@@ -142,7 +142,7 @@ func TestClaudeClient_CompleteWithVision(t *testing.T) {
 		assert.Len(t, content, 2) // text + image
 
 		w.WriteHeader(200)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"content": [{"text": "I see an image"}],
 			"usage": {"input_tokens": 20, "output_tokens": 10},
 			"stop_reason": "end_turn"
@@ -164,10 +164,10 @@ func TestOpenAIClient_Complete(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 
 		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
+		_ = json.Unmarshal(body, &receivedBody)
 
 		w.WriteHeader(200)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"choices": [{"message": {"content": "gpt response"}, "finish_reason": "stop"}],
 			"usage": {"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12}
 		}`))
@@ -188,7 +188,7 @@ func TestOpenAIClient_Complete(t *testing.T) {
 func TestOpenAIClient_Complete_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
-		w.Write([]byte(`{"error": "internal"}`))
+		_, _ = w.Write([]byte(`{"error": "internal"}`))
 	}))
 	defer server.Close()
 
@@ -202,10 +202,10 @@ func TestOpenAIClient_CompleteWithVision(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		raw, _ := io.ReadAll(r.Body)
-		json.Unmarshal(raw, &body)
+		_ = json.Unmarshal(raw, &body)
 
 		w.WriteHeader(200)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"choices": [{"message": {"content": "image described"}}],
 			"usage": {"total_tokens": 50}
 		}`))
@@ -225,10 +225,10 @@ func TestGeminiClient_Complete(t *testing.T) {
 		assert.Equal(t, "test-gemini-key", r.Header.Get("x-goog-api-key"))
 
 		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedBody)
+		_ = json.Unmarshal(body, &receivedBody)
 
 		w.WriteHeader(200)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"candidates": [{"content": {"parts": [{"text": "gemini says hi"}]}, "finishReason": "STOP"}],
 			"usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 3, "totalTokenCount": 8}
 		}`))
@@ -256,7 +256,7 @@ func TestGeminiClient_Complete(t *testing.T) {
 func TestGeminiClient_Complete_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(403)
-		w.Write([]byte(`{"error": "forbidden"}`))
+		_, _ = w.Write([]byte(`{"error": "forbidden"}`))
 	}))
 	defer server.Close()
 
@@ -269,7 +269,7 @@ func TestGeminiClient_Complete_Non200(t *testing.T) {
 func TestGeminiClient_CompleteWithVision(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"candidates": [{"content": {"parts": [{"text": "I see it"}]}}],
 			"usageMetadata": {"totalTokenCount": 40}
 		}`))

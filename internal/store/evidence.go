@@ -35,7 +35,7 @@ func (s *Store) GetEvidenceByTrace(ctx context.Context, traceID int64) ([]Eviden
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var evidence []Evidence
 	for rows.Next() {

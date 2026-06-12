@@ -1,15 +1,13 @@
 package config
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLoad(t *testing.T) {
-	os.Setenv("CERBERUS_PORT", "9090")
-	defer os.Unsetenv("CERBERUS_PORT")
+	t.Setenv("CERBERUS_PORT", "9090")
 
 	cfg := Load()
 	assert.Equal(t, "9090", cfg.Port)
@@ -22,7 +20,7 @@ func TestLoadDefaults(t *testing.T) {
 		"CERBERUS_MIGRATION_DIR", "CERBERUS_LOG_LEVEL", "CERBERUS_LLM_MODEL",
 		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
 	} {
-		os.Unsetenv(key)
+		t.Setenv(key, "")
 	}
 
 	cfg := Load()
@@ -43,11 +41,10 @@ func TestAPIKeyExplicit(t *testing.T) {
 	for _, key := range []string{
 		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
 	} {
-		os.Unsetenv(key)
+		t.Setenv(key, "")
 	}
 
-	os.Setenv("CERBERUS_LLM_API_KEY", "explicit-key")
-	defer os.Unsetenv("CERBERUS_LLM_API_KEY")
+	t.Setenv("CERBERUS_LLM_API_KEY", "explicit-key")
 
 	cfg := Load()
 	assert.Equal(t, "explicit-key", cfg.LLMAPIKey, "CERBERUS_LLM_API_KEY takes priority")
@@ -58,7 +55,7 @@ func TestAPIKeyAutoDetect(t *testing.T) {
 		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
 		"CERBERUS_LLM_MODEL",
 	} {
-		os.Unsetenv(key)
+		t.Setenv(key, "")
 	}
 
 	tests := []struct {
@@ -73,13 +70,8 @@ func TestAPIKeyAutoDetect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {
-			os.Unsetenv(tt.envKey)
-			os.Setenv("CERBERUS_LLM_MODEL", tt.model)
-			os.Setenv(tt.envKey, tt.envValue)
-			defer func() {
-				os.Unsetenv(tt.envKey)
-				os.Unsetenv("CERBERUS_LLM_MODEL")
-			}()
+			t.Setenv(tt.envKey, tt.envValue)
+			t.Setenv("CERBERUS_LLM_MODEL", tt.model)
 
 			cfg := Load()
 			assert.Equal(t, tt.envValue, cfg.LLMAPIKey,

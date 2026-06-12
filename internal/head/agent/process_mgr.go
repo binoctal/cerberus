@@ -144,7 +144,7 @@ func (pm *ProcessManager) pollHealth(mp *ManagedProcess) error {
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(mp.Health)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode < 500 {
 				pm.logger.Info("health check passed",
 					zap.String("name", mp.Name),

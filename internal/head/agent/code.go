@@ -94,7 +94,7 @@ func (e *CodeExecutor) symbols(ctx context.Context, a types.CodeSymbolsAction, s
 		return e.cliSymbols(ctx, a.TargetPath, a.Language, start)
 	}
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, a.TargetPath, nil, parser.ImportsOnly)
+	pkgs, err := parser.ParseDir(fset, a.TargetPath, nil, parser.ImportsOnly) //nolint:staticcheck // SA1019
 	if err != nil {
 		return types.CodeResult{OK: false, Err: err.Error(), Latency: time.Since(start)}
 	}
@@ -118,7 +118,7 @@ func (e *CodeExecutor) symbols(ctx context.Context, a types.CodeSymbolsAction, s
 
 func (e *CodeExecutor) parseAndAnalyze(root string, checks []string) ([]types.CodeFinding, types.CodeStats, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, root, nil, parser.AllErrors|parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, root, nil, parser.AllErrors|parser.ParseComments) //nolint:staticcheck // SA1019
 	if err != nil {
 		return nil, types.CodeStats{}, err
 	}
@@ -257,7 +257,7 @@ func checkUnhandledErrors(f *ast.File, fset *token.FileSet) []types.CodeFinding 
 // checkDeadCode finds unexported functions that are declared but never called
 // within the same package. Exported functions, main, init, and test functions
 // are excluded since they may be called externally.
-func checkDeadCode(pkg *ast.Package, fset *token.FileSet) []types.CodeFinding {
+func checkDeadCode(pkg *ast.Package, fset *token.FileSet) []types.CodeFinding { //nolint:staticcheck // SA1019
 	declared := make(map[string]string) // name -> file path
 	called := make(map[string]bool)
 
