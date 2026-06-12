@@ -29,6 +29,7 @@ type Driver struct {
 	client llm.Client
 	budget *TokenBudget
 	retry  RetryConfig
+	cache  *ResponseCache
 }
 
 func NewDriver(client llm.Client, budget *TokenBudget) *Driver {
@@ -36,6 +37,7 @@ func NewDriver(client llm.Client, budget *TokenBudget) *Driver {
 		client: client,
 		budget: budget,
 		retry:  DefaultRetryConfig(),
+		cache:  NewResponseCache(5 * time.Minute),
 	}
 }
 
@@ -45,7 +47,13 @@ func NewDriverWithRetry(client llm.Client, budget *TokenBudget, retry RetryConfi
 		client: client,
 		budget: budget,
 		retry:  retry,
+		cache:  NewResponseCache(5 * time.Minute),
 	}
+}
+
+// SetCache replaces the default cache. Pass nil to disable caching.
+func (d *Driver) SetCache(c *ResponseCache) {
+	d.cache = c
 }
 
 func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
@@ -56,6 +64,13 @@ func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
 	if !d.budget.CanSpend(d.budget.PerCallLimit) {
 		return fmt.Errorf("insufficient budget: remaining %d, need up to %d",
 			d.budget.Remaining(), d.budget.PerCallLimit)
+	}
+
+	// Check cache before making an LLM call.
+	if d.cache != nil {
+		if content, _, ok := d.cache.Get(prompt); ok {
+			return ParseStructuredOutput(content, schema)
+		}
 	}
 
 	var lastErr error
@@ -88,6 +103,11 @@ func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
 			return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
 		}
 
+
+			// Cache successful response.
+			if d.cache != nil {
+				d.cache.Set(prompt, resp.Content, TokenUsage{TotalTokens: resp.Usage.TotalTokens})
+			}
 		return nil
 	}
 
