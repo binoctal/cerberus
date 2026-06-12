@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -153,27 +154,36 @@ Output JSON with a "strategies" array. Each strategy has "description" and "case
 func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, model *project.ProjectModel) ([]PlanCandidate, error) {
 	endpointSummary := formatEndpointsForEval(model)
 
-	var scored []PlanCandidate
+	// Score all candidates in parallel.
+	var wg sync.WaitGroup
+	results := make([]PlanCandidate, len(candidates))
+
 	for i := range candidates {
-		c := &candidates[i]
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			c := candidates[idx]
 
-		// Deterministic coverage score (30%).
-		c.Coverage = t.coverageScore(c, model)
+			// Deterministic coverage score (30%).
+			c.Coverage = t.coverageScore(&c, model)
 
-		// AI quality score (70%).
-		aiScore, err := t.aiScore(ctx, c, endpointSummary)
-		if err != nil {
-			t.logger.Warn("tot ai score failed", zap.Error(err))
-			aiScore = 5.0 // Mid-range fallback.
-		}
-		c.AIScore = aiScore
+			// AI quality score (70%).
+			aiScore, err := t.aiScore(ctx, &c, endpointSummary)
+			if err != nil {
+				t.logger.Warn("tot ai score failed", zap.Error(err))
+				aiScore = 5.0 // Mid-range fallback.
+			}
+			c.AIScore = aiScore
 
-		// Combined: AI 70% + coverage 30%.
-		c.Score = (aiScore / 10.0 * 0.7) + (c.Coverage * 0.3)
+			// Combined: AI 70% + coverage 30%.
+			c.Score = (aiScore / 10.0 * 0.7) + (c.Coverage * 0.3)
 
-		scored = append(scored, *c)
+			results[idx] = c
+		}(i)
 	}
-	return scored, nil
+	wg.Wait()
+
+	return results, nil
 }
 
 // aiScore asks the LLM to rate a strategy on a 1-10 scale.
