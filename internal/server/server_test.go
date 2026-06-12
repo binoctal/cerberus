@@ -255,3 +255,27 @@ func TestServer_CreateSession_InvalidJSON(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+func TestServer_DashboardRedirect(t *testing.T) {
+	srv, _ := setupServerTest(t)
+	handler := srv.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusMovedPermanently, w.Code)
+	assert.Contains(t, w.Header().Get("Location"), "/dashboard/")
+}
+
+func TestServer_DashboardIndex(t *testing.T) {
+	srv, _ := setupServerTest(t)
+	handler := srv.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard/", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "Cerberus")
+}

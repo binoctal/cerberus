@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"sync"
@@ -47,6 +48,14 @@ func (srv *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/sessions/{id}", srv.handleGetSession)
 	mux.HandleFunc("GET /api/v1/sessions/{id}/report", srv.handleGetReport)
 	mux.HandleFunc("POST /api/v1/sessions/{id}/cancel", srv.handleCancelSession)
+
+	// Web dashboard (embedded static files).
+	sub, _ := fs.Sub(dashboardFS, "dashboard")
+	mux.Handle("GET /dashboard/", http.StripPrefix("/dashboard/", http.FileServer(http.FS(sub))))
+	mux.HandleFunc("GET /dashboard", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/dashboard/", http.StatusMovedPermanently)
+	})
+
 	return mux
 }
 

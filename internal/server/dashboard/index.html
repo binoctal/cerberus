@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cerberus Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:#1e293b;padding:1rem 2rem;border-bottom:1px solid #334155;display:flex;align-items:center;gap:1rem}
+.header h1{font-size:1.25rem;color:#f8fafc}
+.header .badge{background:#3b82f6;color:#fff;padding:2px 8px;border-radius:9999px;font-size:.75rem}
+.header .actions{margin-left:auto;display:flex;gap:.5rem}
+.btn{padding:.5rem 1rem;border:none;border-radius:.375rem;cursor:pointer;font-size:.875rem;font-weight:500}
+.btn-primary{background:#3b82f6;color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-danger{background:#ef4444;color:#fff}.btn-danger:hover{background:#dc2626}
+.container{max-width:1200px;margin:0 auto;padding:2rem}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:1rem;text-align:center}
+.stat-card .value{font-size:2rem;font-weight:700;color:#f8fafc}
+.stat-card .label{font-size:.75rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+.stat-card.pass .value{color:#22c55e}.stat-card.fail .value{color:#ef4444}
+.stat-card.skip .value{color:#eab308}.stat-card.running .value{color:#3b82f6}
+.session-list{background:#1e293b;border:1px solid #334155;border-radius:.5rem;overflow:hidden}
+.session-row{padding:1rem 1.5rem;border-bottom:1px solid #334155;cursor:pointer;display:grid;grid-template-columns:1fr 2fr 1fr 1fr 1fr;align-items:center;gap:1rem;transition:background .15s}
+.session-row:hover{background:#334155}
+.session-row:last-child{border-bottom:none}
+.session-id{font-family:monospace;color:#94a3b8;font-size:.875rem}
+.session-goal{color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status-badge{padding:2px 10px;border-radius:9999px;font-size:.75rem;font-weight:600;display:inline-block;text-align:center}
+.status-completed{background:#166534;color:#bbf7d0}.status-running{background:#1e3a5f;color:#93c5fd}
+.status-aborted{background:#7f1d1d;color:#fca5a5}.status-failed{background:#7f1d1d;color:#fca5a5}
+.time-col{color:#94a3b8;font-size:.875rem}
+.detail-panel{background:#1e293b;border:1px solid #334155;border-radius:.5rem;margin-top:1rem;padding:1.5rem;display:none}
+.detail-panel.active{display:block}
+.detail-panel h3{margin-bottom:1rem;color:#f8fafc}
+.verdict-table{width:100%;border-collapse:collapse}
+.verdict-table th{text-align:left;color:#94a3b8;font-size:.75rem;text-transform:uppercase;padding:.5rem;border-bottom:1px solid #334155}
+.verdict-table td{padding:.5rem;border-bottom:1px solid #1e293b;font-size:.875rem}
+.empty-state{text-align:center;padding:4rem 2rem;color:#64748b}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-overlay.active{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:2rem;width:400px}
+.modal h2{margin-bottom:1rem;color:#f8fafc}
+.modal label{display:block;color:#94a3b8;font-size:.875rem;margin-bottom:.25rem;margin-top:.75rem}
+.modal input,.modal select,.modal textarea{width:100%;padding:.5rem;background:#0f172a;border:1px solid #334155;border-radius:.375rem;color:#f8fafc;font-size:.875rem}
+.modal textarea{min-height:60px;resize:vertical}
+.modal .btn-row{margin-top:1.5rem;display:flex;gap:.5rem;justify-content:flex-end}
+.refresh-info{color:#64748b;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🛡️ Cerberus</h1>
+  <span class="badge">Dashboard</span>
+  <span class="refresh-info" id="refreshInfo"></span>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="openNewSession()">+ New Session</button>
+    <button class="btn" style="background:#334155;color:#e2e8f0" onclick="refresh()">↻ Refresh</button>
+  </div>
+</div>
+<div class="container">
+  <div class="stats" id="stats">
+    <div class="stat-card pass"><div class="value" id="statPass">0</div><div class="label">Passed</div></div>
+    <div class="stat-card fail"><div class="value" id="statFail">0</div><div class="label">Failed</div></div>
+    <div class="stat-card skip"><div class="value" id="statSkip">0</div><div class="label">Skipped</div></div>
+    <div class="stat-card running"><div class="value" id="statRunning">0</div><div class="label">Running</div></div>
+  </div>
+  <div class="session-list" id="sessionList">
+    <div class="empty-state">No sessions yet. Click "+ New Session" to start.</div>
+  </div>
+  <div class="detail-panel" id="detailPanel">
+    <h3 id="detailTitle">Session Details</h3>
+    <div id="detailContent"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>New Test Session</h2>
+    <label for="mGoal">Goal *</label>
+    <textarea id="mGoal" placeholder="e.g., Test all API endpoints"></textarea>
+    <label for="mMode">Mode</label>
+    <select id="mMode"><option value="run">Run</option><option value="verify">Verify</option></select>
+    <label for="mUrl">Target URL (optional)</label>
+    <input id="mUrl" placeholder="http://localhost:3000">
+    <div class="btn-row">
+      <button class="btn" style="background:#334155;color:#e2e8f0" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSession()">Start</button>
+    </div>
+  </div>
+</div>
+<script>
+const API='';
+let sessions=[],selectedId=null;
+
+async function api(path,opts){
+  const r=await fetch(API+path,opts);
+  return r.json();
+}
+
+async function refresh(){
+  const data=await api('/api/v1/sessions?limit=50');
+  sessions=data.sessions||[];
+  renderStats();
+  renderSessions();
+  if(selectedId)await loadDetail(selectedId);
+  document.getElementById('refreshInfo').textContent='Updated '+new Date().toLocaleTimeString();
+}
+
+function renderStats(){
+  let pass=0,fail=0,skip=0,running=0;
+  sessions.forEach(s=>{
+    if(s.status==='running')running++;
+    try{
+      const st=JSON.parse(s.stats||'{}');
+      pass+=st.passed||0;fail+=st.failed||0;skip+=st.skipped||0;
+    }catch(e){}
+  });
+  document.getElementById('statPass').textContent=pass;
+  document.getElementById('statFail').textContent=fail;
+  document.getElementById('statSkip').textContent=skip;
+  document.getElementById('statRunning').textContent=running;
+}
+
+function renderSessions(){
+  const el=document.getElementById('sessionList');
+  if(!sessions.length){el.innerHTML='<div class="empty-state">No sessions yet.</div>';return;}
+  el.innerHTML=sessions.map(s=>`<div class="session-row" onclick="selectSession('${s.id}')">
+    <div class="session-id">${s.id.slice(0,8)}</div>
+    <div class="session-goal">${esc(s.goal)}</div>
+    <div><span class="status-badge status-${s.status}">${s.status}</span></div>
+    <div class="time-col">${s.started_at?new Date(s.started_at).toLocaleString():'-'}</div>
+    <div class="time-col">${s.project_name||''}</div>
+  </div>`).join('');
+}
+
+async function selectSession(id){
+  selectedId=id;
+  document.querySelectorAll('.session-row').forEach(r=>r.style.background='');
+  event.currentTarget.style.background='#1e3a5f';
+  await loadDetail(id);
+}
+
+async function loadDetail(id){
+  const panel=document.getElementById('detailPanel');
+  panel.classList.add('active');
+  try{
+    const data=await api('/api/v1/sessions/'+id+'/report');
+    let stats={};
+    try{stats=JSON.parse(data.session?.stats||'{}');}catch(e){}
+    document.getElementById('detailTitle').textContent='Session '+id.slice(0,8);
+    let html=`<p><strong>Goal:</strong> ${esc(data.session?.goal||'')}</p>
+      <p><strong>Status:</strong> ${data.session?.status||''} &nbsp; <strong>Duration:</strong> ${stats.duration||'-'} &nbsp; <strong>Tokens:</strong> ~${Math.round((stats.total_tokens||0)/1000)}K</p>`;
+    if(data.verdicts&&data.verdicts.length){
+      html+=`<table class="verdict-table"><thead><tr><th>Status</th><th>Target</th><th>Confidence</th><th>Reasoning</th></tr></thead><tbody>`;
+      data.verdicts.forEach(v=>{
+        const cls=v.status==='pass'?'color:#22c55e':'color:#ef4444';
+        html+=`<tr><td style="${cls}">${v.status}</td><td>${esc(v.target)}</td><td>${(v.confidence*100).toFixed(0)}%</td><td>${esc(v.reasoning||'')}</td></tr>`;
+      });
+      html+='</tbody></table>';
+    }
+    if(data.session?.status==='running'){
+      html+=`<div style="margin-top:1rem"><button class="btn btn-danger" onclick="cancelSession('${id}')">Cancel Session</button></div>`;
+    }
+    document.getElementById('detailContent').innerHTML=html;
+  }catch(e){
+    document.getElementById('detailContent').innerHTML='<p style="color:#ef4444">Failed to load details</p>';
+  }
+}
+
+async function cancelSession(id){
+  if(!confirm('Cancel this session?'))return;
+  await api('/api/v1/sessions/'+id+'/cancel',{method:'POST'});
+  refresh();
+}
+
+function openNewSession(){document.getElementById('modal').classList.add('active');document.getElementById('mGoal').focus();}
+function closeModal(){document.getElementById('modal').classList.remove('active');}
+
+async function submitSession(){
+  const goal=document.getElementById('mGoal').value.trim();
+  if(!goal){alert('Goal is required');return;}
+  const mode=document.getElementById('mMode').value;
+  const url=document.getElementById('mUrl').value.trim();
+  await api('/api/v1/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({goal,mode,url})});
+  closeModal();
+  document.getElementById('mGoal').value='';document.getElementById('mUrl').value='';
+  setTimeout(refresh,1000);
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+refresh();
+setInterval(refresh,10000);
+</script>
+</body>
+</html>
