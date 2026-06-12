@@ -102,9 +102,13 @@ func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Polic
 }
 
 // BuildMultiExecutor assembles the standard executor with all built-in executors.
+// Attempts to use Linux sandbox isolation; falls back to NoOpSandbox if unavailable.
 func BuildMultiExecutor(projectDir string, gate escalation.Gate, logger *zap.Logger) *MultiExecutor {
 	p := policy.NewDefaultActionPolicy(projectDir)
-	sb := sandbox.NoOpSandbox{}
+	sb := sandbox.Sandbox(sandbox.NoOpSandbox{})
+	if linuxSB := sandbox.TryNewLinuxSandbox(logger); linuxSB != nil {
+		sb = linuxSB
+	}
 	if gate == nil {
 		gate = escalation.NoOpGate{}
 	}

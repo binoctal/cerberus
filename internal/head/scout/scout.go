@@ -79,15 +79,45 @@ func (s *Scout) Analyze(ctx context.Context, target TargetInfo) (*project.Projec
 
 // Plan generates a TestPlan from the goal and project model.
 // Uses ToT deep planning if enabled, otherwise direct AI planning.
+// Executor test cases (process, code, file) are appended based on
+// the detected project type.
 func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
+	var plan *agent.TestPlan
+	var err error
+
 	// ToT deep planning mode.
 	if s.deepPlan {
 		planner := NewToTPlanner(s.driver, s.totCfg, s.logger)
-		return planner.Plan(ctx, goal, model, s.resolveBaseURL())
+		plan, err = planner.Plan(ctx, goal, model, s.resolveBaseURL())
+	} else {
+		// Direct AI planning (default).
+		plan, err = s.directPlan(ctx, goal, model)
 	}
 
-	// Direct AI planning (default).
-	return s.directPlan(ctx, goal, model)
+	if err != nil {
+		return nil, err
+	}
+
+	s.appendExecutorCases(plan, goal)
+	return plan, nil
+}
+
+// appendExecutorCases detects the project type and appends non-HTTP test
+// cases (build, test, lint, code analysis) to the plan.
+func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string) {
+	rootDir := s.config.Code.Root
+	if rootDir == "" {
+		rootDir = "."
+	}
+	info := DetectProjectType(rootDir)
+	cases := GenerateExecutorCases(info, goal)
+	if len(cases) > 0 {
+		s.logger.Info("appended executor cases",
+			zap.String("project_type", string(info.Type)),
+			zap.Int("cases", len(cases)),
+		)
+		plan.Cases = append(plan.Cases, cases...)
+	}
 }
 
 // directPlan generates a test plan via a single AI call with deterministic fallback.

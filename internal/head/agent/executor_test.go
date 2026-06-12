@@ -33,9 +33,9 @@ func testLoop(t *testing.T, responses map[string]string, server *httptest.Server
 	var engine *RuleEngine
 	if server != nil {
 		baseURL = server.URL
-		engine = NewRuleEngine(baseURL, nil)
+		engine = NewRuleEngine(baseURL, nil, ".")
 	} else {
-		engine = NewRuleEngine("https://example.com", nil)
+		engine = NewRuleEngine("https://example.com", nil, ".")
 	}
 
 	executor := BuildMultiExecutor(".", nil, zap.NewNop())

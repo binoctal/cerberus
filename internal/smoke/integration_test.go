@@ -98,7 +98,7 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	sess, err := s.CreateSession(ctx, "run", "test all APIs", "integration-test")
 	require.NoError(t, err)
 
-	engine := agent.NewRuleEngine(srv.URL, nil)
+	engine := agent.NewRuleEngine(srv.URL, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
 	loop := agent.NewReActLoop(driver, s, engine, multiExec, agent.DefaultReActConfig(), zap.NewNop())
 

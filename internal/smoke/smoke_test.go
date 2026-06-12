@@ -215,7 +215,7 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	})
 
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
-	engine := agent.NewRuleEngine(server.URL, nil)
+	engine := agent.NewRuleEngine(server.URL, nil, ".")
 	exec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
 	loop := agent.NewReActLoop(driver, s, engine, exec, agent.DefaultReActConfig(), zap.NewNop())
 

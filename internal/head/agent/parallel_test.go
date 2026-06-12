@@ -36,7 +36,7 @@ func setupParallelTest(t *testing.T) (*ReActLoop, *store.Store) {
 	})
 	client := llm.NewMockClient(map[string]string{"default": string(steerJSON)})
 	driver := ai.NewDriver(client, ai.NewTokenBudget(500000, 50000))
-	engine := NewRuleEngine("http://localhost", nil)
+	engine := NewRuleEngine("http://localhost", nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	config := DefaultReActConfig()
 	loop := NewReActLoop(driver, s, engine, httpExec, config, zap.NewNop())
@@ -55,7 +55,7 @@ func TestParallelExecutor_AllIndependent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil)
+	engine := NewRuleEngine(srv.URL, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
@@ -91,7 +91,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil)
+	engine := NewRuleEngine(srv.URL, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	_ = NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
@@ -108,7 +108,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 	}))
 	defer srv2.Close()
 
-	engine2 := NewRuleEngine(srv2.URL, nil)
+	engine2 := NewRuleEngine(srv2.URL, nil, ".")
 	httpExec2 := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop3 := NewReActLoop(loop.driver, s, engine2, httpExec2, DefaultReActConfig(), zap.NewNop())
 
@@ -157,7 +157,7 @@ func TestParallelExecutor_ContextCancellation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil)
+	engine := NewRuleEngine(srv.URL, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
@@ -205,7 +205,7 @@ func TestParallelExecutor_ConcurrencyLimit(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil)
+	engine := NewRuleEngine(srv.URL, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
@@ -248,7 +248,7 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil)
+	engine := NewRuleEngine(srv.URL, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
@@ -297,7 +297,7 @@ func TestParallelExecutor_CascadeSkip_ErrorMessage(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil)
+	engine := NewRuleEngine(srv.URL, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 

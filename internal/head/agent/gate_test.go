@@ -37,7 +37,7 @@ func setupGateTest(t *testing.T) (*ReActLoop, *recordingGate, *store.Store) {
 	require.NoError(t, err)
 	t.Cleanup(func() { s.Close() })
 	gate := &recordingGate{}
-	engine := NewRuleEngine("http://localhost:9999", nil)
+	engine := NewRuleEngine("http://localhost:9999", nil, ".")
 	exec := BuildMultiExecutor(".", gate, zap.NewNop())
 	loop := NewReActLoopWithGate(nil, s, engine, exec, DefaultReActConfig(), gate, zap.NewNop())
 	return loop, gate, s

@@ -138,11 +138,11 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	// Phase 2: Agent — Execute.
 	baseURL := s.resolveBaseURL()
-	engine := agent.NewRuleEngine(baseURL, s.Config.Actors)
 	projectDir := s.ProjectDir
 	if projectDir == "" {
 		projectDir = "."
 	}
+	engine := agent.NewRuleEngine(baseURL, s.Config.Actors, projectDir)
 	multiExec := agent.BuildMultiExecutor(projectDir, s.Gate, s.Logger)
 	config := agent.DefaultReActConfig()
 	loop := agent.NewReActLoopWithGate(s.Driver, s.Store, engine, multiExec, config, s.Gate, s.Logger)

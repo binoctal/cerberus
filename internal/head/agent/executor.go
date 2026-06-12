@@ -27,14 +27,15 @@ type RecoverDecision struct {
 
 // ReActLoop executes test steps using a Reason-Act-Observe cycle.
 type ReActLoop struct {
-	driver   *ai.Driver
-	store    *store.Store
-	engine   *RuleEngine
-	executor TypedExecutor
-	recovery recoverer
-	config   ReActConfig
-	logger   *zap.Logger
-	gate     escalation.Gate
+	driver     *ai.Driver
+	store      *store.Store
+	engine     *RuleEngine
+	executor   TypedExecutor
+	recovery   recoverer
+	config     ReActConfig
+	logger     *zap.Logger
+	gate       escalation.Gate
+	processMgr *ProcessManager
 }
 
 // NewReActLoopWithGate creates a ReAct execution loop with an explicit escalation gate.
@@ -48,14 +49,15 @@ func NewReActLoopWithGate(
 	logger *zap.Logger,
 ) *ReActLoop {
 	return &ReActLoop{
-		driver:   driver,
-		store:    store,
-		engine:   engine,
-		executor: executor,
-		recovery: NewRecovery(driver, store, config, logger),
-		config:   config,
-		gate:     gate,
-		logger:   logger,
+		driver:     driver,
+		store:      store,
+		engine:     engine,
+		executor:   executor,
+		recovery:   NewRecovery(driver, store, config, logger),
+		config:     config,
+		gate:       gate,
+		logger:     logger,
+		processMgr: NewProcessManager(logger),
 	}
 }
 
@@ -73,6 +75,8 @@ func NewReActLoop(
 
 // ExecutePlan runs all TestCases in the plan sequentially and returns results.
 func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
+	defer r.processMgr.StopAll()
+
 	var results []StepResult
 	consecutiveFailures := 0
 	remainingCases := 0
@@ -148,6 +152,31 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 
 	// Phase 1: Try rule engine (zero tokens).
 	if action, matched := r.engine.Match(*tc); matched {
+		// Handle background process: start it and return immediately.
+		if tc.Background {
+			if procAct, isProc := action.(types.ProcessExecAction); isProc {
+				mp := &ManagedProcess{
+					Name:    tc.ID,
+					Cmd:     procAct.Command,
+					Args:    procAct.Args,
+					WorkDir: procAct.WorkDir,
+					Health:  tc.WaitFor,
+					Timeout: 30 * time.Second,
+				}
+				if err := r.processMgr.Start(ctx, mp); err != nil {
+					return StepResult{
+						TestCase: tc, Status: StepFailed, TraceID: traceID,
+						Attempts: 1, Duration: time.Since(start), Error: err,
+					}
+				}
+				return StepResult{
+					TestCase: tc, Status: StepPassed, TraceID: traceID,
+					Attempts: 1, Duration: time.Since(start), Action: action,
+					Evidence: []Evidence{{Type: "background_process", Content: fmt.Sprintf("started %s", procAct.Command)}},
+				}
+			}
+		}
+
 		// Escalation checkpoint: destructive risk.
 		if isDestructiveAction(action) {
 			decision := r.gate.Check(ctx, escalation.Event{
