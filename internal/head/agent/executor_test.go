@@ -11,6 +11,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -37,7 +38,7 @@ func testLoop(t *testing.T, responses map[string]string, server *httptest.Server
 		engine = NewRuleEngine("https://example.com", nil)
 	}
 
-	executor := NewHTTPActionExecutor(baseURL, zap.NewNop())
+	executor := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop := NewReActLoop(driver, s, engine, executor, DefaultReActConfig(), zap.NewNop())
 
 	return loop, s
@@ -48,6 +49,28 @@ func createTestSession(t *testing.T, s *store.Store) string {
 	sess, err := s.CreateSession(context.Background(), "run", "test", "")
 	require.NoError(t, err)
 	return sess.ID
+}
+
+// makeSteerEnvelope creates a SteerOutput with an HTTP action envelope.
+func makeSteerEnvelope(reasoning, method, url string) SteerOutput {
+	return SteerOutput{
+		Reasoning: reasoning,
+		Envelope: types.ActionEnvelope{
+			Type: types.ActionAPIRequest,
+			Raw: mustJSON(types.HTTPAction{
+				Method: method,
+				URL:    url,
+			}),
+		},
+	}
+}
+
+func mustJSON(v any) json.RawMessage {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func TestReActLoop_RuleEngineSuccess(t *testing.T) {
@@ -73,7 +96,7 @@ func TestReActLoop_RuleEngineSuccess(t *testing.T) {
 	require.Len(t, results, 1)
 
 	assert.Equal(t, StepPassed, results[0].Status)
-	assert.Equal(t, 1, results[0].Attempts) // Rule engine hit, single attempt
+	assert.Equal(t, 1, results[0].Attempts)
 	assert.Empty(t, results[0].Error)
 }
 
@@ -88,21 +111,13 @@ func TestReActLoop_SteerSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(SteerOutput{
-		Reasoning: "try the complex endpoint",
-		Action: Action{
-			Type:   ActionAPIRequest,
-			Target: server.URL + "/api/complex",
-			Method: "GET",
-		},
-	})
+	steerJSON, _ := json.Marshal(makeSteerEnvelope("try the complex endpoint", "GET", server.URL+"/api/complex"))
 
 	loop, s := testLoop(t, map[string]string{
 		"default": string(steerJSON),
 	}, server)
 	sessionID := createTestSession(t, s)
 
-	// Target is a description, not a path — rule engine won't match.
 	plan := &TestPlan{
 		Goal: "test complex flow",
 		Cases: []TestCase{
@@ -115,7 +130,7 @@ func TestReActLoop_SteerSuccess(t *testing.T) {
 	require.Len(t, results, 1)
 
 	assert.Equal(t, StepPassed, results[0].Status)
-	assert.Equal(t, 1, results[0].Attempts) // Steer succeeded on first attempt
+	assert.Equal(t, 1, results[0].Attempts)
 }
 
 func TestReActLoop_MaxAttemptsExhausted(t *testing.T) {
@@ -125,14 +140,7 @@ func TestReActLoop_MaxAttemptsExhausted(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(SteerOutput{
-		Reasoning: "try again",
-		Action: Action{
-			Type:   ActionAPIRequest,
-			Target: server.URL + "/fail",
-			Method: "GET",
-		},
-	})
+	steerJSON, _ := json.Marshal(makeSteerEnvelope("try again", "GET", server.URL+"/fail"))
 
 	loop, s := testLoop(t, map[string]string{
 		"default": string(steerJSON),
@@ -151,7 +159,7 @@ func TestReActLoop_MaxAttemptsExhausted(t *testing.T) {
 	require.Len(t, results, 1)
 
 	assert.Equal(t, StepFailed, results[0].Status)
-	assert.Equal(t, 3, results[0].Attempts) // Exhausted all MaxSteerAttempts
+	assert.Equal(t, 3, results[0].Attempts)
 }
 
 func TestReActLoop_RecoverySkip(t *testing.T) {
@@ -160,12 +168,7 @@ func TestReActLoop_RecoverySkip(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(SteerOutput{
-		Reasoning: "try request",
-		Action: Action{
-			Type: ActionAPIRequest, Target: server.URL + "/fail", Method: "GET",
-		},
-	})
+	steerJSON, _ := json.Marshal(makeSteerEnvelope("try request", "GET", server.URL+"/fail"))
 
 	loop, s := testLoop(t, map[string]string{
 		"default": string(steerJSON),
@@ -229,6 +232,6 @@ type fixedRecovery struct {
 	skip bool
 }
 
-func (f *fixedRecovery) Recover(ctx context.Context, tc TestCase, obs Observation, attempt int) (RecoverResult, error) {
-	return RecoverResult{Skip: f.skip}, nil
+func (f *fixedRecovery) Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error) {
+	return RecoverDecision{Skip: f.skip}, nil
 }

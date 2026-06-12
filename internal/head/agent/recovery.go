@@ -6,6 +6,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
 )
 
@@ -23,49 +24,49 @@ func NewRecovery(driver *ai.Driver, store *store.Store, config ReActConfig, logg
 	return &Recovery{driver: driver, store: store, config: config, logger: logger}
 }
 
-// RecoverResult holds the recovery decision output.
-type RecoverResult struct {
-	Action Action
-	Skip   bool
-}
-
 // Recover decides what to do after a failed action.
-// Returns the next Action and whether to skip the step entirely.
-func (rc *Recovery) Recover(ctx context.Context, tc TestCase, obs Observation, attempt int) (RecoverResult, error) {
-	recoverCtx := rc.buildRecoverContext(ctx, tc, obs, attempt)
+// Returns a RecoverDecision with the next action or skip flag.
+func (rc *Recovery) Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error) {
+	recoverCtx := rc.buildRecoverContext(ctx, tc, result, attempt)
 
 	prompt := ai.NewPrompt().
 		System(promptRecoverSystem).
 		Context(recoverCtx).
 		Task(fmt.Sprintf("Failed action on target: %s\nError: %s\nAttempt: %d/%d",
-			tc.Target, obs.Error, attempt, rc.config.MaxSteerAttempts)).
+			tc.Target, result.Summary(), attempt, rc.config.MaxSteerAttempts)).
 		Output(promptRecoverOutput).
 		Build()
 
 	var out RecoverOutput
 	if err := rc.driver.Decide(ctx, prompt, &out); err != nil {
 		rc.logger.Warn("recover parse failed, skipping", zap.Error(err))
-		return RecoverResult{Skip: true}, nil
+		return RecoverDecision{Skip: true}, nil
+	}
+
+	action, err := types.UnmarshalAction(out.Envelope)
+	if err != nil {
+		rc.logger.Warn("recover unmarshal failed, skipping", zap.Error(err))
+		return RecoverDecision{Skip: true}, nil
 	}
 
 	rc.logger.Info("recover decision",
 		zap.String("diagnosis", out.Diagnosis),
 		zap.Bool("skip", out.Skip),
-		zap.String("action_type", string(out.Action.Type)),
+		zap.String("action_type", string(action.GetActionType())),
 	)
 
-	return RecoverResult{Action: out.Action, Skip: out.Skip}, nil
+	return RecoverDecision{Action: action, Skip: out.Skip}, nil
 }
 
 // buildRecoverContext assembles context including L3 procedural memory.
-func (rc *Recovery) buildRecoverContext(ctx context.Context, tc TestCase, obs Observation, attempt int) string {
+func (rc *Recovery) buildRecoverContext(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) string {
 	var b []byte
 
-	// Current failure context
-	b = append(b, fmt.Sprintf("Target: %s\nStatus Code: %d\nError: %s\n",
-		tc.Target, obs.StatusCode, obs.Error)...)
+	// Current failure context.
+	b = append(b, fmt.Sprintf("Target: %s\nSummary: %s\nAttempt: %d\n",
+		tc.Target, result.Summary(), attempt)...)
 
-	// L3 Procedural Memory injection
+	// L3 Procedural Memory injection.
 	memories, err := rc.store.GetProceduralByMatch(ctx, tc.Target, 5)
 	if err != nil {
 		rc.logger.Warn("failed to load L3 memory for recovery", zap.Error(err))

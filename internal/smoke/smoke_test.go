@@ -14,13 +14,13 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
 func TestSessionSmokeTest(t *testing.T) {
-	// In-memory SQLite — no external DB needed
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
 	defer s.Close()
@@ -37,7 +37,7 @@ func TestSessionSmokeTest(t *testing.T) {
 	cfg := project.DefaultConfig()
 	cfg.Project.Name = "smoke-test"
 
-	sess, err := session.NewSession(ctx, session.ModeRun, "smoke test goal", &cfg, s, client, logger, nil)
+	sess, err := session.NewSession(ctx, session.ModeRun, "smoke test goal", &cfg, s, client, logger, nil, ".")
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)
 
@@ -101,8 +101,15 @@ settings:
 	assert.Equal(t, 200000, cfg.Settings.AIBudget.SessionTotalTokens)
 }
 
+func mustRawJSON(v any) json.RawMessage {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 func TestAgentSmokeTest(t *testing.T) {
-	// Stand up a real HTTP server as the SUT.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/users":
@@ -120,7 +127,6 @@ func TestAgentSmokeTest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// In-memory store + migrations.
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
 	defer s.Close()
@@ -128,13 +134,14 @@ func TestAgentSmokeTest(t *testing.T) {
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
 
-	// Mock LLM: for invariants that need Steer, return a valid action pointing to the right endpoint.
 	steerJSON, _ := json.Marshal(agent.SteerOutput{
 		Reasoning: "navigate to the endpoint",
-		Action: agent.Action{
-			Type:   agent.ActionAPIRequest,
-			Target: server.URL + "/api/v1/users",
-			Method: "GET",
+		Envelope: types.ActionEnvelope{
+			Type: types.ActionAPIRequest,
+			Raw: mustRawJSON(types.HTTPAction{
+				Method: "GET",
+				URL:    server.URL + "/api/v1/users",
+			}),
 		},
 	})
 	mockClient := llm.NewMockClient(map[string]string{
@@ -152,23 +159,20 @@ func TestAgentSmokeTest(t *testing.T) {
 		{ID: "posts-api", Description: "Posts endpoint works", Check: "/api/v1/posts", Assertion: "returns 200"},
 	}
 
-	sess, err := session.NewSession(ctx, session.ModeRun, "agent smoke test", &cfg, s, mockClient, logger, nil)
+	sess, err := session.NewSession(ctx, session.ModeRun, "agent smoke test", &cfg, s, mockClient, logger, nil, ".")
 	require.NoError(t, err)
 
 	err = sess.Run(ctx)
 	require.NoError(t, err)
 
-	// Verify session completed.
 	dbSess, err := s.GetSession(ctx, sess.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "completed", dbSess.Status)
 
-	// Verify traces were created for each test case.
 	traces, err := s.GetTraces(ctx, sess.ID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(traces), 2, "should have traces for health check and invariants")
 
-	// Verify evidence was recorded.
 	for _, tr := range traces {
 		evidence, err := s.GetEvidenceByTrace(ctx, tr.ID)
 		require.NoError(t, err)
@@ -189,7 +193,6 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Setup store.
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
 	defer s.Close()
@@ -197,13 +200,14 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
 
-	// LLM returns a Steer action pointing to /api/v1/items.
 	steerJSON, _ := json.Marshal(agent.SteerOutput{
 		Reasoning: "try the items endpoint",
-		Action: agent.Action{
-			Type:   agent.ActionAPIRequest,
-			Target: server.URL + "/api/v1/items",
-			Method: "GET",
+		Envelope: types.ActionEnvelope{
+			Type: types.ActionAPIRequest,
+			Raw: mustRawJSON(types.HTTPAction{
+				Method: "GET",
+				URL:    server.URL + "/api/v1/items",
+			}),
 		},
 	})
 	mockClient := llm.NewMockClient(map[string]string{
@@ -212,10 +216,9 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	engine := agent.NewRuleEngine(server.URL, nil)
-	exec := agent.NewHTTPActionExecutor(server.URL, zap.NewNop())
+	exec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
 	loop := agent.NewReActLoop(driver, s, engine, exec, agent.DefaultReActConfig(), zap.NewNop())
 
-	// Create session and trace.
 	sess, err := s.CreateSession(ctx, "run", "react smoke", "")
 	require.NoError(t, err)
 
@@ -234,6 +237,5 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	assert.Equal(t, agent.StepPassed, results[0].Status)
 	assert.Equal(t, 1, results[0].Attempts)
 
-	// Verify tokens were spent (LLM was called for Steer).
 	assert.Less(t, driver.Budget().Remaining(), 200000, "should have spent tokens on Steer")
 }

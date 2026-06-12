@@ -10,12 +10,19 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
 )
 
 // recoverer is the interface for the Recover decision point.
 type recoverer interface {
-	Recover(ctx context.Context, tc TestCase, obs Observation, attempt int) (RecoverResult, error)
+	Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error)
+}
+
+// RecoverDecision holds the recovery decision output.
+type RecoverDecision struct {
+	Action types.TypedAction
+	Skip   bool
 }
 
 // ReActLoop executes test steps using a Reason-Act-Observe cycle.
@@ -23,7 +30,7 @@ type ReActLoop struct {
 	driver   *ai.Driver
 	store    *store.Store
 	engine   *RuleEngine
-	executor ActionExecutor
+	executor TypedExecutor
 	recovery recoverer
 	config   ReActConfig
 	logger   *zap.Logger
@@ -35,7 +42,7 @@ func NewReActLoopWithGate(
 	driver *ai.Driver,
 	store *store.Store,
 	engine *RuleEngine,
-	executor ActionExecutor,
+	executor TypedExecutor,
 	config ReActConfig,
 	gate escalation.Gate,
 	logger *zap.Logger,
@@ -57,7 +64,7 @@ func NewReActLoop(
 	driver *ai.Driver,
 	store *store.Store,
 	engine *RuleEngine,
-	executor ActionExecutor,
+	executor TypedExecutor,
 	config ReActConfig,
 	logger *zap.Logger,
 ) *ReActLoop {
@@ -85,7 +92,6 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 		)
 
 		// Escalation checkpoint: budget warning.
-		// Fire when ≥80% of budget is spent and there are >5 remaining cases.
 		if remainingCases > 5 {
 			budget := r.driver.Budget()
 			usedPct := float64(budget.SessionTotal-budget.Remaining()) / float64(budget.SessionTotal) * 100
@@ -117,7 +123,6 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			if decision.Action == escalation.DecisionAbort {
 				return results, fmt.Errorf("execution aborted after %d consecutive failures", consecutiveFailures)
 			}
-			// DecisionContinue — reset counter and proceed.
 			consecutiveFailures = 0
 		}
 	}
@@ -144,85 +149,82 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 	// Phase 1: Try rule engine (zero tokens).
 	if action, matched := r.engine.Match(*tc); matched {
 		// Escalation checkpoint: destructive risk.
-		if isDestructive(action) {
+		if isDestructiveAction(action) {
 			decision := r.gate.Check(ctx, escalation.Event{
 				Type:      "destructive_risk",
-				Message:   fmt.Sprintf("destructive action detected: %s %s", action.Method, action.Target),
+				Message:   fmt.Sprintf("destructive action detected: %s %s", action.GetActionType(), action.Target()),
 				SessionID: sessionID,
 			})
 			if decision.Action == escalation.DecisionSkipCase {
 				return StepResult{
 					TestCase: tc, Status: StepSkipped, TraceID: traceID,
 					Attempts: 0, Duration: time.Since(start),
-					Error: fmt.Errorf("skipped destructive action: %s %s", action.Method, action.Target),
+					Error: fmt.Errorf("skipped destructive action: %s %s", action.GetActionType(), action.Target()),
 				}
 			}
 		}
-		obs := r.executor.Execute(ctx, action)
-		r.recordEvidence(ctx, traceID, "rule_engine", action, obs)
-		if obs.Success {
+		result := r.executor.Execute(ctx, action)
+		r.recordEvidence(ctx, traceID, "rule_engine", action, result)
+		if result.Success() {
 			return StepResult{
 				TestCase: tc, Status: StepPassed, TraceID: traceID,
-				Attempts: 1, Duration: time.Since(start), LastAction: action, LastObs: obs,
-				Evidence: []Evidence{{Type: obsContentType(obs), Content: obs.Body}},
+				Attempts: 1, Duration: time.Since(start), Action: action, Result: result,
+				Evidence: []Evidence{{Type: evidenceType(result), Content: result.Evidence().Content}},
 			}
 		}
 		// Rule engine action failed — fall through to ReAct loop.
 		r.logger.Info("rule engine action failed, entering ReAct loop",
 			zap.String("target", tc.Target),
-			zap.Int("status_code", obs.StatusCode),
+			zap.String("summary", result.Summary()),
 		)
 	}
 
 	// Phase 2: ReAct loop (max MaxSteerAttempts).
-	var lastObs Observation
-	var lastAction Action
+	var lastResult types.ExecutorResult
+	var lastAction types.TypedAction
 	var recoverySkipped bool
 	consecutiveTimeouts := 0
 	for attempt := 1; attempt <= r.config.MaxSteerAttempts; attempt++ {
 		// Steer: AI decides next action.
-		action, err := r.steer(ctx, tc, lastObs, attempt)
+		action, err := r.steer(ctx, tc, lastResult, attempt)
 		if err != nil {
 			r.logger.Warn("steer failed",
 				zap.Int("attempt", attempt),
 				zap.Error(err),
 			)
-			// Budget exhausted — skip immediately.
 			if err.Error() == "token budget exhausted" {
 				return StepResult{
 					TestCase: tc, Status: StepSkipped, TraceID: traceID,
 					Attempts: attempt, Duration: time.Since(start), Error: err,
 				}
 			}
-			// Other errors count as a failed attempt.
-			lastObs = Observation{Error: err.Error()}
+			lastResult = types.ErrorResult{Err: err.Error()}
 			lastAction = action
 			continue
 		}
 
 		// Observe: Execute the action.
-		// Escalation checkpoint: destructive risk.
-		if isDestructive(action) {
+		if isDestructiveAction(action) {
 			decision := r.gate.Check(ctx, escalation.Event{
 				Type:      "destructive_risk",
-				Message:   fmt.Sprintf("destructive action detected: %s %s", action.Method, action.Target),
+				Message:   fmt.Sprintf("destructive action detected: %s %s", action.GetActionType(), action.Target()),
 				SessionID: sessionID,
 			})
 			if decision.Action == escalation.DecisionSkipCase {
 				return StepResult{
 					TestCase: tc, Status: StepSkipped, TraceID: traceID,
 					Attempts: attempt, Duration: time.Since(start),
-					Error: fmt.Errorf("skipped destructive action: %s %s", action.Method, action.Target),
+					Error: fmt.Errorf("skipped destructive action: %s %s", action.GetActionType(), action.Target()),
 				}
 			}
 		}
-		obs := r.executor.Execute(ctx, action)
-		r.recordEvidence(ctx, traceID, "steer_attempt", action, obs)
-		lastObs = obs
+		result := r.executor.Execute(ctx, action)
+		r.recordEvidence(ctx, traceID, "steer_attempt", action, result)
+		lastResult = result
 		lastAction = action
 
 		// Escalation checkpoint: target unreachable.
-		if !obs.Success && (obs.Error != "" || obs.StatusCode == 0 || obs.StatusCode >= 500) {
+		if !result.Success() {
 			consecutiveTimeouts++
 		} else {
 			consecutiveTimeouts = 0
@@ -241,31 +243,30 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 					Error: fmt.Errorf("target unreachable: %s", tc.Target),
 				}
 			}
-			// DecisionContinue — reset and retry.
 			consecutiveTimeouts = 0
 		}
 
 		r.logger.Info("steer attempt",
 			zap.Int("attempt", attempt),
-			zap.String("action_type", string(action.Type)),
-			zap.String("target", action.Target),
-			zap.Bool("success", obs.Success),
-			zap.Duration("latency", obs.Duration),
+			zap.String("action_type", string(action.GetActionType())),
+			zap.String("target", action.Target()),
+			zap.Bool("success", result.Success()),
+			zap.Duration("latency", result.Duration()),
 		)
 
-		if obs.Success {
+		if result.Success() {
 			_ = r.store.FinishTrace(ctx, traceID, string(StepPassed))
 			return StepResult{
 				TestCase: tc, Status: StepPassed, TraceID: traceID,
 				Attempts: attempt, Duration: time.Since(start),
-				LastAction: action, LastObs: obs,
-				Evidence: []Evidence{{Type: obsContentType(obs), Content: obs.Body}},
+				Action: action, Result: result,
+				Evidence: []Evidence{{Type: evidenceType(result), Content: result.Evidence().Content}},
 			}
 		}
 
 		// Attempt recovery before next steer.
 		if attempt < r.config.MaxSteerAttempts {
-			recResult, recErr := r.recovery.Recover(ctx, *tc, obs, attempt)
+			recResult, recErr := r.recovery.Recover(ctx, *tc, result, attempt)
 			if recErr != nil {
 				r.logger.Warn("recovery failed", zap.Error(recErr))
 			}
@@ -273,18 +274,18 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 				recoverySkipped = true
 				break
 			}
-			if recResult.Action.Type != "" {
-				recObs := r.executor.Execute(ctx, recResult.Action)
-				r.recordEvidence(ctx, traceID, "recovery", recResult.Action, recObs)
-				lastObs = recObs
+			if recResult.Action != nil {
+				recExecResult := r.executor.Execute(ctx, recResult.Action)
+				r.recordEvidence(ctx, traceID, "recovery", recResult.Action, recExecResult)
+				lastResult = recExecResult
 				lastAction = recResult.Action
-				if recObs.Success {
+				if recExecResult.Success() {
 					_ = r.store.FinishTrace(ctx, traceID, string(StepPassed))
 					return StepResult{
 						TestCase: tc, Status: StepPassed, TraceID: traceID,
 						Attempts: attempt + 1, Duration: time.Since(start),
-						LastAction: recResult.Action, LastObs: recObs,
-						Evidence: []Evidence{{Type: obsContentType(recObs), Content: recObs.Body}},
+						Action: recResult.Action, Result: recExecResult,
+						Evidence: []Evidence{{Type: evidenceType(recExecResult), Content: recExecResult.Evidence().Content}},
 					}
 				}
 			}
@@ -293,22 +294,26 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 
 	// All attempts exhausted or recovery skipped.
 	status := StepFailed
-	if lastObs.StatusCode == 0 || recoverySkipped {
+	if recoverySkipped {
 		status = StepSkipped
 	}
 	_ = r.store.FinishTrace(ctx, traceID, string(status))
 
+	var evContent string
+	if lastResult != nil {
+		evContent = lastResult.Evidence().Content
+	}
 	return StepResult{
 		TestCase: tc, Status: status, TraceID: traceID,
 		Attempts: r.config.MaxSteerAttempts, Duration: time.Since(start),
-		LastAction: lastAction, LastObs: lastObs,
-		Evidence: []Evidence{{Type: obsContentType(lastObs), Content: lastObs.Body}},
+		Action: lastAction, Result: lastResult,
+		Evidence: []Evidence{{Type: evidenceType(lastResult), Content: evContent}},
 	}
 }
 
 // steer calls the LLM to decide the next action.
-func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevObs Observation, attempt int) (Action, error) {
-	observationCtx := formatObservationContext(tc, prevObs, attempt)
+func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevResult types.ExecutorResult, attempt int) (types.TypedAction, error) {
+	observationCtx := formatResultContext(tc, prevResult, attempt)
 
 	prompt := ai.NewPrompt().
 		System(promptSteerSystem).
@@ -320,25 +325,29 @@ func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevObs Observation
 
 	var out SteerOutput
 	if err := r.driver.Decide(ctx, prompt, &out); err != nil {
-		// Try fallback parse on structured output failure.
 		if isParseError(err) {
 			r.logger.Warn("steer parse failed, using fallback", zap.Error(err))
 			return FallbackParseAction(err.Error(), tc.Target), nil
 		}
-		return Action{}, fmt.Errorf("steer attempt %d: %w", attempt, err)
+		return nil, fmt.Errorf("steer attempt %d: %w", attempt, err)
 	}
 
-	return out.Action, nil
+	action, err := types.UnmarshalAction(out.Envelope)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal steer action: %w", err)
+	}
+	return action, nil
 }
 
 // recordEvidence stores an observation as evidence linked to the trace.
-func (r *ReActLoop) recordEvidence(ctx context.Context, traceID int64, phase string, action Action, obs Observation) {
+func (r *ReActLoop) recordEvidence(ctx context.Context, traceID int64, phase string, action types.TypedAction, result types.ExecutorResult) {
 	content, _ := json.Marshal(map[string]any{
-		"phase":   phase,
-		"action":  action,
-		"success": obs.Success,
-		"status":  obs.StatusCode,
-		"error":   obs.Error,
+		"phase":    phase,
+		"type":     string(action.GetActionType()),
+		"target":   action.Target(),
+		"success":  result.Success(),
+		"summary":  result.Summary(),
+		"evidence": result.Evidence(),
 	})
 	_, err := r.store.CreateEvidence(ctx, traceID, "agent_observation", string(content))
 	if err != nil {
@@ -346,23 +355,23 @@ func (r *ReActLoop) recordEvidence(ctx context.Context, traceID int64, phase str
 	}
 }
 
-// formatObservationContext builds context for the Steer prompt.
-func formatObservationContext(tc *TestCase, obs Observation, attempt int) string {
+// formatResultContext builds context for the Steer prompt.
+func formatResultContext(tc *TestCase, result types.ExecutorResult, attempt int) string {
 	if attempt == 1 {
 		return fmt.Sprintf("Target: %s\nMethod: %s", tc.Target, tc.Method)
 	}
-	return fmt.Sprintf("Target: %s\nMethod: %s\nPrevious Status: %d\nPrevious Error: %s",
-		tc.Target, tc.Method, obs.StatusCode, obs.Error)
+	if result != nil {
+		return fmt.Sprintf("Target: %s\nMethod: %s\nPrevious: %s",
+			tc.Target, tc.Method, result.Summary())
+	}
+	return fmt.Sprintf("Target: %s\nMethod: %s", tc.Target, tc.Method)
 }
 
-func obsContentType(obs Observation) string {
-	if obs.StatusCode > 0 {
-		return "http_response"
+func evidenceType(result types.ExecutorResult) string {
+	if result == nil {
+		return "none"
 	}
-	if obs.Error != "" {
-		return "error"
-	}
-	return "observation"
+	return result.Evidence().Type
 }
 
 // isParseError checks if the error is from structured output parsing.
@@ -384,12 +393,24 @@ func findSubstr(s, sub string) bool {
 	return false
 }
 
-// isDestructive checks if an action is potentially destructive (DELETE/DROP methods or targets).
-func isDestructive(action Action) bool {
-	upper := strings.ToUpper(action.Method)
-	if upper == "DELETE" || upper == "DROP" {
+// isDestructiveAction checks if a TypedAction is potentially destructive.
+func isDestructiveAction(action types.TypedAction) bool {
+	if action == nil {
+		return false
+	}
+	switch a := action.(type) {
+	case types.HTTPAction:
+		upper := strings.ToUpper(a.Method)
+		return upper == "DELETE" || upper == "DROP"
+	case types.ProcessExecAction:
+		destructive := []string{"rm", "rmdir", "dropdb", "truncate"}
+		for _, d := range destructive {
+			if a.Command == d {
+				return true
+			}
+		}
+	case types.FileWriteAction:
 		return true
 	}
-	lowerTarget := strings.ToLower(action.Target)
-	return strings.Contains(lowerTarget, "/delete") || strings.Contains(lowerTarget, "/drop")
+	return false
 }

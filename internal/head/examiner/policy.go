@@ -1,6 +1,9 @@
 package examiner
 
-import "github.com/binoctal/cerberus/internal/head/agent"
+import (
+	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/types"
+)
 
 // VerdictPolicy applies the Uncertain 3-level degradation chain:
 // Level 1: Self-Refine (already done by Judge)
@@ -25,13 +28,14 @@ func VerdictPolicy(judgeResult *JudgeResult, stepResult agent.StepResult) FinalV
 	// Level 2: Checker-only — deterministic fallback.
 	// If the step passed at HTTP level (2xx) but judge is uncertain,
 	// downgrade to "pass" with low confidence.
-	if stepResult.Status == agent.StepPassed && stepResult.LastObs.StatusCode >= 200 &&
-		stepResult.LastObs.StatusCode < 300 {
-		v.Status = StatusPass
-		v.CorrectnessConfidence = 0.5 // Low — passed HTTP but uncertain correctness
-		v.Reasoning = "Degraded from uncertain: HTTP 2xx confirmed, correctness uncertain"
-		v.DegradedLevel = 2
-		return v
+	if stepResult.Status == agent.StepPassed && stepResult.Result != nil {
+		if httpRes, ok := stepResult.Result.(types.HTTPResult); ok && httpRes.StatusCode >= 200 && httpRes.StatusCode < 300 {
+			v.Status = StatusPass
+			v.CorrectnessConfidence = 0.5 // Low — passed HTTP but uncertain correctness
+			v.Reasoning = "Degraded from uncertain: HTTP 2xx confirmed, correctness uncertain"
+			v.DegradedLevel = 2
+			return v
+		}
 	}
 
 	// Level 3: Pending review.

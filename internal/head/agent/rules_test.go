@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,9 +17,10 @@ func TestRuleEngineMatch_APIGet(t *testing.T) {
 	}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, ActionAPIRequest, action.Type)
-	assert.Equal(t, "https://api.example.com/api/v1/users", action.Target)
-	assert.Equal(t, "GET", action.Method)
+	httpAct, isHTTP := action.(types.HTTPAction)
+	assert.True(t, isHTTP)
+	assert.Equal(t, "GET", httpAct.Method)
+	assert.Equal(t, "https://api.example.com/api/v1/users", httpAct.URL)
 }
 
 func TestRuleEngineMatch_APIPost(t *testing.T) {
@@ -30,7 +32,8 @@ func TestRuleEngineMatch_APIPost(t *testing.T) {
 	}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, "POST", action.Method)
+	httpAct := action.(types.HTTPAction)
+	assert.Equal(t, "POST", httpAct.Method)
 }
 
 func TestRuleEngineMatch_APIWithActors(t *testing.T) {
@@ -42,7 +45,8 @@ func TestRuleEngineMatch_APIWithActors(t *testing.T) {
 
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, "admin@test.com", action.Headers["X-Test-User"])
+	httpAct := action.(types.HTTPAction)
+	assert.Equal(t, "admin@test.com", httpAct.Headers["X-Test-User"])
 }
 
 func TestRuleEngineMatch_Navigate(t *testing.T) {
@@ -54,8 +58,9 @@ func TestRuleEngineMatch_Navigate(t *testing.T) {
 	}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, ActionNavigate, action.Type)
-	assert.Equal(t, "https://example.com/dashboard", action.Target)
+	navAct, isNav := action.(types.NavigateAction)
+	assert.True(t, isNav)
+	assert.Equal(t, "https://example.com/dashboard", navAct.URL)
 }
 
 func TestRuleEngineMatch_FullURL(t *testing.T) {
@@ -66,8 +71,9 @@ func TestRuleEngineMatch_FullURL(t *testing.T) {
 	}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, ActionNavigate, action.Type)
-	assert.Equal(t, "https://other.example.com/api/health", action.Target)
+	navAct, isNav := action.(types.NavigateAction)
+	assert.True(t, isNav)
+	assert.Equal(t, "https://other.example.com/api/health", navAct.URL)
 }
 
 func TestRuleEngineMatch_FullURLWithMethod(t *testing.T) {
@@ -79,8 +85,9 @@ func TestRuleEngineMatch_FullURLWithMethod(t *testing.T) {
 	}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, ActionAPIRequest, action.Type)
-	assert.Equal(t, "POST", action.Method)
+	httpAct, isHTTP := action.(types.HTTPAction)
+	assert.True(t, isHTTP)
+	assert.Equal(t, "POST", httpAct.Method)
 }
 
 func TestRuleEngineMatch_NoMatch(t *testing.T) {
@@ -95,7 +102,6 @@ func TestRuleEngineMatch_NoMatch(t *testing.T) {
 
 func TestRuleEngineMatch_NoMatchNoMethod(t *testing.T) {
 	engine := NewRuleEngine("https://example.com", nil)
-	// Target is a path but no method and no navigate action.
 	tc := TestCase{
 		ID:     "t8",
 		Target: "/some/path",
@@ -109,5 +115,6 @@ func TestRuleEngineMatch_TrailingSlash(t *testing.T) {
 	tc := TestCase{ID: "t9", Target: "/v1/users", Method: "GET"}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	assert.Equal(t, "https://api.example.com/v1/users", action.Target)
+	httpAct := action.(types.HTTPAction)
+	assert.Equal(t, "https://api.example.com/v1/users", httpAct.URL)
 }

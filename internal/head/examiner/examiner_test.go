@@ -9,6 +9,7 @@ import (
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -30,8 +31,12 @@ func makeStepResult(id, name, target, expectation string, status agent.StepStatu
 		TestCase: &agent.TestCase{ID: id, Name: name, Target: target, Expectation: expectation},
 		Status:   status,
 		Attempts: 1,
-		LastObs:  agent.Observation{StatusCode: statusCode, Body: body, Success: status == agent.StepPassed},
-		LastAction: agent.Action{Type: agent.ActionAPIRequest, Target: target, Method: "GET"},
+		Result: types.HTTPResult{
+			OK:         status == agent.StepPassed,
+			StatusCode: statusCode,
+			Body:       body,
+		},
+		Action: types.HTTPAction{Method: "GET", URL: target},
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // Judge performs Self-Refine evaluation: initial judgment (main model) +
@@ -107,22 +108,30 @@ func (j *Judge) buildEvidenceContext(r agent.StepResult) string {
 	b = append(b, fmt.Sprintf("Status: %s\n", r.Status)...)
 	b = append(b, fmt.Sprintf("Attempts: %d\n", r.Attempts)...)
 
-	if r.LastObs.StatusCode != 0 {
-		b = append(b, fmt.Sprintf("HTTP Status: %d\n", r.LastObs.StatusCode)...)
-	}
-	if r.LastObs.Body != "" {
-		// Truncate large bodies to keep prompt manageable.
-		body := r.LastObs.Body
-		if len(body) > 2000 {
-			body = body[:2000] + "\n... (truncated)"
+	if r.Result != nil {
+		// Extract HTTP-specific details if available.
+		if httpRes, ok := r.Result.(types.HTTPResult); ok {
+			if httpRes.StatusCode != 0 {
+				b = append(b, fmt.Sprintf("HTTP Status: %d\n", httpRes.StatusCode)...)
+			}
+			if httpRes.Body != "" {
+				body := httpRes.Body
+				if len(body) > 2000 {
+					body = body[:2000] + "\n... (truncated)"
+				}
+				b = append(b, fmt.Sprintf("Response Body: %s\n", body)...)
+			}
+			if httpRes.Err != "" {
+				b = append(b, fmt.Sprintf("Error: %s\n", httpRes.Err)...)
+			}
+		} else {
+			// Non-HTTP result: use summary and evidence.
+			b = append(b, fmt.Sprintf("Result Summary: %s\n", r.Result.Summary())...)
 		}
-		b = append(b, fmt.Sprintf("Response Body: %s\n", body)...)
 	}
-	if r.LastObs.Error != "" {
-		b = append(b, fmt.Sprintf("Error: %s\n", r.LastObs.Error)...)
-	}
-	if r.LastAction.Type != "" {
-		actionJSON, _ := json.Marshal(r.LastAction)
+	if r.Action != nil {
+		envelope, _ := types.MarshalAction(r.Action)
+		actionJSON, _ := json.Marshal(envelope)
 		b = append(b, fmt.Sprintf("Last Action: %s\n", string(actionJSON))...)
 	}
 	if r.Error != nil {

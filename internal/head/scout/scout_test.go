@@ -451,7 +451,7 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	require.NoError(t, err)
 
 	engine := agent.NewRuleEngine(server.URL, nil)
-	exec := agent.NewHTTPActionExecutor(server.URL, zap.NewNop())
+	exec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
 	loop := agent.NewReActLoop(driver, s, engine, exec, agent.DefaultReActConfig(), zap.NewNop())
 
 	results, err := loop.ExecutePlan(context.Background(), plan, dbSess.ID)

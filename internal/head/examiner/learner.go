@@ -9,6 +9,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
 )
 
@@ -110,18 +111,24 @@ func (l *Learner) buildReflectionContext(results []agent.StepResult) string {
 		fmt.Fprintf(&b, "Expectation: %s\n", r.TestCase.Expectation)
 		fmt.Fprintf(&b, "Attempts: %d\n", r.Attempts)
 
-		if r.LastObs.StatusCode != 0 {
-			fmt.Fprintf(&b, "HTTP Status: %d\n", r.LastObs.StatusCode)
-		}
-		if r.LastObs.Body != "" {
-			body := r.LastObs.Body
-			if len(body) > 500 {
-				body = body[:500] + "..."
+		if r.Result != nil {
+			if httpRes, ok := r.Result.(types.HTTPResult); ok {
+				if httpRes.StatusCode != 0 {
+					fmt.Fprintf(&b, "HTTP Status: %d\n", httpRes.StatusCode)
+				}
+				if httpRes.Body != "" {
+					body := httpRes.Body
+					if len(body) > 500 {
+						body = body[:500] + "..."
+					}
+					fmt.Fprintf(&b, "Response: %s\n", body)
+				}
+				if httpRes.Err != "" {
+					fmt.Fprintf(&b, "Error: %s\n", httpRes.Err)
+				}
+			} else {
+				fmt.Fprintf(&b, "Result: %s\n", r.Result.Summary())
 			}
-			fmt.Fprintf(&b, "Response: %s\n", body)
-		}
-		if r.LastObs.Error != "" {
-			fmt.Fprintf(&b, "Error: %s\n", r.LastObs.Error)
 		}
 		if r.Error != nil {
 			fmt.Fprintf(&b, "Step Error: %s\n", r.Error)

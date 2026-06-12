@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
-func TestHTTPAction_APIRequest_GET(t *testing.T) {
+func TestHTTPExecutor_APIRequest_GET(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/v1/users", r.URL.Path)
@@ -20,19 +21,19 @@ func TestHTTPAction_APIRequest_GET(t *testing.T) {
 	}))
 	defer server.Close()
 
-	exec := NewHTTPActionExecutor(server.URL, zap.NewNop())
-	obs := exec.Execute(context.Background(), Action{
-		Type:   ActionAPIRequest,
-		Target: server.URL + "/api/v1/users",
+	exec := NewHTTPExecutor(zap.NewNop())
+	result := exec.Execute(context.Background(), types.HTTPAction{
 		Method: "GET",
+		URL:    server.URL + "/api/v1/users",
 	})
 
-	assert.True(t, obs.Success)
-	assert.Equal(t, 200, obs.StatusCode)
-	assert.Contains(t, obs.Body, "users")
+	httpRes := result.(types.HTTPResult)
+	assert.True(t, httpRes.OK)
+	assert.Equal(t, 200, httpRes.StatusCode)
+	assert.Contains(t, httpRes.Body, "users")
 }
 
-func TestHTTPAction_APIRequest_POST(t *testing.T) {
+func TestHTTPExecutor_APIRequest_POST(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		w.WriteHeader(http.StatusCreated)
@@ -40,19 +41,19 @@ func TestHTTPAction_APIRequest_POST(t *testing.T) {
 	}))
 	defer server.Close()
 
-	exec := NewHTTPActionExecutor(server.URL, zap.NewNop())
-	obs := exec.Execute(context.Background(), Action{
-		Type:   ActionAPIRequest,
-		Target: server.URL + "/api/v1/users",
+	exec := NewHTTPExecutor(zap.NewNop())
+	result := exec.Execute(context.Background(), types.HTTPAction{
 		Method: "POST",
-		Value:  `{"name":"test"}`,
+		URL:    server.URL + "/api/v1/users",
+		Body:   `{"name":"test"}`,
 	})
 
-	assert.True(t, obs.Success)
-	assert.Equal(t, 201, obs.StatusCode)
+	httpRes := result.(types.HTTPResult)
+	assert.True(t, httpRes.OK)
+	assert.Equal(t, 201, httpRes.StatusCode)
 }
 
-func TestHTTPAction_Navigate(t *testing.T) {
+func TestHTTPExecutor_Navigate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		w.WriteHeader(http.StatusOK)
@@ -60,30 +61,28 @@ func TestHTTPAction_Navigate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	exec := NewHTTPActionExecutor(server.URL, zap.NewNop())
-	obs := exec.Execute(context.Background(), Action{
-		Type:   ActionNavigate,
-		Target: server.URL + "/dashboard",
+	exec := NewHTTPExecutor(zap.NewNop())
+	result := exec.Execute(context.Background(), types.NavigateAction{
+		URL: server.URL + "/dashboard",
 	})
 
-	assert.True(t, obs.Success)
-	assert.Equal(t, 200, obs.StatusCode)
+	httpRes := result.(types.HTTPResult)
+	assert.True(t, httpRes.OK)
+	assert.Equal(t, 200, httpRes.StatusCode)
 }
 
-func TestHTTPAction_Wait(t *testing.T) {
-	exec := NewHTTPActionExecutor("", zap.NewNop())
+func TestHTTPExecutor_Wait(t *testing.T) {
+	exec := NewWaitExecutor()
 	start := time.Now()
-	obs := exec.Execute(context.Background(), Action{
-		Type:  ActionWait,
-		Value: "100ms",
-	})
+	result := exec.Execute(context.Background(), types.WaitAction{Duration: "100ms"})
 	elapsed := time.Since(start)
 
-	assert.True(t, obs.Success)
+	waitRes := result.(types.WaitResult)
+	assert.True(t, waitRes.OK)
 	assert.True(t, elapsed >= 90*time.Millisecond, "should wait ~100ms, waited %s", elapsed)
 }
 
-func TestHTTPAction_Timeout(t *testing.T) {
+func TestHTTPExecutor_Timeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(500 * time.Millisecond)
 	}))
@@ -92,56 +91,38 @@ func TestHTTPAction_Timeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	exec := NewHTTPActionExecutor(server.URL, zap.NewNop())
-	obs := exec.Execute(ctx, Action{
-		Type:   ActionAPIRequest,
-		Target: server.URL + "/slow",
+	exec := NewHTTPExecutor(zap.NewNop())
+	result := exec.Execute(ctx, types.HTTPAction{
 		Method: "GET",
+		URL:    server.URL + "/slow",
 	})
 
-	assert.False(t, obs.Success)
-	assert.Contains(t, obs.Error, "http request")
+	httpRes := result.(types.HTTPResult)
+	assert.False(t, httpRes.OK)
+	assert.Contains(t, httpRes.Err, "context deadline exceeded")
 }
 
-func TestHTTPAction_NotFound(t *testing.T) {
+func TestHTTPExecutor_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 
-	exec := NewHTTPActionExecutor(server.URL, zap.NewNop())
-	obs := exec.Execute(context.Background(), Action{
-		Type:   ActionAPIRequest,
-		Target: server.URL + "/missing",
+	exec := NewHTTPExecutor(zap.NewNop())
+	result := exec.Execute(context.Background(), types.HTTPAction{
 		Method: "GET",
+		URL:    server.URL + "/missing",
 	})
 
-	assert.False(t, obs.Success)
-	assert.Equal(t, 404, obs.StatusCode)
+	httpRes := result.(types.HTTPResult)
+	assert.False(t, httpRes.OK)
+	assert.Equal(t, 404, httpRes.StatusCode)
 }
 
-func TestHTTPAction_UnsupportedClick(t *testing.T) {
-	exec := NewHTTPActionExecutor("", zap.NewNop())
-	obs := exec.Execute(context.Background(), Action{
-		Type:   ActionClick,
-		Target: "#submit",
-	})
+func TestHTTPExecutor_UnsupportedAction(t *testing.T) {
+	exec := NewHTTPExecutor(zap.NewNop())
+	result := exec.Execute(context.Background(), types.WaitAction{Duration: "1s"})
 
-	assert.False(t, obs.Success)
-	assert.Contains(t, obs.Error, "not supported")
-}
-
-func TestHTTPAction_RelativeTarget(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	exec := NewHTTPActionExecutor(server.URL, zap.NewNop())
-	obs := exec.Execute(context.Background(), Action{
-		Type:   ActionNavigate,
-		Target: "/api/health",
-	})
-
-	assert.True(t, obs.Success)
+	errRes := result.(types.ErrorResult)
+	assert.Contains(t, errRes.Err, "unsupported action")
 }

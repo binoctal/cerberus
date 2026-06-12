@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -25,10 +27,17 @@ func setupParallelTest(t *testing.T) (*ReActLoop, *store.Store) {
 	err = store.RunMigrations(ctx, s.DB(), "../../../migrations")
 	require.NoError(t, err)
 
-	client := llm.NewMockClient(map[string]string{"default": `{"reasoning":"ok","action":{"type":"navigate","target":"/"}}`})
+	steerJSON, _ := json.Marshal(SteerOutput{
+		Reasoning: "ok",
+		Envelope: types.ActionEnvelope{
+			Type: types.ActionNavigate,
+			Raw:  json.RawMessage(`{"url":"/"}`),
+		},
+	})
+	client := llm.NewMockClient(map[string]string{"default": string(steerJSON)})
 	driver := ai.NewDriver(client, ai.NewTokenBudget(500000, 50000))
 	engine := NewRuleEngine("http://localhost", nil)
-	httpExec := NewHTTPActionExecutor("http://localhost", zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	config := DefaultReActConfig()
 	loop := NewReActLoop(driver, s, engine, httpExec, config, zap.NewNop())
 	return loop, s
@@ -47,7 +56,7 @@ func TestParallelExecutor_AllIndependent(t *testing.T) {
 	defer srv.Close()
 
 	engine := NewRuleEngine(srv.URL, nil)
-	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
 	plan := &TestPlan{
@@ -83,7 +92,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 	defer srv.Close()
 
 	engine := NewRuleEngine(srv.URL, nil)
-	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	_ = NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
 	// Track execution order.
@@ -100,7 +109,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 	defer srv2.Close()
 
 	engine2 := NewRuleEngine(srv2.URL, nil)
-	httpExec2 := NewHTTPActionExecutor(srv2.URL, zap.NewNop())
+	httpExec2 := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop3 := NewReActLoop(loop.driver, s, engine2, httpExec2, DefaultReActConfig(), zap.NewNop())
 
 	plan := &TestPlan{
@@ -149,7 +158,7 @@ func TestParallelExecutor_ContextCancellation(t *testing.T) {
 	defer srv.Close()
 
 	engine := NewRuleEngine(srv.URL, nil)
-	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -197,7 +206,7 @@ func TestParallelExecutor_ConcurrencyLimit(t *testing.T) {
 	defer srv.Close()
 
 	engine := NewRuleEngine(srv.URL, nil)
-	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
 	// 6 cases with MaxWorkers=2 — should never exceed 2 concurrent.
@@ -240,7 +249,7 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 	defer srv.Close()
 
 	engine := NewRuleEngine(srv.URL, nil)
-	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
 	plan := &TestPlan{
@@ -289,7 +298,7 @@ func TestParallelExecutor_CascadeSkip_ErrorMessage(t *testing.T) {
 	defer srv.Close()
 
 	engine := NewRuleEngine(srv.URL, nil)
-	httpExec := NewHTTPActionExecutor(srv.URL, zap.NewNop())
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
 	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
 
 	plan := &TestPlan{

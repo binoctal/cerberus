@@ -28,6 +28,7 @@ var (
 	configFlag   string
 	portFlag     string
 	deepPlanFlag bool
+	dirFlag      string
 )
 
 func main() {
@@ -208,7 +209,7 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.ModeRun, goalFlag, projCfg, s, client, logger, nil)
+			sess, err := session.NewSession(ctx, session.ModeRun, goalFlag, projCfg, s, client, logger, nil, dirFlag)
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
@@ -238,6 +239,7 @@ func runCmd() *cobra.Command {
 	cmd.Flags().StringVar(&dbFlag, "db", "", "Database URL (enables Checker)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
 	cmd.Flags().BoolVar(&deepPlanFlag, "deep-plan", false, "Enable ToT deep planning for comprehensive test generation")
+	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
 	_ = cmd.MarkFlagRequired("url")
 	_ = cmd.MarkFlagRequired("goal")
 	return cmd
@@ -282,7 +284,7 @@ func verifyCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.ModeVerify, goalFlag, projCfg, s, client, logger, nil)
+			sess, err := session.NewSession(ctx, session.ModeVerify, goalFlag, projCfg, s, client, logger, nil, dirFlag)
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
@@ -298,6 +300,7 @@ func verifyCmd() *cobra.Command {
 	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL (required)")
 	cmd.Flags().StringVar(&goalFlag, "goal", "", "Test goal description (required)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
+	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
 	_ = cmd.MarkFlagRequired("url")
 	_ = cmd.MarkFlagRequired("goal")
 	return cmd

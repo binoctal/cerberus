@@ -34,11 +34,13 @@ type Session struct {
 	Logger    *zap.Logger
 	StartedAt time.Time
 	DeepPlan  bool
+	ProjectDir string
 	Gate      escalation.Gate
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
-	s *store.Store, client llm.Client, logger *zap.Logger, gate escalation.Gate) (*Session, error) {
+	s *store.Store, client llm.Client, logger *zap.Logger, gate escalation.Gate,
+	projectDir string) (*Session, error) {
 
 	if gate == nil {
 		gate = escalation.NoOpGate{}
@@ -56,8 +58,9 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 		Store:     s,
 		Driver:    ai.NewDriver(client, budget),
 		Logger:    logger,
-		StartedAt: time.Now(),
-		Gate:      gate,
+		StartedAt:  time.Now(),
+		ProjectDir: projectDir,
+		Gate:       gate,
 	}
 
 	dbSess, err := s.CreateSession(ctx, string(mode), goal, cfg.Project.Name)
@@ -136,9 +139,13 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	// Phase 2: Agent — Execute.
 	baseURL := s.resolveBaseURL()
 	engine := agent.NewRuleEngine(baseURL, s.Config.Actors)
-	httpExec := agent.NewHTTPActionExecutor(baseURL, s.Logger)
+	projectDir := s.ProjectDir
+	if projectDir == "" {
+		projectDir = "."
+	}
+	multiExec := agent.BuildMultiExecutor(projectDir, s.Gate, s.Logger)
 	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoopWithGate(s.Driver, s.Store, engine, httpExec, config, s.Gate, s.Logger)
+	loop := agent.NewReActLoopWithGate(s.Driver, s.Store, engine, multiExec, config, s.Gate, s.Logger)
 
 	s.Logger.Info("executing test plan",
 		zap.String("session_id", s.ID),

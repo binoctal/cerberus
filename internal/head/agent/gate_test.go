@@ -38,8 +38,8 @@ func setupGateTest(t *testing.T) (*ReActLoop, *recordingGate, *store.Store) {
 	t.Cleanup(func() { s.Close() })
 	gate := &recordingGate{}
 	engine := NewRuleEngine("http://localhost:9999", nil)
-	httpExec := NewHTTPActionExecutor("http://localhost:9999", zap.NewNop())
-	loop := NewReActLoopWithGate(nil, s, engine, httpExec, DefaultReActConfig(), gate, zap.NewNop())
+	exec := BuildMultiExecutor(".", gate, zap.NewNop())
+	loop := NewReActLoopWithGate(nil, s, engine, exec, DefaultReActConfig(), gate, zap.NewNop())
 	return loop, gate, s
 }
 

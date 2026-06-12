@@ -14,6 +14,7 @@ import (
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -22,7 +23,6 @@ import (
 // TestEndToEnd_FullPipeline tests the complete Scout→Agent→Examiner flow
 // with a multi-endpoint httptest server.
 func TestEndToEnd_FullPipeline(t *testing.T) {
-	// SUT: multi-endpoint HTTP server.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/health":
@@ -47,7 +47,6 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Store + migrations.
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
 	defer s.Close()
@@ -55,12 +54,9 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
 
-	// Seed strategies.
 	count, _ := store.SeedStrategies(ctx, s, "integration-test", zap.NewNop())
 	assert.Greater(t, count, 0, "should seed strategies")
 
-	// Mock LLM: return appropriate responses for each phase.
-	// Scout Plan: return test cases for each endpoint.
 	planOutput := scout.PlanOutput{
 		Cases: []scout.CaseInfo{
 			{ID: "tc-001", Name: "GET /health returns 200", Target: "/health", Method: "GET", Expectation: "200", Priority: 0.9},
@@ -71,15 +67,12 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	}
 	planJSON, _ := json.Marshal(planOutput)
 
-	// Examiner Judge: return pass verdicts.
 	judgeJSON, _ := json.Marshal(examiner.JudgeResult{
 		Status:               examiner.StatusPass,
 		CorrectnessConfidence: 0.9,
 		Reasoning:            "response matches expected",
 	})
 
-	// Use a single mock response — works because MockClient returns same for all calls.
-	// Plan phase parses as PlanOutput, Judge phase parses as JudgeResult.
 	mockClient := llm.NewMockClient(map[string]string{"default": string(planJSON)})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
@@ -106,14 +99,13 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	require.NoError(t, err)
 
 	engine := agent.NewRuleEngine(srv.URL, nil)
-	httpExec := agent.NewHTTPActionExecutor(srv.URL, zap.NewNop())
-	loop := agent.NewReActLoop(driver, s, engine, httpExec, agent.DefaultReActConfig(), zap.NewNop())
+	multiExec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
+	loop := agent.NewReActLoop(driver, s, engine, multiExec, agent.DefaultReActConfig(), zap.NewNop())
 
 	results, err := loop.ExecutePlan(ctx, plan, sess.ID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(results), 1, "should have step results")
 
-	// Most results should pass (rule engine handles known endpoints).
 	passed := 0
 	for _, r := range results {
 		if r.Status == agent.StepPassed {
@@ -123,7 +115,6 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	assert.Greater(t, passed, 0, "at least some tests should pass")
 
 	// Phase 4: Examiner — Judge + Learn.
-	// Create a new mock client that returns judge-compatible responses.
 	judgeClient := llm.NewMockClient(map[string]string{"default": string(judgeJSON)})
 	judgeDriver := ai.NewDriver(judgeClient, ai.NewTokenBudget(500000, 50000))
 
@@ -134,7 +125,6 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	assert.Equal(t, len(results), len(verdicts), "should have verdict for each result")
 	assert.GreaterOrEqual(t, reflections, 0, "may store reflections")
 
-	// Verify traces exist.
 	traces, err := s.GetTraces(ctx, sess.ID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(traces), 1, "should have traces")
@@ -153,13 +143,12 @@ func TestEndToEnd_ExaminerDegradation(t *testing.T) {
 	sess, err := s.CreateSession(ctx, "run", "degradation test", "test")
 	require.NoError(t, err)
 
-	// Bad LLM: returns invalid JSON.
 	badClient := llm.NewMockClient(map[string]string{"default": "not valid json"})
 	badDriver := ai.NewDriver(badClient, ai.NewTokenBudget(500000, 50000))
 
 	results := []agent.StepResult{
-		{TestCase: &agent.TestCase{ID: "tc-001"}, Status: agent.StepPassed, LastObs: agent.Observation{StatusCode: 200}},
-		{TestCase: &agent.TestCase{ID: "tc-002"}, Status: agent.StepFailed, LastObs: agent.Observation{StatusCode: 500}},
+		{TestCase: &agent.TestCase{ID: "tc-001"}, Status: agent.StepPassed, Result: types.HTTPResult{OK: true, StatusCode: 200}},
+		{TestCase: &agent.TestCase{ID: "tc-002"}, Status: agent.StepFailed, Result: types.HTTPResult{OK: false, StatusCode: 500}},
 	}
 
 	examinerCfg := examiner.DefaultExaminerConfig()
@@ -168,9 +157,7 @@ func TestEndToEnd_ExaminerDegradation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, verdicts, 2)
 
-	// First: pass (HTTP 200, degraded from judge failure).
 	assert.Equal(t, examiner.StatusPass, verdicts[0].Status)
-	// Second: fail (HTTP 500, degraded from judge failure).
 	assert.Equal(t, examiner.StatusFail, verdicts[1].Status)
 }
 
@@ -197,12 +184,10 @@ func TestEndToEnd_ScoutFallback(t *testing.T) {
 
 	scoutHead := scout.NewScout(driver, s, cfg, zap.NewNop())
 
-	// Analyze should work from config only (no AI needed).
 	model, err := scoutHead.Analyze(ctx, scout.TargetInfo{URL: "http://localhost:8080", Goal: "test"})
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(model.API.Endpoints), 2, "should have health endpoints from config")
 
-	// Plan should fall back to deterministic plan.
 	plan, err := scoutHead.Plan(ctx, "test everything", model)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(plan.Cases), 2, "should have cases for each endpoint")
