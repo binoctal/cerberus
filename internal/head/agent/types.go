@@ -80,8 +80,9 @@ type RecoverOutput struct {
 
 // ReActConfig holds tunable parameters for the ReAct loop.
 type ReActConfig struct {
-	MaxSteerAttempts   int `json:"max_steer_attempts"`
-	MaxRecoverAttempts int `json:"max_recover_attempts"`
+	MaxSteerAttempts   int           `json:"max_steer_attempts"`
+	MaxRecoverAttempts int           `json:"max_recover_attempts"`
+	PerCaseTimeout     time.Duration `json:"per_case_timeout,omitempty"`
 }
 
 // DefaultReActConfig returns sensible defaults.
@@ -89,5 +90,15 @@ func DefaultReActConfig() ReActConfig {
 	return ReActConfig{
 		MaxSteerAttempts:   3,
 		MaxRecoverAttempts: 3,
+		PerCaseTimeout:     2 * time.Minute,
 	}
+}
+
+// ProgressEvent represents a real-time event from the test runner.
+type ProgressEvent struct {
+	Type      string    `json:"type"`       // "case_start", "case_complete", "plan_complete"
+	CaseID    string    `json:"case_id"`
+	Status    StepStatus `json:"status"`
+	Attempt   int       `json:"attempt"`
+	Timestamp time.Time `json:"timestamp"`
 }

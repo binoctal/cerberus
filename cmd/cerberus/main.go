@@ -34,6 +34,8 @@ var (
 	sessionFlag     string
 	formatFlag      string
 	outputFlag      string
+	parallelFlag    bool
+	workersFlag     int
 
 	// Set via -ldflags at build time.
 	version = "dev"
@@ -225,6 +227,8 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("create session: %w", err)
 			}
 			sess.DeepPlan = deepPlanFlag
+			sess.Parallel = parallelFlag
+			sess.MaxWorkers = workersFlag
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -250,6 +254,8 @@ func runCmd() *cobra.Command {
 	cmd.Flags().StringVar(&dbFlag, "db", "", "Database URL (enables Checker)")
 	cmd.Flags().StringVar(&configFlag, "config", ".cerberus/project.yaml", "Project config file")
 	cmd.Flags().BoolVar(&deepPlanFlag, "deep-plan", false, "Enable ToT deep planning for comprehensive test generation")
+	cmd.Flags().BoolVar(&parallelFlag, "parallel", false, "Execute independent test cases in parallel")
+	cmd.Flags().IntVar(&workersFlag, "workers", 4, "Max parallel workers (use with --parallel)")
 	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
 	_ = cmd.MarkFlagRequired("goal")
 	return cmd

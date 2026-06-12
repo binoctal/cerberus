@@ -36,6 +36,7 @@ type ReActLoop struct {
 	logger     *zap.Logger
 	gate       escalation.Gate
 	processMgr *ProcessManager
+	progressCh chan<- ProgressEvent
 }
 
 // NewReActLoopWithGate creates a ReAct execution loop with an explicit escalation gate.
@@ -73,6 +74,24 @@ func NewReActLoop(
 	return NewReActLoopWithGate(driver, store, engine, executor, config, escalation.NoOpGate{}, logger)
 }
 
+// SetProgressChannel sets an optional channel for real-time progress events.
+// Sends are non-blocking — events are dropped if the channel is full.
+func (r *ReActLoop) SetProgressChannel(ch chan<- ProgressEvent) {
+	r.progressCh = ch
+}
+
+// emitProgress sends a progress event non-blocking.
+func (r *ReActLoop) emitProgress(event ProgressEvent) {
+	if r.progressCh == nil {
+		return
+	}
+	event.Timestamp = time.Now()
+	select {
+	case r.progressCh <- event:
+	default:
+	}
+}
+
 // ExecutePlan runs all TestCases in the plan sequentially and returns results.
 func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
 	defer r.processMgr.StopAll()
@@ -87,6 +106,7 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			zap.String("case_id", tc.ID),
 			zap.String("target", tc.Target),
 		)
+		r.emitProgress(ProgressEvent{Type: "case_start", CaseID: tc.ID})
 		result := r.executeStep(ctx, tc, sessionID)
 		results = append(results, result)
 		r.logger.Info("test case completed",
@@ -94,6 +114,7 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			zap.String("status", string(result.Status)),
 			zap.Int("attempts", result.Attempts),
 		)
+		r.emitProgress(ProgressEvent{Type: "case_complete", CaseID: tc.ID, Status: result.Status, Attempt: result.Attempts})
 
 		// Escalation checkpoint: budget warning.
 		if remainingCases > 5 {
@@ -139,12 +160,21 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 		)
 	}
 
+
+	r.emitProgress(ProgressEvent{Type: "plan_complete", Attempt: len(results)})
 	return results, nil
 }
 
 // executeStep runs the ReAct loop for a single TestCase.
 func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID string) StepResult {
 	start := time.Now()
+
+	// Apply per-case timeout.
+	if r.config.PerCaseTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.config.PerCaseTimeout)
+		defer cancel()
+	}
 
 	// Create a trace for this step.
 	traceID, err := r.store.CreateTrace(ctx, sessionID, "agent", tc.Target)
@@ -222,6 +252,7 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 	var lastAction types.TypedAction
 	var recoverySkipped bool
 	consecutiveTimeouts := 0
+	recoverAttempts := 0
 	for attempt := 1; attempt <= r.config.MaxSteerAttempts; attempt++ {
 		// Steer: AI decides next action.
 		action, err := r.steer(ctx, tc, lastResult, attempt)
@@ -302,8 +333,9 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 			}
 		}
 
-		// Attempt recovery before next steer.
-		if attempt < r.config.MaxSteerAttempts {
+		// Attempt recovery before next steer (capped by MaxRecoverAttempts).
+		if attempt < r.config.MaxSteerAttempts && recoverAttempts < r.config.MaxRecoverAttempts {
+			recoverAttempts++
 			recResult, recErr := r.recovery.Recover(ctx, *tc, result, attempt)
 			if recErr != nil {
 				r.logger.Warn("recovery failed", zap.Error(recErr))

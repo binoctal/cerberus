@@ -25,17 +25,19 @@ const (
 )
 
 type Session struct {
-	ID        string
-	Mode      Mode
-	Goal      string
-	Config    *project.Config
-	Store     *store.Store
-	Driver    *ai.Driver
-	Logger    *zap.Logger
-	StartedAt time.Time
-	DeepPlan  bool
+	ID         string
+	Mode       Mode
+	Goal       string
+	Config     *project.Config
+	Store      *store.Store
+	Driver     *ai.Driver
+	Logger     *zap.Logger
+	StartedAt  time.Time
+	DeepPlan   bool
 	ProjectDir string
-	Gate      escalation.Gate
+	Gate       escalation.Gate
+	Parallel   bool
+	MaxWorkers int
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
@@ -150,9 +152,20 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	s.Logger.Info("executing test plan",
 		zap.String("session_id", s.ID),
 		zap.Int("cases", len(plan.Cases)),
+		zap.Bool("parallel", s.Parallel),
 	)
 
-	results, err := loop.ExecutePlan(ctx, plan, s.ID)
+	var results []agent.StepResult
+	if s.Parallel {
+		workers := s.MaxWorkers
+		if workers <= 0 {
+			workers = 4
+		}
+		pExec := agent.NewParallelExecutor(loop, agent.ParallelConfig{MaxWorkers: workers}, s.Logger)
+		results, err = pExec.ExecutePlan(ctx, plan, s.ID)
+	} else {
+		results, err = loop.ExecutePlan(ctx, plan, s.ID)
+	}
 	if err != nil {
 		return fmt.Errorf("agent execute: %w", err)
 	}
