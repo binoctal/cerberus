@@ -210,3 +210,89 @@ func (r ErrorResult) Summary() string          { return fmt.Sprintf("error: %s",
 func (r ErrorResult) Evidence() EvidenceData {
 	return EvidenceData{Type: "error", Content: r.Err}
 }
+
+// --- Database Result ---
+
+type DBResult struct {
+	OK      bool          `json:"success"`
+	Driver  string        `json:"driver"`
+	Query   string        `json:"query"`
+	Columns []string      `json:"columns,omitempty"`
+	Rows    []map[string]any `json:"rows,omitempty"`
+	AssertionPassed bool  `json:"assertion_passed,omitempty"`
+	Latency time.Duration `json:"duration"`
+	Err     string        `json:"error,omitempty"`
+}
+
+func (r DBResult) Success() bool            { return r.OK }
+func (r DBResult) Duration() time.Duration  { return r.Latency }
+func (r DBResult) Summary() string {
+	status := "ok"
+	if !r.OK {
+		status = "error"
+	}
+	return fmt.Sprintf("db %s %s (%d rows, %s)", status, r.Driver, len(r.Rows), r.Latency)
+}
+func (r DBResult) Evidence() EvidenceData {
+	content, _ := json.Marshal(r.Rows)
+	return EvidenceData{Type: "db_result", Content: truncate(string(content), 10000)}
+}
+
+// --- GraphQL Result ---
+
+type GraphQLResult struct {
+	OK       bool           `json:"success"`
+	URL      string         `json:"url"`
+	Data     map[string]any `json:"data,omitempty"`
+	Errors   []any          `json:"errors,omitempty"`
+	Latency  time.Duration  `json:"duration"`
+	Err      string         `json:"error,omitempty"`
+}
+
+func (r GraphQLResult) Success() bool            { return r.OK }
+func (r GraphQLResult) Duration() time.Duration  { return r.Latency }
+func (r GraphQLResult) Summary() string {
+	status := "ok"
+	if !r.OK {
+		status = "error"
+	}
+	return fmt.Sprintf("graphql %s %s (%s)", status, r.URL, r.Latency)
+}
+func (r GraphQLResult) Evidence() EvidenceData {
+	content, _ := json.Marshal(r.Data)
+	return EvidenceData{Type: "graphql_response", Content: truncate(string(content), 10000)}
+}
+
+// --- WebSocket Result ---
+
+type WSResult struct {
+	OK       bool          `json:"success"`
+	URL      string        `json:"url"`
+	Messages []string      `json:"messages,omitempty"`
+	Latency  time.Duration `json:"duration"`
+	Err      string        `json:"error,omitempty"`
+}
+
+func (r WSResult) Success() bool            { return r.OK }
+func (r WSResult) Duration() time.Duration  { return r.Latency }
+func (r WSResult) Summary() string {
+	status := "ok"
+	if !r.OK {
+		status = "error"
+	}
+	return fmt.Sprintf("ws %s %s (%d msgs, %s)", status, r.URL, len(r.Messages), r.Latency)
+}
+func (r WSResult) Evidence() EvidenceData {
+	return EvidenceData{Type: "ws_messages", Content: truncate(joinStrings(r.Messages, "\n"), 10000)}
+}
+
+func joinStrings(ss []string, sep string) string {
+	if len(ss) == 0 {
+		return ""
+	}
+	result := ss[0]
+	for _, s := range ss[1:] {
+		result += sep + s
+	}
+	return result
+}

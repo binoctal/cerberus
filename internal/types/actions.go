@@ -40,6 +40,17 @@ ActionBrowserGoto  ActionType = "browser_goto"
 ActionBrowserClick ActionType = "browser_click"
 ActionBrowserFill  ActionType = "browser_fill"
 ActionBrowserEval  ActionType = "browser_eval"
+
+	// Database
+	ActionDBQuery  ActionType = "db_query"
+	ActionDBAssert ActionType = "db_assert"
+
+	// GraphQL
+	ActionGraphQLQuery ActionType = "graphql_query"
+
+	// WebSocket
+	ActionWSConnect ActionType = "ws_connect"
+	ActionWSSend    ActionType = "ws_send"
 )
 
 // TypedAction is the interface for all concrete action types.
@@ -309,6 +320,104 @@ func (a BrowserEvalAction) Validate() error {
 	return nil
 }
 
+// --- Database Actions ---
+
+type DBQueryAction struct {
+	Driver string `json:"driver"` // "sqlite", "postgres", "mysql"
+	DSN    string `json:"dsn"`   // connection string
+	Query  string `json:"query"`
+	Args   []any  `json:"args,omitempty"`
+}
+
+func (a DBQueryAction) GetActionType() ActionType { return ActionDBQuery }
+func (a DBQueryAction) Target() string             { return a.Query }
+func (a DBQueryAction) Validate() error {
+	if a.Query == "" {
+		return fmt.Errorf("query is required")
+	}
+	if a.Driver == "" {
+		return fmt.Errorf("driver is required")
+	}
+	return nil
+}
+
+type DBAssertAction struct {
+	Driver    string `json:"driver"`
+	DSN       string `json:"dsn"`
+	Query     string `json:"query"`
+	Assertion string `json:"assertion"` // e.g. "count == 0", "rows.length > 0"
+}
+
+func (a DBAssertAction) GetActionType() ActionType { return ActionDBAssert }
+func (a DBAssertAction) Target() string             { return a.Query }
+func (a DBAssertAction) Validate() error {
+	if a.Query == "" {
+		return fmt.Errorf("query is required")
+	}
+	if a.Assertion == "" {
+		return fmt.Errorf("assertion is required")
+	}
+	if a.Driver == "" {
+		return fmt.Errorf("driver is required")
+	}
+	return nil
+}
+
+// --- GraphQL Actions ---
+
+type GraphQLQueryAction struct {
+	URL         string         `json:"url"`
+	Query       string         `json:"query"`
+	Variables   map[string]any `json:"variables,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	OperationName string       `json:"operation_name,omitempty"`
+}
+
+func (a GraphQLQueryAction) GetActionType() ActionType { return ActionGraphQLQuery }
+func (a GraphQLQueryAction) Target() string             { return a.URL }
+func (a GraphQLQueryAction) Validate() error {
+	if a.URL == "" {
+		return fmt.Errorf("url is required")
+	}
+	if a.Query == "" {
+		return fmt.Errorf("query is required")
+	}
+	return nil
+}
+
+// --- WebSocket Actions ---
+
+type WSConnectAction struct {
+	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
+
+func (a WSConnectAction) GetActionType() ActionType { return ActionWSConnect }
+func (a WSConnectAction) Target() string             { return a.URL }
+func (a WSConnectAction) Validate() error {
+	if a.URL == "" {
+		return fmt.Errorf("url is required")
+	}
+	return nil
+}
+
+type WSSendAction struct {
+	URL     string `json:"url"`
+	Message string `json:"message"`
+}
+
+func (a WSSendAction) GetActionType() ActionType { return ActionWSSend }
+func (a WSSendAction) Target() string             { return a.URL }
+func (a WSSendAction) Validate() error {
+	if a.URL == "" {
+		return fmt.Errorf("url is required")
+	}
+	if a.Message == "" {
+		return fmt.Errorf("message is required")
+	}
+	return nil
+}
+
 // --- Serialization Registry ---
 
 // unmarshalRegistry maps ActionType to a factory for deserialization.
@@ -332,6 +441,11 @@ var unmarshalRegistry = map[ActionType]func() TypedAction{
 	ActionBrowserClick: func() TypedAction { return &BrowserClickAction{} },
 	ActionBrowserFill:  func() TypedAction { return &BrowserFillAction{} },
 	ActionBrowserEval:  func() TypedAction { return &BrowserEvalAction{} },
+	ActionDBQuery:      func() TypedAction { return &DBQueryAction{} },
+	ActionDBAssert:     func() TypedAction { return &DBAssertAction{} },
+	ActionGraphQLQuery: func() TypedAction { return &GraphQLQueryAction{} },
+	ActionWSConnect:    func() TypedAction { return &WSConnectAction{} },
+	ActionWSSend:       func() TypedAction { return &WSSendAction{} },
 }
 
 // derefAction returns the value behind a pointer TypedAction.
@@ -369,6 +483,16 @@ func derefAction(a TypedAction) TypedAction {
 	case *BrowserFillAction:
 		return *v
 	case *BrowserEvalAction:
+		return *v
+	case *DBQueryAction:
+		return *v
+	case *DBAssertAction:
+		return *v
+	case *GraphQLQueryAction:
+		return *v
+	case *WSConnectAction:
+		return *v
+	case *WSSendAction:
 		return *v
 	}
 	return a

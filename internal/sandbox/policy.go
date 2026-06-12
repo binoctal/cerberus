@@ -61,3 +61,28 @@ func DefaultBrowserPolicy() Policy {
 		Resources: ResPolicy{Timeout: 60},
 	}
 }
+
+// DefaultDBPolicy returns a policy for database operations.
+// Network access for remote DBs; local SQLite needs no network.
+func DefaultDBPolicy() Policy {
+	return Policy{
+		Network:   NetPolicy{AllowOutbound: true},
+		Resources: ResPolicy{Timeout: 30},
+	}
+}
+
+// DefaultGraphQLPolicy returns a policy for GraphQL queries.
+func DefaultGraphQLPolicy() Policy {
+	return Policy{
+		Network:   NetPolicy{AllowOutbound: true},
+		Resources: ResPolicy{Timeout: 30},
+	}
+}
+
+// DefaultWSPolicy returns a policy for WebSocket connections.
+func DefaultWSPolicy() Policy {
+	return Policy{
+		Network:   NetPolicy{AllowOutbound: true},
+		Resources: ResPolicy{Timeout: 60},
+	}
+}

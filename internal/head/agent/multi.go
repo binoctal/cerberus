@@ -99,6 +99,12 @@ func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Polic
 		return sandbox.DefaultCodePolicy(".")
 	case types.ActionBrowserGoto, types.ActionBrowserClick, types.ActionBrowserFill, types.ActionBrowserEval:
 		return sandbox.DefaultBrowserPolicy()
+	case types.ActionDBQuery, types.ActionDBAssert:
+		return sandbox.DefaultDBPolicy()
+	case types.ActionGraphQLQuery:
+		return sandbox.DefaultGraphQLPolicy()
+	case types.ActionWSConnect, types.ActionWSSend:
+		return sandbox.DefaultWSPolicy()
 	default:
 		return sandbox.DefaultHTTPPolicy()
 	}

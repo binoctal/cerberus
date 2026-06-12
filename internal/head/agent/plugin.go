@@ -126,6 +126,31 @@ func (p *browserPlugin) ActionTypes() []types.ActionType {
 		types.ActionBrowserFill, types.ActionBrowserEval}
 }
 
+
+type dbPlugin struct{ executor *DatabaseExecutor }
+
+func (p *dbPlugin) Name() string            { return "database" }
+func (p *dbPlugin) Executor() TypedExecutor { return p.executor }
+func (p *dbPlugin) ActionTypes() []types.ActionType {
+	return []types.ActionType{types.ActionDBQuery, types.ActionDBAssert}
+}
+
+type graphqlPlugin struct{ executor *GraphQLExecutor }
+
+func (p *graphqlPlugin) Name() string            { return "graphql" }
+func (p *graphqlPlugin) Executor() TypedExecutor { return p.executor }
+func (p *graphqlPlugin) ActionTypes() []types.ActionType {
+	return []types.ActionType{types.ActionGraphQLQuery}
+}
+
+type wsPlugin struct{ executor *WebSocketExecutor }
+
+func (p *wsPlugin) Name() string            { return "websocket" }
+func (p *wsPlugin) Executor() TypedExecutor { return p.executor }
+func (p *wsPlugin) ActionTypes() []types.ActionType {
+	return []types.ActionType{types.ActionWSConnect, types.ActionWSSend}
+}
+
 // --- ExtendedRuleEngine ---
 
 // ExtendedRuleEngine delegates to RulePlugins first, then falls back to built-in rules.
@@ -174,6 +199,9 @@ func BuiltinPluginsWithSandbox(projectDir string, sb sandbox.Sandbox, gate escal
 		&filePlugin{executor: NewFileExecutor(projectDir, logger)},
 		&mcpPlugin{executor: NewMCPExecutor(nil, logger)},
 		&codePlugin{executor: NewCodeExecutor(sb, logger)},
+		&dbPlugin{executor: NewDatabaseExecutor(logger)},
+		&graphqlPlugin{executor: NewGraphQLExecutor(logger)},
+		&wsPlugin{executor: NewWebSocketExecutor(logger)},
 	)
 
 	// Browser executor (optional — requires playwright binary).
