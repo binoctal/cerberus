@@ -11,15 +11,29 @@ import (
 )
 
 type OpenAIClient struct {
-	apiKey string
-	model  string
+	apiKey     string
+	model      string
+	httpClient *http.Client // nil defaults to http.DefaultClient
+	serverURL  string       // overrides baseURL if set (for testing)
 }
 
 func NewOpenAIClient(apiKey, model string) *OpenAIClient {
 	return &OpenAIClient{apiKey: apiKey, model: model}
 }
 
-func (c *OpenAIClient) baseURL() string { return "https://api.openai.com/v1/chat/completions" }
+func (c *OpenAIClient) baseURL() string {
+	if c.serverURL != "" {
+		return c.serverURL
+	}
+	return "https://api.openai.com/v1/chat/completions"
+}
+
+func (c *OpenAIClient) client() *http.Client {
+	if c.httpClient != nil {
+		return c.httpClient
+	}
+	return http.DefaultClient
+}
 
 func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, error) {
 	if req.Model == "" {
@@ -41,7 +55,7 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client().Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("call openai: %w", err)
 	}
@@ -112,7 +126,7 @@ func (c *OpenAIClient) CompleteWithVision(ctx context.Context, prompt string, im
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client().Do(httpReq)
 	if err != nil {
 		return nil, err
 	}

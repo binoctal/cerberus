@@ -126,7 +126,7 @@ func BuildMultiExecutor(projectDir string, gate escalation.Gate, logger *zap.Log
 	multi := NewMultiExecutor(p, sb, gate, logger)
 
 	multi.Register(NewHTTPExecutor(logger), types.ActionAPIRequest, types.ActionNavigate)
-	multi.Register(NewProcessExecutor(logger), types.ActionProcessExec, types.ActionProcessBuild)
+	multi.Register(NewProcessExecutor(sb, logger), types.ActionProcessExec, types.ActionProcessBuild)
 	multi.Register(NewFileExecutor(projectDir, logger), types.ActionFileRead, types.ActionFileWrite, types.ActionFileExists, types.ActionFileGlob)
 	multi.Register(NewMCPExecutor(nil, logger), types.ActionMCPCall)
 	multi.Register(NewCodeExecutor(logger), types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols)

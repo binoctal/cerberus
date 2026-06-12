@@ -64,6 +64,32 @@ func (s *LinuxSandbox) Apply(ctx context.Context, policy Policy) (context.Contex
 	return ctx, func() {}, nil
 }
 
+// ExecCommand runs a command with sandbox isolation when available,
+// falling back to direct os/exec when the sandbox is unavailable.
+func (s *LinuxSandbox) ExecCommand(ctx context.Context, cmd string, args []string, env []string, dir string, policy Policy) (string, string, int, error) {
+	if !s.available {
+		return NoOpSandbox{}.ExecCommand(ctx, cmd, args, env, dir, policy)
+	}
+
+	// Prepend the command to args for runner format.
+	fullArgs := append([]string{cmd}, args...)
+	result := s.RunInSandbox(ctx, fullArgs, env, policy)
+
+	exitCode := 0
+	switch result.Status {
+	case runner.StatusRunnerError:
+		return "", "", -1, fmt.Errorf("sandbox runner error: %s", result.Error)
+	case runner.StatusTimeLimitExceeded:
+		exitCode = -1
+	case runner.StatusMemoryLimitExceeded:
+		exitCode = -1
+	case runner.StatusSignalled:
+		exitCode = -1
+	}
+
+	return "", "", exitCode, nil
+}
+
 // RunInSandbox executes a command inside the sandbox with the given policy.
 // This is the primary entry point for sandboxed execution.
 func (s *LinuxSandbox) RunInSandbox(ctx context.Context, args []string, env []string, policy Policy) runner.Result {

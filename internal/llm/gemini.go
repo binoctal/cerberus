@@ -11,8 +11,10 @@ import (
 )
 
 type GeminiClient struct {
-	apiKey string
-	model  string
+	apiKey     string
+	model      string
+	httpClient *http.Client // nil defaults to http.DefaultClient
+	serverURL  string       // overrides baseURL if set (for testing)
 }
 
 func NewGeminiClient(apiKey, model string) *GeminiClient {
@@ -20,7 +22,17 @@ func NewGeminiClient(apiKey, model string) *GeminiClient {
 }
 
 func (c *GeminiClient) baseURL() string {
+	if c.serverURL != "" {
+		return c.serverURL
+	}
 	return fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", c.model)
+}
+
+func (c *GeminiClient) client() *http.Client {
+	if c.httpClient != nil {
+		return c.httpClient
+	}
+	return http.DefaultClient
 }
 
 func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, error) {
@@ -54,7 +66,7 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-goog-api-key", c.apiKey)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client().Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("call gemini: %w", err)
 	}
@@ -123,7 +135,7 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-goog-api-key", c.apiKey)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client().Do(httpReq)
 	if err != nil {
 		return nil, err
 	}

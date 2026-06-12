@@ -65,9 +65,11 @@ func (r *RuleEngine) Match(tc TestCase) (types.TypedAction, bool) {
 
 	// Rule 5: process_build — target is the build command.
 	if tc.Action == "process_build" {
-		return types.ProcessExecAction{
-			Command: tc.Target,
-			WorkDir: r.workDir,
+		return types.BuildAction{
+			ProcessExecAction: types.ProcessExecAction{
+				Command: tc.Target,
+				WorkDir: r.workDir,
+			},
 		}, true
 	}
 

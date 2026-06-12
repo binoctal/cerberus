@@ -137,8 +137,10 @@ func TestRuleEngineMatch_ProcessBuild(t *testing.T) {
 	tc := TestCase{ID: "e2", Target: "go build ./...", Action: "process_build"}
 	action, ok := engine.Match(tc)
 	assert.True(t, ok)
-	procAct := action.(types.ProcessExecAction)
-	assert.Equal(t, "go build ./...", procAct.Command)
+	buildAct, isBuild := action.(types.BuildAction)
+	assert.True(t, isBuild)
+	assert.Equal(t, types.ActionProcessBuild, buildAct.GetActionType())
+	assert.Equal(t, "go build ./...", buildAct.Command)
 }
 
 func TestRuleEngineMatch_CodeAnalyze(t *testing.T) {

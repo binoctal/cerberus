@@ -26,3 +26,8 @@ func (s *LinuxSandbox) IsAvailable() bool {
 func (s *LinuxSandbox) Apply(ctx context.Context, _ Policy) (context.Context, func(), error) {
 	return ctx, func() {}, nil
 }
+
+// ExecCommand delegates to NoOpSandbox on non-Linux platforms.
+func (s *LinuxSandbox) ExecCommand(ctx context.Context, cmd string, args []string, env []string, dir string, policy Policy) (string, string, int, error) {
+	return NoOpSandbox{}.ExecCommand(ctx, cmd, args, env, dir, policy)
+}

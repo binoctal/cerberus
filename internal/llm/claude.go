@@ -11,15 +11,29 @@ import (
 )
 
 type ClaudeClient struct {
-	apiKey string
-	model  string
+	apiKey     string
+	model      string
+	httpClient *http.Client // nil defaults to http.DefaultClient
+	serverURL  string       // overrides baseURL if set (for testing)
 }
 
 func NewClaudeClient(apiKey, model string) *ClaudeClient {
 	return &ClaudeClient{apiKey: apiKey, model: model}
 }
 
-func (c *ClaudeClient) baseURL() string { return "https://api.anthropic.com/v1/messages" }
+func (c *ClaudeClient) baseURL() string {
+	if c.serverURL != "" {
+		return c.serverURL
+	}
+	return "https://api.anthropic.com/v1/messages"
+}
+
+func (c *ClaudeClient) client() *http.Client {
+	if c.httpClient != nil {
+		return c.httpClient
+	}
+	return http.DefaultClient
+}
 
 func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, error) {
 	if req.Model == "" {
@@ -44,7 +58,7 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 	httpReq.Header.Set("x-api-key", c.apiKey)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client().Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("call anthropic: %w", err)
 	}
@@ -115,7 +129,7 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 	httpReq.Header.Set("x-api-key", c.apiKey)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client().Do(httpReq)
 	if err != nil {
 		return nil, err
 	}

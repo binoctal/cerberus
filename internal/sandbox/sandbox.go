@@ -7,6 +7,10 @@ import "context"
 type Sandbox interface {
 	// Apply constrains the context with the given policy and returns a cleanup function.
 	Apply(ctx context.Context, policy Policy) (context.Context, func(), error)
+
+	// ExecCommand runs a command within the sandbox isolation.
+	// Returns stdout, stderr, exit code, and any execution error.
+	ExecCommand(ctx context.Context, cmd string, args []string, env []string, dir string, policy Policy) (string, string, int, error)
 }
 
 // Policy defines resource constraints for action execution.

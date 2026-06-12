@@ -105,6 +105,15 @@ type ProcessExecAction struct {
 	Timeout string            `json:"timeout,omitempty"`
 }
 
+// BuildAction wraps a ProcessExecAction to mark it as a build action.
+// It preserves the underlying action but overrides GetActionType.
+type BuildAction struct {
+	ProcessExecAction
+}
+
+func (a BuildAction) GetActionType() ActionType { return ActionProcessBuild }
+func (a BuildAction) Unwrap() ProcessExecAction  { return a.ProcessExecAction }
+
 func (a ProcessExecAction) GetActionType() ActionType { return ActionProcessExec }
 func (a ProcessExecAction) Target() string             { return a.Command }
 func (a ProcessExecAction) Validate() error {
