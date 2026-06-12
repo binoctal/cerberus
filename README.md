@@ -13,6 +13,7 @@ Three-head architecture — **Scout** discovers, **Agent** executes, **Examiner*
 - **Cascade skip** — Failed dependencies automatically skip downstream cases
 - **LLM retry** — Exponential backoff for transient errors (5xx, 429, timeout)
 - **HTTP API** — REST server for CI/CD integration
+- **MCP Server** — Claude Code CLI integration with autonomous execution
 
 ## Install
 
@@ -34,6 +35,9 @@ cerberus run --url http://localhost:3000 --goal "Test all API endpoints"
 
 # Start API server for CI
 cerberus serve --port 8090
+
+# Start MCP server for Claude Code
+cerberus mcp
 ```
 
 ## Architecture
@@ -71,6 +75,8 @@ internal/
 ├── prompts/         Template registry (embed.FS + project overrides)
 ├── project/         Project config loader + credential resolution
 ├── server/          HTTP API server (CI/CD)
+├── escalation/      Escalation gate interface (CLI vs MCP)
+├── mcp/             MCP server (Claude Code integration)
 ├── session/         Session lifecycle + summary
 ├── smoke/           End-to-end integration tests
 └── store/           SQLite store, migrations, evidence, strategies
@@ -85,6 +91,7 @@ migrations/          SQL schema versions
 | `cerberus run` | Run intelligent tests |
 | `cerberus verify` | Regression mode against known model |
 | `cerberus serve` | Start HTTP API server |
+| `cerberus mcp` | Start MCP server (Claude Code) |
 
 ## API Endpoints
 
