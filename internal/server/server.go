@@ -13,6 +13,7 @@ import (
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/report"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
 	"go.uber.org/zap"
@@ -193,42 +194,42 @@ func (srv *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 
 func (srv *Server) handleGetReport(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	sess, err := srv.store.GetSession(r.Context(), id)
+	data, err := report.BuildReport(r.Context(), srv.store, id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "session not found")
 		return
 	}
 
-	// Get traces for evidence.
-	traces, _ := srv.store.GetTraces(r.Context(), id)
-
-	// Get verdicts.
-	verdicts, _ := srv.store.GetVerdicts(r.Context(), id)
-
-	// Content negotiation: text/plain for CLI, JSON default.
+	// Content negotiation: text/markdown, text/html, text/plain, JSON default.
 	accept := r.Header.Get("Accept")
-	if accept == "text/plain" {
+	switch {
+	case accept == "text/plain":
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "Session: %s\n", sess.ID)
-		fmt.Fprintf(w, "Goal: %s\n", sess.Goal)
-		fmt.Fprintf(w, "Status: %s\n", sess.Status)
-		fmt.Fprintf(w, "Started: %s\n", sess.StartedAt)
-		if sess.FinishedAt != "" {
-			fmt.Fprintf(w, "Finished: %s\n", sess.FinishedAt)
+		fmt.Fprintf(w, "Session: %s\n", data.Session.ID)
+		fmt.Fprintf(w, "Goal: %s\n", data.Session.Goal)
+		fmt.Fprintf(w, "Status: %s\n", data.Session.Status)
+		fmt.Fprintf(w, "Started: %s\n", data.Session.StartedAt)
+		if data.Session.FinishedAt != "" {
+			fmt.Fprintf(w, "Finished: %s\n", data.Session.FinishedAt)
 		}
-		fmt.Fprintf(w, "Traces: %d\n", len(traces))
-		fmt.Fprintf(w, "Verdicts: %d\n", len(verdicts))
-		if sess.Stats != "" && sess.Stats != "{}" {
-			fmt.Fprintf(w, "Stats: %s\n", sess.Stats)
+		fmt.Fprintf(w, "Traces: %d\n", len(data.Traces))
+		fmt.Fprintf(w, "Verdicts: %d\n", len(data.Verdicts))
+		if data.Session.Stats != "" && data.Session.Stats != "{}" {
+			fmt.Fprintf(w, "Stats: %s\n", data.Session.Stats)
 		}
-		return
+	case accept == "text/markdown":
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Write([]byte(report.RenderMarkdown(data)))
+	case accept == "text/html":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		report.RenderHTML(w, data)
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{
+			"session":  data.Session,
+			"traces":   data.Traces,
+			"verdicts": data.Verdicts,
+		})
 	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"session":  sess,
-		"traces":   traces,
-		"verdicts": verdicts,
-	})
 }
 
 func (srv *Server) handleCancelSession(w http.ResponseWriter, r *http.Request) {

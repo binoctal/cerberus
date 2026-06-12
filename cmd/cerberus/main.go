@@ -10,9 +10,11 @@ import (
 	"syscall"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/dashboard"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/mcp"
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/report"
 	"github.com/binoctal/cerberus/internal/server"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
@@ -27,8 +29,11 @@ var (
 	dbFlag       string
 	configFlag   string
 	portFlag     string
-	deepPlanFlag bool
-	dirFlag      string
+	deepPlanFlag    bool
+	dirFlag         string
+	sessionFlag     string
+	formatFlag      string
+	outputFlag      string
 )
 
 func main() {
@@ -37,7 +42,7 @@ func main() {
 		Short: "Cerberus — Universal AI Testing Framework",
 	}
 
-	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd())
+	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -409,6 +414,101 @@ func loadProjectConfig(configPath, url, goal string, logger *zap.Logger) *projec
 	}
 
 	return cfg
+}
+
+func reportCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "report",
+		Short: "Generate test report (HTML, Markdown, or JSON)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.Load()
+
+			dbPath := cfg.DBPath
+			if dbFlag != "" {
+				dbPath = dbFlag
+			}
+
+			s, err := store.New(dbPath)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer s.Close()
+
+			ctx := context.Background()
+			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
+				return fmt.Errorf("run migrations: %w", err)
+			}
+
+			data, err := report.BuildReport(ctx, s, sessionFlag)
+			if err != nil {
+				return err
+			}
+
+			var output string
+			switch formatFlag {
+			case "html":
+				html, err := report.RenderHTMLString(data)
+				if err != nil {
+					return fmt.Errorf("render HTML: %w", err)
+				}
+				output = html
+			case "json":
+				output = data.Session.Stats
+				if output == "" || output == "{}" {
+					b, _ := json.MarshalIndent(data, "", "  ")
+					output = string(b)
+				}
+			case "markdown", "":
+				output = report.RenderMarkdown(data)
+			default:
+				return fmt.Errorf("unsupported format: %s (use html, markdown, or json)", formatFlag)
+			}
+
+			if outputFlag != "" {
+				if err := os.WriteFile(outputFlag, []byte(output), 0644); err != nil {
+					return fmt.Errorf("write file: %w", err)
+				}
+				fmt.Fprintf(os.Stderr, "Report written to %s\n", outputFlag)
+			} else {
+				fmt.Println(output)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&sessionFlag, "session", "", "Session ID to report")
+	cmd.Flags().StringVar(&formatFlag, "format", "markdown", "Output format: html, markdown, json")
+	cmd.Flags().StringVar(&outputFlag, "output", "", "Output file path (default: stdout)")
+	_ = cmd.MarkFlagRequired("session")
+	return cmd
+}
+
+func dashboardCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "dashboard",
+		Short: "Interactive TUI dashboard for monitoring sessions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.Load()
+
+			dbPath := cfg.DBPath
+			if dbFlag != "" {
+				dbPath = dbFlag
+			}
+
+			s, err := store.New(dbPath)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer s.Close()
+
+			ctx := context.Background()
+			if err := store.RunMigrations(ctx, s.DB(), cfg.MigrationDir); err != nil {
+				return fmt.Errorf("run migrations: %w", err)
+			}
+
+			return dashboard.Run(s)
+		},
+	}
+	return cmd
 }
 
 func containsLine(content, line string) bool {
