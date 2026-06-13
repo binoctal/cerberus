@@ -250,8 +250,15 @@ func runCmd() *cobra.Command {
 				cancel()
 			}()
 
-			if err := sess.Run(ctx); err != nil {
-				return fmt.Errorf("session run: %w", err)
+			if resumeFlag != "" {
+				sess.ID = resumeFlag
+				if err := sess.Resume(ctx); err != nil {
+					return fmt.Errorf("session resume: %w", err)
+				}
+			} else {
+				if err := sess.Run(ctx); err != nil {
+					return fmt.Errorf("session run: %w", err)
+				}
 			}
 
 			sess.Close()
@@ -489,10 +496,16 @@ func reportCmd() *cobra.Command {
 					b, _ := json.MarshalIndent(data, "", "  ")
 					output = string(b)
 				}
+			case "junit":
+				xml, err := report.RenderJUnit(data)
+				if err != nil {
+					return fmt.Errorf("render JUnit: %w", err)
+				}
+				output = string(xml)
 			case "markdown", "":
 				output = report.RenderMarkdown(data)
 			default:
-				return fmt.Errorf("unsupported format: %s (use html, markdown, or json)", formatFlag)
+				return fmt.Errorf("unsupported format: %s (use html, junit, markdown, or json)", formatFlag)
 			}
 
 			if outputFlag != "" {

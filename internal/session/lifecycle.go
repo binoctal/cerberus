@@ -273,7 +273,7 @@ func (s *Session) Close() {
 
 // Resume loads a saved plan and continues from the first uncompleted test case.
 // It skips Scout entirely, reuses the stored plan, and only executes remaining cases.
-func (s *Session) Resume(ctx context.Context) error {
+func (s *Session) Resume(ctx context.Context) (err error) {
 	s.Logger.Info("resuming session", zap.String("id", s.ID))
 	runStart := time.Now()
 	var summary *SessionSummary
@@ -297,6 +297,9 @@ func (s *Session) Resume(ctx context.Context) error {
 		}
 		s.Logger.Info("session summary", zap.String("summary", summary.String()))
 		status := "completed"
+		if err != nil {
+			status = "failed"
+		}
 		if statsErr := s.Store.UpdateSessionStatus(ctx, s.ID, status); statsErr != nil {
 			s.Logger.Error("update session status", zap.Error(statsErr))
 		}

@@ -506,6 +506,11 @@ func TestSession_Resume_NoPlan(t *testing.T) {
 	assert.Contains(t, err.Error(), "load plan")
 
 	sess.Close()
+
+	// Verify failed status was recorded in DB.
+	dbSess, getErr := s.GetSession(context.Background(), sess.ID)
+	require.NoError(t, getErr)
+	assert.Equal(t, "failed", dbSess.Status, "resume failure should record 'failed' status")
 }
 
 func TestSession_driverFor_PerHeadOverride(t *testing.T) {
