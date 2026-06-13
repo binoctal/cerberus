@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.0 — 2026-06-13
+
+### Added
+
+#### Configuration
+- Confidence threshold wiring: `Settings.ConfidenceThreshold` now drives Examiner verdict policy
+- Verdict degradation: pass verdicts with `CorrectnessConfidence < threshold` auto-downgraded to uncertain
+- Environment config overlays: `CERBERUS_ENV=staging` merges `project.staging.yaml` onto base config
+- `mergo` dependency for struct-level partial config merge
+
+#### Intelligence
+- L1 episodic memory activation in Scout planning: previous test outcomes injected into plan prompt
+- `buildEpisodicContext` queries up to 10 historical records per known endpoint target
+
+#### Testing
+- E2E evidence tests: `GetEvidenceBySession`, markdown/HTML evidence rendering
+- Session resume integration test: skips completed cases, handles missing plan
+- Per-head driver fallback test
+- Threshold degradation unit tests: downgrade, pass-through, zero-threshold
+
 ## v0.2.0 — 2026-06-13
 
 ### Added
