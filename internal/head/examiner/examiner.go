@@ -25,7 +25,7 @@ type Examiner struct {
 func NewExaminer(judgeDriver, criticDriver *ai.Driver, s *store.Store, config ExaminerConfig, logger *zap.Logger) *Examiner {
 	return &Examiner{
 		judge:   NewJudge(judgeDriver, criticDriver, config),
-		learner: NewLearner(judgeDriver, s, logger),
+		learner: NewLearner(judgeDriver, s, logger, nil),
 		store:   s,
 		logger:  logger,
 		config:    config,

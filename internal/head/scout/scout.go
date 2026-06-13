@@ -17,17 +17,24 @@ import (
 // Scout performs project reconnaissance: analyze to build a cognitive model,
 // then plan to generate a test plan.
 type Scout struct {
-	driver  *ai.Driver
-	store   *store.Store
-	config  *project.Config
-	logger  *zap.Logger
-	deepPlan bool     // Enable ToT deep planning mode
-	totCfg  ToTConfig // ToT configuration (only used when deepPlan=true)
+	driver   *ai.Driver
+	store    *store.Store
+	config   *project.Config
+	logger   *zap.Logger
+	deepPlan bool           // Enable ToT deep planning mode
+	totCfg   ToTConfig      // ToT configuration (only used when deepPlan=true)
+	embedder embedPkg.Provider // embedding provider for semantic search
 }
 
 // NewScout creates a Scout head.
 func NewScout(driver *ai.Driver, store *store.Store, config *project.Config, logger *zap.Logger) *Scout {
-	return &Scout{driver: driver, store: store, config: config, logger: logger}
+	return &Scout{
+		driver:   driver,
+		store:    store,
+		config:   config,
+		logger:   logger,
+		embedder: embedPkg.NewTrigramProvider(embedPkg.DefaultDimension),
+	}
 }
 
 // SetDeepPlan enables ToT deep planning mode with the given config.
@@ -359,7 +366,7 @@ func (s *Scout) buildEpisodicContext(ctx context.Context, goal string, model *pr
 
 	// Append L2 semantic memory: search for facts related to the goal.
 	if goal != "" {
-		queryEmb := embedPkg.Generate(goal, 128)
+		queryEmb, _ := s.embedder.Embed(ctx, goal)
 		semanticResults, err := s.store.SearchSemantic(ctx, queryEmb, 5, 0.3)
 		if err != nil {
 			s.logger.Debug("semantic search failed", zap.Error(err))

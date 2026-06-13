@@ -17,14 +17,19 @@ import (
 // Learner performs Reflexion: generates reflections from test results
 // and stores them as L3 procedural memory.
 type Learner struct {
-	driver *ai.Driver
-	store  *store.Store
-	logger *zap.Logger
+	driver  *ai.Driver
+	store   *store.Store
+	logger  *zap.Logger
+	embedder embedPkg.Provider
 }
 
 // NewLearner creates a Reflexion learner.
-func NewLearner(driver *ai.Driver, s *store.Store, logger *zap.Logger) *Learner {
-	return &Learner{driver: driver, store: s, logger: logger}
+// If embedder is nil, a default TrigramProvider is used.
+func NewLearner(driver *ai.Driver, s *store.Store, logger *zap.Logger, embedder embedPkg.Provider) *Learner {
+	if embedder == nil {
+		embedder = embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
+	}
+	return &Learner{driver: driver, store: s, logger: logger, embedder: embedder}
 }
 
 // Learn generates reflections from all step results and stores them as L3 procedural memory.
@@ -151,20 +156,23 @@ func (l *Learner) buildReflectionContext(results []agent.StepResult) string {
 }
 
 // storeSemanticFromReflections extracts key facts from reflections and stores
-// them as L2 semantic memory with trigram embeddings for future retrieval.
+// them as L2 semantic memory with embeddings for future retrieval.
 func (l *Learner) storeSemanticFromReflections(ctx context.Context, reflections []Reflection, project string) {
-	const embedDim = 128
 	for _, r := range reflections {
 		if !qualityGate(r) {
 			continue
 		}
 		content := fmt.Sprintf("%s: %s → %s", r.Type, r.Diagnosis, r.Strategy)
-		embedding := embedPkg.Generate(content, embedDim)
-
-		_, err := l.store.StoreSemantic(ctx, content, "reflexion", project,
-			[]string{r.Category, r.Type}, embedding, "trigram-v1")
+		embedding, err := l.embedder.Embed(ctx, content)
 		if err != nil {
-			l.logger.Warn("store semantic memory", zap.Error(err))
+			l.logger.Warn("generate embedding", zap.Error(err))
+			continue
+		}
+
+		_, storeErr := l.store.StoreSemantic(ctx, content, "reflexion", project,
+			[]string{r.Category, r.Type}, embedding, l.embedder.ModelName())
+		if storeErr != nil {
+			l.logger.Warn("store semantic memory", zap.Error(storeErr))
 		}
 	}
 }

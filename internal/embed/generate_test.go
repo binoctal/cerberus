@@ -2,6 +2,7 @@ package embed
 
 import (
 	"math"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,4 +75,59 @@ func cosine(a, b []float64) float64 {
 		return 0
 	}
 	return dot / (math.Sqrt(na) * math.Sqrt(nb))
+}
+
+func TestTrigramProvider_ImplementsInterface(t *testing.T) {
+	// Compile-time check.
+	var _ Provider = (*TrigramProvider)(nil)
+}
+
+func TestTrigramProvider_Embed(t *testing.T) {
+	p := NewTrigramProvider(64)
+	ctx := context.Background()
+
+	vec, err := p.Embed(ctx, "hello world")
+	assert.NoError(t, err)
+	assert.Len(t, vec, 64)
+	var n float64; for _, v := range vec { n += v*v }; assert.InDelta(t, 1.0, math.Sqrt(n), 1e-9)
+}
+
+func TestTrigramProvider_DefaultDim(t *testing.T) {
+	p := NewTrigramProvider(0)
+	assert.Equal(t, DefaultDimension, p.Dimension())
+	assert.Equal(t, DefaultDimension, p.Dimension())
+}
+
+func TestTrigramProvider_NegativeDim(t *testing.T) {
+	p := NewTrigramProvider(-1)
+	assert.Equal(t, DefaultDimension, p.Dimension())
+}
+
+func TestTrigramProvider_ModelName(t *testing.T) {
+	p := NewTrigramProvider(128)
+	assert.Equal(t, "trigram-v1", p.ModelName())
+}
+
+func TestTrigramProvider_Deterministic(t *testing.T) {
+	p := NewTrigramProvider(64)
+	ctx := context.Background()
+
+	v1, _ := p.Embed(ctx, "test input")
+	v2, _ := p.Embed(ctx, "test input")
+	for i := range v1 {
+		assert.InDelta(t, v1[i], v2[i], 1e-15)
+	}
+}
+
+func TestTrigramProvider_MatchesGenerate(t *testing.T) {
+	// TrigramProvider.Embed should produce identical output to Generate.
+	p := NewTrigramProvider(128)
+	ctx := context.Background()
+
+	text := "check provider matches generate"
+	vec, _ := p.Embed(ctx, text)
+	expected := Generate(text, 128)
+	for i := range vec {
+		assert.InDelta(t, vec[i], expected[i], 1e-15)
+	}
 }

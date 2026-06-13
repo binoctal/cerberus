@@ -297,7 +297,7 @@ func TestLearner_StoreReflections(t *testing.T) {
 	mockClient := llm.NewMockClient(map[string]string{"default": string(reflJSON)})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
-	learner := NewLearner(driver, s, zap.NewNop())
+	learner := NewLearner(driver, s, zap.NewNop(), nil)
 
 	results := []agent.StepResult{
 		makeStepResult("tc-1", "Get users", "/api/users", "returns 200", agent.StepFailed, 401, ""),
@@ -323,7 +323,7 @@ func TestLearner_EmptyResults(t *testing.T) {
 	mockClient := llm.NewMockClient(nil)
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
-	learner := NewLearner(driver, s, zap.NewNop())
+	learner := NewLearner(driver, s, zap.NewNop(), nil)
 	stored, err := learner.Learn(context.Background(), LearnInput{
 		SessionID: "test",
 		Project:   "test",
@@ -346,7 +346,7 @@ func TestLearner_QualityGateFiltersBadReflections(t *testing.T) {
 
 	mockClient := llm.NewMockClient(map[string]string{"default": string(reflJSON)})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
-	learner := NewLearner(driver, s, zap.NewNop())
+	learner := NewLearner(driver, s, zap.NewNop(), nil)
 
 	results := []agent.StepResult{
 		makeStepResult("tc-1", "Test", "/api", "works", agent.StepFailed, 500, ""),
