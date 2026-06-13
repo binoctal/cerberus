@@ -28,7 +28,7 @@ func Load() *Config {
 		MigrationDir: getEnv("CERBERUS_MIGRATION_DIR", "migrations"),
 		LogLevel:     getEnv("CERBERUS_LOG_LEVEL", "info"),
 		LLMModel:     resolveModel(settings),
-		LLMBaseURL:   resolveBaseURL(settings),
+		LLMBaseURL:   resolveBaseURL(settings, detect.Profile{}),
 		LLMProvider:  os.Getenv("CERBERUS_LLM_PROVIDER"),
 		CLIProfile:   profile,
 	}
@@ -53,11 +53,21 @@ func resolveModel(settings map[string]string) string {
 }
 
 // resolveBaseURL picks the base URL: explicit CERBERUS override, then the
-// Claude Code base URL (env, then settings.json), then none.
-func resolveBaseURL(settings map[string]string) string {
+// detected host CLI's credential prefix, then the historical ANTHROPIC default
+// (so unknown CLIs are unchanged). Environment beats settings.json at each tier.
+func resolveBaseURL(settings map[string]string, p detect.Profile) string {
 	if v := os.Getenv("CERBERUS_LLM_BASE_URL"); v != "" {
 		return v
 	}
+	if p.EnvPrefix != "" {
+		if v := os.Getenv(p.EnvPrefix + "_BASE_URL"); v != "" {
+			return v
+		}
+		if v := settings[p.EnvPrefix+"_BASE_URL"]; v != "" {
+			return v
+		}
+	}
+	// Graceful fallback: historical anthropic default for unknown CLIs.
 	if v := os.Getenv("ANTHROPIC_BASE_URL"); v != "" {
 		return v
 	}

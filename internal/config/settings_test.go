@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/binoctal/cerberus/internal/detect"
 )
 
 func TestFindUp_SearchesUpward(t *testing.T) {
@@ -86,7 +88,7 @@ func TestResolveBaseURL_Priority(t *testing.T) {
 	t.Setenv("CERBERUS_LLM_BASE_URL", "")
 	t.Setenv("ANTHROPIC_BASE_URL", "env-url")
 	settings := map[string]string{"ANTHROPIC_BASE_URL": "settings-url"}
-	if got := resolveBaseURL(settings); got != "env-url" {
+	if got := resolveBaseURL(settings, detect.Profile{}); got != "env-url" {
 		t.Errorf("resolveBaseURL() = %q, want env-url", got)
 	}
 }
@@ -95,8 +97,18 @@ func TestResolveBaseURL_SettingsFallback(t *testing.T) {
 	t.Setenv("CERBERUS_LLM_BASE_URL", "")
 	t.Setenv("ANTHROPIC_BASE_URL", "")
 	settings := map[string]string{"ANTHROPIC_BASE_URL": "settings-url"}
-	if got := resolveBaseURL(settings); got != "settings-url" {
+	if got := resolveBaseURL(settings, detect.Profile{}); got != "settings-url" {
 		t.Errorf("resolveBaseURL() = %q, want settings-url", got)
+	}
+}
+
+func TestResolveBaseURL_UsesCLIPrefix(t *testing.T) {
+	t.Setenv("CERBERUS_LLM_BASE_URL", "")
+	t.Setenv("OPENAI_BASE_URL", "openai-url")
+	t.Setenv("ANTHROPIC_BASE_URL", "anthropic-url")
+	got := resolveBaseURL(nil, detect.Profile{EnvPrefix: "OPENAI"})
+	if got != "openai-url" {
+		t.Errorf("resolveBaseURL() = %q, want openai-url (CLI prefix wins)", got)
 	}
 }
 
