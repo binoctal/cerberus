@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.0 — 2026-06-13
+
+### Added
+
+- CodeExecutor tests: GoAnalyze, GoLint, GoSymbols, unsupported action, language detection, parseRuffJSON, parseESLintJSON (20 tests)
+- Dashboard refresh/loadSelected/Update tests with real store (5 tests)
+- AI Driver SetCache + PromptBuilder tests (4 tests)
+- CLI integration tests: report markdown/junit/html/toFile/badFormat/noSession, version, init, unknown command (10 tests)
+- E2E real LLM tests: ExaminerJudge (judge + reflexion) and CodeExecutor GoAnalyze (2 tests, `//go:build e2e`)
+
+### Changed
+
+- Total test coverage: 75.1% → 78.6%
+- cmd/cerberus coverage: 34.7% → 44.8%
+
 ## v0.6.0 — 2026-06-13
 
 ### Fixed
