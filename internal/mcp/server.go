@@ -253,7 +253,7 @@ func (srv *Server) handleRun(ctx context.Context, c *conn, args map[string]any) 
 		cancel()
 		return errorResult(fmt.Sprintf("create session: %v", sessionErr))
 	}
-	testSess.SetupHeadDrivers(cfg.LLMAPIKey, cfg.LLMBaseURL)
+	testSess.SetupHeadDrivers(cfg.LLMAPIKey, cfg.LLMBaseURL, cfg.TierModels)
 	sessionID := testSess.ID
 
 	srv.mu.Lock()

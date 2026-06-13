@@ -38,3 +38,31 @@ func TestResolveTierModels_MissingTierLeavesEmpty(t *testing.T) {
 	assert.Equal(t, "", got[HeadAgent], "missing HAIKU tier → Agent falls back to global")
 	assert.Equal(t, "", got[HeadCritic], "missing OPUS tier → Critic falls back to global")
 }
+
+func TestPickModel_PriorityChain(t *testing.T) {
+	tier := TierModels{
+		HeadAgent:    "tier-haiku",
+		HeadScout:    "tier-sonnet",
+		HeadExaminer: "tier-sonnet",
+		// HeadCritic intentionally absent from tier.
+	}
+	tests := []struct {
+		name     string
+		head     Head
+		explicit string
+		global   string
+		want     string
+	}{
+		{"explicit wins over tier and global", HeadAgent, "explicit-m", "global-m", "explicit-m"},
+		{"explicit wins even when tier present", HeadScout, "explicit-m", "global-m", "explicit-m"},
+		{"tier used when no explicit", HeadAgent, "", "global-m", "tier-haiku"},
+		{"global used when no explicit and head absent from tier", HeadCritic, "", "global-m", "global-m"},
+		{"empty when nothing resolves", HeadCritic, "", "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PickModel(tc.head, tc.explicit, tier, tc.global)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}

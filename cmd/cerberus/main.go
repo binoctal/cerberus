@@ -239,7 +239,7 @@ func runCmd() *cobra.Command {
 			sess.DeepPlan = deepPlanFlag
 			sess.Parallel = parallelFlag
 			sess.MaxWorkers = workersFlag
-			sess.SetupHeadDrivers(apiKey, baseURL)
+			sess.SetupHeadDrivers(apiKey, baseURL, cfg.TierModels)
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -332,7 +332,7 @@ func verifyCmd() *cobra.Command {
 				return fmt.Errorf("create session: %w", err)
 			}
 
-			sess.SetupHeadDrivers(apiKey, baseURL)
+			sess.SetupHeadDrivers(apiKey, baseURL, cfg.TierModels)
 
 			if err := sess.Run(ctx); err != nil {
 				return fmt.Errorf("session verify: %w", err)

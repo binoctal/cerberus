@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
@@ -512,4 +513,36 @@ func TestSession_driverFor_PerHeadOverride(t *testing.T) {
 	assert.Equal(t, sess.Driver, d) // No override → shared
 
 	sess.Close()
+}
+
+// TestSetupHeadDrivers_CreatesDriversByPriority verifies that each head gets a
+// driver when its model resolves (explicit > tier > global), and that the
+// priority logic itself is exercised by config.PickModel's unit tests.
+func TestSetupHeadDrivers_CreatesDriversByPriority(t *testing.T) {
+	s := &Session{
+		Config: &project.Config{
+			Settings: project.Settings{
+				Models:   project.Models{Agent: "explicit-agent"}, // Agent uses explicit.
+				AIBudget: project.AIBudget{SessionTotalTokens: 1000, PerCallLimit: 100, Model: "global-m"},
+			},
+		},
+		Logger: zap.NewNop(),
+	}
+	tiers := config.TierModels{
+		config.HeadScout:    "tier-sonnet",
+		config.HeadAgent:    "tier-haiku", // overridden by explicit for Agent.
+		config.HeadExaminer: "tier-sonnet",
+		// HeadCritic absent from tiers → resolves to global-m.
+	}
+
+	s.SetupHeadDrivers("test-key", "http://test.invalid", tiers)
+
+	// Agent: explicit "explicit-agent" → driver created.
+	assert.NotNil(t, s.agentDriver, "Agent driver from explicit model")
+	// Scout: no explicit, tier "tier-sonnet" → driver created.
+	assert.NotNil(t, s.scoutDriver, "Scout driver from tier model")
+	// Examiner: no explicit, tier "tier-sonnet" → driver created.
+	assert.NotNil(t, s.examinerDriver, "Examiner driver from tier model")
+	// Critic: no explicit, absent from tier, global "global-m" → driver created.
+	assert.NotNil(t, s.criticDriver, "Critic driver from global model")
 }

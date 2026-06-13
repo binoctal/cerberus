@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
@@ -86,24 +87,27 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 }
 
 // SetupHeadDrivers creates per-head LLM drivers from model config.
-// If models config is empty, all heads use the shared Driver.
-func (s *Session) SetupHeadDrivers(apiKey, baseURL string) {
-	models := s.Config.Settings.Models
+// Model resolution uses the Phase 1 priority chain (see config.PickModel):
+// explicit settings.models > tier from the host CLI > global ai_budget.model.
+// Heads with no resolved model fall back to the shared Driver.
+func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierModels) {
 	globalModel := s.Config.Settings.AIBudget.Model
+	models := s.Config.Settings.Models
 
-	type head struct {
-		model string
-		field **ai.Driver
+	type headEntry struct {
+		head     config.Head
+		explicit string
+		field    **ai.Driver
 	}
-	heads := []head{
-		{models.Scout, &s.scoutDriver},
-		{models.Agent, &s.agentDriver},
-		{models.Examiner, &s.examinerDriver},
-		{models.Critic, &s.criticDriver},
+	heads := []headEntry{
+		{config.HeadScout, models.Scout, &s.scoutDriver},
+		{config.HeadAgent, models.Agent, &s.agentDriver},
+		{config.HeadExaminer, models.Examiner, &s.examinerDriver},
+		{config.HeadCritic, models.Critic, &s.criticDriver},
 	}
 
 	for _, h := range heads {
-		m := h.model
+		m := config.PickModel(h.head, h.explicit, tiers, globalModel)
 		if m == "" {
 			continue // will fall back to shared Driver
 		}
@@ -114,6 +118,7 @@ func (s *Session) SetupHeadDrivers(apiKey, baseURL string) {
 		})
 		if err != nil {
 			s.Logger.Warn("failed to create head driver, using shared",
+				zap.String("head", string(h.head)),
 				zap.String("model", m), zap.Error(err))
 			continue
 		}
@@ -122,10 +127,10 @@ func (s *Session) SetupHeadDrivers(apiKey, baseURL string) {
 			s.Config.Settings.AIBudget.PerCallLimit,
 		)
 		*h.field = ai.NewDriver(client, budget)
-		s.Logger.Info("head driver configured", zap.String("model", m))
+		s.Logger.Info("head driver configured",
+			zap.String("head", string(h.head)),
+			zap.String("model", m))
 	}
-
-	_ = globalModel // suppress unused warning
 }
 
 // driverFor returns the per-head driver if set, otherwise the shared Driver.

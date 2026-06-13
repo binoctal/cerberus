@@ -38,3 +38,17 @@ func resolveTierModels(cli detect.CLI, settings map[string]string) TierModels {
 		HeadCritic: opus,
 	}
 }
+
+// PickModel resolves a head's model by the Phase 1 priority chain:
+// explicit settings.models override > tier assigned by the host CLI >
+// global ai_budget.model. Returns "" when nothing resolves, in which case
+// the caller falls back to the shared Driver.
+func PickModel(head Head, explicit string, tier TierModels, global string) string {
+	if explicit != "" {
+		return explicit
+	}
+	if m, ok := tier[head]; ok && m != "" {
+		return m
+	}
+	return global
+}
