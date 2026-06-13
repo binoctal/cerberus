@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func TestServer_CrashRecovery(t *testing.T) {

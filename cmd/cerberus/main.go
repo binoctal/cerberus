@@ -9,6 +9,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/dashboard"
 	"github.com/binoctal/cerberus/internal/llm"
@@ -18,8 +21,6 @@ import (
 	"github.com/binoctal/cerberus/internal/server"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var (

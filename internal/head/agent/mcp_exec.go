@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // MCPEndpoint describes a remote MCP server.

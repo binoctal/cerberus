@@ -5,11 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/sandbox"
-	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/sandbox"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 func TestProcessExecutor_Success(t *testing.T) {

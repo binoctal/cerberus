@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
-	"go.uber.org/zap"
 )
 
 // Learner performs Reflexion: generates reflections from test results

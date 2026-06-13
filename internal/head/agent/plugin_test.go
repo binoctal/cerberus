@@ -3,11 +3,12 @@ package agent
 import (
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/policy"
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
-	"go.uber.org/zap"
 )
 
 func TestPluginRegistryRegistersExecutors(t *testing.T) {

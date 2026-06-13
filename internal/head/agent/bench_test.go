@@ -6,8 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 func BenchmarkRuleEngine_Match(b *testing.B) {

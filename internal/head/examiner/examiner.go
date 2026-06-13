@@ -3,10 +3,11 @@ package examiner
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/store"
-	"go.uber.org/zap"
 )
 
 // Examiner is the third Cerberus head: Judge (Self-Refine) + Learn (Reflexion).

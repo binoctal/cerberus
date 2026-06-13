@@ -3,8 +3,9 @@ package config
 import (
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/detect"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/binoctal/cerberus/internal/detect"
 )
 
 func TestResolveTierModels_ClaudeCode_AssignsByComplexity(t *testing.T) {

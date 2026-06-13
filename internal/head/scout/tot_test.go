@@ -6,12 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/ai"
-	"github.com/binoctal/cerberus/internal/llm"
-	"github.com/binoctal/cerberus/internal/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 func TestToTPlanner_SingleStep(t *testing.T) {

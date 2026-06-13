@@ -3,9 +3,10 @@ package agent
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestRuleEngineMatch_APIGet(t *testing.T) {

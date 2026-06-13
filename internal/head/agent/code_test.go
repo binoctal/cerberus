@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // parseHelper parses a Go source string and returns the AST file and file set.

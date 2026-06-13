@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
-	"go.uber.org/zap"
 )
 
 // Recovery handles failed actions by consulting the LLM with failure context

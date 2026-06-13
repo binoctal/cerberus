@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	pw "github.com/playwright-community/playwright-go"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // BrowserExecutor drives a headless browser via Playwright.

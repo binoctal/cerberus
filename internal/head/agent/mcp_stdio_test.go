@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 func TestMCPExecutor_TCPTransport(t *testing.T) {

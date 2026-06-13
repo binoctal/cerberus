@@ -9,8 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // GraphQLExecutor handles GraphQL query and mutation actions.

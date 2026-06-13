@@ -1,10 +1,11 @@
 package agent
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
-	"go.uber.org/zap"
 )
 
 // ExecutorPlugin bundles an executor with its action types for registration.

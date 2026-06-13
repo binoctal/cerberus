@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSessionSummary_FromResults(t *testing.T) {

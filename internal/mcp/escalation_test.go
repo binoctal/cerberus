@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/binoctal/cerberus/internal/escalation"
 )
 
 func TestMCPGate_BlocksUntilDecision(t *testing.T) {

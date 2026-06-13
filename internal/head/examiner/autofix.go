@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/binoctal/cerberus/internal/ai"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/ai"
 )
 
 // AutoFixResult holds the outcome of an auto-fix attempt.

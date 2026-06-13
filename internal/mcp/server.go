@@ -8,13 +8,14 @@ import (
 	"io"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
-	"go.uber.org/zap"
 )
 
 // Version is set at build time via -ldflags. Default matches the latest release.

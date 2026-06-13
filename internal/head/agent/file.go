@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // FileExecutor handles file read/write/exists/glob operations.

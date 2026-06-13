@@ -8,10 +8,11 @@ import (
 	"strings"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/project"
-	"go.uber.org/zap"
 )
 
 // ToTConfig controls the Tree-of-Thought beam search parameters. The search

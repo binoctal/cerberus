@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/policy"
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
-	"go.uber.org/zap"
 )
 
 // TypedExecutor executes a TypedAction and returns an ExecutorResult.

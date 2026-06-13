@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/charmbracelet/bubbletea"
 )
 
 // tickMsg triggers a periodic data refresh.

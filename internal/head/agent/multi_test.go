@@ -3,9 +3,10 @@ package agent
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestSandboxPolicyFor_BuildActionNoPanic is a regression test: sandboxPolicyFor

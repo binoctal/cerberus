@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 func TestIsDestructiveAction_NilAction(t *testing.T) {

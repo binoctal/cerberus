@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // HTTPExecutor handles HTTP API and navigation actions.

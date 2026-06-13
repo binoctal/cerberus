@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 func TestHTTPExecutor_APIRequest_GET(t *testing.T) {

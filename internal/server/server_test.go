@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/config"
-	"github.com/binoctal/cerberus/internal/llm"
-	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func setupServerTest(t *testing.T) (*Server, *store.Store) {

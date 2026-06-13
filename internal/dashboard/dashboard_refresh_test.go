@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/session"
-	"github.com/binoctal/cerberus/internal/store"
-	"github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/session"
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func setupDashboardStore(t *testing.T) *store.Store {
