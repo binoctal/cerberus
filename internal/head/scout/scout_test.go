@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -458,4 +459,57 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, agent.StepPassed, results[0].Status)
+}
+
+func TestBuildEpisodicContext(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	// Seed episodic memory.
+	sess, err := s.CreateSession(ctx, "run", "episodic test", "test-project")
+	require.NoError(t, err)
+	require.NoError(t, s.RecordEpisodic(ctx, sess.ID, "/api/users", "pass", "pass", 150*time.Millisecond))
+	require.NoError(t, s.RecordEpisodic(ctx, sess.ID, "/api/users", "fail", "fail", 300*time.Millisecond))
+	require.NoError(t, s.RecordEpisodic(ctx, sess.ID, "/api/posts", "pass", "pass", 100*time.Millisecond))
+
+	cfg := &project.Config{Project: project.ProjectMeta{Name: "test"}}
+	scout := NewScout(nil, s, cfg, zap.NewNop())
+
+	model := &project.ProjectModel{
+		API: project.APIModel{
+			Endpoints: []project.EndpointDef{
+				{Method: "GET", Path: "/api/users", Confidence: 0.9},
+				{Method: "GET", Path: "/api/posts", Confidence: 0.9},
+				{Method: "GET", Path: "/api/unknown", Confidence: 0.5}, // No episodic data
+			},
+		},
+	}
+
+	result := scout.buildEpisodicContext(ctx, model)
+
+	// Should contain episodic data for /api/users and /api/posts.
+	assert.Contains(t, result, "Target /api/users:")
+	assert.Contains(t, result, `pass (verdict: "pass", duration: 150ms)`)
+	assert.Contains(t, result, `fail (verdict: "fail", duration: 300ms)`)
+	assert.Contains(t, result, "Target /api/posts:")
+	assert.Contains(t, result, `pass (verdict: "pass", duration: 100ms)`)
+	assert.NotContains(t, result, "/api/unknown") // No episodic data → no entry
+}
+
+func TestBuildEpisodicContext_Empty(t *testing.T) {
+	s := setupTestStore(t)
+	cfg := &project.Config{Project: project.ProjectMeta{Name: "test"}}
+	scout := NewScout(nil, s, cfg, zap.NewNop())
+
+	// Model with endpoints but no episodic data.
+	model := &project.ProjectModel{
+		API: project.APIModel{
+			Endpoints: []project.EndpointDef{
+				{Method: "GET", Path: "/api/users", Confidence: 0.9},
+			},
+		},
+	}
+
+	result := scout.buildEpisodicContext(context.Background(), model)
+	assert.Empty(t, result) // No episodic data → empty string
 }

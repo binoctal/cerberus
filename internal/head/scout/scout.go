@@ -133,6 +133,12 @@ func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string) {
 // directPlan generates a test plan via a single AI call with deterministic fallback.
 func (s *Scout) directPlan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
 	planCtx := s.buildPlanContext(model)
+
+	// Inject L1 episodic memory for known targets.
+	if episodicCtx := s.buildEpisodicContext(ctx, model); episodicCtx != "" {
+		planCtx += "\n\n## Previous Test History\n" + episodicCtx
+	}
+
 	prompt := ai.NewPrompt().
 		System(promptPlanSystem).
 		Context(planCtx).
@@ -315,6 +321,39 @@ func (s *Scout) buildPlanContext(model *project.ProjectModel) string {
 	modelJSON, _ := json.Marshal(model)
 	b.WriteString("\n## Raw Model\n")
 	b.WriteString(string(modelJSON))
+
+	return b.String()
+}
+
+// buildEpisodicContext queries L1 episodic memory for known targets and formats
+// a summary of previous test outcomes to inform planning.
+func (s *Scout) buildEpisodicContext(ctx context.Context, model *project.ProjectModel) string {
+	// Collect unique targets from the model.
+	seen := make(map[string]bool)
+	var targets []string
+	for _, ep := range model.API.Endpoints {
+		key := ep.Method + " " + ep.Path
+		if !seen[key] {
+			seen[key] = true
+			targets = append(targets, ep.Path) // Use path for episodic lookup
+		}
+	}
+
+	var b strings.Builder
+	for _, target := range targets {
+		memories, err := s.store.GetEpisodicByTarget(ctx, target, 10)
+		if err != nil {
+			s.logger.Debug("episodic lookup failed", zap.String("target", target), zap.Error(err))
+			continue
+		}
+		if len(memories) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "Target %s:\n", target)
+		for _, m := range memories {
+			fmt.Fprintf(&b, "- %s (verdict: %s, duration: %dms)\n", m.Status, m.Verdict, m.DurationMs)
+		}
+	}
 
 	return b.String()
 }
