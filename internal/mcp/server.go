@@ -237,9 +237,10 @@ func (srv *Server) handleRun(ctx context.Context, c *conn, args map[string]any) 
 
 	// Create LLM client.
 	client, clientErr := llm.NewClientWithConfig(llm.ClientConfig{
-		Model:   cfg.LLMModel,
-		APIKey:  cfg.LLMAPIKey,
-		BaseURL: cfg.LLMBaseURL,
+		Model:    cfg.LLMModel,
+		APIKey:   cfg.LLMAPIKey,
+		BaseURL:  cfg.LLMBaseURL,
+		Provider: cfg.LLMProvider,
 	})
 	if clientErr != nil {
 		cancel()

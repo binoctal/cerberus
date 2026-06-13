@@ -136,9 +136,10 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client, err := srv.clientFactory(llm.ClientConfig{
-		Model:   model,
-		APIKey:  apiKey,
-		BaseURL: baseURL,
+		Model:    model,
+		APIKey:   apiKey,
+		BaseURL:  baseURL,
+		Provider: srv.cfg.LLMProvider,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "LLM client: %v", err)

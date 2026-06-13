@@ -22,10 +22,13 @@ func NewClaudeClient(apiKey, model, baseURL string) *ClaudeClient {
 }
 
 func (c *ClaudeClient) baseURL() string {
-	if c.serverURL != "" {
-		return c.serverURL
+	const messagesPath = "/v1/messages"
+	if c.serverURL == "" {
+		return "https://api.anthropic.com" + messagesPath
 	}
-	return "https://api.anthropic.com/v1/messages"
+	// serverURL is a base prefix (e.g. Claude Code's ANTHROPIC_BASE_URL);
+	// append the messages path unless it is already a full endpoint.
+	return joinBaseURL(c.serverURL, messagesPath)
 }
 
 func (c *ClaudeClient) client() *http.Client {

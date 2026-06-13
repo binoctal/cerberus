@@ -49,6 +49,8 @@ func TestAutoDetectProvider(t *testing.T) {
 		{"gemini-3-flash-preview", "gemini"},
 		{"gemini-2.5-pro", "gemini"},
 		{"mock", "mock"},
+		// Unknown prefixes default to anthropic (Claude Code / Anthropic-compatible endpoints like GLM).
+		{"glm-5.1", "anthropic"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {
@@ -315,9 +317,14 @@ func TestClientConfig_BaseURLOverride(t *testing.T) {
 		wantURL string
 	}{
 		{
-			name:    "claude custom base url",
-			client:  NewClaudeClient("key", "claude-sonnet-4-6", customURL),
-			wantURL: customURL,
+			name:    "claude base prefix gets messages path",
+			client:  NewClaudeClient("key", "claude-sonnet-4-6", "http://localhost:11434/api/anthropic"),
+			wantURL: "http://localhost:11434/api/anthropic/v1/messages",
+		},
+		{
+			name:    "claude full messages url preserved",
+			client:  NewClaudeClient("key", "claude-sonnet-4-6", "http://localhost:11434/v1/messages"),
+			wantURL: "http://localhost:11434/v1/messages",
 		},
 		{
 			name:    "claude default url",
@@ -384,4 +391,36 @@ func TestNewClientWithConfig(t *testing.T) {
 	client2, err := NewClient("mock", "")
 	require.NoError(t, err)
 	assert.NotNil(t, client2)
+}
+
+func TestNewClientWithConfig_ProviderOverride(t *testing.T) {
+	// Explicit Provider wins over model-based detection: glm-5.1 defaults to
+	// anthropic, but Provider=mock forces a MockClient regardless.
+	client, err := NewClientWithConfig(ClientConfig{
+		Model:    "glm-5.1",
+		Provider: "mock",
+	})
+	require.NoError(t, err)
+	_, ok := client.(*MockClient)
+	assert.True(t, ok, "Provider=mock should override model-based detection")
+}
+
+func TestJoinBaseURL(t *testing.T) {
+	const path = "/v1/messages"
+	tests := []struct {
+		name string
+		base string
+		want string
+	}{
+		{"empty base", "", ""},
+		{"prefix appended", "https://host/api/anthropic", "https://host/api/anthropic/v1/messages"},
+		{"trailing slash trimmed", "https://host/api/anthropic/", "https://host/api/anthropic/v1/messages"},
+		{"full url preserved", "https://host/v1/messages", "https://host/v1/messages"},
+		{"full url with trailing slash normalized", "https://host/v1/messages/", "https://host/v1/messages"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, joinBaseURL(tt.base, path))
+		})
+	}
 }

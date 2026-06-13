@@ -70,9 +70,10 @@ type TokenUsage struct {
 
 // ClientConfig holds options for creating an LLM client.
 type ClientConfig struct {
-	Model   string
-	APIKey  string
-	BaseURL string // optional: overrides the provider's default API URL
+	Model    string
+	APIKey   string
+	BaseURL  string // optional: overrides the provider's default API URL
+	Provider string // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
 }
 
 // NewClient creates an LLM client with model and API key (shorthand).
@@ -82,7 +83,10 @@ func NewClient(model, apiKey string) (Client, error) {
 
 // NewClientWithConfig creates an LLM client with full configuration.
 func NewClientWithConfig(cfg ClientConfig) (Client, error) {
-	provider := detectProvider(cfg.Model)
+	provider := cfg.Provider
+	if provider == "" {
+		provider = detectProvider(cfg.Model)
+	}
 	switch provider {
 	case "anthropic":
 		return NewClaudeClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil
@@ -99,12 +103,25 @@ func NewClientWithConfig(cfg ClientConfig) (Client, error) {
 	}
 }
 
+// joinBaseURL appends path to base unless base already ends with path.
+// Claude Code (and the Anthropic SDK) configure a base URL prefix such as
+// ANTHROPIC_BASE_URL="https://host/api/anthropic"; the endpoint is that prefix
+// plus "/v1/messages". Treating a bare prefix as the full endpoint silently
+// breaks deep-integration (some providers return HTTP 200 with an error body).
+func joinBaseURL(base, path string) string {
+	if base == "" {
+		return ""
+	}
+	trimmed := strings.TrimRight(base, "/")
+	if strings.HasSuffix(trimmed, path) {
+		return trimmed
+	}
+	return trimmed + path
+}
+
 func detectProvider(model string) string {
 	if model == "mock" {
 		return "mock"
-	}
-	if strings.HasPrefix(model, "claude") {
-		return "anthropic"
 	}
 	if strings.HasPrefix(model, "gpt") {
 		return "openai"
@@ -112,5 +129,7 @@ func detectProvider(model string) string {
 	if strings.HasPrefix(model, "gemini") {
 		return "gemini"
 	}
-	return ""
+	// Default to anthropic: cerberus deep-integrates with Claude Code, so
+	// Anthropic-compatible endpoints (api.anthropic.com, GLM, etc.) are the norm.
+	return "anthropic"
 }

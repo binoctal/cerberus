@@ -14,11 +14,27 @@ import (
 	"go.uber.org/zap"
 )
 
-// ToTConfig controls the Tree-of-Thought beam search parameters.
+// ToTConfig controls the Tree-of-Thought beam search parameters. The search
+// explores a "strategy tree" along three orthogonal dimensions; each field
+// constrains one.
+//
+//   - GenerateN (breadth):   how many child strategies each surviving parent
+//     expands into during the propose phase (e.g. happy-path / error / edge /
+//     security angles). This is "how many you make".
+//   - BeamWidth (survivors): how many top-scored candidates the select phase
+//     keeps after pruning the rest. This is "how many you keep".
+//   - MaxSteps (depth):      how many propose→evaluate→select rounds run. Each
+//     round re-proposes from the survivors, so it is iterative refinement of
+//     the previous best, not a plain N-level tree expansion.
+//
+// Per-step evaluate cost scales with BeamWidth × GenerateN; total cost scales
+// roughly with MaxSteps × (BeamWidth × GenerateN). Raise MaxSteps for depth,
+// GenerateN for breadth, BeamWidth to avoid pruning good strategies (the most
+// expensive, because it compounds every subsequent step).
 type ToTConfig struct {
-	BeamWidth int // Candidates to keep per step (default 3)
-	GenerateN int // Candidates to propose per step (default 5)
-	MaxSteps  int // Max propose-evaluate-select rounds (default 3)
+	BeamWidth int // Candidates kept per step after pruning (default 3).
+	GenerateN int // Candidates proposed per surviving parent each step (default 5).
+	MaxSteps  int // Propose→evaluate→select refinement rounds (default 3).
 }
 
 func DefaultToTConfig() ToTConfig {

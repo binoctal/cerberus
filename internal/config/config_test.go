@@ -18,10 +18,11 @@ func TestLoadDefaults(t *testing.T) {
 	for _, key := range []string{
 		"CERBERUS_PORT", "CERBERUS_DB_PATH",
 		"CERBERUS_MIGRATION_DIR", "CERBERUS_LOG_LEVEL", "CERBERUS_LLM_MODEL",
-		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
+		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "GEMINI_API_KEY",
 	} {
 		t.Setenv(key, "")
 	}
+	t.Setenv("CERBERUS_NO_CLAUDE_SETTINGS", "1") // ignore project .claude/settings.json
 
 	cfg := Load()
 	assert.Equal(t, "8090", cfg.Port)

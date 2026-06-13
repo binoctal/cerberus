@@ -223,9 +223,10 @@ func runCmd() *cobra.Command {
 			}
 
 			client, err := llm.NewClientWithConfig(llm.ClientConfig{
-				Model:   model,
-				APIKey:  apiKey,
-				BaseURL: baseURL,
+				Model:    model,
+				APIKey:   apiKey,
+				BaseURL:  baseURL,
+				Provider: cfg.LLMProvider,
 			})
 			if err != nil {
 				return fmt.Errorf("create LLM client: %w", err)
@@ -317,9 +318,10 @@ func verifyCmd() *cobra.Command {
 			}
 
 			client, err := llm.NewClientWithConfig(llm.ClientConfig{
-				Model:   model,
-				APIKey:  apiKey,
-				BaseURL: baseURL,
+				Model:    model,
+				APIKey:   apiKey,
+				BaseURL:  baseURL,
+				Provider: cfg.LLMProvider,
 			})
 			if err != nil {
 				return fmt.Errorf("create LLM client: %w", err)
