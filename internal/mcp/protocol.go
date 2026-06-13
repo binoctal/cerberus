@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 )
 
 // JSON-RPC 2.0 types.
@@ -59,6 +60,7 @@ type toolContent struct {
 type conn struct {
 	reader *bufio.Reader
 	writer *bufio.Writer
+	mu     sync.Mutex // protects writer for concurrent writes
 }
 
 func newConn(r io.Reader, w io.Writer) *conn {
@@ -78,6 +80,8 @@ func (c *conn) readRequest() (jsonRPCRequest, error) {
 }
 
 func (c *conn) writeResponse(resp jsonRPCResponse) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	data, err := json.Marshal(resp)
 	if err != nil {
 		// Best effort: send a generic error response so the client doesn't hang.
@@ -98,6 +102,26 @@ func (c *conn) writeError(id int, code int, msg string) {
 		ID:      id,
 		Error:   &jsonRPCError{Code: code, Message: msg},
 	})
+}
+
+// writeNotification sends a JSON-RPC notification (no id field) to the host.
+func (c *conn) writeNotification(method string, params any) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	msg := map[string]any{
+		"jsonrpc": "2.0",
+		"method":  method,
+	}
+	if params != nil {
+		msg["params"] = params
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	data = append(data, '\n')
+	_, _ = c.writer.Write(data)
+	_ = c.writer.Flush()
 }
 
 func textResult(text string) callToolResult {

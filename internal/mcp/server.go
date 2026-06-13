@@ -99,7 +99,7 @@ func (srv *Server) handleRequest(ctx context.Context, c *conn, req jsonRPCReques
 			JSONRPC: "2.0", ID: req.ID,
 			Result: map[string]any{
 				"protocolVersion": "2024-11-05",
-				"capabilities":    map[string]any{"tools": map[string]any{}},
+				"capabilities":    map[string]any{"tools": map[string]any{}, "notifications": map[string]any{}},
 				"serverInfo":      map[string]any{"name": "cerberus", "version": Version},
 			},
 		})
@@ -132,7 +132,7 @@ func (srv *Server) handleToolCall(ctx context.Context, c *conn, req jsonRPCReque
 	var result callToolResult
 	switch params.Name {
 	case "cerberus_run":
-		result = srv.handleRun(ctx, params.Arguments)
+		result = srv.handleRun(ctx, c, params.Arguments)
 	case "cerberus_status":
 		result = srv.handleStatus(params.Arguments)
 	case "cerberus_report":
@@ -215,8 +215,9 @@ func (srv *Server) listTools() []toolDefinition {
 }
 
 // handleRun creates a session, wires the MCP escalation gate, and starts
-// real session execution in a background goroutine.
-func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolResult {
+// real session execution in a background goroutine. Progress events are
+// streamed to the host via notifications/progress JSON-RPC notifications.
+func (srv *Server) handleRun(ctx context.Context, c *conn, args map[string]any) callToolResult {
 	goal, _ := args["goal"].(string)
 	url, _ := args["url"].(string)
 	if goal == "" || url == "" {
@@ -251,11 +252,18 @@ func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolR
 		return errorResult(fmt.Sprintf("create session: %v", sessionErr))
 	}
 	testSess.SetupHeadDrivers(cfg.LLMAPIKey, cfg.LLMBaseURL)
-		sessionID := testSess.ID
+	sessionID := testSess.ID
 
 	srv.mu.Lock()
 	srv.sessions[sessionID] = &runningSession{progress: progress, cancel: cancel, gate: mcpGate}
 	srv.mu.Unlock()
+
+	// Stream progress notifications to the host.
+	go func() {
+		for p := range progress {
+			c.writeNotification("notifications/progress", p)
+		}
+	}()
 
 	go func() {
 		defer cancel()
@@ -264,6 +272,7 @@ func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolR
 			delete(srv.sessions, sessionID)
 			srv.mu.Unlock()
 		}()
+		defer close(progress)
 
 		progress <- SessionProgress{SessionID: sessionID, Phase: "scout", Status: "running"}
 

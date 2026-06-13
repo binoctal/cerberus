@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -922,4 +923,90 @@ func TestServer_ListTools_SchemasHaveRequired(t *testing.T) {
 			assert.Contains(t, props, field, "tool %s: required field %s should be in properties", tool.Name, field)
 		}
 	}
+}
+
+// -------------------------------------------------------
+// Phase 1: Streaming notifications
+// -------------------------------------------------------
+
+func TestProtocol_WriteNotification_Format(t *testing.T) {
+	var out bytes.Buffer
+	c := newConn(strings.NewReader(""), &out)
+
+	params := map[string]any{
+		"session_id": "abc-123",
+		"status":     "running",
+		"phase":      "scout",
+	}
+	c.writeNotification("notifications/progress", params)
+
+	// Parse the output — should be valid JSON without "id" field.
+	var msg map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &msg))
+	assert.Equal(t, "2.0", msg["jsonrpc"])
+	assert.Equal(t, "notifications/progress", msg["method"])
+	assert.Nil(t, msg["id"], "notification must not have an id field")
+
+	p, ok := msg["params"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "abc-123", p["session_id"])
+	assert.Equal(t, "running", p["status"])
+}
+
+func TestProtocol_WriteNotification_NilParams(t *testing.T) {
+	var out bytes.Buffer
+	c := newConn(strings.NewReader(""), &out)
+
+	c.writeNotification("some/method", nil)
+
+	var msg map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &msg))
+	assert.Equal(t, "2.0", msg["jsonrpc"])
+	assert.Equal(t, "some/method", msg["method"])
+	// params should be absent when nil.
+	_, hasParams := msg["params"]
+	assert.False(t, hasParams, "params should be absent when nil")
+}
+
+func TestProtocol_ConcurrentWrites(t *testing.T) {
+	var out bytes.Buffer
+	c := newConn(strings.NewReader(""), &out)
+
+	// Hammer writeResponse and writeNotification from multiple goroutines.
+	// If the mutex is missing, this will likely panic or produce corrupt JSON.
+	const n = 100
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := range n {
+		go func(id int) {
+			defer wg.Done()
+			if id%2 == 0 {
+				c.writeResponse(jsonRPCResponse{
+					JSONRPC: "2.0", ID: id, Result: "ok",
+				})
+			} else {
+				c.writeNotification("test/event", map[string]any{"id": id})
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Every line in the output should be valid JSON.
+	lines := bytes.Split(bytes.TrimSpace(out.Bytes()), []byte{'\n'})
+	assert.Len(t, lines, n)
+	for _, line := range lines {
+		var msg map[string]any
+		assert.NoError(t, json.Unmarshal(line, &msg), "line should be valid JSON: %s", string(line))
+	}
+}
+
+func TestServer_HandleInitialize_NotificationsCapability(t *testing.T) {
+	srv, _ := setupMCPServer(t)
+	resp := sendRPC(t, srv, jsonRPCRequest{JSONRPC: "2.0", ID: 1, Method: "initialize"})
+
+	result, ok := resp.Result.(map[string]any)
+	require.True(t, ok)
+	capabilities, ok := result["capabilities"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, capabilities, "notifications", "should declare notifications capability")
 }
