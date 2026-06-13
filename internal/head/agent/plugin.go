@@ -71,7 +71,7 @@ func (r *PluginRegistry) ExecutorPlugins() []ExecutorPlugin {
 
 type httpPlugin struct{ executor *HTTPExecutor }
 
-func (p *httpPlugin) Name() string           { return "http" }
+func (p *httpPlugin) Name() string            { return "http" }
 func (p *httpPlugin) Executor() TypedExecutor { return p.executor }
 func (p *httpPlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionAPIRequest, types.ActionNavigate}
@@ -79,7 +79,7 @@ func (p *httpPlugin) ActionTypes() []types.ActionType {
 
 type processPlugin struct{ executor *ProcessExecutor }
 
-func (p *processPlugin) Name() string           { return "process" }
+func (p *processPlugin) Name() string            { return "process" }
 func (p *processPlugin) Executor() TypedExecutor { return p.executor }
 func (p *processPlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionProcessExec, types.ActionProcessBuild}
@@ -87,7 +87,7 @@ func (p *processPlugin) ActionTypes() []types.ActionType {
 
 type filePlugin struct{ executor *FileExecutor }
 
-func (p *filePlugin) Name() string           { return "file" }
+func (p *filePlugin) Name() string            { return "file" }
 func (p *filePlugin) Executor() TypedExecutor { return p.executor }
 func (p *filePlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionFileRead, types.ActionFileWrite, types.ActionFileExists, types.ActionFileGlob}
@@ -95,7 +95,7 @@ func (p *filePlugin) ActionTypes() []types.ActionType {
 
 type mcpPlugin struct{ executor *MCPExecutor }
 
-func (p *mcpPlugin) Name() string           { return "mcp" }
+func (p *mcpPlugin) Name() string            { return "mcp" }
 func (p *mcpPlugin) Executor() TypedExecutor { return p.executor }
 func (p *mcpPlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionMCPCall}
@@ -103,7 +103,7 @@ func (p *mcpPlugin) ActionTypes() []types.ActionType {
 
 type codePlugin struct{ executor *CodeExecutor }
 
-func (p *codePlugin) Name() string           { return "code" }
+func (p *codePlugin) Name() string            { return "code" }
 func (p *codePlugin) Executor() TypedExecutor { return p.executor }
 func (p *codePlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols}
@@ -111,7 +111,7 @@ func (p *codePlugin) ActionTypes() []types.ActionType {
 
 type waitPlugin struct{ executor *WaitExecutor }
 
-func (p *waitPlugin) Name() string           { return "wait" }
+func (p *waitPlugin) Name() string            { return "wait" }
 func (p *waitPlugin) Executor() TypedExecutor { return p.executor }
 func (p *waitPlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionWait}
@@ -119,13 +119,12 @@ func (p *waitPlugin) ActionTypes() []types.ActionType {
 
 type browserPlugin struct{ executor *BrowserExecutor }
 
-func (p *browserPlugin) Name() string           { return "browser" }
+func (p *browserPlugin) Name() string            { return "browser" }
 func (p *browserPlugin) Executor() TypedExecutor { return p.executor }
 func (p *browserPlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionBrowserGoto, types.ActionBrowserClick,
 		types.ActionBrowserFill, types.ActionBrowserEval}
 }
-
 
 type dbPlugin struct{ executor *DatabaseExecutor }
 

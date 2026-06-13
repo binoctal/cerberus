@@ -780,7 +780,7 @@ func TestServer_HandleDecide_WithPayload(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 
 	params, _ := json.Marshal(map[string]any{
-		"name":      "cerberus_decide",
+		"name": "cerberus_decide",
 		"arguments": map[string]any{
 			"session_id": "payload-session",
 			"action":     "continue",

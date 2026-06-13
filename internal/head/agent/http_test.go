@@ -18,7 +18,7 @@ func TestHTTPExecutor_GET(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/health", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"status": "ok"}))
 	}))
 	defer server.Close()
 

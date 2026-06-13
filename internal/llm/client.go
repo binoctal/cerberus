@@ -16,9 +16,9 @@ type Client interface {
 type StreamEventType string
 
 const (
-	StreamDelta  StreamEventType = "delta"  // Incremental content chunk
-	StreamDone   StreamEventType = "done"   // Stream completed successfully
-	StreamError  StreamEventType = "error"  // Stream encountered an error
+	StreamDelta StreamEventType = "delta" // Incremental content chunk
+	StreamDone  StreamEventType = "done"  // Stream completed successfully
+	StreamError StreamEventType = "error" // Stream encountered an error
 )
 
 // StreamEvent represents a single event from a streaming LLM response.

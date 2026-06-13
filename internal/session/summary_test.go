@@ -39,14 +39,14 @@ func TestSessionSummary_FromResults(t *testing.T) {
 
 func TestSessionSummary_String(t *testing.T) {
 	summary := &SessionSummary{
-		Passed:     10,
-		Failed:     2,
-		Skipped:    1,
-		Uncertain:  1,
-		PendingReview: 1,
+		Passed:            10,
+		Failed:            2,
+		Skipped:           1,
+		Uncertain:         1,
+		PendingReview:     1,
 		ReflectionsStored: 3,
-		TotalTokens: 105000,
-		Duration:    "2.5s",
+		TotalTokens:       105000,
+		Duration:          "2.5s",
 	}
 
 	s := summary.String()

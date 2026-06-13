@@ -52,34 +52,6 @@ func planJSON() string {
 	return string(b)
 }
 
-// judgeJSON returns a mock judge verdict JSON that the examiner will
-// parse from the LLM response.
-func judgeJSON() string {
-	b, _ := json.Marshal(map[string]any{
-		"status":                 "pass",
-		"existence_confidence":   0.95,
-		"correctness_confidence": 0.9,
-		"reasoning":              "all checks passed",
-	})
-	return string(b)
-}
-
-// reflectionJSON returns a mock reflexion output JSON.
-func reflectionJSON() string {
-	b, _ := json.Marshal(map[string]any{
-		"reflections": []map[string]any{
-			{
-				"type":             "success",
-				"diagnosis":        "all passed",
-				"strategy":         "continue",
-				"condition_pattern": "/healthz",
-				"category":         "infra",
-			},
-		},
-	})
-	return string(b)
-}
-
 // fullRunResponses returns a mock client response map sufficient for
 // Scout.Plan + Agent.ExecutePlan + Examiner.Examine to complete.
 // Scout.Analyze is skipped (config-only model) when using testConfig().

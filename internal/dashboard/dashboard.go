@@ -136,7 +136,7 @@ func (m Model) View() string {
 		// Summary.
 		if m.summary != nil && m.summary.TotalCases > 0 {
 			s := m.summary
-			fmt.Fprintf(&b,"Summary: %s %s %s %s %s\n",
+			fmt.Fprintf(&b, "Summary: %s %s %s %s %s\n",
 				passStyle.Render(fmt.Sprintf("%d pass", s.Passed)),
 				failStyle.Render(fmt.Sprintf("%d fail", s.Failed)),
 				skipStyle.Render(fmt.Sprintf("%d skip", s.Skipped)),

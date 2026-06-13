@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/charmbracelet/bubbletea"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

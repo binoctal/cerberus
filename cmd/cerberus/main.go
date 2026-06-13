@@ -29,14 +29,14 @@ var (
 	dbFlag       string
 	configFlag   string
 	portFlag     string
-	deepPlanFlag    bool
-	dirFlag         string
-	sessionFlag     string
-	formatFlag      string
-	outputFlag      string
-	parallelFlag    bool
-	workersFlag     int
-	resumeFlag      string
+	deepPlanFlag bool
+	dirFlag      string
+	sessionFlag  string
+	formatFlag   string
+	outputFlag   string
+	parallelFlag bool
+	workersFlag  int
+	resumeFlag   string
 
 	// Set via -ldflags at build time.
 	version = "dev"
@@ -110,15 +110,15 @@ actors:
 				return err
 			}
 
-		gitignoreEntry := ".cerberus/credentials.yaml\n"
-		existing, _ := os.ReadFile(".gitignore")
-		if !containsLine(string(existing), ".cerberus/credentials.yaml") {
-			f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err == nil {
-				_, _ = f.WriteString(gitignoreEntry)
-				_ = f.Close()
+			gitignoreEntry := ".cerberus/credentials.yaml\n"
+			existing, _ := os.ReadFile(".gitignore")
+			if !containsLine(string(existing), ".cerberus/credentials.yaml") {
+				f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err == nil {
+					_, _ = f.WriteString(gitignoreEntry)
+					_ = f.Close()
+				}
 			}
-		}
 
 			fmt.Println("✓ Created .cerberus/project.yaml")
 			fmt.Println("✓ Created .cerberus/credentials.yaml")

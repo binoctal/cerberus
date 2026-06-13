@@ -99,7 +99,7 @@ func (e *DatabaseExecutor) doAssert(ctx context.Context, a types.DBAssertAction,
 		OK: passed, Driver: a.Driver, Query: a.Query,
 		Columns: dbResult.Columns, Rows: dbResult.Rows,
 		AssertionPassed: passed,
-		Latency: time.Since(start),
+		Latency:         time.Since(start),
 	}
 }
 

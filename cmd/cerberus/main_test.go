@@ -192,7 +192,7 @@ func TestInitCmd_CreatesFiles(t *testing.T) {
 	origDir, _ := os.Getwd()
 	dir := t.TempDir()
 	require.NoError(t, os.Chdir(dir))
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	cmd := initCmd()
 	require.NotNil(t, cmd)
@@ -221,7 +221,7 @@ func TestInitCmd_UpdatesGitignore(t *testing.T) {
 	origDir, _ := os.Getwd()
 	dir := t.TempDir()
 	require.NoError(t, os.Chdir(dir))
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	err := initCmd().RunE(initCmd(), nil)
 	require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestInitCmd_IdempotentGitignore(t *testing.T) {
 	origDir, _ := os.Getwd()
 	dir := t.TempDir()
 	require.NoError(t, os.Chdir(dir))
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Run init twice.
 	err := initCmd().RunE(initCmd(), nil)
@@ -253,7 +253,7 @@ func TestInitCmd_CreatesMCPSettings(t *testing.T) {
 	origDir, _ := os.Getwd()
 	dir := t.TempDir()
 	require.NoError(t, os.Chdir(dir))
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	err := initCmd().RunE(initCmd(), nil)
 	require.NoError(t, err)

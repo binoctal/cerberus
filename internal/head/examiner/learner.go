@@ -17,9 +17,9 @@ import (
 // Learner performs Reflexion: generates reflections from test results
 // and stores them as L3 procedural memory.
 type Learner struct {
-	driver  *ai.Driver
-	store   *store.Store
-	logger  *zap.Logger
+	driver   *ai.Driver
+	store    *store.Store
+	logger   *zap.Logger
 	embedder embedPkg.Provider
 }
 

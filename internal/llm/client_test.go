@@ -310,9 +310,9 @@ func TestClientConfig_BaseURLOverride(t *testing.T) {
 	customURL := "http://localhost:11434/v1/chat/completions"
 
 	tests := []struct {
-		name     string
-		client   Client
-		wantURL  string
+		name    string
+		client  Client
+		wantURL string
 	}{
 		{
 			name:    "claude custom base url",

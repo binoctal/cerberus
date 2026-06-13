@@ -86,7 +86,7 @@ func TestAnalyze_AIInference(t *testing.T) {
 	})
 
 	cfg := &project.Config{
-		Project:  project.ProjectMeta{Name: "sparse-project"},
+		Project: project.ProjectMeta{Name: "sparse-project"},
 		Services: []project.Service{
 			{Name: "api", URL: "http://localhost:8080"}, // No health endpoint → sparse model
 		},
@@ -294,8 +294,8 @@ func TestMergeAIInference_NoDuplicates(t *testing.T) {
 	// AI returns /health again plus a new endpoint.
 	scout.mergeAIInference(model, AnalyzeOutput{
 		Endpoints: []EndpointInfo{
-			{Method: "GET", Path: "/health", Confidence: 0.8},       // Duplicate
-			{Method: "GET", Path: "/api/users", Confidence: 0.7},    // New
+			{Method: "GET", Path: "/health", Confidence: 0.8},    // Duplicate
+			{Method: "GET", Path: "/api/users", Confidence: 0.7}, // New
 		},
 		Pages: []PageInfo{
 			{Path: "/dashboard", Confidence: 0.6},

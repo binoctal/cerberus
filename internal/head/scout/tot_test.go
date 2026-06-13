@@ -160,7 +160,7 @@ func TestInferTarget(t *testing.T) {
 		desc     string
 		expected string
 	}{
-		{"GET /api/v1/users returns 200", "get"},         // stops at first space after method
+		{"GET /api/v1/users returns 200", "get"},          // stops at first space after method
 		{"POST /api/v1/users with invalid input", "post"}, // stops at first space after method
 		{"Check that /api/v1/health is up", "/api/v1/health"},
 		{"Verify the homepage loads", "verify the homepage loads"},
@@ -238,7 +238,7 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	driverDirect := ai.NewDriver(mockDirect, ai.NewTokenBudget(500000, 50000))
 
 	cfg := &project.Config{
-		Project: project.ProjectMeta{Name: "test"},
+		Project:  project.ProjectMeta{Name: "test"},
 		Services: []project.Service{{Name: "api", URL: "http://localhost:8080"}},
 	}
 
@@ -257,4 +257,3 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "tot-001", plan.Cases[0].ID) // ToT plan case ID prefix.
 }
-

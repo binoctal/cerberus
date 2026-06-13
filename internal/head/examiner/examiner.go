@@ -12,9 +12,9 @@ import (
 // Examiner is the third Cerberus head: Judge (Self-Refine) + Learn (Reflexion).
 // It evaluates test results and generates learning for future sessions.
 type Examiner struct {
-	judge   *Judge
-	learner *Learner
-	store   *store.Store
+	judge     *Judge
+	learner   *Learner
+	store     *store.Store
 	logger    *zap.Logger
 	config    ExaminerConfig
 	autoFixer *AutoFixer
@@ -24,10 +24,10 @@ type Examiner struct {
 // criticDriver can be nil to disable Self-Refine critique.
 func NewExaminer(judgeDriver, criticDriver *ai.Driver, s *store.Store, config ExaminerConfig, logger *zap.Logger) *Examiner {
 	return &Examiner{
-		judge:   NewJudge(judgeDriver, criticDriver, config),
-		learner: NewLearner(judgeDriver, s, logger, nil),
-		store:   s,
-		logger:  logger,
+		judge:     NewJudge(judgeDriver, criticDriver, config),
+		learner:   NewLearner(judgeDriver, s, logger, nil),
+		store:     s,
+		logger:    logger,
 		config:    config,
 		autoFixer: NewAutoFixer(judgeDriver, logger),
 	}

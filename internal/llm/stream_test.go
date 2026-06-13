@@ -26,7 +26,7 @@ func TestClaudeStream_MockServer(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprint(w, sseResponse)
+		_, _ = fmt.Fprint(w, sseResponse)
 	}))
 	defer server.Close()
 
@@ -61,7 +61,7 @@ func TestOpenAIStream_MockServer(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprint(w, sseResponse)
+		_, _ = fmt.Fprint(w, sseResponse)
 	}))
 	defer server.Close()
 
@@ -94,7 +94,7 @@ func TestOpenAIStream_MockServer(t *testing.T) {
 func TestClaudeStream_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		fmt.Fprint(w, `{"error":"rate limited"}`)
+		_, _ = fmt.Fprint(w, `{"error":"rate limited"}`)
 	}))
 	defer server.Close()
 
@@ -110,7 +110,7 @@ func TestClaudeStream_Non200(t *testing.T) {
 func TestOpenAIStream_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, `{"error":"internal"}`)
+		_, _ = fmt.Fprint(w, `{"error":"internal"}`)
 	}))
 	defer server.Close()
 
@@ -129,7 +129,7 @@ func TestGeminiStream_MockServer(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprint(w, sseResponse)
+		_, _ = fmt.Fprint(w, sseResponse)
 	}))
 	defer server.Close()
 
@@ -162,7 +162,7 @@ func TestGeminiStream_MockServer(t *testing.T) {
 func TestGeminiStream_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprint(w, `{"error":"overloaded"}`)
+		_, _ = fmt.Fprint(w, `{"error":"overloaded"}`)
 	}))
 	defer server.Close()
 

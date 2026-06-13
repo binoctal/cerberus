@@ -265,7 +265,7 @@ func TestEndToEnd_RuleEngineStats(t *testing.T) {
 		Goal:       "stats test",
 		ProjectURL: srv.URL,
 		Cases: []agent.TestCase{
-			{ID: "tc-001", Name: "GET /api", Target: "/api", Method: "GET"},      // matches Rule 1
+			{ID: "tc-001", Name: "GET /api", Target: "/api", Method: "GET"},       // matches Rule 1
 			{ID: "tc-002", Name: "Navigate", Target: "/page", Action: "navigate"}, // matches Rule 2
 			{ID: "tc-003", Name: "Custom", Target: "weird-thing"},                 // no match (miss)
 		},

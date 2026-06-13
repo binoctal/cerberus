@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,8 +103,8 @@ func TestReportCmd_Markdown(t *testing.T) {
 	})
 
 	cmd := reportCmd()
-	cmd.Flags().Set("session", sessID)
-	cmd.Flags().Set("format", "markdown")
+	require.NoError(t, cmd.Flags().Set("session", sessID))
+	require.NoError(t, cmd.Flags().Set("format", "markdown"))
 
 	var runErr error
 	output := captureStdout(t, func() {
@@ -127,8 +127,8 @@ func TestReportCmd_JUnit(t *testing.T) {
 	})
 
 	cmd := reportCmd()
-	cmd.Flags().Set("session", sessID)
-	cmd.Flags().Set("format", "junit")
+	require.NoError(t, cmd.Flags().Set("session", sessID))
+	require.NoError(t, cmd.Flags().Set("format", "junit"))
 
 	var runErr error
 	output := captureStdout(t, func() {
@@ -152,8 +152,8 @@ func TestReportCmd_HTML(t *testing.T) {
 	})
 
 	cmd := reportCmd()
-	cmd.Flags().Set("session", sessID)
-	cmd.Flags().Set("format", "html")
+	require.NoError(t, cmd.Flags().Set("session", sessID))
+	require.NoError(t, cmd.Flags().Set("format", "html"))
 
 	var runErr error
 	output := captureStdout(t, func() {
@@ -177,9 +177,9 @@ func TestReportCmd_ToFile(t *testing.T) {
 	})
 
 	cmd := reportCmd()
-	cmd.Flags().Set("session", sessID)
-	cmd.Flags().Set("format", "markdown")
-	cmd.Flags().Set("output", outPath)
+	require.NoError(t, cmd.Flags().Set("session", sessID))
+	require.NoError(t, cmd.Flags().Set("format", "markdown"))
+	require.NoError(t, cmd.Flags().Set("output", outPath))
 
 	err := cmd.RunE(cmd, []string{})
 	require.NoError(t, err)
@@ -202,8 +202,8 @@ func TestReportCmd_BadFormat(t *testing.T) {
 	})
 
 	cmd := reportCmd()
-	cmd.Flags().Set("session", sessID)
-	cmd.Flags().Set("format", "csv")
+	require.NoError(t, cmd.Flags().Set("session", sessID))
+	require.NoError(t, cmd.Flags().Set("format", "csv"))
 
 	err := cmd.RunE(cmd, []string{})
 	require.Error(t, err)

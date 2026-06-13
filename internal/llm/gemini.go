@@ -94,7 +94,7 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
-					Text string          `json:"text"`
+					Text         string `json:"text"`
 					FunctionCall *struct {
 						Name string          `json:"name"`
 						Args json.RawMessage `json:"args"`
@@ -130,9 +130,14 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 		}
 	}
 	return &Response{
-		Content:    content,
-		StopReason: func() string { if len(result.Candidates) > 0 { return result.Candidates[0].FinishReason }; return "" }(),
-		ToolCalls:  toolCalls,
+		Content: content,
+		StopReason: func() string {
+			if len(result.Candidates) > 0 {
+				return result.Candidates[0].FinishReason
+			}
+			return ""
+		}(),
+		ToolCalls: toolCalls,
 		Usage: TokenUsage{
 			InputTokens:  result.UsageMetadata.PromptTokenCount,
 			OutputTokens: result.UsageMetadata.CandidatesTokenCount,
@@ -242,14 +247,14 @@ func (c *GeminiClient) Stream(ctx context.Context, req Request) (<-chan StreamEv
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("gemini stream error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	ch := make(chan StreamEvent, 64)
 	go func() {
 		defer close(ch)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		scanner := newSSEScanner(resp.Body)
 		for scanner.Next() {

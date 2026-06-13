@@ -106,10 +106,10 @@ func (e *BrowserExecutor) gotoPage(a types.BrowserGotoAction, start time.Time) t
 	}
 
 	return types.BrowserResult{
-		OK:    statusCode < 400,
-		URL:   e.page.URL(),
-		Title: title,
-		Text:  truncateStr(text, 5000),
+		OK:      statusCode < 400,
+		URL:     e.page.URL(),
+		Title:   title,
+		Text:    truncateStr(text, 5000),
 		Latency: time.Since(start),
 	}
 }
@@ -125,9 +125,9 @@ func (e *BrowserExecutor) clickElement(a types.BrowserClickAction, start time.Ti
 
 	title, _ := e.page.Title()
 	return types.BrowserResult{
-		OK:    true,
-		URL:   e.page.URL(),
-		Title: title,
+		OK:      true,
+		URL:     e.page.URL(),
+		Title:   title,
 		Latency: time.Since(start),
 	}
 }
@@ -142,8 +142,8 @@ func (e *BrowserExecutor) fillField(a types.BrowserFillAction, start time.Time) 
 	}
 
 	return types.BrowserResult{
-		OK:  true,
-		URL: e.page.URL(),
+		OK:      true,
+		URL:     e.page.URL(),
 		Latency: time.Since(start),
 	}
 }

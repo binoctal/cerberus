@@ -111,7 +111,8 @@ func TestRenderJUnit_PassOnly(t *testing.T) {
 
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /ok")
 	require.NoError(t, s.FinishTrace(ctx, trace1, "pass"))
-	s.CreateVerdict(ctx, sess.ID, trace1, "GET /ok", "pass", 1.0, "judge", "all good", nil)
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /ok", "pass", 1.0, "judge", "all good", nil)
+	require.NoError(t, err)
 
 	require.NoError(t, s.UpdateSessionStats(ctx, sess.ID, 100.0, session.SessionSummary{
 		TotalCases: 1, Passed: 1, DurationMs: 500,
@@ -214,7 +215,8 @@ func TestRenderJUnit_WithEvidence(t *testing.T) {
 	// Create trace + fail verdict with evidence.
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "POST /api/login")
 	require.NoError(t, s.FinishTrace(ctx, trace1, "fail"))
-	s.CreateVerdict(ctx, sess.ID, trace1, "POST /api/login", "fail", 0.7, "judge", "auth failed", nil)
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "POST /api/login", "fail", 0.7, "judge", "auth failed", nil)
+	require.NoError(t, err)
 
 	// Record evidence for the trace.
 	_, err = s.CreateEvidence(ctx, trace1, "agent_observation", `{"phase":"steer_attempt","success":false,"summary":"401 Unauthorized"}`)
@@ -276,8 +278,10 @@ func TestBuildReport_WithEvidence(t *testing.T) {
 
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/items")
 	require.NoError(t, s.FinishTrace(ctx, trace1, "pass"))
-	s.CreateVerdict(ctx, sess.ID, trace1, "GET /api/items", "pass", 0.95, "judge", "ok", nil)
-	s.CreateEvidence(ctx, trace1, "agent_observation", `{"summary":"200 items returned"}`)
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /api/items", "pass", 0.95, "judge", "ok", nil)
+	require.NoError(t, err)
+	_, err = s.CreateEvidence(ctx, trace1, "agent_observation", `{"summary":"200 items returned"}`)
+	require.NoError(t, err)
 
 	require.NoError(t, s.UpdateSessionStatus(ctx, sess.ID, "completed"))
 

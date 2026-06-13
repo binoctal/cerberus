@@ -120,9 +120,9 @@ func DefaultReActConfig() ReActConfig {
 
 // ProgressEvent represents a real-time event from the test runner.
 type ProgressEvent struct {
-	Type      string    `json:"type"`       // "case_start", "case_complete", "plan_complete"
-	CaseID    string    `json:"case_id"`
+	Type      string     `json:"type"` // "case_start", "case_complete", "plan_complete"
+	CaseID    string     `json:"case_id"`
 	Status    StepStatus `json:"status"`
-	Attempt   int       `json:"attempt"`
-	Timestamp time.Time `json:"timestamp"`
+	Attempt   int        `json:"attempt"`
+	Timestamp time.Time  `json:"timestamp"`
 }

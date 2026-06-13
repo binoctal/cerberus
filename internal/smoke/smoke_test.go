@@ -119,7 +119,7 @@ func TestAgentSmokeTest(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
 		case "/health":
 			w.WriteHeader(http.StatusOK)
-_, _ = w.Write([]byte(`{"status":"ok"}`))
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -185,7 +185,7 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/items" {
 			w.WriteHeader(http.StatusOK)
-_, _ = w.Write([]byte(`{"items":[]}`))
+			_, _ = w.Write([]byte(`{"items":[]}`))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}

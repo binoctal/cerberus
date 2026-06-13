@@ -26,7 +26,7 @@ type Server struct {
 	cfg           *config.Config
 	logger        *zap.Logger
 	mu            sync.Mutex
-	runs          map[string]context.CancelFunc // session ID → cancel
+	runs          map[string]context.CancelFunc                  // session ID → cancel
 	clientFactory func(cfg llm.ClientConfig) (llm.Client, error) // optional override
 }
 

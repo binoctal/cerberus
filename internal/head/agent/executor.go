@@ -160,7 +160,6 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 		)
 	}
 
-
 	r.emitProgress(ProgressEvent{Type: "plan_complete", Attempt: len(results)})
 	return results, nil
 }
@@ -327,8 +326,8 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 
 		if result.Success() {
 			if err := r.store.FinishTrace(ctx, traceID, string(StepPassed)); err != nil {
-			r.logger.Error("finish trace", zap.Error(err))
-		}
+				r.logger.Error("finish trace", zap.Error(err))
+			}
 			return StepResult{
 				TestCase: tc, Status: StepPassed, TraceID: traceID,
 				Attempts: attempt, Duration: time.Since(start),
@@ -355,8 +354,8 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 				lastAction = recResult.Action
 				if recExecResult.Success() {
 					if err := r.store.FinishTrace(ctx, traceID, string(StepPassed)); err != nil {
-			r.logger.Error("finish trace", zap.Error(err))
-		}
+						r.logger.Error("finish trace", zap.Error(err))
+					}
 					return StepResult{
 						TestCase: tc, Status: StepPassed, TraceID: traceID,
 						Attempts: attempt + 1, Duration: time.Since(start),

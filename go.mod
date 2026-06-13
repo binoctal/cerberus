@@ -3,8 +3,10 @@ module github.com/binoctal/cerberus
 go 1.25.5
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/coder/websocket v1.8.14
 	github.com/criyle/go-sandbox v0.13.4
 	github.com/google/uuid v1.6.0
 	github.com/playwright-community/playwright-go v0.5700.1
@@ -13,11 +15,9 @@ require (
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.34.5
-	nhooyr.io/websocket v1.8.17
 )
 
 require (
-	dario.cat/mergo v1.0.2 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect

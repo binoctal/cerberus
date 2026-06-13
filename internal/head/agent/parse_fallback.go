@@ -12,16 +12,16 @@ type fallbackKeyword struct {
 }
 
 var fallbackKeywords = map[string]fallbackKeyword{
-	"click":      {func(t string) types.TypedAction { return types.NavigateAction{URL: t} }},
-	"type":       {func(t string) types.TypedAction { return types.NavigateAction{URL: t} }},
-	"navigate":   {func(t string) types.TypedAction { return types.NavigateAction{URL: t} }},
+	"click":       {func(t string) types.TypedAction { return types.NavigateAction{URL: t} }},
+	"type":        {func(t string) types.TypedAction { return types.NavigateAction{URL: t} }},
+	"navigate":    {func(t string) types.TypedAction { return types.NavigateAction{URL: t} }},
 	"api_request": {func(t string) types.TypedAction { return types.HTTPAction{Method: "GET", URL: t} }},
-	"wait":       {func(t string) types.TypedAction { return types.WaitAction{Duration: "1s"} }},
-	"get":        {func(t string) types.TypedAction { return types.HTTPAction{Method: "GET", URL: t} }},
-	"post":       {func(t string) types.TypedAction { return types.HTTPAction{Method: "POST", URL: t} }},
-	"put":        {func(t string) types.TypedAction { return types.HTTPAction{Method: "PUT", URL: t} }},
-	"delete":     {func(t string) types.TypedAction { return types.HTTPAction{Method: "DELETE", URL: t} }},
-	"patch":      {func(t string) types.TypedAction { return types.HTTPAction{Method: "PATCH", URL: t} }},
+	"wait":        {func(t string) types.TypedAction { return types.WaitAction{Duration: "1s"} }},
+	"get":         {func(t string) types.TypedAction { return types.HTTPAction{Method: "GET", URL: t} }},
+	"post":        {func(t string) types.TypedAction { return types.HTTPAction{Method: "POST", URL: t} }},
+	"put":         {func(t string) types.TypedAction { return types.HTTPAction{Method: "PUT", URL: t} }},
+	"delete":      {func(t string) types.TypedAction { return types.HTTPAction{Method: "DELETE", URL: t} }},
+	"patch":       {func(t string) types.TypedAction { return types.HTTPAction{Method: "PATCH", URL: t} }},
 }
 
 // FallbackParseAction attempts to extract a usable TypedAction from raw LLM output

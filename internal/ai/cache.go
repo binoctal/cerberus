@@ -9,8 +9,8 @@ import (
 
 // cacheEntry holds a cached LLM response with expiration.
 type cacheEntry struct {
-	content  string
-	usage    TokenUsage
+	content   string
+	usage     TokenUsage
 	createdAt time.Time
 }
 

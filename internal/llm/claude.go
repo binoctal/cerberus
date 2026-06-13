@@ -82,10 +82,10 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 
 	var result struct {
 		Content []struct {
-			Type  string `json:"type"`
-			Text  string `json:"text"`
-			ID    string `json:"id"`
-			Name  string `json:"name"`
+			Type  string          `json:"type"`
+			Text  string          `json:"text"`
+			ID    string          `json:"id"`
+			Name  string          `json:"name"`
 			Input json.RawMessage `json:"input"`
 		} `json:"content"`
 		Usage struct {
@@ -101,9 +101,10 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 	var content string
 	var toolCalls []ToolCall
 	for _, block := range result.Content {
-		if block.Type == "text" || block.Type == "" {
+		switch block.Type {
+		case "text", "":
 			content += block.Text
-		} else if block.Type == "tool_use" {
+		case "tool_use":
 			var input map[string]any
 			_ = json.Unmarshal(block.Input, &input)
 			toolCalls = append(toolCalls, ToolCall{
@@ -189,7 +190,6 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 	}, nil
 }
 
-
 func (c *ClaudeClient) Stream(ctx context.Context, req Request) (<-chan StreamEvent, error) {
 	if req.Model == "" {
 		req.Model = c.model
@@ -221,14 +221,14 @@ func (c *ClaudeClient) Stream(ctx context.Context, req Request) (<-chan StreamEv
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("anthropic stream error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	ch := make(chan StreamEvent, 64)
 	go func() {
 		defer close(ch)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		scanner := newSSEScanner(resp.Body)
 		for scanner.Next() {

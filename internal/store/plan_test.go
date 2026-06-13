@@ -78,12 +78,14 @@ func TestGetCompletedTargets(t *testing.T) {
 
 	// Create traces and verdicts.
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /a")
-	s.FinishTrace(ctx, trace1, "pass")
-	s.CreateVerdict(ctx, sess.ID, trace1, "GET /a", "pass", 0.9, "judge", "ok", nil)
+	require.NoError(t, s.FinishTrace(ctx, trace1, "pass"))
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /a", "pass", 0.9, "judge", "ok", nil)
+	require.NoError(t, err)
 
 	trace2, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /b")
-	s.FinishTrace(ctx, trace2, "fail")
-	s.CreateVerdict(ctx, sess.ID, trace2, "GET /b", "fail", 0.8, "judge", "err", nil)
+	require.NoError(t, s.FinishTrace(ctx, trace2, "fail"))
+	_, err = s.CreateVerdict(ctx, sess.ID, trace2, "GET /b", "fail", 0.8, "judge", "err", nil)
+	require.NoError(t, err)
 
 	completed, err := s.GetCompletedTargets(ctx, sess.ID)
 	require.NoError(t, err)

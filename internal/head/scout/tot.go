@@ -16,9 +16,9 @@ import (
 
 // ToTConfig controls the Tree-of-Thought beam search parameters.
 type ToTConfig struct {
-	BeamWidth  int // Candidates to keep per step (default 3)
-	GenerateN  int // Candidates to propose per step (default 5)
-	MaxSteps   int // Max propose-evaluate-select rounds (default 3)
+	BeamWidth int // Candidates to keep per step (default 3)
+	GenerateN int // Candidates to propose per step (default 5)
+	MaxSteps  int // Max propose-evaluate-select rounds (default 3)
 }
 
 func DefaultToTConfig() ToTConfig {
@@ -294,7 +294,7 @@ func formatModelForToT(model *project.ProjectModel) string {
 		}
 	}
 	if len(model.TechStack) > 0 {
-	fmt.Fprintf(&b, "Tech stack: %s\n", strings.Join(model.TechStack, ", "))
+		fmt.Fprintf(&b, "Tech stack: %s\n", strings.Join(model.TechStack, ", "))
 	}
 	return b.String()
 }

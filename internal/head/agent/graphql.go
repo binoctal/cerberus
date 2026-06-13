@@ -77,7 +77,7 @@ func (e *GraphQLExecutor) doQuery(ctx context.Context, a types.GraphQLQueryActio
 	if resp.StatusCode != 200 {
 		return types.GraphQLResult{
 			OK: false, URL: a.URL,
-			Err: fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(respBody)),
+			Err:     fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(respBody)),
 			Latency: time.Since(start),
 		}
 	}

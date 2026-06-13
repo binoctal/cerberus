@@ -10,7 +10,7 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 )
 
 // WebSocketExecutor handles WebSocket connect and send actions.

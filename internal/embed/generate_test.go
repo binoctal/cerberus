@@ -1,8 +1,8 @@
 package embed
 
 import (
-	"math"
 	"context"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,7 +89,11 @@ func TestTrigramProvider_Embed(t *testing.T) {
 	vec, err := p.Embed(ctx, "hello world")
 	assert.NoError(t, err)
 	assert.Len(t, vec, 64)
-	var n float64; for _, v := range vec { n += v*v }; assert.InDelta(t, 1.0, math.Sqrt(n), 1e-9)
+	var n float64
+	for _, v := range vec {
+		n += v * v
+	}
+	assert.InDelta(t, 1.0, math.Sqrt(n), 1e-9)
 }
 
 func TestTrigramProvider_DefaultDim(t *testing.T) {

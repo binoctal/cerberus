@@ -172,8 +172,8 @@ func TestUpdateSessionStats(t *testing.T) {
 
 	stats := map[string]any{
 		"total_tokens": 54000,
-		"ai_calls":    23,
-		"steps":       20,
+		"ai_calls":     23,
+		"steps":        20,
 	}
 	err = s.UpdateSessionStats(ctx, sess.ID, 75.5, stats)
 	require.NoError(t, err)

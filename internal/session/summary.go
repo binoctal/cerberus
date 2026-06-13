@@ -15,42 +15,42 @@ type SessionSummary struct {
 	ProjectURL string `json:"project_url"`
 
 	// Scout phase.
-	EndpointsFound int `json:"endpoints_found"`
+	EndpointsFound   int `json:"endpoints_found"`
 	TestCasesPlanned int `json:"test_cases_planned"`
 
 	// Agent phase.
-	TotalCases  int `json:"total_cases"`
-	Passed      int `json:"passed"`
-	Failed      int `json:"failed"`
-	Skipped     int `json:"skipped"`
-	Uncertain   int `json:"uncertain"`
+	TotalCases int `json:"total_cases"`
+	Passed     int `json:"passed"`
+	Failed     int `json:"failed"`
+	Skipped    int `json:"skipped"`
+	Uncertain  int `json:"uncertain"`
 
 	// Examiner phase.
-	Verdicts         int `json:"verdicts"`
-	PendingReview    int `json:"pending_review"`
+	Verdicts          int `json:"verdicts"`
+	PendingReview     int `json:"pending_review"`
 	ReflectionsStored int `json:"reflections_stored"`
 
 	// Coverage.
 	CoveragePct float64 `json:"coverage_pct"`
 
 	// Resource usage.
-	TotalTokens int     `json:"total_tokens"`
-	Duration    string  `json:"duration"`
-	DurationMs  int64   `json:"duration_ms"`
+	TotalTokens int    `json:"total_tokens"`
+	Duration    string `json:"duration"`
+	DurationMs  int64  `json:"duration_ms"`
 }
 
 // FromResults builds a summary from agent and examiner results.
 func FromResults(goal, projectURL string, planCases int, results []agent.StepResult, verdicts []examiner.FinalVerdict, reflections int, tokensUsed int, elapsed time.Duration) *SessionSummary {
 	s := &SessionSummary{
-		Goal:             goal,
-		ProjectURL:       projectURL,
-		TestCasesPlanned: planCases,
-		TotalCases:       len(results),
-		Verdicts:         len(verdicts),
+		Goal:              goal,
+		ProjectURL:        projectURL,
+		TestCasesPlanned:  planCases,
+		TotalCases:        len(results),
+		Verdicts:          len(verdicts),
 		ReflectionsStored: reflections,
-		TotalTokens:      tokensUsed,
-		Duration:         elapsed.Round(time.Millisecond).String(),
-		DurationMs:       elapsed.Milliseconds(),
+		TotalTokens:       tokensUsed,
+		Duration:          elapsed.Round(time.Millisecond).String(),
+		DurationMs:        elapsed.Milliseconds(),
 	}
 
 	for _, r := range results {

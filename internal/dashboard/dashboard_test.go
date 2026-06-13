@@ -201,7 +201,6 @@ func TestModel_Update_RefreshMsg(t *testing.T) {
 	assert.Equal(t, 0, um.selected)
 }
 
-
 // --- View contains dashboard title ---
 
 func TestView_Title(t *testing.T) {

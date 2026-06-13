@@ -104,11 +104,10 @@ func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
 			return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
 		}
 
-
-			// Cache successful response.
-			if d.cache != nil {
-				d.cache.Set(prompt, resp.Content, TokenUsage{TotalTokens: resp.Usage.TotalTokens})
-			}
+		// Cache successful response.
+		if d.cache != nil {
+			d.cache.Set(prompt, resp.Content, TokenUsage{TotalTokens: resp.Usage.TotalTokens})
+		}
 		return nil
 	}
 
@@ -264,7 +263,7 @@ func (d *Driver) DecideStreamCollect(ctx context.Context, prompt string, schema 
 		d.budget.Record(usage.TotalTokens)
 	} else {
 		// Estimate if provider didn't report usage.
-		d.budget.Record(len(prompt) / 4 + content.Len() / 4)
+		d.budget.Record(len(prompt)/4 + content.Len()/4)
 	}
 
 	fullContent := content.String()

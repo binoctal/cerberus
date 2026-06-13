@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -29,13 +28,6 @@ func projectRoot(t *testing.T) string {
 	}
 	// This file is at internal/head/agent/code_execute_test.go
 	return filepath.Join(filepath.Dir(filename), "..", "..", "..")
-}
-
-// writeGoFile creates a .go file in a temp directory with the given content.
-func writeGoFile(t *testing.T, dir, filename, content string) {
-	t.Helper()
-	require.NoError(t, os.MkdirAll(dir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, filename), []byte(content), 0644))
 }
 
 func TestCodeExecutor_Execute_GoAnalyze(t *testing.T) {

@@ -60,12 +60,12 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 	)
 
 	sess := &Session{
-		Mode:      mode,
-		Goal:      goal,
-		Config:    cfg,
-		Store:     s,
-		Driver:    ai.NewDriver(client, budget),
-		Logger:    logger,
+		Mode:       mode,
+		Goal:       goal,
+		Config:     cfg,
+		Store:      s,
+		Driver:     ai.NewDriver(client, budget),
+		Logger:     logger,
 		StartedAt:  time.Now(),
 		ProjectDir: projectDir,
 		Gate:       gate,
@@ -149,7 +149,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		if summary == nil {
 			summary = &SessionSummary{
 				Goal: s.Goal, TotalTokens: tokensUsed,
-				Duration: elapsed.Round(time.Millisecond).String(),
+				Duration:   elapsed.Round(time.Millisecond).String(),
 				DurationMs: elapsed.Milliseconds(),
 			}
 		} else {
@@ -270,7 +270,6 @@ func (s *Session) Close() {
 		zap.Int("tokens_spent", s.Driver.Budget().SessionTotal-s.Driver.Budget().Remaining()))
 }
 
-
 // Resume loads a saved plan and continues from the first uncompleted test case.
 // It skips Scout entirely, reuses the stored plan, and only executes remaining cases.
 func (s *Session) Resume(ctx context.Context) (err error) {
@@ -284,7 +283,7 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 		if summary == nil {
 			summary = &SessionSummary{
 				Goal: s.Goal, TotalTokens: tokensUsed,
-				Duration: elapsed.Round(time.Millisecond).String(),
+				Duration:   elapsed.Round(time.Millisecond).String(),
 				DurationMs: elapsed.Milliseconds(),
 			}
 		} else {

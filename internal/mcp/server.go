@@ -20,7 +20,6 @@ import (
 // Version is set at build time via -ldflags. Default matches the latest release.
 var Version = "0.5.0"
 
-
 // Server implements the MCP server for Cerberus.
 type Server struct {
 	store    *store.Store

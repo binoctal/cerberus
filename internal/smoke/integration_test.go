@@ -27,7 +27,7 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 		switch {
 		case r.URL.Path == "/health":
 			w.WriteHeader(http.StatusOK)
-_, _ = w.Write([]byte(`{"status":"ok"}`))
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		case r.URL.Path == "/api/v1/users" && r.Method == "GET":
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]string{{"id": "1", "name": "Alice"}}})
@@ -42,7 +42,7 @@ _, _ = w.Write([]byte(`{"status":"ok"}`))
 			_ = json.NewEncoder(w).Encode(map[string]any{"posts": []string{}})
 		default:
 			w.WriteHeader(http.StatusNotFound)
-_, _ = w.Write([]byte(`{"error":"not found"}`))
+			_, _ = w.Write([]byte(`{"error":"not found"}`))
 		}
 	}))
 	defer srv.Close()
@@ -68,9 +68,9 @@ _, _ = w.Write([]byte(`{"error":"not found"}`))
 	planJSON, _ := json.Marshal(planOutput)
 
 	judgeJSON, _ := json.Marshal(examiner.JudgeResult{
-		Status:               examiner.StatusPass,
+		Status:                examiner.StatusPass,
 		CorrectnessConfidence: 0.9,
-		Reasoning:            "response matches expected",
+		Reasoning:             "response matches expected",
 	})
 
 	mockClient := llm.NewMockClient(map[string]string{"default": string(planJSON)})

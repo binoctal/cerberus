@@ -50,7 +50,7 @@ func TestSeedStrategies_Idempotent(t *testing.T) {
 	count2, err := SeedStrategies(ctx, s, "test-project", zap.NewNop())
 	require.NoError(t, err)
 
-	assert.Equal(t, count1, count1) // First seed added strategies.
+	assert.Equal(t, count1, count1)       // First seed added strategies.
 	assert.LessOrEqual(t, count2, count1) // Second seed should add ≤ first (may skip duplicates).
 }
 

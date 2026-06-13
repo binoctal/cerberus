@@ -63,7 +63,7 @@ func TestFileExecutor_Exists(t *testing.T) {
 	assert.False(t, fr.Exists)
 
 	// Create file, then check.
-	os.WriteFile(filepath.Join(dir, "present.txt"), []byte("x"), 0644)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "present.txt"), []byte("x"), 0644))
 	result2 := fe.Execute(context.Background(), types.FileExistsAction{
 		Path: "present.txt",
 	})
@@ -77,9 +77,9 @@ func TestFileExecutor_Glob(t *testing.T) {
 	dir := t.TempDir()
 	fe := NewFileExecutor(dir, zap.NewNop())
 
-	os.WriteFile(filepath.Join(dir, "a.go"), []byte("p1"), 0644)
-	os.WriteFile(filepath.Join(dir, "b.go"), []byte("p2"), 0644)
-	os.WriteFile(filepath.Join(dir, "c.txt"), []byte("p3"), 0644)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("p1"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("p2"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte("p3"), 0644))
 
 	result := fe.Execute(context.Background(), types.FileGlobAction{
 		Pattern: "*.go",

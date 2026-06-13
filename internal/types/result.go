@@ -42,8 +42,8 @@ type HTTPResult struct {
 	Err        string            `json:"error,omitempty"`
 }
 
-func (r HTTPResult) Success() bool            { return r.OK }
-func (r HTTPResult) Duration() time.Duration  { return r.Latency }
+func (r HTTPResult) Success() bool           { return r.OK }
+func (r HTTPResult) Duration() time.Duration { return r.Latency }
 func (r HTTPResult) Summary() string {
 	return fmt.Sprintf("HTTP %d %s (%s)", r.StatusCode, r.URL, r.Latency)
 }
@@ -62,8 +62,8 @@ type ProcessResult struct {
 	Err      string        `json:"error,omitempty"`
 }
 
-func (r ProcessResult) Success() bool            { return r.OK }
-func (r ProcessResult) Duration() time.Duration  { return r.Latency }
+func (r ProcessResult) Success() bool           { return r.OK }
+func (r ProcessResult) Duration() time.Duration { return r.Latency }
 func (r ProcessResult) Summary() string {
 	return fmt.Sprintf("exit %d (%s)\nstdout: %s", r.ExitCode, r.Latency, truncate(r.Stdout, 500))
 }
@@ -83,8 +83,8 @@ type FileResult struct {
 	Err     string        `json:"error,omitempty"`
 }
 
-func (r FileResult) Success() bool            { return r.OK }
-func (r FileResult) Duration() time.Duration  { return r.Latency }
+func (r FileResult) Success() bool           { return r.OK }
+func (r FileResult) Duration() time.Duration { return r.Latency }
 func (r FileResult) Summary() string {
 	if r.Err != "" {
 		return fmt.Sprintf("file %s: %s", r.Path, r.Err)
@@ -104,8 +104,8 @@ type MCPResult struct {
 	Err     string        `json:"error,omitempty"`
 }
 
-func (r MCPResult) Success() bool            { return r.OK }
-func (r MCPResult) Duration() time.Duration  { return r.Latency }
+func (r MCPResult) Success() bool           { return r.OK }
+func (r MCPResult) Duration() time.Duration { return r.Latency }
 func (r MCPResult) Summary() string {
 	status := "error"
 	if r.OK {
@@ -141,8 +141,8 @@ type CodeStats struct {
 	Coverage      float64 `json:"coverage,omitempty"`
 }
 
-func (r CodeResult) Success() bool            { return r.OK }
-func (r CodeResult) Duration() time.Duration  { return r.Latency }
+func (r CodeResult) Success() bool           { return r.OK }
+func (r CodeResult) Duration() time.Duration { return r.Latency }
 func (r CodeResult) Summary() string {
 	return fmt.Sprintf("%d findings in %d files (%s)", len(r.Findings), r.Stats.FilesAnalyzed, r.Latency)
 }
@@ -158,8 +158,8 @@ type WaitResult struct {
 	Latency time.Duration `json:"duration"`
 }
 
-func (r WaitResult) Success() bool            { return r.OK }
-func (r WaitResult) Duration() time.Duration  { return r.Latency }
+func (r WaitResult) Success() bool           { return r.OK }
+func (r WaitResult) Duration() time.Duration { return r.Latency }
 func (r WaitResult) Summary() string {
 	return fmt.Sprintf("wait completed (%s)", r.Latency)
 }
@@ -180,8 +180,8 @@ type BrowserResult struct {
 	Err        string        `json:"error,omitempty"`
 }
 
-func (r BrowserResult) Success() bool            { return r.OK }
-func (r BrowserResult) Duration() time.Duration  { return r.Latency }
+func (r BrowserResult) Success() bool           { return r.OK }
+func (r BrowserResult) Duration() time.Duration { return r.Latency }
 func (r BrowserResult) Summary() string {
 	status := "ok"
 	if !r.OK {
@@ -204,9 +204,9 @@ type ErrorResult struct {
 	Latency time.Duration `json:"duration,omitempty"`
 }
 
-func (r ErrorResult) Success() bool            { return false }
-func (r ErrorResult) Duration() time.Duration  { return r.Latency }
-func (r ErrorResult) Summary() string          { return fmt.Sprintf("error: %s", r.Err) }
+func (r ErrorResult) Success() bool           { return false }
+func (r ErrorResult) Duration() time.Duration { return r.Latency }
+func (r ErrorResult) Summary() string         { return fmt.Sprintf("error: %s", r.Err) }
 func (r ErrorResult) Evidence() EvidenceData {
 	return EvidenceData{Type: "error", Content: r.Err}
 }
@@ -214,18 +214,18 @@ func (r ErrorResult) Evidence() EvidenceData {
 // --- Database Result ---
 
 type DBResult struct {
-	OK      bool          `json:"success"`
-	Driver  string        `json:"driver"`
-	Query   string        `json:"query"`
-	Columns []string      `json:"columns,omitempty"`
-	Rows    []map[string]any `json:"rows,omitempty"`
-	AssertionPassed bool  `json:"assertion_passed,omitempty"`
-	Latency time.Duration `json:"duration"`
-	Err     string        `json:"error,omitempty"`
+	OK              bool             `json:"success"`
+	Driver          string           `json:"driver"`
+	Query           string           `json:"query"`
+	Columns         []string         `json:"columns,omitempty"`
+	Rows            []map[string]any `json:"rows,omitempty"`
+	AssertionPassed bool             `json:"assertion_passed,omitempty"`
+	Latency         time.Duration    `json:"duration"`
+	Err             string           `json:"error,omitempty"`
 }
 
-func (r DBResult) Success() bool            { return r.OK }
-func (r DBResult) Duration() time.Duration  { return r.Latency }
+func (r DBResult) Success() bool           { return r.OK }
+func (r DBResult) Duration() time.Duration { return r.Latency }
 func (r DBResult) Summary() string {
 	status := "ok"
 	if !r.OK {
@@ -241,16 +241,16 @@ func (r DBResult) Evidence() EvidenceData {
 // --- GraphQL Result ---
 
 type GraphQLResult struct {
-	OK       bool           `json:"success"`
-	URL      string         `json:"url"`
-	Data     map[string]any `json:"data,omitempty"`
-	Errors   []any          `json:"errors,omitempty"`
-	Latency  time.Duration  `json:"duration"`
-	Err      string         `json:"error,omitempty"`
+	OK      bool           `json:"success"`
+	URL     string         `json:"url"`
+	Data    map[string]any `json:"data,omitempty"`
+	Errors  []any          `json:"errors,omitempty"`
+	Latency time.Duration  `json:"duration"`
+	Err     string         `json:"error,omitempty"`
 }
 
-func (r GraphQLResult) Success() bool            { return r.OK }
-func (r GraphQLResult) Duration() time.Duration  { return r.Latency }
+func (r GraphQLResult) Success() bool           { return r.OK }
+func (r GraphQLResult) Duration() time.Duration { return r.Latency }
 func (r GraphQLResult) Summary() string {
 	status := "ok"
 	if !r.OK {
@@ -273,8 +273,8 @@ type WSResult struct {
 	Err      string        `json:"error,omitempty"`
 }
 
-func (r WSResult) Success() bool            { return r.OK }
-func (r WSResult) Duration() time.Duration  { return r.Latency }
+func (r WSResult) Success() bool           { return r.OK }
+func (r WSResult) Duration() time.Duration { return r.Latency }
 func (r WSResult) Summary() string {
 	status := "ok"
 	if !r.OK {

@@ -2,10 +2,10 @@ package scout
 
 // TargetInfo describes what the Scout should analyze.
 type TargetInfo struct {
-	URL       string // Base URL of the target service
-	CodeRoot  string // Optional path to project source code
-	DBURL     string // Optional database connection URL
-	Goal      string // What the user wants to test
+	URL      string // Base URL of the target service
+	CodeRoot string // Optional path to project source code
+	DBURL    string // Optional database connection URL
+	Goal     string // What the user wants to test
 }
 
 // AnalyzeOutput is the structured JSON the LLM returns for an Analyze call.

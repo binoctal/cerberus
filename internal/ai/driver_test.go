@@ -73,7 +73,9 @@ The test passed.`
 }
 
 func TestParseStructuredOutputDirect(t *testing.T) {
-	type Result struct{ Status string `json:"status"` }
+	type Result struct {
+		Status string `json:"status"`
+	}
 	var r Result
 	err := ParseStructuredOutput(`{"status":"fail"}`, &r)
 	require.NoError(t, err)
@@ -125,7 +127,9 @@ func TestDriver_RetryOn500(t *testing.T) {
 	retry := RetryConfig{MaxRetries: 3, BaseDelay: 1 * time.Millisecond, MaxDelay: 10 * time.Millisecond}
 	driver := NewDriverWithRetry(client, NewTokenBudget(200000, 10000), retry)
 
-	type Result struct{ Status string `json:"status"` }
+	type Result struct {
+		Status string `json:"status"`
+	}
 	var r Result
 	err := driver.Decide(context.Background(), "test", &r)
 	require.NoError(t, err)
@@ -151,7 +155,9 @@ func TestDriver_RetryOn429(t *testing.T) {
 	retry := RetryConfig{MaxRetries: 3, BaseDelay: 1 * time.Millisecond, MaxDelay: 10 * time.Millisecond}
 	driver := NewDriverWithRetry(client, NewTokenBudget(200000, 10000), retry)
 
-	var r struct{ Status string `json:"status"` }
+	var r struct {
+		Status string `json:"status"`
+	}
 	err := driver.Decide(context.Background(), "test", &r)
 	require.NoError(t, err)
 	assert.Equal(t, 2, callCount)
@@ -172,7 +178,9 @@ func TestDriver_NoRetryOnParseError(t *testing.T) {
 	retry := RetryConfig{MaxRetries: 3, BaseDelay: 1 * time.Millisecond, MaxDelay: 10 * time.Millisecond}
 	driver := NewDriverWithRetry(client, NewTokenBudget(200000, 10000), retry)
 
-	var r struct{ Status string `json:"status"` }
+	var r struct {
+		Status string `json:"status"`
+	}
 	err := driver.Decide(context.Background(), "test", &r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parse output")
@@ -191,7 +199,9 @@ func TestDriver_NoRetryOnNonTransient(t *testing.T) {
 	retry := RetryConfig{MaxRetries: 3, BaseDelay: 1 * time.Millisecond, MaxDelay: 10 * time.Millisecond}
 	driver := NewDriverWithRetry(client, NewTokenBudget(200000, 10000), retry)
 
-	var r struct{ Status string `json:"status"` }
+	var r struct {
+		Status string `json:"status"`
+	}
 	err := driver.Decide(context.Background(), "test", &r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
@@ -208,7 +218,9 @@ func TestDriver_ExhaustedRetries(t *testing.T) {
 	retry := RetryConfig{MaxRetries: 2, BaseDelay: 1 * time.Millisecond, MaxDelay: 10 * time.Millisecond}
 	driver := NewDriverWithRetry(client, NewTokenBudget(200000, 10000), retry)
 
-	var r struct{ Status string `json:"status"` }
+	var r struct {
+		Status string `json:"status"`
+	}
 	err := driver.Decide(context.Background(), "test", &r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed after 2 retries")
@@ -227,7 +239,9 @@ func TestDriver_RetryCancelledByContext(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	var r struct{ Status string `json:"status"` }
+	var r struct {
+		Status string `json:"status"`
+	}
 	err := driver.Decide(ctx, "test", &r)
 	require.Error(t, err)
 	// Should exit early via context cancellation, not wait for full retry.
@@ -247,8 +261,8 @@ func TestBackoff(t *testing.T) {
 
 func TestIsRetryable(t *testing.T) {
 	tests := []struct {
-		errMsg     string
-		retryable  bool
+		errMsg    string
+		retryable bool
 	}{
 		{"500 Internal Server Error", true},
 		{"502 Bad Gateway", true},
@@ -302,7 +316,7 @@ func TestDriver_DecideStreamCollect(t *testing.T) {
 	driver := NewDriver(mock, NewTokenBudget(200000, 10000))
 
 	var result struct {
-		Answer   string `json:"answer"`
+		Answer    string `json:"answer"`
 		Reasoning string `json:"reasoning"`
 	}
 

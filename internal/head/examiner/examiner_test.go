@@ -191,51 +191,51 @@ func TestPolicy_UncertainDegradedLevel3(t *testing.T) {
 	assert.True(t, verdict.NeedsReview())
 }
 
-	func TestPolicy_ThresholdDowngrade(t *testing.T) {
-		// Pass with confidence 0.6, threshold 0.9 -> should downgrade to uncertain.
-		jr := &JudgeResult{
-			Status:                StatusPass,
-			ExistenceConfidence:   0.9,
-			CorrectnessConfidence: 0.6,
-			Reasoning:             "Looks ok",
-		}
-		sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
-
-		verdict := VerdictPolicy(jr, sr, 0.9)
-		assert.Equal(t, StatusUncertain, verdict.Status)
-		assert.Equal(t, 1, verdict.DegradedLevel)
-		assert.Contains(t, verdict.Reasoning, "below threshold")
+func TestPolicy_ThresholdDowngrade(t *testing.T) {
+	// Pass with confidence 0.6, threshold 0.9 -> should downgrade to uncertain.
+	jr := &JudgeResult{
+		Status:                StatusPass,
+		ExistenceConfidence:   0.9,
+		CorrectnessConfidence: 0.6,
+		Reasoning:             "Looks ok",
 	}
+	sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
 
-	func TestPolicy_ThresholdPass(t *testing.T) {
-		// Pass with confidence 0.95, threshold 0.9 -> should remain pass.
-		jr := &JudgeResult{
-			Status:                StatusPass,
-			ExistenceConfidence:   0.95,
-			CorrectnessConfidence: 0.95,
-			Reasoning:             "All good",
-		}
-		sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
+	verdict := VerdictPolicy(jr, sr, 0.9)
+	assert.Equal(t, StatusUncertain, verdict.Status)
+	assert.Equal(t, 1, verdict.DegradedLevel)
+	assert.Contains(t, verdict.Reasoning, "below threshold")
+}
 
-		verdict := VerdictPolicy(jr, sr, 0.9)
-		assert.Equal(t, StatusPass, verdict.Status)
-		assert.Equal(t, 0, verdict.DegradedLevel)
+func TestPolicy_ThresholdPass(t *testing.T) {
+	// Pass with confidence 0.95, threshold 0.9 -> should remain pass.
+	jr := &JudgeResult{
+		Status:                StatusPass,
+		ExistenceConfidence:   0.95,
+		CorrectnessConfidence: 0.95,
+		Reasoning:             "All good",
 	}
+	sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
 
-	func TestPolicy_ThresholdZero_NoDowngrade(t *testing.T) {
-		// threshold 0 disables downgrade entirely.
-		jr := &JudgeResult{
-			Status:                StatusPass,
-			ExistenceConfidence:   0.3,
-			CorrectnessConfidence: 0.3,
-			Reasoning:             "Meh",
-		}
-		sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
+	verdict := VerdictPolicy(jr, sr, 0.9)
+	assert.Equal(t, StatusPass, verdict.Status)
+	assert.Equal(t, 0, verdict.DegradedLevel)
+}
 
-		verdict := VerdictPolicy(jr, sr, 0)
-		assert.Equal(t, StatusPass, verdict.Status)
-		assert.Equal(t, 0, verdict.DegradedLevel)
+func TestPolicy_ThresholdZero_NoDowngrade(t *testing.T) {
+	// threshold 0 disables downgrade entirely.
+	jr := &JudgeResult{
+		Status:                StatusPass,
+		ExistenceConfidence:   0.3,
+		CorrectnessConfidence: 0.3,
+		Reasoning:             "Meh",
 	}
+	sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
+
+	verdict := VerdictPolicy(jr, sr, 0)
+	assert.Equal(t, StatusPass, verdict.Status)
+	assert.Equal(t, 0, verdict.DegradedLevel)
+}
 
 func TestLearner_QualityGate(t *testing.T) {
 	tests := []struct {
@@ -244,33 +244,33 @@ func TestLearner_QualityGate(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "valid failure reflection",
-			r:    Reflection{Type: "failure", Diagnosis: "Auth token expired", Strategy: "Refresh token before retrying the request", ConditionPattern: "* returned 401", Category: "auth_failure"},
+			name:     "valid failure reflection",
+			r:        Reflection{Type: "failure", Diagnosis: "Auth token expired", Strategy: "Refresh token before retrying the request", ConditionPattern: "* returned 401", Category: "auth_failure"},
 			expected: true,
 		},
 		{
-			name: "valid success reflection",
-			r:    Reflection{Type: "success", Diagnosis: "Pagination works correctly", Strategy: "Always include page parameter for list endpoints", ConditionPattern: "GET /api/*/list*", Category: "general_failure"},
+			name:     "valid success reflection",
+			r:        Reflection{Type: "success", Diagnosis: "Pagination works correctly", Strategy: "Always include page parameter for list endpoints", ConditionPattern: "GET /api/*/list*", Category: "general_failure"},
 			expected: true,
 		},
 		{
-			name: "empty diagnosis",
-			r:    Reflection{Type: "failure", Diagnosis: "", Strategy: "Some strategy here that is long enough", ConditionPattern: "* returned 500", Category: "server_error"},
+			name:     "empty diagnosis",
+			r:        Reflection{Type: "failure", Diagnosis: "", Strategy: "Some strategy here that is long enough", ConditionPattern: "* returned 500", Category: "server_error"},
 			expected: false,
 		},
 		{
-			name: "strategy too short",
-			r:    Reflection{Type: "failure", Diagnosis: "Timeout occurred", Strategy: "retry", ConditionPattern: "* timeout", Category: "timeout_recovery"},
+			name:     "strategy too short",
+			r:        Reflection{Type: "failure", Diagnosis: "Timeout occurred", Strategy: "retry", ConditionPattern: "* timeout", Category: "timeout_recovery"},
 			expected: false,
 		},
 		{
-			name: "invalid type",
-			r:    Reflection{Type: "invalid", Diagnosis: "Something", Strategy: "A strategy that is long enough to pass", ConditionPattern: "*", Category: "general_failure"},
+			name:     "invalid type",
+			r:        Reflection{Type: "invalid", Diagnosis: "Something", Strategy: "A strategy that is long enough to pass", ConditionPattern: "*", Category: "general_failure"},
 			expected: false,
 		},
 		{
-			name: "empty condition pattern",
-			r:    Reflection{Type: "failure", Diagnosis: "Error", Strategy: "A strategy long enough to pass the gate", ConditionPattern: "", Category: "general_failure"},
+			name:     "empty condition pattern",
+			r:        Reflection{Type: "failure", Diagnosis: "Error", Strategy: "A strategy long enough to pass the gate", ConditionPattern: "", Category: "general_failure"},
 			expected: false,
 		},
 	}
@@ -340,7 +340,7 @@ func TestLearner_QualityGateFiltersBadReflections(t *testing.T) {
 	reflections := []Reflection{
 		{Type: "failure", Diagnosis: "Valid diagnosis", Strategy: "Valid strategy that is long enough", ConditionPattern: "* returned 500", Category: "server_error"},
 		{Type: "failure", Diagnosis: "", Strategy: "Strategy without diagnosis", ConditionPattern: "*", Category: "general_failure"}, // Invalid: empty diagnosis
-		{Type: "success", Diagnosis: "Works well", Strategy: "short", ConditionPattern: "GET *", Category: "general_failure"}, // Invalid: strategy too short
+		{Type: "success", Diagnosis: "Works well", Strategy: "short", ConditionPattern: "GET *", Category: "general_failure"},        // Invalid: strategy too short
 	}
 	reflJSON, _ := json.Marshal(reflections)
 

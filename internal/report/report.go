@@ -11,11 +11,11 @@ import (
 
 // ReportData assembles all data needed for a session report.
 type ReportData struct {
-	Session  *store.Session              `json:"session"`
-	Traces   []store.Trace               `json:"traces"`
-	Verdicts []store.Verdict             `json:"verdicts"`
-	Evidence map[int64][]store.Evidence  `json:"evidence"` // trace_id → evidence
-	Summary  *session.SessionSummary     `json:"summary"`
+	Session  *store.Session             `json:"session"`
+	Traces   []store.Trace              `json:"traces"`
+	Verdicts []store.Verdict            `json:"verdicts"`
+	Evidence map[int64][]store.Evidence `json:"evidence"` // trace_id → evidence
+	Summary  *session.SessionSummary    `json:"summary"`
 }
 
 // BuildReport assembles a full report for the given session.

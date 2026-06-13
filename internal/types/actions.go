@@ -31,15 +31,15 @@ const (
 	ActionMCPCall ActionType = "mcp_call"
 
 	// Code analysis
-ActionCodeAnalyze ActionType = "code_analyze"
-ActionCodeLint    ActionType = "code_lint"
-ActionCodeSymbols ActionType = "code_symbols"
+	ActionCodeAnalyze ActionType = "code_analyze"
+	ActionCodeLint    ActionType = "code_lint"
+	ActionCodeSymbols ActionType = "code_symbols"
 
 	// Browser automation
-ActionBrowserGoto  ActionType = "browser_goto"
-ActionBrowserClick ActionType = "browser_click"
-ActionBrowserFill  ActionType = "browser_fill"
-ActionBrowserEval  ActionType = "browser_eval"
+	ActionBrowserGoto  ActionType = "browser_goto"
+	ActionBrowserClick ActionType = "browser_click"
+	ActionBrowserFill  ActionType = "browser_fill"
+	ActionBrowserEval  ActionType = "browser_eval"
 
 	// Database
 	ActionDBQuery  ActionType = "db_query"
@@ -76,7 +76,7 @@ type HTTPAction struct {
 }
 
 func (a HTTPAction) GetActionType() ActionType { return ActionAPIRequest }
-func (a HTTPAction) Target() string             { return a.URL }
+func (a HTTPAction) Target() string            { return a.URL }
 func (a HTTPAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -89,7 +89,7 @@ type NavigateAction struct {
 }
 
 func (a NavigateAction) GetActionType() ActionType { return ActionNavigate }
-func (a NavigateAction) Target() string             { return a.URL }
+func (a NavigateAction) Target() string            { return a.URL }
 func (a NavigateAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -102,7 +102,7 @@ type WaitAction struct {
 }
 
 func (a WaitAction) GetActionType() ActionType { return ActionWait }
-func (a WaitAction) Target() string             { return "" }
+func (a WaitAction) Target() string            { return "" }
 func (a WaitAction) Validate() error {
 	if a.Duration != "" {
 		if _, err := time.ParseDuration(a.Duration); err != nil {
@@ -129,10 +129,10 @@ type BuildAction struct {
 }
 
 func (a BuildAction) GetActionType() ActionType { return ActionProcessBuild }
-func (a BuildAction) Unwrap() ProcessExecAction  { return a.ProcessExecAction }
+func (a BuildAction) Unwrap() ProcessExecAction { return a.ProcessExecAction }
 
 func (a ProcessExecAction) GetActionType() ActionType { return ActionProcessExec }
-func (a ProcessExecAction) Target() string             { return a.Command }
+func (a ProcessExecAction) Target() string            { return a.Command }
 func (a ProcessExecAction) Validate() error {
 	if a.Command == "" {
 		return fmt.Errorf("command is required")
@@ -152,7 +152,7 @@ type FileReadAction struct {
 }
 
 func (a FileReadAction) GetActionType() ActionType { return ActionFileRead }
-func (a FileReadAction) Target() string             { return a.Path }
+func (a FileReadAction) Target() string            { return a.Path }
 func (a FileReadAction) Validate() error {
 	if a.Path == "" {
 		return fmt.Errorf("path is required")
@@ -166,7 +166,7 @@ type FileWriteAction struct {
 }
 
 func (a FileWriteAction) GetActionType() ActionType { return ActionFileWrite }
-func (a FileWriteAction) Target() string             { return a.Path }
+func (a FileWriteAction) Target() string            { return a.Path }
 func (a FileWriteAction) Validate() error {
 	if a.Path == "" {
 		return fmt.Errorf("path is required")
@@ -179,7 +179,7 @@ type FileExistsAction struct {
 }
 
 func (a FileExistsAction) GetActionType() ActionType { return ActionFileExists }
-func (a FileExistsAction) Target() string             { return a.Path }
+func (a FileExistsAction) Target() string            { return a.Path }
 func (a FileExistsAction) Validate() error {
 	if a.Path == "" {
 		return fmt.Errorf("path is required")
@@ -192,7 +192,7 @@ type FileGlobAction struct {
 }
 
 func (a FileGlobAction) GetActionType() ActionType { return ActionFileGlob }
-func (a FileGlobAction) Target() string             { return a.Pattern }
+func (a FileGlobAction) Target() string            { return a.Pattern }
 func (a FileGlobAction) Validate() error {
 	if a.Pattern == "" {
 		return fmt.Errorf("pattern is required")
@@ -209,7 +209,7 @@ type MCPCallAction struct {
 }
 
 func (a MCPCallAction) GetActionType() ActionType { return ActionMCPCall }
-func (a MCPCallAction) Target() string             { return a.Server + "/" + a.Method }
+func (a MCPCallAction) Target() string            { return a.Server + "/" + a.Method }
 func (a MCPCallAction) Validate() error {
 	if a.Method == "" {
 		return fmt.Errorf("method is required")
@@ -226,7 +226,7 @@ type CodeAnalyzeAction struct {
 }
 
 func (a CodeAnalyzeAction) GetActionType() ActionType { return ActionCodeAnalyze }
-func (a CodeAnalyzeAction) Target() string             { return a.TargetPath }
+func (a CodeAnalyzeAction) Target() string            { return a.TargetPath }
 func (a CodeAnalyzeAction) Validate() error {
 	if a.TargetPath == "" {
 		return fmt.Errorf("target_path is required")
@@ -241,7 +241,7 @@ type CodeLintAction struct {
 }
 
 func (a CodeLintAction) GetActionType() ActionType { return ActionCodeLint }
-func (a CodeLintAction) Target() string             { return a.TargetPath }
+func (a CodeLintAction) Target() string            { return a.TargetPath }
 func (a CodeLintAction) Validate() error {
 	if a.TargetPath == "" {
 		return fmt.Errorf("target_path is required")
@@ -255,7 +255,7 @@ type CodeSymbolsAction struct {
 }
 
 func (a CodeSymbolsAction) GetActionType() ActionType { return ActionCodeSymbols }
-func (a CodeSymbolsAction) Target() string             { return a.TargetPath }
+func (a CodeSymbolsAction) Target() string            { return a.TargetPath }
 func (a CodeSymbolsAction) Validate() error {
 	if a.TargetPath == "" {
 		return fmt.Errorf("target_path is required")
@@ -266,12 +266,12 @@ func (a CodeSymbolsAction) Validate() error {
 // --- Browser Actions ---
 
 type BrowserGotoAction struct {
-	URL        string `json:"url"`
+	URL       string `json:"url"`
 	WaitUntil string `json:"wait_until,omitempty"` // "load", "domcontentloaded", "networkidle"
 }
 
 func (a BrowserGotoAction) GetActionType() ActionType { return ActionBrowserGoto }
-func (a BrowserGotoAction) Target() string             { return a.URL }
+func (a BrowserGotoAction) Target() string            { return a.URL }
 func (a BrowserGotoAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -285,7 +285,7 @@ type BrowserClickAction struct {
 }
 
 func (a BrowserClickAction) GetActionType() ActionType { return ActionBrowserClick }
-func (a BrowserClickAction) Target() string             { return a.Selector }
+func (a BrowserClickAction) Target() string            { return a.Selector }
 func (a BrowserClickAction) Validate() error {
 	if a.Selector == "" {
 		return fmt.Errorf("selector is required")
@@ -299,7 +299,7 @@ type BrowserFillAction struct {
 }
 
 func (a BrowserFillAction) GetActionType() ActionType { return ActionBrowserFill }
-func (a BrowserFillAction) Target() string             { return a.Selector }
+func (a BrowserFillAction) Target() string            { return a.Selector }
 func (a BrowserFillAction) Validate() error {
 	if a.Selector == "" {
 		return fmt.Errorf("selector is required")
@@ -312,7 +312,7 @@ type BrowserEvalAction struct {
 }
 
 func (a BrowserEvalAction) GetActionType() ActionType { return ActionBrowserEval }
-func (a BrowserEvalAction) Target() string             { return a.Expression }
+func (a BrowserEvalAction) Target() string            { return a.Expression }
 func (a BrowserEvalAction) Validate() error {
 	if a.Expression == "" {
 		return fmt.Errorf("expression is required")
@@ -324,13 +324,13 @@ func (a BrowserEvalAction) Validate() error {
 
 type DBQueryAction struct {
 	Driver string `json:"driver"` // "sqlite", "postgres", "mysql"
-	DSN    string `json:"dsn"`   // connection string
+	DSN    string `json:"dsn"`    // connection string
 	Query  string `json:"query"`
 	Args   []any  `json:"args,omitempty"`
 }
 
 func (a DBQueryAction) GetActionType() ActionType { return ActionDBQuery }
-func (a DBQueryAction) Target() string             { return a.Query }
+func (a DBQueryAction) Target() string            { return a.Query }
 func (a DBQueryAction) Validate() error {
 	if a.Query == "" {
 		return fmt.Errorf("query is required")
@@ -349,7 +349,7 @@ type DBAssertAction struct {
 }
 
 func (a DBAssertAction) GetActionType() ActionType { return ActionDBAssert }
-func (a DBAssertAction) Target() string             { return a.Query }
+func (a DBAssertAction) Target() string            { return a.Query }
 func (a DBAssertAction) Validate() error {
 	if a.Query == "" {
 		return fmt.Errorf("query is required")
@@ -366,15 +366,15 @@ func (a DBAssertAction) Validate() error {
 // --- GraphQL Actions ---
 
 type GraphQLQueryAction struct {
-	URL         string         `json:"url"`
-	Query       string         `json:"query"`
-	Variables   map[string]any `json:"variables,omitempty"`
-	Headers     map[string]string `json:"headers,omitempty"`
-	OperationName string       `json:"operation_name,omitempty"`
+	URL           string            `json:"url"`
+	Query         string            `json:"query"`
+	Variables     map[string]any    `json:"variables,omitempty"`
+	Headers       map[string]string `json:"headers,omitempty"`
+	OperationName string            `json:"operation_name,omitempty"`
 }
 
 func (a GraphQLQueryAction) GetActionType() ActionType { return ActionGraphQLQuery }
-func (a GraphQLQueryAction) Target() string             { return a.URL }
+func (a GraphQLQueryAction) Target() string            { return a.URL }
 func (a GraphQLQueryAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -393,7 +393,7 @@ type WSConnectAction struct {
 }
 
 func (a WSConnectAction) GetActionType() ActionType { return ActionWSConnect }
-func (a WSConnectAction) Target() string             { return a.URL }
+func (a WSConnectAction) Target() string            { return a.URL }
 func (a WSConnectAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -407,7 +407,7 @@ type WSSendAction struct {
 }
 
 func (a WSSendAction) GetActionType() ActionType { return ActionWSSend }
-func (a WSSendAction) Target() string             { return a.URL }
+func (a WSSendAction) Target() string            { return a.URL }
 func (a WSSendAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -660,8 +660,8 @@ func ToolDefinitions() []ToolDef {
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":    map[string]any{"type": "string", "description": "File or directory to analyze"},
-					"focus":   map[string]any{"type": "string", "description": "Analysis focus: security, performance, quality"},
+					"path":  map[string]any{"type": "string", "description": "File or directory to analyze"},
+					"focus": map[string]any{"type": "string", "description": "Analysis focus: security, performance, quality"},
 				},
 				"required": []string{"path"},
 			},
@@ -683,8 +683,8 @@ func ToolDefinitions() []ToolDef {
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"tool":    map[string]any{"type": "string", "description": "MCP tool name"},
-					"params":  map[string]any{"type": "object", "description": "Tool parameters"},
+					"tool":   map[string]any{"type": "string", "description": "MCP tool name"},
+					"params": map[string]any{"type": "object", "description": "Tool parameters"},
 				},
 				"required": []string{"tool"},
 			},

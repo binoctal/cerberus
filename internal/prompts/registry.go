@@ -17,10 +17,10 @@ var defaultFS embed.FS
 // Registry loads and serves prompt templates with project-level override support.
 // Load order: embed.FS defaults → .cerberus/prompts/<key>.txt overrides.
 type Registry struct {
-	mu       sync.RWMutex
-	prompts  map[string]string
+	mu           sync.RWMutex
+	prompts      map[string]string
 	overridesDir string
-	logger   *zap.Logger
+	logger       *zap.Logger
 }
 
 // NewRegistry creates a prompt registry with defaults and optional overrides.

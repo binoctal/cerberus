@@ -21,8 +21,8 @@ type Scout struct {
 	store    *store.Store
 	config   *project.Config
 	logger   *zap.Logger
-	deepPlan bool           // Enable ToT deep planning mode
-	totCfg   ToTConfig      // ToT configuration (only used when deepPlan=true)
+	deepPlan bool              // Enable ToT deep planning mode
+	totCfg   ToTConfig         // ToT configuration (only used when deepPlan=true)
 	embedder embedPkg.Provider // embedding provider for semantic search
 }
 
@@ -363,7 +363,6 @@ func (s *Scout) buildEpisodicContext(ctx context.Context, goal string, model *pr
 		}
 	}
 
-
 	// Append L2 semantic memory: search for facts related to the goal.
 	if goal != "" {
 		queryEmb, _ := s.embedder.Embed(ctx, goal)
@@ -407,7 +406,7 @@ func (s *Scout) fallbackPlan(goal string, model *project.ProjectModel) *agent.Te
 			Target:      inv.Description,
 			Expectation: inv.Description,
 			Priority:    inv.Confidence,
-				Severity:    inv.Severity,
+			Severity:    inv.Severity,
 		})
 	}
 

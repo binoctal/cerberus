@@ -201,9 +201,9 @@ func TestDBActionSerialization(t *testing.T) {
 
 func TestGraphQLActionSerialization(t *testing.T) {
 	original := types.GraphQLQueryAction{
-		URL:         "http://api.test/graphql",
-		Query:       "{ users { id } }",
-		Variables:   map[string]any{"limit": 10},
+		URL:           "http://api.test/graphql",
+		Query:         "{ users { id } }",
+		Variables:     map[string]any{"limit": 10},
 		OperationName: "GetUsers",
 	}
 

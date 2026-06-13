@@ -85,8 +85,8 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 			Message struct {
 				Content   string `json:"content"`
 				ToolCalls []struct {
-					ID   string `json:"id"`
-					Type string `json:"type"`
+					ID       string `json:"id"`
+					Type     string `json:"type"`
 					Function struct {
 						Name      string          `json:"name"`
 						Arguments json.RawMessage `json:"arguments"`
@@ -118,9 +118,14 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 		}
 	}
 	return &Response{
-		Content:    content,
-		StopReason: func() string { if len(result.Choices) > 0 { return result.Choices[0].FinishReason }; return "" }(),
-		ToolCalls:  toolCalls,
+		Content: content,
+		StopReason: func() string {
+			if len(result.Choices) > 0 {
+				return result.Choices[0].FinishReason
+			}
+			return ""
+		}(),
+		ToolCalls: toolCalls,
 		Usage: TokenUsage{
 			InputTokens:  result.Usage.PromptTokens,
 			OutputTokens: result.Usage.CompletionTokens,
@@ -212,14 +217,14 @@ func (c *OpenAIClient) Stream(ctx context.Context, req Request) (<-chan StreamEv
 
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("openai stream error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	ch := make(chan StreamEvent, 64)
 	go func() {
 		defer close(ch)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		scanner := newSSEScanner(resp.Body)
 		for scanner.Next() {
