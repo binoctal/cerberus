@@ -4,6 +4,18 @@ Universal AI-powered testing framework for SaaS applications.
 
 Three-head architecture — **Scout** discovers, **Agent** executes, **Examiner** judges.
 
+## Documentation
+
+Full documentation lives in [`docs/`](docs/):
+
+- [Overview](docs/index.md)
+- [Architecture](docs/architecture.md) — three-head model, memory system, escalation gate
+- [Executors](docs/executors/index.md) — 10 built-in executors (HTTP, Database, GraphQL, WebSocket, Browser, Process, File, Code, MCP, Wait)
+- [Configuration](docs/configuration/project.md) — `project.yaml` reference
+- [Getting Started](docs/getting-started/quick-start.md)
+- [Claude Code Integration](docs/integrations/claude-code.md) — MCP server
+- [CI/CD Integration](docs/integrations/ci-cd.md)
+
 ## Features
 
 - **Scout** — Analyzes your project config and generates intelligent test plans
