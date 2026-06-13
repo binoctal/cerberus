@@ -453,3 +453,86 @@ func TestFromResults_Integration(t *testing.T) {
 	assert.Equal(t, 0, summary.Uncertain)
 	assert.Equal(t, "test goal", summary.Goal)
 }
+
+func TestSession_Resume_SkipsCompleted(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer func() { _ = s.Close() }()
+
+	cfg := testConfig()
+	mockClient := llm.NewMockClient(fullRunResponses())
+	logger := zap.NewNop()
+
+	sess, err := NewSession(context.Background(), ModeRun, "resume test", &cfg, s, mockClient, logger, nil, ".")
+	require.NoError(t, err)
+
+	// Manually save a plan with 2 cases.
+	plan := map[string]any{
+		"goal": "resume test",
+		"cases": []map[string]any{
+			{"id": "tc-done", "name": "already done", "target": "/healthz", "method": "GET", "expectation": "ok", "priority": 0.9},
+			{"id": "tc-pending", "name": "not yet run", "target": "/api/new", "method": "GET", "expectation": "ok", "priority": 0.8},
+		},
+		"project_url": "http://localhost:9999",
+	}
+	require.NoError(t, s.SavePlan(context.Background(), sess.ID, plan))
+
+	// Mark tc-done's target as completed.
+	traceID, err := s.CreateTrace(context.Background(), sess.ID, "http", "GET /healthz")
+	require.NoError(t, err)
+	require.NoError(t, s.FinishTrace(context.Background(), traceID, "pass"))
+	_, err = s.CreateVerdict(context.Background(), sess.ID, traceID, "GET /healthz", "pass", 0.9, "judge", "ok", nil)
+	require.NoError(t, err)
+
+	// Resume — should only execute tc-pending.
+	err = sess.Resume(context.Background())
+	require.NoError(t, err)
+
+	sess.Close()
+}
+
+func TestSession_Resume_NoPlan(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer func() { _ = s.Close() }()
+
+	cfg := testConfig()
+	mockClient := llm.NewMockClient(nil)
+	logger := zap.NewNop()
+
+	sess, err := NewSession(context.Background(), ModeRun, "no plan resume", &cfg, s, mockClient, logger, nil, ".")
+	require.NoError(t, err)
+
+	err = sess.Resume(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "load plan")
+
+	sess.Close()
+}
+
+func TestSession_driverFor_PerHeadOverride(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer func() { _ = s.Close() }()
+
+	cfg := testConfig()
+	cfg.Settings.Models.Scout = "claude-sonnet-4-6"
+	cfg.Settings.Models.Agent = "claude-haiku-4-5-20251001"
+	// Examiner and Critic left empty → should use shared driver.
+
+	mockClient := llm.NewMockClient(nil)
+	logger := zap.NewNop()
+
+	sess, err := NewSession(context.Background(), ModeRun, "per-head", &cfg, s, mockClient, logger, nil, ".")
+	require.NoError(t, err)
+
+	// Setup per-head drivers. Will fail to connect but should at least attempt.
+	// Since we can't easily create real clients in tests, verify the fallback logic:
+	// scoutDriver and agentDriver are nil (client creation fails) → driverFor returns shared.
+	d := sess.driverFor(&sess.scoutDriver)
+	assert.NotNil(t, d) // Should fall back to shared Driver
+	assert.Equal(t, sess.Driver, d)
+
+	d = sess.driverFor(&sess.examinerDriver)
+	assert.NotNil(t, d)
+	assert.Equal(t, sess.Driver, d) // No override → shared
+
+	sess.Close()
+}

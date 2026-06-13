@@ -227,3 +227,73 @@ func TestBuildReport_MultipleVerdicts(t *testing.T) {
 	assert.True(t, strings.Contains(md, "POST /b"))
 	assert.True(t, strings.Contains(md, "server error"))
 }
+
+func TestBuildReport_EvidenceMap(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "run", "evidence report", "proj")
+	require.NoError(t, err)
+
+	traceID, err := s.CreateTrace(ctx, sess.ID, "http", "GET /api/health")
+	require.NoError(t, err)
+	_ = s.FinishTrace(ctx, traceID, "pass")
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/health", "pass", 0.95, "judge", "healthy", nil)
+
+	// Add evidence.
+	_, err = s.CreateEvidence(ctx, traceID, "screenshot", "base64-image-data")
+	require.NoError(t, err)
+	_, err = s.CreateEvidence(ctx, traceID, "response_body", `{"status":"ok"}`)
+	require.NoError(t, err)
+
+	data, err := BuildReport(ctx, s, sess.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, data.Evidence)
+	require.Len(t, data.Evidence[traceID], 2)
+	assert.Equal(t, "screenshot", data.Evidence[traceID][0].Type)
+	assert.Equal(t, "response_body", data.Evidence[traceID][1].Type)
+}
+
+func TestRenderMarkdown_WithEvidence(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "run", "evidence md", "proj")
+	require.NoError(t, err)
+	_ = s.UpdateSessionStatus(ctx, sess.ID, "completed")
+
+	traceID, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/items")
+	_ = s.FinishTrace(ctx, traceID, "pass")
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/items", "pass", 0.9, "judge", "ok", nil)
+	_, _ = s.CreateEvidence(ctx, traceID, "response", `{"items":[]}`)
+
+	data, err := BuildReport(ctx, s, sess.ID)
+	require.NoError(t, err)
+
+	md := RenderMarkdown(data)
+	assert.Contains(t, md, "<details>")
+	assert.Contains(t, md, "Evidence")
+	assert.Contains(t, md, `{"items":[]}`)
+}
+
+func TestRenderHTML_WithEvidence(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "run", "evidence html", "proj")
+	require.NoError(t, err)
+
+	traceID, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/status")
+	_ = s.FinishTrace(ctx, traceID, "pass")
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/status", "pass", 0.9, "judge", "status ok", nil)
+	_, _ = s.CreateEvidence(ctx, traceID, "log", "request completed in 50ms")
+
+	data, err := BuildReport(ctx, s, sess.ID)
+	require.NoError(t, err)
+
+	html, err := RenderHTMLString(data)
+	require.NoError(t, err)
+	assert.Contains(t, html, "Evidence")
+	assert.Contains(t, html, "request completed in 50ms")
+}
