@@ -485,7 +485,7 @@ func TestBuildEpisodicContext(t *testing.T) {
 		},
 	}
 
-	result := scout.buildEpisodicContext(ctx, model)
+	result := scout.buildEpisodicContext(ctx, "test goal", model)
 
 	// Should contain episodic data for /api/users and /api/posts.
 	assert.Contains(t, result, "Target /api/users:")
@@ -510,6 +510,6 @@ func TestBuildEpisodicContext_Empty(t *testing.T) {
 		},
 	}
 
-	result := scout.buildEpisodicContext(context.Background(), model)
+	result := scout.buildEpisodicContext(context.Background(), "test goal", model)
 	assert.Empty(t, result) // No episodic data → empty string
 }

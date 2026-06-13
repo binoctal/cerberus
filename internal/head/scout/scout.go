@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
@@ -135,7 +136,7 @@ func (s *Scout) directPlan(ctx context.Context, goal string, model *project.Proj
 	planCtx := s.buildPlanContext(model)
 
 	// Inject L1 episodic memory for known targets.
-	if episodicCtx := s.buildEpisodicContext(ctx, model); episodicCtx != "" {
+	if episodicCtx := s.buildEpisodicContext(ctx, goal, model); episodicCtx != "" {
 		planCtx += "\n\n## Previous Test History\n" + episodicCtx
 	}
 
@@ -327,7 +328,7 @@ func (s *Scout) buildPlanContext(model *project.ProjectModel) string {
 
 // buildEpisodicContext queries L1 episodic memory for known targets and formats
 // a summary of previous test outcomes to inform planning.
-func (s *Scout) buildEpisodicContext(ctx context.Context, model *project.ProjectModel) string {
+func (s *Scout) buildEpisodicContext(ctx context.Context, goal string, model *project.ProjectModel) string {
 	// Collect unique targets from the model.
 	seen := make(map[string]bool)
 	var targets []string
@@ -352,6 +353,21 @@ func (s *Scout) buildEpisodicContext(ctx context.Context, model *project.Project
 		fmt.Fprintf(&b, "Target %s:\n", target)
 		for _, m := range memories {
 			fmt.Fprintf(&b, "- %s (verdict: %s, duration: %dms)\n", m.Status, m.Verdict, m.DurationMs)
+		}
+	}
+
+
+	// Append L2 semantic memory: search for facts related to the goal.
+	if goal != "" {
+		queryEmb := embedPkg.Generate(goal, 128)
+		semanticResults, err := s.store.SearchSemantic(ctx, queryEmb, 5, 0.3)
+		if err != nil {
+			s.logger.Debug("semantic search failed", zap.Error(err))
+		} else if len(semanticResults) > 0 {
+			fmt.Fprintf(&b, "\nRelated past insights:\n")
+			for _, sr := range semanticResults {
+				fmt.Fprintf(&b, "- %s (score: %.2f)\n", sr.Content, sr.Score)
+			}
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
@@ -79,6 +80,9 @@ func (l *Learner) Learn(ctx context.Context, input LearnInput) (int, error) {
 		zap.Int("stored", stored),
 	)
 
+	// Store key facts as L2 semantic memory for future retrieval.
+	l.storeSemanticFromReflections(ctx, reflections, input.Project)
+
 	return stored, nil
 }
 
@@ -144,4 +148,23 @@ func (l *Learner) buildReflectionContext(results []agent.StepResult) string {
 	}
 
 	return b.String()
+}
+
+// storeSemanticFromReflections extracts key facts from reflections and stores
+// them as L2 semantic memory with trigram embeddings for future retrieval.
+func (l *Learner) storeSemanticFromReflections(ctx context.Context, reflections []Reflection, project string) {
+	const embedDim = 128
+	for _, r := range reflections {
+		if !qualityGate(r) {
+			continue
+		}
+		content := fmt.Sprintf("%s: %s → %s", r.Type, r.Diagnosis, r.Strategy)
+		embedding := embedPkg.Generate(content, embedDim)
+
+		_, err := l.store.StoreSemantic(ctx, content, "reflexion", project,
+			[]string{r.Category, r.Type}, embedding, "trigram-v1")
+		if err != nil {
+			l.logger.Warn("store semantic memory", zap.Error(err))
+		}
+	}
 }
