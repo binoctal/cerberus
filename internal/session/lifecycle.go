@@ -164,8 +164,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		}
 
 		// Print human-readable summary.
-		fmt.Println()
-		fmt.Println(summary.String())
+		s.Logger.Info("session summary", zap.String("summary", summary.String()))
 
 		// Update status (terminal).
 		status := "completed"
@@ -296,8 +295,7 @@ func (s *Session) Resume(ctx context.Context) error {
 		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, summary.CoveragePct, summary); statsErr != nil {
 			s.Logger.Error("update session stats", zap.Error(statsErr))
 		}
-		fmt.Println()
-		fmt.Println(summary.String())
+		s.Logger.Info("session summary", zap.String("summary", summary.String()))
 		status := "completed"
 		if statsErr := s.Store.UpdateSessionStatus(ctx, s.ID, status); statsErr != nil {
 			s.Logger.Error("update session status", zap.Error(statsErr))
