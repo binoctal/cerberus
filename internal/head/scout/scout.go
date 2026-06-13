@@ -367,7 +367,7 @@ func (s *Scout) buildEpisodicContext(ctx context.Context, goal string, model *pr
 	// Append L2 semantic memory: search for facts related to the goal.
 	if goal != "" {
 		queryEmb, _ := s.embedder.Embed(ctx, goal)
-		semanticResults, err := s.store.SearchSemantic(ctx, queryEmb, 5, 0.3)
+		semanticResults, err := s.store.SearchSemanticForProject(ctx, queryEmb, s.config.Project.Name, 5, 0.3)
 		if err != nil {
 			s.logger.Debug("semantic search failed", zap.Error(err))
 		} else if len(semanticResults) > 0 {

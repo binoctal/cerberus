@@ -186,7 +186,9 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		}
 	}
 	defer func() {
-		_ = r.store.FinishTrace(ctx, traceID, string(StepPassed))
+		if err := r.store.FinishTrace(ctx, traceID, string(StepPassed)); err != nil {
+			r.logger.Error("finish trace", zap.Error(err))
+		}
 	}()
 
 	// Phase 1: Try rule engine (zero tokens).
@@ -324,7 +326,9 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		)
 
 		if result.Success() {
-			_ = r.store.FinishTrace(ctx, traceID, string(StepPassed))
+			if err := r.store.FinishTrace(ctx, traceID, string(StepPassed)); err != nil {
+			r.logger.Error("finish trace", zap.Error(err))
+		}
 			return StepResult{
 				TestCase: tc, Status: StepPassed, TraceID: traceID,
 				Attempts: attempt, Duration: time.Since(start),
@@ -350,7 +354,9 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 				lastResult = recExecResult
 				lastAction = recResult.Action
 				if recExecResult.Success() {
-					_ = r.store.FinishTrace(ctx, traceID, string(StepPassed))
+					if err := r.store.FinishTrace(ctx, traceID, string(StepPassed)); err != nil {
+			r.logger.Error("finish trace", zap.Error(err))
+		}
 					return StepResult{
 						TestCase: tc, Status: StepPassed, TraceID: traceID,
 						Attempts: attempt + 1, Duration: time.Since(start),
@@ -367,7 +373,9 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 	if recoverySkipped {
 		status = StepSkipped
 	}
-	_ = r.store.FinishTrace(ctx, traceID, string(status))
+	if err := r.store.FinishTrace(ctx, traceID, string(status)); err != nil {
+		r.logger.Error("finish trace", zap.Error(err))
+	}
 
 	var evContent string
 	if lastResult != nil {

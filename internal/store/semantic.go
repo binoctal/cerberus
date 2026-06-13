@@ -110,6 +110,53 @@ func (s *Store) SearchSemantic(ctx context.Context, queryEmbedding []float64,
 	return results, nil
 }
 
+// SearchSemanticForProject performs cosine similarity search scoped to a specific project
+// (or global entries with empty project_name). Returns results sorted by descending similarity.
+func (s *Store) SearchSemanticForProject(ctx context.Context, queryEmbedding []float64,
+	project string, limit int, threshold float64) ([]SemanticSearchResult, error) {
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, content, source, tags, confidence, COALESCE(project_name, ''),
+		        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
+		 FROM memory_semantic
+		 WHERE project_name = ? OR project_name = ''`, project)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []SemanticSearchResult
+	for rows.Next() {
+		var m SemanticMemory
+		var tagsJSON, embJSON string
+		if err := rows.Scan(&m.ID, &m.Content, &m.Source, &tagsJSON, &m.Confidence,
+			&m.ProjectName, &embJSON, &m.EmbeddingModel, &m.CreatedAt, &m.UpdatedAt); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal([]byte(tagsJSON), &m.Tags)
+		m.Embedding, _ = ParseEmbedding(embJSON)
+
+		if len(m.Embedding) == 0 {
+			continue
+		}
+		score := CosineSimilarity(queryEmbedding, m.Embedding)
+		if score >= threshold {
+			results = append(results, SemanticSearchResult{SemanticMemory: m, Score: score})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
 // DeleteSemantic removes a semantic memory by ID.
 func (s *Store) DeleteSemantic(ctx context.Context, id int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM memory_semantic WHERE id = ?`, id)

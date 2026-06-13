@@ -53,7 +53,9 @@ func (srv *Server) RecoverOrphanSessions(ctx context.Context) {
 	}
 	for _, sess := range sessions {
 		if sess.Status == "running" {
-			_ = srv.store.UpdateSessionStatus(ctx, sess.ID, "interrupted")
+			if err := srv.store.UpdateSessionStatus(ctx, sess.ID, "interrupted"); err != nil {
+				srv.logger.Error("update interrupted status", zap.Error(err))
+			}
 			srv.logger.Info("recovered orphan session", zap.String("id", sess.ID))
 		}
 	}
