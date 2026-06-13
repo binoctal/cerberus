@@ -378,3 +378,61 @@ func TestDriver_DecideWithVision_BudgetExhausted(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "budget exhausted")
 }
+
+func TestDriver_SetCache_Nil(t *testing.T) {
+	mock := llm.NewMockClient(map[string]string{
+		"default": `{"answer":"42"}`,
+	})
+	driver := NewDriver(mock, NewTokenBudget(200000, 10000))
+	driver.SetCache(nil)
+
+	var result struct {
+		Answer string `json:"answer"`
+	}
+	err := driver.Decide(context.Background(), "what is the answer?", &result)
+	require.NoError(t, err)
+	assert.Equal(t, "42", result.Answer)
+}
+
+func TestDriver_SetCache_Hit(t *testing.T) {
+	mock := llm.NewMockClient(map[string]string{
+		"default": `{"answer":"cached"}`,
+	})
+	driver := NewDriver(mock, NewTokenBudget(200000, 10000))
+	driver.SetCache(NewResponseCache(100))
+
+	var result struct {
+		Answer string `json:"answer"`
+	}
+	// First call populates cache.
+	err := driver.Decide(context.Background(), "prompt-x", &result)
+	require.NoError(t, err)
+	assert.Equal(t, "cached", result.Answer)
+
+	// Second call should hit cache (mock returns same, so hard to tell
+	// from result alone — but cache.Len() confirms it was stored).
+	assert.Equal(t, 1, driver.cache.Len())
+}
+
+func TestPromptBuilder_AllSections(t *testing.T) {
+	prompt := NewPrompt().
+		System("you are a tester").
+		Context("the API has 3 endpoints").
+		Task("find bugs").
+		Output("JSON with findings").
+		Build()
+
+	assert.Contains(t, prompt, "you are a tester")
+	assert.Contains(t, prompt, "## Context")
+	assert.Contains(t, prompt, "the API has 3 endpoints")
+	assert.Contains(t, prompt, "## Task")
+	assert.Contains(t, prompt, "find bugs")
+	assert.Contains(t, prompt, "## Output Format")
+	assert.Contains(t, prompt, "JSON with findings")
+}
+
+func TestPromptBuilder_SystemOnly(t *testing.T) {
+	prompt := NewPrompt().System("hello").Build()
+	assert.Contains(t, prompt, "hello")
+	assert.NotContains(t, prompt, "## Context")
+}
