@@ -384,6 +384,7 @@ func (s *Scout) fallbackPlan(goal string, model *project.ProjectModel) *agent.Te
 			Target:      inv.Description,
 			Expectation: inv.Description,
 			Priority:    inv.Confidence,
+				Severity:    inv.Severity,
 		})
 	}
 

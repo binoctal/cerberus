@@ -48,13 +48,15 @@ type LearnInput struct {
 
 // ExaminerConfig holds configuration for the Examiner head.
 type ExaminerConfig struct {
-	MaxCritiques int     // Session-level max critique count (default 1)
+	MaxCritiques  int     // Session-level max critique count (default 1)
 	ConfThreshold float64 // Confidence threshold for early stop (default 0.9)
+	AutoFix       string  // Auto-fix mode: "off", "low_only", "aggressive" (default "low_only")
 }
 
 func DefaultExaminerConfig() ExaminerConfig {
 	return ExaminerConfig{
-		MaxCritiques:   1,
-		ConfThreshold:  0.9,
+		MaxCritiques:  1,
+		ConfThreshold: 0.9,
+		AutoFix:       "low_only",
 	}
 }

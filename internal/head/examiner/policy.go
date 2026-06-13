@@ -1,6 +1,8 @@
 package examiner
 
 import (
+	"fmt"
+
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -9,7 +11,7 @@ import (
 // Level 1: Self-Refine (already done by Judge)
 // Level 2: Checker-only (deterministic fallback)
 // Level 3: Mark as pending_review
-func VerdictPolicy(judgeResult *JudgeResult, stepResult agent.StepResult) FinalVerdict {
+func VerdictPolicy(judgeResult *JudgeResult, stepResult agent.StepResult, confThreshold float64) FinalVerdict {
 	v := FinalVerdict{
 		Status:                judgeResult.Status,
 		ExistenceConfidence:   judgeResult.ExistenceConfidence,
@@ -20,7 +22,18 @@ func VerdictPolicy(judgeResult *JudgeResult, stepResult agent.StepResult) FinalV
 		StepResult:            stepResult,
 	}
 
-	// If not uncertain, accept the judge result as-is.
+	// Threshold filtering: downgrade low-confidence passes to uncertain.
+	if judgeResult.Status == StatusPass && confThreshold > 0 {
+		if judgeResult.CorrectnessConfidence < confThreshold {
+			v.Status = StatusUncertain
+			v.Reasoning = fmt.Sprintf("Degraded from pass: correctness confidence %.2f below threshold %.2f. %s",
+				judgeResult.CorrectnessConfidence, confThreshold, judgeResult.Reasoning)
+			v.DegradedLevel = 1
+			return v
+		}
+	}
+
+	// If not uncertain (and not downgraded), accept the judge result as-is.
 	if judgeResult.Status != StatusUncertain {
 		return v
 	}
@@ -62,4 +75,23 @@ type FinalVerdict struct {
 // NeedsReview returns true if this verdict requires human review.
 func (v FinalVerdict) NeedsReview() bool {
 	return v.PendingReview
+}
+
+// ShouldAutoFix returns true if the failed verdict qualifies for auto-fix
+// based on the mode and invariant severity.
+func ShouldAutoFix(verdict FinalVerdict, mode string, severity string) bool {
+	if mode == "off" || mode == "" {
+		return false
+	}
+	if verdict.Status != StatusFail {
+		return false
+	}
+	switch mode {
+	case "low_only":
+		return severity == "low"
+	case "aggressive":
+		return severity == "low" || severity == "medium"
+	default:
+		return false
+	}
 }

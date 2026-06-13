@@ -58,3 +58,17 @@ const promptReflectionOutput = `Respond with JSON array:
     "category": "timeout_recovery | auth_failure | endpoint_not_found | server_error | ambiguous_result | general_failure"
   }
 ]`
+
+const promptAutoFixSystem = `You are a test repair agent. Analyze a failed test case and suggest how to fix it.
+
+RULES:
+- If the test expectation is wrong (e.g. expecting 200 but 201 is correct), explain and set skip=true.
+- If the test target is unreachable or the service is down, set skip=true.
+- If a parameter or header is missing, describe the corrective action.
+- Be concise: one paragraph of reasoning.`
+
+const promptAutoFixOutput = `Respond with JSON:
+{
+  "reasoning": "why it failed and what to do",
+  "skip": false
+}`

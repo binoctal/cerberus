@@ -234,6 +234,10 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	// Phase 3: Examiner — Judge + Learn.
 	examinerCfg := examiner.DefaultExaminerConfig()
+	if s.Config.Settings.ConfidenceThreshold > 0 {
+		examinerCfg.ConfThreshold = s.Config.Settings.ConfidenceThreshold
+		examinerCfg.AutoFix = s.Config.Settings.AutoFix
+	}
 	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
 	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
 	if err != nil {
@@ -369,6 +373,10 @@ func (s *Session) Resume(ctx context.Context) error {
 
 	// Examine results.
 	examinerCfg := examiner.DefaultExaminerConfig()
+	if s.Config.Settings.ConfidenceThreshold > 0 {
+		examinerCfg.ConfThreshold = s.Config.Settings.ConfidenceThreshold
+		examinerCfg.AutoFix = s.Config.Settings.AutoFix
+	}
 	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
 	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
 	if err != nil {

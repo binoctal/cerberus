@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 func setupExaminerStore(t *testing.T) *store.Store {
@@ -432,4 +433,119 @@ func TestStepStatusToJudgeStatus(t *testing.T) {
 	assert.Equal(t, StatusFail, stepStatusToJudgeStatus(agent.StepFailed))
 	assert.Equal(t, StatusSkip, stepStatusToJudgeStatus(agent.StepSkipped))
 	assert.Equal(t, StatusUncertain, stepStatusToJudgeStatus(agent.StepUncertain))
+}
+
+func TestShouldAutoFix(t *testing.T) {
+	tests := []struct {
+		name     string
+		verdict  FinalVerdict
+		mode     string
+		severity string
+		want     bool
+	}{
+		// "off" mode — never auto-fix.
+		{"off/low_fail", FinalVerdict{Status: StatusFail}, "off", "low", false},
+		{"off/medium_fail", FinalVerdict{Status: StatusFail}, "off", "medium", false},
+		{"off/high_fail", FinalVerdict{Status: StatusFail}, "off", "high", false},
+		{"empty_mode/low_fail", FinalVerdict{Status: StatusFail}, "", "low", false},
+
+		// "low_only" mode — only low severity fails.
+		{"low_only/low_fail", FinalVerdict{Status: StatusFail}, "low_only", "low", true},
+		{"low_only/medium_fail", FinalVerdict{Status: StatusFail}, "low_only", "medium", false},
+		{"low_only/high_fail", FinalVerdict{Status: StatusFail}, "low_only", "high", false},
+		{"low_only/critical_fail", FinalVerdict{Status: StatusFail}, "low_only", "critical", false},
+		{"low_only/low_pass", FinalVerdict{Status: StatusPass}, "low_only", "low", false},
+		{"low_only/low_uncertain", FinalVerdict{Status: StatusUncertain}, "low_only", "low", false},
+
+		// "aggressive" mode — low + medium severity fails.
+		{"aggressive/low_fail", FinalVerdict{Status: StatusFail}, "aggressive", "low", true},
+		{"aggressive/medium_fail", FinalVerdict{Status: StatusFail}, "aggressive", "medium", true},
+		{"aggressive/high_fail", FinalVerdict{Status: StatusFail}, "aggressive", "high", false},
+		{"aggressive/critical_fail", FinalVerdict{Status: StatusFail}, "aggressive", "critical", false},
+		{"aggressive/medium_pass", FinalVerdict{Status: StatusPass}, "aggressive", "medium", false},
+
+		// Unknown mode.
+		{"unknown/low_fail", FinalVerdict{Status: StatusFail}, "custom", "low", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ShouldAutoFix(tt.verdict, tt.mode, tt.severity)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestAutoFixer_Fix_Success(t *testing.T) {
+	fixJSON := `{"reasoning":"The endpoint returns 201 for creation, not 200","skip":true}`
+	mockClient := llm.NewMockClient(map[string]string{"default": fixJSON})
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	logger := zaptest.NewLogger(t)
+	af := NewAutoFixer(driver, logger)
+
+	verdict := FinalVerdict{
+		Status:    StatusFail,
+		Reasoning: "Expected 200, got 201",
+		StepResult: agent.StepResult{
+			TestCase: &agent.TestCase{
+				ID:          "tc-001",
+				Name:        "Create user",
+				Method:      "POST",
+				Target:      "/users",
+				Expectation: "status 200",
+			},
+		},
+	}
+
+	result := af.Fix(context.Background(), verdict, "Users API should return 200")
+	assert.True(t, result.Attempted)
+	assert.True(t, result.Success)
+	assert.Equal(t, StatusSkip, result.Verdict.Status)
+	assert.Contains(t, result.Verdict.Reasoning, "Auto-fix:")
+}
+
+func TestAutoFixer_Fix_NoRepair(t *testing.T) {
+	fixJSON := `{"reasoning":"Missing auth token in header","skip":false}`
+	mockClient := llm.NewMockClient(map[string]string{"default": fixJSON})
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	logger := zaptest.NewLogger(t)
+	af := NewAutoFixer(driver, logger)
+
+	verdict := FinalVerdict{
+		Status:    StatusFail,
+		Reasoning: "Got 401 Unauthorized",
+		StepResult: agent.StepResult{
+			TestCase: &agent.TestCase{
+				ID:          "tc-002",
+				Name:        "Get profile",
+				Method:      "GET",
+				Target:      "/profile",
+				Expectation: "status 200",
+			},
+		},
+	}
+
+	result := af.Fix(context.Background(), verdict, "")
+	assert.True(t, result.Attempted)
+	assert.True(t, result.Success)
+	// Not skipped — verdict reasoning updated but status unchanged.
+	assert.Equal(t, StatusFail, result.Verdict.Status)
+	assert.Contains(t, result.Verdict.Reasoning, "Auto-fix analysis:")
+}
+
+func TestAutoFixer_Fix_NilTestCase(t *testing.T) {
+	mockClient := llm.NewMockClient(nil)
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	logger := zaptest.NewLogger(t)
+	af := NewAutoFixer(driver, logger)
+
+	verdict := FinalVerdict{
+		Status:     StatusFail,
+		Reasoning:  "no test case",
+		StepResult: agent.StepResult{TestCase: nil},
+	}
+
+	result := af.Fix(context.Background(), verdict, "")
+	assert.False(t, result.Attempted)
+	assert.False(t, result.Success)
 }

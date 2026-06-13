@@ -12,10 +12,12 @@ import (
 // Examiner is the third Cerberus head: Judge (Self-Refine) + Learn (Reflexion).
 // It evaluates test results and generates learning for future sessions.
 type Examiner struct {
-	judge  *Judge
+	judge   *Judge
 	learner *Learner
-	store  *store.Store
-	logger *zap.Logger
+	store   *store.Store
+	logger    *zap.Logger
+	config    ExaminerConfig
+	autoFixer *AutoFixer
 }
 
 // NewExaminer creates an Examiner head.
@@ -26,6 +28,8 @@ func NewExaminer(judgeDriver, criticDriver *ai.Driver, s *store.Store, config Ex
 		learner: NewLearner(judgeDriver, s, logger),
 		store:   s,
 		logger:  logger,
+		config:    config,
+		autoFixer: NewAutoFixer(judgeDriver, logger),
 	}
 }
 
@@ -45,14 +49,14 @@ func (e *Examiner) Examine(ctx context.Context, results []agent.StepResult, sess
 			// Fallback: use the step result status directly.
 			judgeResult = &JudgeResult{
 				Status:                stepStatusToJudgeStatus(r.Status),
-				ExistenceConfidence:   0.5,
-				CorrectnessConfidence: 0.5,
+				ExistenceConfidence:   1.0,
+				CorrectnessConfidence: 1.0,
 				Reasoning:             "Judge failed, using execution status",
 			}
 		}
 
 		// Policy: Uncertain degradation chain.
-		verdict := VerdictPolicy(judgeResult, r)
+		verdict := VerdictPolicy(judgeResult, r, e.config.ConfThreshold)
 		verdicts = append(verdicts, verdict)
 
 		e.logger.Info("verdict",
