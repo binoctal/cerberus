@@ -56,3 +56,40 @@ func TestLinuxSandbox_IsAvailable(t *testing.T) {
 	// Just verify it doesn't panic; actual availability depends on privileges.
 	_ = sb.IsAvailable()
 }
+
+func TestLinuxSandbox_BuildRLimits(t *testing.T) {
+	sb := &LinuxSandbox{logger: zap.NewNop()}
+	policy := Policy{
+		Resources: ResPolicy{Timeout: 5, MaxMemoryMB: 100},
+	}
+	limits := sb.buildRLimits(policy)
+	assert.NotEmpty(t, limits, "rlimits should be produced for nonzero resource policy")
+}
+
+func TestLinuxSandbox_BuildSeccompFilter_AllowOutbound(t *testing.T) {
+	sb := &LinuxSandbox{logger: zap.NewNop()}
+	// Outbound allowed → no syscall filtering needed.
+	filter := sb.buildSeccompFilter(Policy{Network: NetPolicy{AllowOutbound: true}})
+	assert.Nil(t, filter)
+}
+
+func TestLinuxSandbox_BuildSeccompFilter_DenyOutbound(t *testing.T) {
+	sb := &LinuxSandbox{logger: zap.NewNop()}
+	// Outbound denied → builder runs; result depends on libseccomp availability.
+	// We only assert it does not panic.
+	_ = sb.buildSeccompFilter(Policy{Network: NetPolicy{AllowOutbound: false}})
+}
+
+func TestLinuxSandbox_BuildMounts_Default(t *testing.T) {
+	sb := &LinuxSandbox{logger: zap.NewNop()}
+	// Empty FS policy → only default mounts are produced.
+	mounts := sb.buildMounts(Policy{})
+	assert.NotNil(t, mounts)
+}
+
+func TestLinuxSandbox_CgroupSync_NoLimits(t *testing.T) {
+	sb := &LinuxSandbox{logger: zap.NewNop()}
+	// No memory/CPU caps → sync callback is a no-op returning nil.
+	sync := sb.cgroupSync(Policy{Resources: ResPolicy{}})
+	assert.NoError(t, sync(1))
+}

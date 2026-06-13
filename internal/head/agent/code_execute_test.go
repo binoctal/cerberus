@@ -2,9 +2,11 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
@@ -13,11 +15,24 @@ import (
 	"go.uber.org/zap"
 )
 
+// fakeCodeSandbox is a stub Sandbox returning a canned stdout for CLI analysis tests.
+type fakeCodeSandbox struct {
+	stdout string
+	err    error
+}
+
+func (f fakeCodeSandbox) Apply(ctx context.Context, _ sandbox.Policy) (context.Context, func(), error) {
+	return ctx, func() {}, nil
+}
+
+func (f fakeCodeSandbox) ExecCommand(_ context.Context, _ string, _ []string, _ []string, _ string, _ sandbox.Policy) (string, string, int, error) {
+	return f.stdout, "", 0, f.err
+}
+
 func codeExec(t *testing.T) *CodeExecutor {
 	t.Helper()
 	return NewCodeExecutor(sandbox.NoOpSandbox{}, zap.NewNop())
 }
-
 
 // projectRoot returns the cerberus project root directory.
 func projectRoot(t *testing.T) string {
@@ -171,7 +186,10 @@ func TestParseESLintJSON_Empty(t *testing.T) {
 }
 
 func TestIsGoLang(t *testing.T) {
-	tests := []struct{ lang string; want bool }{
+	tests := []struct {
+		lang string
+		want bool
+	}{
 		{"", true},
 		{"Go", true},
 		{"go", false},
@@ -184,7 +202,10 @@ func TestIsGoLang(t *testing.T) {
 }
 
 func TestIsPython(t *testing.T) {
-	tests := []struct{ lang string; want bool }{
+	tests := []struct {
+		lang string
+		want bool
+	}{
 		{"Python", true},
 		{"python", true},
 		{"PYTHON", true},
@@ -197,7 +218,10 @@ func TestIsPython(t *testing.T) {
 }
 
 func TestIsJavaScript(t *testing.T) {
-	tests := []struct{ lang string; want bool }{
+	tests := []struct {
+		lang string
+		want bool
+	}{
 		{"JavaScript", true},
 		{"javascript", true},
 		{"TypeScript", true},
@@ -209,5 +233,83 @@ func TestIsJavaScript(t *testing.T) {
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, isJavaScript(tt.lang), "isJavaScript(%q)", tt.lang)
+	}
+}
+
+func TestCodeExecutor_CliAnalysis_UnsupportedLang(t *testing.T) {
+	exec := NewCodeExecutor(fakeCodeSandbox{}, zap.NewNop())
+	res := exec.cliAnalysis(context.Background(), ".", "Rust", nil, time.Now())
+	cr, ok := res.(types.CodeResult)
+	require.True(t, ok, "expected CodeResult, got %T", res)
+	assert.False(t, cr.OK)
+	assert.Contains(t, cr.Err, "unsupported language")
+}
+
+func TestCodeExecutor_CliAnalysis_Python(t *testing.T) {
+	// Canned ruff JSON output with one warning finding.
+	ruffOut := `[{"filename":"main.py","line_no":3,"code":"E501","message":"line too long","severity":"warning"}]`
+	exec := NewCodeExecutor(fakeCodeSandbox{stdout: ruffOut}, zap.NewNop())
+	res := exec.cliAnalysis(context.Background(), ".", "Python", nil, time.Now())
+	cr, ok := res.(types.CodeResult)
+	require.True(t, ok)
+	require.Len(t, cr.Findings, 1)
+	assert.Equal(t, "E501", cr.Findings[0].Rule)
+	assert.False(t, cr.OK, "findings present → OK false")
+}
+
+func TestCodeExecutor_CliAnalysis_JavaScript(t *testing.T) {
+	eslintOut := `[{"filePath":"a.js","messages":[{"ruleId":"no-undef","message":"undef","line":1,"severity":2}],"errorCount":1,"warningCount":0}]`
+	exec := NewCodeExecutor(fakeCodeSandbox{stdout: eslintOut}, zap.NewNop())
+	res := exec.cliAnalysis(context.Background(), ".", "JavaScript", nil, time.Now())
+	cr, ok := res.(types.CodeResult)
+	require.True(t, ok)
+	require.Len(t, cr.Findings, 1)
+	assert.Equal(t, "no-undef", cr.Findings[0].Rule)
+	assert.False(t, cr.OK)
+}
+
+func TestCodeExecutor_CliAnalysis_ExecError(t *testing.T) {
+	exec := NewCodeExecutor(fakeCodeSandbox{err: errors.New("ruff: not found")}, zap.NewNop())
+	res := exec.cliAnalysis(context.Background(), ".", "Python", nil, time.Now())
+	cr, ok := res.(types.CodeResult)
+	require.True(t, ok)
+	assert.False(t, cr.OK)
+	assert.Contains(t, cr.Err, "run ruff")
+}
+
+func TestStepResult_String(t *testing.T) {
+	r := StepResult{
+		TestCase: &TestCase{ID: "tc-1"},
+		Status:   StepPassed,
+		Attempts: 2,
+		Duration: 1500 * time.Millisecond,
+	}
+	s := r.String()
+	assert.Contains(t, s, "tc-1")
+	assert.Contains(t, s, "pass")
+}
+
+func TestReActLoop_SetProgressChannel(t *testing.T) {
+	r := &ReActLoop{}
+	ch := make(chan ProgressEvent, 1)
+	r.SetProgressChannel(ch)
+	assert.NotNil(t, r.progressCh)
+}
+
+func TestReActLoop_emitProgress_NilChannel(t *testing.T) {
+	// progressCh is nil → emitProgress must early-return without panic.
+	r := &ReActLoop{}
+	r.emitProgress(ProgressEvent{})
+}
+
+func TestReActLoop_emitProgress_Sent(t *testing.T) {
+	ch := make(chan ProgressEvent, 1)
+	r := &ReActLoop{progressCh: ch}
+	r.emitProgress(ProgressEvent{})
+	select {
+	case <-ch:
+		// event delivered
+	default:
+		t.Fatal("expected progress event to be sent on channel")
 	}
 }

@@ -77,3 +77,78 @@ func TestAnomalyDetector_CleanContent(t *testing.T) {
 		t.Error("expected no anomaly for clean content")
 	}
 }
+
+func TestDefaultActionPolicy_ProcessWorkDirEscapes(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.ProcessExecAction{Command: "go", WorkDir: "/tmp"})
+	if err == nil {
+		t.Fatal("expected denial for workdir outside project")
+	}
+}
+
+func TestDefaultActionPolicy_ProcessWorkDirInProject(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.ProcessExecAction{Command: "go", WorkDir: "."})
+	if err != nil {
+		t.Fatalf("expected allowed, got: %v", err)
+	}
+}
+
+func TestDefaultActionPolicy_ProcessDeniedEnvKey(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.ProcessExecAction{
+		Command: "go",
+		Env:     map[string]string{"HOME": "/root"},
+	})
+	if err == nil {
+		t.Fatal("expected denial for denied env key")
+	}
+}
+
+func TestDefaultActionPolicy_FileWriteEscapesProject(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.FileWriteAction{Path: "/tmp/escape.txt", Content: "x"})
+	if err == nil {
+		t.Fatal("expected denial for write path outside project")
+	}
+}
+
+func TestDefaultActionPolicy_FileReadDeniedPath(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.FileReadAction{Path: "/etc/passwd"})
+	if err == nil {
+		t.Fatal("expected denial for denied read path")
+	}
+}
+
+func TestDefaultActionPolicy_FileReadAllowed(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.FileReadAction{Path: "main.go"})
+	if err != nil {
+		t.Fatalf("expected allowed, got: %v", err)
+	}
+}
+
+func TestDefaultActionPolicy_FileExistsDeniedPath(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.FileExistsAction{Path: "/etc/shadow"})
+	if err == nil {
+		t.Fatal("expected denial for denied exists path")
+	}
+}
+
+func TestDefaultActionPolicy_CodeTargetEscapes(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.CodeAnalyzeAction{TargetPath: "/tmp/outside", Language: "Go"})
+	if err == nil {
+		t.Fatal("expected denial for code target outside project")
+	}
+}
+
+func TestDefaultActionPolicy_CodeTargetInProject(t *testing.T) {
+	p := NewDefaultActionPolicy(".")
+	err := p.Validate(types.CodeLintAction{TargetPath: ".", Language: "Go"})
+	if err != nil {
+		t.Fatalf("expected allowed, got: %v", err)
+	}
+}
