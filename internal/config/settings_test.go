@@ -117,7 +117,7 @@ func TestResolveAPIKey_EnvAuthTokenBeatsSettings(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "auth-tok")
 	settings := map[string]string{"ANTHROPIC_API_KEY": "settings-key"}
-	if got := resolveAPIKey("glm-5.1", settings); got != "auth-tok" {
+	if got := resolveAPIKey("glm-5.1", settings, detect.Profile{}); got != "auth-tok" {
 		t.Errorf("resolveAPIKey() = %q, want auth-tok (env AUTH_TOKEN beats settings API_KEY)", got)
 	}
 }
@@ -127,15 +127,26 @@ func TestResolveAPIKey_SettingsFallback(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
 	settings := map[string]string{"ANTHROPIC_AUTH_TOKEN": "settings-tok"}
-	if got := resolveAPIKey("glm-5.1", settings); got != "settings-tok" {
+	if got := resolveAPIKey("glm-5.1", settings, detect.Profile{}); got != "settings-tok" {
 		t.Errorf("resolveAPIKey() = %q, want settings-tok", got)
+	}
+}
+
+func TestResolveAPIKey_UsesCLIPrefix(t *testing.T) {
+	t.Setenv("CERBERUS_LLM_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
+	t.Setenv("OPENAI_API_KEY", "openai-key")
+	got := resolveAPIKey("glm-5.1", nil, detect.Profile{EnvPrefix: "OPENAI"})
+	if got != "openai-key" {
+		t.Errorf("resolveAPIKey() = %q, want openai-key (CLI prefix wins over model name)", got)
 	}
 }
 
 func TestResolveAPIKey_ExplicitOverrideWins(t *testing.T) {
 	t.Setenv("CERBERUS_LLM_API_KEY", "explicit")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "auth-tok")
-	if got := resolveAPIKey("glm-5.1", nil); got != "explicit" {
+	if got := resolveAPIKey("glm-5.1", nil, detect.Profile{}); got != "explicit" {
 		t.Errorf("resolveAPIKey() = %q, want explicit", got)
 	}
 }

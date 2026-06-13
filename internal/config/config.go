@@ -34,7 +34,7 @@ func Load() *Config {
 	}
 
 	// API key resolution: explicit CERBERUS key first, then Claude Code config.
-	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings)
+	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings, detect.Profile{})
 	cfg.TierModels = resolveTierModels(profile.CLI, settings)
 
 	return cfg
@@ -78,36 +78,44 @@ func resolveBaseURL(settings map[string]string, p detect.Profile) string {
 }
 
 // resolveAPIKey finds the API key for the configured LLM.
-// Priority: CERBERUS_LLM_API_KEY > provider-native key. Non-Anthropic models
-// (gpt, gemini) use their own keys exclusively; everything else (claude, glm,
-// and Anthropic-compatible endpoints) shares Claude Code's ANTHROPIC_API_KEY
-// or ANTHROPIC_AUTH_TOKEN, with environment taking precedence over settings.json.
-func resolveAPIKey(model string, settings map[string]string) string {
-	// Explicit override always wins
+// Priority: CERBERUS_LLM_API_KEY > detected CLI's credential prefix
+// (env, then settings.json) > model-name inference (env only). Model-name
+// inference is retained as a graceful fallback so unknown CLIs — and models
+// whose provider differs from the host CLI's — keep working.
+func resolveAPIKey(model string, settings map[string]string, p detect.Profile) string {
 	if key := os.Getenv("CERBERUS_LLM_API_KEY"); key != "" {
 		return key
 	}
-
+	if p.EnvPrefix != "" {
+		if key := providerKey(p.EnvPrefix, settings); key != "" {
+			return key
+		}
+	}
 	switch {
 	case isModel(model, "gpt"):
 		return os.Getenv("OPENAI_API_KEY")
 	case isModel(model, "gemini"):
 		return os.Getenv("GEMINI_API_KEY")
 	default:
-		// Anthropic (claude, glm, Anthropic-compatible endpoints): reuse the
-		// key configured for Claude Code. Environment beats settings.json.
-		if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
-			return key
-		}
-		if key := os.Getenv("ANTHROPIC_AUTH_TOKEN"); key != "" {
-			return key
-		}
-		if key := settings["ANTHROPIC_API_KEY"]; key != "" {
-			return key
-		}
-		if key := settings["ANTHROPIC_AUTH_TOKEN"]; key != "" {
-			return key
-		}
+		return providerKey("ANTHROPIC", settings)
+	}
+}
+
+// providerKey returns the first non-empty credential for an env prefix,
+// checking environment then settings.json. AUTH_TOKEN is Anthropic-specific but
+// harmless to check for other prefixes (always unset, skipped).
+func providerKey(prefix string, settings map[string]string) string {
+	if key := os.Getenv(prefix + "_API_KEY"); key != "" {
+		return key
+	}
+	if key := os.Getenv(prefix + "_AUTH_TOKEN"); key != "" {
+		return key
+	}
+	if key := settings[prefix+"_API_KEY"]; key != "" {
+		return key
+	}
+	if key := settings[prefix+"_AUTH_TOKEN"]; key != "" {
+		return key
 	}
 	return ""
 }
