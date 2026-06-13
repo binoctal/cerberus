@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.2.0 — 2026-06-13
+
+### Added
+
+#### LLM Configuration
+- Custom Base URL / proxy support: use Azure OpenAI, Bedrock, Ollama, or any OpenAI-compatible endpoint
+- `CERBERUS_LLM_BASE_URL` env var and `base_url` in `project.yaml` ai_budget
+- Per-head model configuration: assign different models to Scout, Agent, Examiner, and Critic
+- Critic driver activation enables Examiner Self-Refine (previously nil)
+
+#### Execution
+- Multi-dependency support: `depends_on` accepts both single string and array of strings
+- Cycle detection with Kahn's algorithm: breaks intra-cycle edges and logs warnings
+- Coverage calculation: `coverage_pct` now correctly computed from verdict results
+- Session resumption: `cerberus run --resume <session-id>` skips Scout, continues from first uncompleted case
+- Test plan persistence via `session_plans` table (V003 migration)
+
+#### Reporting
+- JUnit XML output: `cerberus report --format junit` for CI/CD integration (Jenkins, GitLab, GitHub Actions)
+- Server content negotiation: `Accept: application/junit+xml`
+- Evidence enrichment in reports: Markdown collapsible panels, HTML details/summary, JUnit failure/error contents
+- `GetEvidenceBySession` for batch evidence loading (avoids N+1 queries)
+
 ## v0.1.0 — 2026-06-12
 
 ### Added
