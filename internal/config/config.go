@@ -22,19 +22,28 @@ type Config struct {
 func Load() *Config {
 	settings := loadClaudeCodeEnv()
 	profile := detect.Detect()
+
+	// Provider priority: explicit env override, then the detected host CLI,
+	// then empty (llm.NewClientWithConfig falls back to model-name detection).
+	provider := os.Getenv("CERBERUS_LLM_PROVIDER")
+	if provider == "" {
+		provider = profile.Provider
+	}
+
 	cfg := &Config{
 		Port:         getEnv("CERBERUS_PORT", "8090"),
 		DBPath:       getEnv("CERBERUS_DB_PATH", "cerberus.db"),
 		MigrationDir: getEnv("CERBERUS_MIGRATION_DIR", "migrations"),
 		LogLevel:     getEnv("CERBERUS_LOG_LEVEL", "info"),
 		LLMModel:     resolveModel(settings),
-		LLMBaseURL:   resolveBaseURL(settings, detect.Profile{}),
-		LLMProvider:  os.Getenv("CERBERUS_LLM_PROVIDER"),
+		LLMBaseURL:   resolveBaseURL(settings, profile),
+		LLMProvider:  provider,
 		CLIProfile:   profile,
 	}
 
-	// API key resolution: explicit CERBERUS key first, then Claude Code config.
-	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings, detect.Profile{})
+	// API key resolution: explicit CERBERUS key first, then CLI prefix, then
+	// model-name inference (see resolveAPIKey).
+	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings, profile)
 	cfg.TierModels = resolveTierModels(profile.CLI, settings)
 
 	return cfg

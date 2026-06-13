@@ -54,11 +54,12 @@ func TestAPIKeyExplicit(t *testing.T) {
 
 func TestAPIKeyAutoDetect(t *testing.T) {
 	for _, key := range []string{
-		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
+		"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "GEMINI_API_KEY",
 		"CERBERUS_LLM_MODEL",
 	} {
 		t.Setenv(key, "")
 	}
+	t.Setenv("CLAUDECODE", "") // isolate model-name fallback from host-CLI detection
 
 	tests := []struct {
 		model    string
@@ -97,4 +98,29 @@ func TestLoad_UnknownCLI_NoTierModels(t *testing.T) {
 	cfg := Load()
 	assert.Equal(t, detect.CLIUnknown, cfg.CLIProfile.CLI)
 	assert.Empty(t, cfg.TierModels)
+}
+
+func TestLoad_ProviderFromDetectedCLI(t *testing.T) {
+	t.Setenv("CLAUDECODE", "1")
+	t.Setenv("CERBERUS_LLM_PROVIDER", "")
+	t.Setenv("CERBERUS_NO_CLAUDE_SETTINGS", "1")
+	cfg := Load()
+	assert.Equal(t, "anthropic", cfg.LLMProvider, "detected Claude Code implies anthropic provider")
+	assert.Equal(t, "claude-code", string(cfg.CLIProfile.CLI))
+}
+
+func TestLoad_ExplicitProviderBeatsDetection(t *testing.T) {
+	t.Setenv("CLAUDECODE", "1")
+	t.Setenv("CERBERUS_LLM_PROVIDER", "openai")
+	cfg := Load()
+	assert.Equal(t, "openai", cfg.LLMProvider, "explicit CERBERUS_LLM_PROVIDER overrides detection")
+}
+
+func TestLoad_UnknownCLIProviderEmpty(t *testing.T) {
+	t.Setenv("CLAUDECODE", "")
+	t.Setenv("CERBERUS_LLM_PROVIDER", "")
+	t.Setenv("CERBERUS_NO_CLAUDE_SETTINGS", "1")
+	cfg := Load()
+	assert.Equal(t, "", cfg.LLMProvider, "unknown CLI leaves provider empty so llm falls back to model detection")
+	assert.Equal(t, "unknown", string(cfg.CLIProfile.CLI))
 }
