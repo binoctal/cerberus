@@ -151,7 +151,7 @@ func TestPolicy_NotUncertain(t *testing.T) {
 	}
 	sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
 
-	verdict := VerdictPolicy(jr, sr)
+	verdict := VerdictPolicy(jr, sr, 0.9)
 	assert.Equal(t, StatusPass, verdict.Status)
 	assert.Equal(t, 0, verdict.DegradedLevel)
 	assert.False(t, verdict.PendingReview)
@@ -167,7 +167,7 @@ func TestPolicy_UncertainDegradedLevel2(t *testing.T) {
 	}
 	sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
 
-	verdict := VerdictPolicy(jr, sr)
+	verdict := VerdictPolicy(jr, sr, 0.9)
 	assert.Equal(t, StatusPass, verdict.Status)
 	assert.Equal(t, 2, verdict.DegradedLevel)
 	assert.InDelta(t, 0.5, verdict.CorrectnessConfidence, 0.01)
@@ -183,12 +183,58 @@ func TestPolicy_UncertainDegradedLevel3(t *testing.T) {
 	}
 	sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepFailed, 500, "")
 
-	verdict := VerdictPolicy(jr, sr)
+	verdict := VerdictPolicy(jr, sr, 0.9)
 	assert.Equal(t, StatusUncertain, verdict.Status)
 	assert.Equal(t, 3, verdict.DegradedLevel)
 	assert.True(t, verdict.PendingReview)
 	assert.True(t, verdict.NeedsReview())
 }
+
+	func TestPolicy_ThresholdDowngrade(t *testing.T) {
+		// Pass with confidence 0.6, threshold 0.9 -> should downgrade to uncertain.
+		jr := &JudgeResult{
+			Status:                StatusPass,
+			ExistenceConfidence:   0.9,
+			CorrectnessConfidence: 0.6,
+			Reasoning:             "Looks ok",
+		}
+		sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
+
+		verdict := VerdictPolicy(jr, sr, 0.9)
+		assert.Equal(t, StatusUncertain, verdict.Status)
+		assert.Equal(t, 1, verdict.DegradedLevel)
+		assert.Contains(t, verdict.Reasoning, "below threshold")
+	}
+
+	func TestPolicy_ThresholdPass(t *testing.T) {
+		// Pass with confidence 0.95, threshold 0.9 -> should remain pass.
+		jr := &JudgeResult{
+			Status:                StatusPass,
+			ExistenceConfidence:   0.95,
+			CorrectnessConfidence: 0.95,
+			Reasoning:             "All good",
+		}
+		sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
+
+		verdict := VerdictPolicy(jr, sr, 0.9)
+		assert.Equal(t, StatusPass, verdict.Status)
+		assert.Equal(t, 0, verdict.DegradedLevel)
+	}
+
+	func TestPolicy_ThresholdZero_NoDowngrade(t *testing.T) {
+		// threshold 0 disables downgrade entirely.
+		jr := &JudgeResult{
+			Status:                StatusPass,
+			ExistenceConfidence:   0.3,
+			CorrectnessConfidence: 0.3,
+			Reasoning:             "Meh",
+		}
+		sr := makeStepResult("tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok")
+
+		verdict := VerdictPolicy(jr, sr, 0)
+		assert.Equal(t, StatusPass, verdict.Status)
+		assert.Equal(t, 0, verdict.DegradedLevel)
+	}
 
 func TestLearner_QualityGate(t *testing.T) {
 	tests := []struct {
