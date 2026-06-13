@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/binoctal/cerberus/internal/detect"
+)
 
 type Config struct {
 	Port         string
@@ -11,10 +15,13 @@ type Config struct {
 	LLMAPIKey    string
 	LLMBaseURL   string // optional: overrides the provider's default API URL
 	LLMProvider  string // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
+	CLIProfile   detect.Profile // resolved host CLI identity
+	TierModels   TierModels     // head → model tier (empty when CLI unknown)
 }
 
 func Load() *Config {
 	settings := loadClaudeCodeEnv()
+	profile := detect.Detect()
 	cfg := &Config{
 		Port:         getEnv("CERBERUS_PORT", "8090"),
 		DBPath:       getEnv("CERBERUS_DB_PATH", "cerberus.db"),
@@ -23,10 +30,12 @@ func Load() *Config {
 		LLMModel:     resolveModel(settings),
 		LLMBaseURL:   resolveBaseURL(settings),
 		LLMProvider:  os.Getenv("CERBERUS_LLM_PROVIDER"),
+		CLIProfile:   profile,
 	}
 
 	// API key resolution: explicit CERBERUS key first, then Claude Code config.
 	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings)
+	cfg.TierModels = resolveTierModels(profile.CLI, settings)
 
 	return cfg
 }

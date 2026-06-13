@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/binoctal/cerberus/internal/detect"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,4 +80,21 @@ func TestAPIKeyAutoDetect(t *testing.T) {
 				"should auto-detect %s for model %s", tt.envKey, tt.model)
 		})
 	}
+}
+
+func TestLoad_TierModelsUnderClaudeCode(t *testing.T) {
+	t.Setenv("CLAUDECODE", "1")
+	// Minimal settings file is not required: tier envs come from settings.go's
+	// map, but Load reads the real .claude/settings.json. For a deterministic
+	// unit test, call resolveTierModels directly (covered in tier_test.go) and
+	// assert Load populates CLIProfile under CLAUDECODE.
+	cfg := Load()
+	assert.Equal(t, detect.CLIClaudeCode, cfg.CLIProfile.CLI)
+}
+
+func TestLoad_UnknownCLI_NoTierModels(t *testing.T) {
+	t.Setenv("CLAUDECODE", "")
+	cfg := Load()
+	assert.Equal(t, detect.CLIUnknown, cfg.CLIProfile.CLI)
+	assert.Empty(t, cfg.TierModels)
 }
