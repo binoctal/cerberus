@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.1 — 2026-06-13
+
+### Changed
+
+- Apply gofmt and resolve all remaining golangci-lint findings (errcheck, staticcheck, unused) across the codebase
+- Migrate WebSocket dependency from `nhooyr.io/websocket` to `github.com/coder/websocket`
+- Total test coverage: 78.6% → 80.1% (policy Validate, sandbox resource/seccomp/mount/cgroup builders, agent CLI analysis via fake sandbox, project credential resolution)
+
 ## v0.7.0 — 2026-06-13
 
 ### Added
