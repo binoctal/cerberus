@@ -25,3 +25,4 @@ cover.html
 
 # OS files
 .DS_Store
+.serena/
