@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.0 — 2026-06-13
+
+### Fixed
+
+- Resume() now records "failed" status on error instead of always "completed"
+- JUnit format wired in `cerberus report --format junit` CLI command
+- `--resume <session-id>` flag now calls Resume() instead of Run()
+
+### Added
+
+- Gemini stream mock server tests (mock SSE + non-200 error handling)
+- DecideWithVision + budget exhausted tests via retryTestClient
+- UpdateSemanticTimestamp integration test
+- HTTP executor tests: GET/POST/PUT/DELETE, server error, custom headers, cancelled context, navigate dispatch
+- Browser truncateStr unit tests (short, exact, truncated, unicode)
+
+### Changed
+
+- SearchSemanticForProject: project-scoped cosine search avoids loading full table
+- Executor FinishTrace errors logged instead of silently discarded (4 locations)
+- MCP RecoverOrphanSessions logs UpdateSessionStatus errors
+
 ## v0.5.0 — 2026-06-13
 
 ### Fixed
