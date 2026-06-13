@@ -12,10 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 	"go.uber.org/zap"
 )
 
@@ -133,4 +137,74 @@ func TestE2E_ScoutAnalyze(t *testing.T) {
 	require.NotNil(t, model)
 	t.Logf("Model info score: %.2f", model.InfoScore(false))
 	t.Logf("Endpoints detected: %d", len(model.API.Endpoints))
+}
+
+// TestE2E_ExaminerJudge tests Examiner.Examine with a real LLM,
+// verifying judge verdicts and reflection learning.
+func TestE2E_ExaminerJudge(t *testing.T) {
+	apiKey := getAPIKey(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	client, err := llm.NewClient("claude-sonnet-4-6", apiKey)
+	require.NoError(t, err)
+
+	budget := ai.NewTokenBudget(200000, 50000)
+	driver := ai.NewDriver(client, budget)
+	driver.SetCache(nil)
+
+	s, err := store.New(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = s.Close() })
+	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../migrations"))
+
+	// Seed a session so examiner has data to work with.
+	sess, err := s.CreateSession(ctx, "run", "e2e examiner test", "e2e-test")
+	require.NoError(t, err)
+
+	// Build fake step results for the examiner.
+	results := []agent.StepResult{
+		{
+			TestCase: &agent.TestCase{
+				ID: "tc-001", Name: "health check", Target: "/healthz",
+				Method: "GET", Expectation: "returns 200", Priority: 0.9,
+			},
+			Status:   agent.StepPassed,
+			Attempts: 1,
+			Evidence: []agent.Evidence{{Type: "http_response", Content: `HTTP 200 OK, body: {"status": "healthy"}`}},
+		},
+	}
+
+	logger := zap.NewNop()
+	examinerCfg := examiner.DefaultExaminerConfig()
+	examinerHead := examiner.NewExaminer(driver, nil, s, examinerCfg, logger)
+
+	verdicts, reflections, err := examinerHead.Examine(ctx, results, sess.ID, "e2e-test")
+	require.NoError(t, err)
+	require.NotEmpty(t, verdicts, "should produce at least one verdict")
+
+	t.Logf("Verdicts: %d, Reflections: %d", len(verdicts), reflections)
+	for _, v := range verdicts {
+		t.Logf("  %s: status=%s confidence=%.2f", v.StepResult.TestCase.Target, v.Status, v.ExistenceConfidence)
+	}
+
+	assert.Greater(t, budget.Remaining(), 0, "should have remaining budget")
+}
+
+// TestE2E_CodeExecutor_GoAnalyze tests CodeExecutor analyzing
+// cerberus's own codebase (no LLM needed, uses Go parser).
+func TestE2E_CodeExecutor_GoAnalyze(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	logger := zap.NewNop()
+	exec := agent.NewCodeExecutor(sandbox.NoOpSandbox{}, logger)
+	action := types.CodeAnalyzeAction{
+		TargetPath: "internal/ai",
+		Language:   "go",
+	}
+
+	result := exec.Execute(ctx, action)
+	assert.True(t, result.Success(), "GoAnalyze should succeed: %s", result.Summary())
+	t.Logf("Analysis result: %s", result.Summary())
 }
