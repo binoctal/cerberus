@@ -50,12 +50,14 @@ type Invariant struct {
 }
 
 type Settings struct {
-	MaxDuration         string     `yaml:"max_duration,omitempty"`
-	ConfidenceThreshold float64    `yaml:"confidence_threshold,omitempty"`
-	AutoFix             string     `yaml:"auto_fix,omitempty"`
-	AIBudget            AIBudget   `yaml:"ai_budget,omitempty"`
-	CostAlerts          CostAlerts `yaml:"cost_alerts,omitempty"`
-	Models              Models     `yaml:"models,omitempty"`
+	MaxDuration         string            `yaml:"max_duration,omitempty"`
+	ConfidenceThreshold float64           `yaml:"confidence_threshold,omitempty"`
+	AutoFix             string            `yaml:"auto_fix,omitempty"`
+	AIBudget            AIBudget          `yaml:"ai_budget,omitempty"`
+	CostAlerts          CostAlerts        `yaml:"cost_alerts,omitempty"`
+	Models              Models            `yaml:"models,omitempty"`
+	ToT                 ToTSettings       `yaml:"tot,omitempty"`
+	Reflexion           ReflexionSettings `yaml:"reflexion,omitempty"`
 }
 
 type AIBudget struct {
@@ -77,4 +79,23 @@ type Models struct {
 	Agent    string `yaml:"agent,omitempty"`
 	Examiner string `yaml:"examiner,omitempty"`
 	Critic   string `yaml:"critic,omitempty"`
+}
+
+// ToTSettings exposes Tree-of-Thought planning depth knobs. All optional;
+// unset (zero) fields fall back to defaults (beam_width 3, generate_n 5,
+// max_steps 3), so omitting the block preserves prior hardcoded behavior.
+// See docs/configuration/tot.md for the cost trade-offs.
+type ToTSettings struct {
+	BeamWidth int `yaml:"beam_width,omitempty"`
+	GenerateN int `yaml:"generate_n,omitempty"`
+	MaxSteps  int `yaml:"max_steps,omitempty"`
+}
+
+// ReflexionSettings exposes cross-session memory recall knobs. All optional;
+// unset fields fall back to defaults (episodic_limit 10, semantic_topk 5,
+// semantic_threshold 0.3).
+type ReflexionSettings struct {
+	EpisodicLimit     int     `yaml:"episodic_limit,omitempty"`
+	SemanticTopK      int     `yaml:"semantic_topk,omitempty"`
+	SemanticThreshold float64 `yaml:"semantic_threshold,omitempty"`
 }

@@ -18,13 +18,15 @@ import (
 // Scout performs project reconnaissance: analyze to build a cognitive model,
 // then plan to generate a test plan.
 type Scout struct {
-	driver   *ai.Driver
-	store    *store.Store
-	config   *project.Config
-	logger   *zap.Logger
-	deepPlan bool              // Enable ToT deep planning mode
-	totCfg   ToTConfig         // ToT configuration (only used when deepPlan=true)
-	embedder embedPkg.Provider // embedding provider for semantic search
+	driver         *ai.Driver
+	store          *store.Store
+	config         *project.Config
+	logger         *zap.Logger
+	deepPlan       bool              // Enable ToT deep planning mode
+	totCfg         ToTConfig         // ToT configuration (only used when deepPlan=true)
+	proposeDriver  *ai.Driver        // ToT propose driver (SONNET tier); nil → driver
+	evaluateDriver *ai.Driver        // ToT evaluate driver (HAIKU tier); nil → driver
+	embedder       embedPkg.Provider // embedding provider for semantic search
 }
 
 // NewScout creates a Scout head.
@@ -38,10 +40,16 @@ func NewScout(driver *ai.Driver, store *store.Store, config *project.Config, log
 	}
 }
 
-// SetDeepPlan enables ToT deep planning mode with the given config.
-func (s *Scout) SetDeepPlan(cfg ToTConfig) {
+// SetDeepPlan enables ToT deep planning mode with the given config and the two
+// tiered drivers ToT uses: proposeDriver for strategy generation (SONNET tier),
+// evaluateDriver for scoring (HAIKU tier). Either may be nil to fall back to
+// the Scout's shared driver (e.g. when running standalone without tier
+// detection).
+func (s *Scout) SetDeepPlan(cfg ToTConfig, proposeDriver, evaluateDriver *ai.Driver) {
 	s.deepPlan = true
 	s.totCfg = cfg
+	s.proposeDriver = proposeDriver
+	s.evaluateDriver = evaluateDriver
 }
 
 // Analyze builds a ProjectModel from the target info using AI inference
@@ -106,7 +114,15 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 
 	// ToT deep planning mode.
 	if s.deepPlan {
-		planner := NewToTPlanner(s.driver, s.totCfg, s.logger)
+		propose := s.proposeDriver
+		if propose == nil {
+			propose = s.driver
+		}
+		evaluate := s.evaluateDriver
+		if evaluate == nil {
+			evaluate = s.driver
+		}
+		planner := NewToTPlanner(propose, evaluate, s.totCfg, s.logger)
 		plan, err = planner.Plan(ctx, goal, model, s.resolveBaseURL())
 	} else {
 		// Direct AI planning (default).

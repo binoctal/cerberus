@@ -70,14 +70,24 @@ type EvaluateOutput struct {
 
 // ToTPlanner uses Tree-of-Thought beam search for deep test planning.
 type ToTPlanner struct {
-	driver *ai.Driver
-	config ToTConfig
-	logger *zap.Logger
+	proposeDriver  *ai.Driver // strategy generation (SONNET tier)
+	evaluateDriver *ai.Driver // scoring, non-generative (HAIKU tier)
+	config         ToTConfig
+	logger         *zap.Logger
 }
 
-// NewToTPlanner creates a ToT planner.
-func NewToTPlanner(driver *ai.Driver, config ToTConfig, logger *zap.Logger) *ToTPlanner {
-	return &ToTPlanner{driver: driver, config: config, logger: logger}
+// NewToTPlanner creates a ToT planner with separate drivers for the propose
+// (generation) and evaluate (scoring) subtasks — the Phase 1 tier principle
+// applied to ToT's two subtasks. evaluateDriver may equal proposeDriver when
+// tiering is unavailable; both may be nil only in tests that never reach an
+// LLM call.
+func NewToTPlanner(proposeDriver, evaluateDriver *ai.Driver, config ToTConfig, logger *zap.Logger) *ToTPlanner {
+	return &ToTPlanner{
+		proposeDriver:  proposeDriver,
+		evaluateDriver: evaluateDriver,
+		config:         config,
+		logger:         logger,
+	}
 }
 
 // Plan runs the ToT beam search: propose → evaluate → select for MaxSteps rounds.
@@ -153,7 +163,7 @@ Output JSON with a "strategies" array. Each strategy has "description" and "case
 		Build()
 
 	var out ProposeOutput
-	if err := t.driver.Decide(ctx, prompt, &out); err != nil {
+	if err := t.proposeDriver.Decide(ctx, prompt, &out); err != nil {
 		return nil, fmt.Errorf("tot propose: %w", err)
 	}
 
@@ -230,7 +240,7 @@ Output ONLY: {"score": N, "reasoning": "brief explanation"}`,
 		Build()
 
 	var out EvaluateOutput
-	if err := t.driver.Decide(ctx, prompt, &out); err != nil {
+	if err := t.evaluateDriver.Decide(ctx, prompt, &out); err != nil {
 		return 5.0, err
 	}
 	return out.Score, nil

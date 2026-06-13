@@ -185,7 +185,11 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	// Phase 1: Scout — Analyze + Plan.
 	scoutHead := scout.NewScout(s.driverFor(&s.scoutDriver), s.Store, s.Config, s.Logger)
 	if s.DeepPlan {
-		scoutHead.SetDeepPlan(scout.DefaultToTConfig())
+		scoutHead.SetDeepPlan(
+			config.ResolveToTConfig(s.Config.Settings),
+			s.driverFor(&s.scoutDriver), // ToT propose: SONNET tier
+			s.driverFor(&s.agentDriver), // ToT evaluate: HAIKU tier
+		)
 	}
 	model, err := scoutHead.Analyze(ctx, scout.TargetInfo{
 		URL:  s.resolveBaseURL(),

@@ -33,7 +33,7 @@ func TestToTPlanner_SingleStep(t *testing.T) {
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := ToTConfig{BeamWidth: 2, GenerateN: 2, MaxSteps: 1}
-	planner := NewToTPlanner(driver, cfg, zap.NewNop())
+	planner := NewToTPlanner(driver, driver, cfg, zap.NewNop())
 
 	model := &project.ProjectModel{
 		API: project.APIModel{
@@ -65,7 +65,7 @@ func TestToTPlanner_MultiStep(t *testing.T) {
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := ToTConfig{BeamWidth: 1, GenerateN: 2, MaxSteps: 2}
-	planner := NewToTPlanner(driver, cfg, zap.NewNop())
+	planner := NewToTPlanner(driver, driver, cfg, zap.NewNop())
 
 	model := &project.ProjectModel{
 		API: project.APIModel{
@@ -86,7 +86,7 @@ func TestToTPlanner_ProposeFailure_StopsSearch(t *testing.T) {
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := ToTConfig{BeamWidth: 2, GenerateN: 2, MaxSteps: 3}
-	planner := NewToTPlanner(driver, cfg, zap.NewNop())
+	planner := NewToTPlanner(driver, driver, cfg, zap.NewNop())
 
 	model := &project.ProjectModel{}
 
@@ -97,7 +97,7 @@ func TestToTPlanner_ProposeFailure_StopsSearch(t *testing.T) {
 }
 
 func TestToTCoverageScore(t *testing.T) {
-	planner := NewToTPlanner(nil, DefaultToTConfig(), zap.NewNop())
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
 
 	model := &project.ProjectModel{
 		API: project.APIModel{
@@ -122,7 +122,7 @@ func TestToTCoverageScore(t *testing.T) {
 }
 
 func TestToTCoverageScore_NoEndpoints(t *testing.T) {
-	planner := NewToTPlanner(nil, DefaultToTConfig(), zap.NewNop())
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
 	model := &project.ProjectModel{}
 	c := &PlanCandidate{Cases: []string{"test something"}}
 	score := planner.coverageScore(c, model)
@@ -130,7 +130,7 @@ func TestToTCoverageScore_NoEndpoints(t *testing.T) {
 }
 
 func TestBestToPlan(t *testing.T) {
-	planner := NewToTPlanner(nil, DefaultToTConfig(), zap.NewNop())
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
 
 	candidates := []PlanCandidate{
 		{
@@ -150,7 +150,7 @@ func TestBestToPlan(t *testing.T) {
 }
 
 func TestBestToPlan_EmptyCandidates(t *testing.T) {
-	planner := NewToTPlanner(nil, DefaultToTConfig(), zap.NewNop())
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
 	plan := planner.bestToPlan(nil, "goal", "http://localhost:8080")
 	assert.Equal(t, "goal", plan.Goal)
 	assert.Empty(t, plan.Cases)
@@ -200,7 +200,7 @@ func TestScout_DeepPlanMode(t *testing.T) {
 	}
 
 	scoutHead := NewScout(driver, s, cfg, zap.NewNop())
-	scoutHead.SetDeepPlan(ToTConfig{BeamWidth: 1, GenerateN: 1, MaxSteps: 1})
+	scoutHead.SetDeepPlan(ToTConfig{BeamWidth: 1, GenerateN: 1, MaxSteps: 1}, nil, nil)
 
 	model := &project.ProjectModel{
 		API: project.APIModel{
@@ -253,7 +253,7 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	driverDeep := ai.NewDriver(mockDeep, ai.NewTokenBudget(500000, 50000))
 
 	scoutDeep := NewScout(driverDeep, s, cfg, zap.NewNop())
-	scoutDeep.SetDeepPlan(ToTConfig{BeamWidth: 1, GenerateN: 1, MaxSteps: 1})
+	scoutDeep.SetDeepPlan(ToTConfig{BeamWidth: 1, GenerateN: 1, MaxSteps: 1}, nil, nil)
 	plan, err = scoutDeep.Plan(context.Background(), "test", &project.ProjectModel{})
 	require.NoError(t, err)
 	assert.Equal(t, "tot-001", plan.Cases[0].ID) // ToT plan case ID prefix.
