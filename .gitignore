@@ -15,5 +15,13 @@ learning/
 # Cerberus runtime
 .cerberus/
 
+# Test / coverage artifacts
+cover.out
+cover.html
+*.test
+*.db
+*.db-shm
+*.db-wal
+
 # OS files
 .DS_Store

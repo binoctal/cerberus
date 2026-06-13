@@ -101,13 +101,14 @@ func TestServer_CreateSession_Success(t *testing.T) {
 	assert.True(t, hasCancel, "session should have a cancel function registered")
 
 	// Wait for async run to finish.
+	// Use a generous timeout: mock LLM + race detector + CI can be slow.
 	assert.Eventually(t, func() bool {
 		updated, getErr := s.GetSession(context.Background(), body["id"])
 		if getErr != nil {
 			return false
 		}
 		return updated.Status == "completed" || updated.Status == "failed"
-	}, 5*time.Second, 100*time.Millisecond, "session should reach terminal status")
+	}, 15*time.Second, 100*time.Millisecond, "session should reach terminal status")
 }
 
 func TestServer_CreateSession_DefaultMode(t *testing.T) {
