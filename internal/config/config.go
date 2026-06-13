@@ -13,8 +13,8 @@ type Config struct {
 	LogLevel     string
 	LLMModel     string
 	LLMAPIKey    string
-	LLMBaseURL   string // optional: overrides the provider's default API URL
-	LLMProvider  string // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
+	LLMBaseURL   string         // optional: overrides the provider's default API URL
+	LLMProvider  string         // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
 	CLIProfile   detect.Profile // resolved host CLI identity
 	TierModels   TierModels     // head → model tier (empty when CLI unknown)
 }
