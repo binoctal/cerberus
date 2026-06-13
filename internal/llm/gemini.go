@@ -57,6 +57,19 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 			"maxOutputTokens": max(req.MaxTokens, 4096),
 		},
 	}
+	if len(req.Tools) > 0 {
+		funcDecls := make([]map[string]any, len(req.Tools))
+		for i, t := range req.Tools {
+			funcDecls[i] = map[string]any{
+				"name":        t.Name,
+				"description": t.Description,
+				"parameters":  t.InputSchema,
+			}
+		}
+		body["tools"] = []map[string]any{
+			{"functionDeclarations": funcDecls},
+		}
+	}
 	b, _ := json.Marshal(body)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL(), bytes.NewReader(b))
@@ -81,7 +94,11 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
-					Text string `json:"text"`
+					Text string          `json:"text"`
+					FunctionCall *struct {
+						Name string          `json:"name"`
+						Args json.RawMessage `json:"args"`
+					} `json:"functionCall"`
 				} `json:"parts"`
 			} `json:"content"`
 			FinishReason string `json:"finishReason"`
@@ -95,12 +112,27 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	var content string
-	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
-		content = result.Candidates[0].Content.Parts[0].Text
+	var toolCalls []ToolCall
+	if len(result.Candidates) > 0 {
+		for _, part := range result.Candidates[0].Content.Parts {
+			if part.Text != "" {
+				content += part.Text
+			}
+			if part.FunctionCall != nil {
+				var input map[string]any
+				_ = json.Unmarshal(part.FunctionCall.Args, &input)
+				toolCalls = append(toolCalls, ToolCall{
+					ID:    part.FunctionCall.Name,
+					Name:  part.FunctionCall.Name,
+					Input: input,
+				})
+			}
+		}
 	}
 	return &Response{
 		Content:    content,
 		StopReason: func() string { if len(result.Candidates) > 0 { return result.Candidates[0].FinishReason }; return "" }(),
+		ToolCalls:  toolCalls,
 		Usage: TokenUsage{
 			InputTokens:  result.UsageMetadata.PromptTokenCount,
 			OutputTokens: result.UsageMetadata.CandidatesTokenCount,

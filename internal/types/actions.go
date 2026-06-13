@@ -522,3 +522,184 @@ func MarshalAction(action TypedAction) (ActionEnvelope, error) {
 	}
 	return ActionEnvelope{Type: action.GetActionType(), Raw: raw}, nil
 }
+
+// ToolDefinitions generates LLM tool schemas from the registered action types.
+// Returns a slice of Tool definitions suitable for passing to LLM providers.
+func ToolDefinitions() []ToolDef {
+	return []ToolDef{
+		{
+			Name:        "api_request",
+			Description: "Send an HTTP request to an API endpoint",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"method":  map[string]any{"type": "string", "description": "HTTP method (GET, POST, PUT, DELETE, PATCH)"},
+					"url":     map[string]any{"type": "string", "description": "Request URL or path"},
+					"headers": map[string]any{"type": "object", "description": "Request headers"},
+					"body":    map[string]any{"type": "string", "description": "Request body (JSON string)"},
+				},
+				"required": []string{"method", "url"},
+			},
+		},
+		{
+			Name:        "browser_goto",
+			Description: "Navigate the browser to a URL",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"url": map[string]any{"type": "string", "description": "URL to navigate to"},
+				},
+				"required": []string{"url"},
+			},
+		},
+		{
+			Name:        "browser_click",
+			Description: "Click an element in the browser",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"selector": map[string]any{"type": "string", "description": "CSS selector for the element"},
+				},
+				"required": []string{"selector"},
+			},
+		},
+		{
+			Name:        "browser_fill",
+			Description: "Fill a form field in the browser",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"selector": map[string]any{"type": "string", "description": "CSS selector for the input"},
+					"value":    map[string]any{"type": "string", "description": "Value to fill in"},
+				},
+				"required": []string{"selector", "value"},
+			},
+		},
+		{
+			Name:        "browser_eval",
+			Description: "Evaluate JavaScript in the browser",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"script": map[string]any{"type": "string", "description": "JavaScript code to evaluate"},
+				},
+				"required": []string{"script"},
+			},
+		},
+		{
+			Name:        "file_read",
+			Description: "Read a file from the project",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"path": map[string]any{"type": "string", "description": "File path relative to project root"},
+				},
+				"required": []string{"path"},
+			},
+		},
+		{
+			Name:        "file_write",
+			Description: "Write content to a file in the project",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"path":    map[string]any{"type": "string", "description": "File path relative to project root"},
+					"content": map[string]any{"type": "string", "description": "File content to write"},
+				},
+				"required": []string{"path", "content"},
+			},
+		},
+		{
+			Name:        "file_exists",
+			Description: "Check if a file exists in the project",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"path": map[string]any{"type": "string", "description": "File path to check"},
+				},
+				"required": []string{"path"},
+			},
+		},
+		{
+			Name:        "file_glob",
+			Description: "Find files matching a glob pattern",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"pattern": map[string]any{"type": "string", "description": "Glob pattern (e.g. **/*.go)"},
+				},
+				"required": []string{"pattern"},
+			},
+		},
+		{
+			Name:        "process_exec",
+			Description: "Execute a shell command",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"command": map[string]any{"type": "string", "description": "Shell command to execute"},
+					"timeout": map[string]any{"type": "integer", "description": "Timeout in seconds"},
+				},
+				"required": []string{"command"},
+			},
+		},
+		{
+			Name:        "db_query",
+			Description: "Execute a database query",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"query": map[string]any{"type": "string", "description": "SQL query to execute"},
+				},
+				"required": []string{"query"},
+			},
+		},
+		{
+			Name:        "code_analyze",
+			Description: "Analyze code for issues and patterns",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"path":    map[string]any{"type": "string", "description": "File or directory to analyze"},
+					"focus":   map[string]any{"type": "string", "description": "Analysis focus: security, performance, quality"},
+				},
+				"required": []string{"path"},
+			},
+		},
+		{
+			Name:        "wait",
+			Description: "Wait for a condition or duration",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"duration_ms": map[string]any{"type": "integer", "description": "Wait duration in milliseconds"},
+					"condition":   map[string]any{"type": "string", "description": "Condition to wait for (URL contains, status code)"},
+				},
+			},
+		},
+		{
+			Name:        "mcp_call",
+			Description: "Call an MCP server tool",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"tool":    map[string]any{"type": "string", "description": "MCP tool name"},
+					"params":  map[string]any{"type": "object", "description": "Tool parameters"},
+				},
+				"required": []string{"tool"},
+			},
+		},
+	}
+}
+
+// ToolDef is a provider-agnostic tool definition (mirrors llm.Tool to avoid import cycle).
+type ToolDef struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	InputSchema map[string]any `json:"input_schema"`
+}
+
+// ToLLMTools converts ToolDefs to llm.Tool slice.
+func ToLLMTools(defs []ToolDef) []ToolDef {
+	return defs
+}

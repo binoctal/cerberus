@@ -229,3 +229,20 @@ func TestBuildAction_Unwrap(t *testing.T) {
 	assert.Equal(t, inner, b.Unwrap())
 	assert.Equal(t, "go build", b.Target())
 }
+
+func TestToolDefinitions(t *testing.T) {
+	defs := ToolDefinitions()
+	assert.NotEmpty(t, defs, "should return tool definitions")
+
+	// Check that core tools are present.
+	names := make(map[string]bool)
+	for _, d := range defs {
+		names[d.Name] = true
+		assert.NotEmpty(t, d.Description, "%s should have description", d.Name)
+		assert.NotNil(t, d.InputSchema, "%s should have input schema", d.Name)
+	}
+
+	for _, expected := range []string{"api_request", "file_read", "file_write", "process_exec", "browser_goto", "db_query", "code_analyze", "wait", "mcp_call"} {
+		assert.True(t, names[expected], "should include tool: %s", expected)
+	}
+}

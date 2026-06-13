@@ -33,6 +33,7 @@ type Request struct {
 	Model     string    `json:"model"`
 	Messages  []Message `json:"messages"`
 	MaxTokens int       `json:"max_tokens,omitempty"`
+	Tools     []Tool    `json:"tools,omitempty"`
 }
 
 type Message struct {
@@ -44,6 +45,21 @@ type Response struct {
 	Content    string     `json:"content"`
 	Usage      TokenUsage `json:"usage"`
 	StopReason string     `json:"stop_reason,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+}
+
+// Tool describes a function the LLM can call.
+type Tool struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	InputSchema map[string]any `json:"input_schema,omitempty"`
+}
+
+// ToolCall represents a single function call requested by the LLM.
+type ToolCall struct {
+	ID    string         `json:"id"`
+	Name  string         `json:"name"`
+	Input map[string]any `json:"input"`
 }
 
 type TokenUsage struct {

@@ -45,6 +45,17 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 		"max_tokens": max(req.MaxTokens, 4096),
 		"messages":   req.Messages,
 	}
+	if len(req.Tools) > 0 {
+		claudeTools := make([]map[string]any, len(req.Tools))
+		for i, t := range req.Tools {
+			claudeTools[i] = map[string]any{
+				"name":         t.Name,
+				"description":  t.Description,
+				"input_schema": t.InputSchema,
+			}
+		}
+		body["tools"] = claudeTools
+	}
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -71,7 +82,11 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 
 	var result struct {
 		Content []struct {
-			Text string `json:"text"`
+			Type  string `json:"type"`
+			Text  string `json:"text"`
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Input json.RawMessage `json:"input"`
 		} `json:"content"`
 		Usage struct {
 			InputTokens  int `json:"input_tokens"`
@@ -84,13 +99,25 @@ func (c *ClaudeClient) Complete(ctx context.Context, req Request) (*Response, er
 	}
 
 	var content string
-	if len(result.Content) > 0 {
-		content = result.Content[0].Text
+	var toolCalls []ToolCall
+	for _, block := range result.Content {
+		if block.Type == "text" || block.Type == "" {
+			content += block.Text
+		} else if block.Type == "tool_use" {
+			var input map[string]any
+			_ = json.Unmarshal(block.Input, &input)
+			toolCalls = append(toolCalls, ToolCall{
+				ID:    block.ID,
+				Name:  block.Name,
+				Input: input,
+			})
+		}
 	}
 
 	return &Response{
 		Content:    content,
 		StopReason: result.StopReason,
+		ToolCalls:  toolCalls,
 		Usage: TokenUsage{
 			InputTokens:  result.Usage.InputTokens,
 			OutputTokens: result.Usage.OutputTokens,

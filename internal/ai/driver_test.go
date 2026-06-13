@@ -322,3 +322,30 @@ func TestDriver_DecideStreamCollect_BudgetExhausted(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "budget exhausted")
 }
+
+func TestDriver_DecideWithTools(t *testing.T) {
+	// Use MockClient which returns default response (no tool calls).
+	mock := llm.NewMockClient(map[string]string{
+		"default": `{"reasoning":"I should call api_request"}`,
+	})
+	driver := NewDriver(mock, NewTokenBudget(200000, 10000))
+
+	tools := []llm.Tool{
+		{Name: "api_request", Description: "Send HTTP request", InputSchema: map[string]any{"type": "object"}},
+	}
+	result, err := driver.DecideWithTools(context.Background(), "test the API", tools)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, `{"reasoning":"I should call api_request"}`, result.Content)
+}
+
+func TestDriver_DecideWithTools_BudgetExhausted(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	budget := NewTokenBudget(100, 100)
+	budget.Record(100)
+	driver := NewDriver(mock, budget)
+
+	_, err := driver.DecideWithTools(context.Background(), "test", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "budget exhausted")
+}

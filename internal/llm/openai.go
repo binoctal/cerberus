@@ -46,6 +46,20 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 		"max_tokens":  max(req.MaxTokens, 4096),
 		"temperature": 0.1,
 	}
+	if len(req.Tools) > 0 {
+		oaiTools := make([]map[string]any, len(req.Tools))
+		for i, t := range req.Tools {
+			oaiTools[i] = map[string]any{
+				"type": "function",
+				"function": map[string]any{
+					"name":        t.Name,
+					"description": t.Description,
+					"parameters":  t.InputSchema,
+				},
+			}
+		}
+		body["tools"] = oaiTools
+	}
 	b, _ := json.Marshal(body)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL(), bytes.NewReader(b))
@@ -69,7 +83,15 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 	var result struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content   string `json:"content"`
+				ToolCalls []struct {
+					ID   string `json:"id"`
+					Type string `json:"type"`
+					Function struct {
+						Name      string          `json:"name"`
+						Arguments json.RawMessage `json:"arguments"`
+					} `json:"function"`
+				} `json:"tool_calls"`
 			} `json:"message"`
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
@@ -82,12 +104,23 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	var content string
+	var toolCalls []ToolCall
 	if len(result.Choices) > 0 {
 		content = result.Choices[0].Message.Content
+		for _, tc := range result.Choices[0].Message.ToolCalls {
+			var input map[string]any
+			_ = json.Unmarshal(tc.Function.Arguments, &input)
+			toolCalls = append(toolCalls, ToolCall{
+				ID:    tc.ID,
+				Name:  tc.Function.Name,
+				Input: input,
+			})
+		}
 	}
 	return &Response{
 		Content:    content,
 		StopReason: func() string { if len(result.Choices) > 0 { return result.Choices[0].FinishReason }; return "" }(),
+		ToolCalls:  toolCalls,
 		Usage: TokenUsage{
 			InputTokens:  result.Usage.PromptTokens,
 			OutputTokens: result.Usage.CompletionTokens,
