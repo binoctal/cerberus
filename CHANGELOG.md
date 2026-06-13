@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.0 — 2026-06-13
+
+### Added
+
+#### Auto-Fix System (Phase 1)
+- ExaminerConfig.AutoFix field: "off", "low_only" (default), "aggressive"
+- ShouldAutoFix policy: gates auto-fix on mode + severity + verdict status
+- AutoFixer with LLM-based repair analysis and skip downgrade
+- Auto-fix integrated into Examiner Examine() loop after verdict
+- Invariant severity propagation to TestCase for auto-fix decisions
+- AutoFix wiring in session Run() and Resume()
+- Table-driven ShouldAutoFix tests (3 modes × 4 severities × 3 statuses)
+
+#### L2 Semantic Memory (Phase 2)
+- V004 migration: add embedding/embedding_model columns to memory_semantic
+- Local char-trigram embedding generator (deterministic, no API)
+- CosineSimilarity, ParseEmbedding, FormatEmbedding helpers
+- Semantic memory CRUD: StoreSemantic, GetSemanticByID, SearchSemantic, DeleteSemantic
+- Brute-force cosine search with threshold filtering and limit
+- Examiner learner stores reflections as L2 semantic memory after Reflexion
+- Scout buildEpisodicContext appends L2 semantic search results to plan context
+
+#### Streaming Support (Phase 3)
+- Client.Stream interface method with StreamEvent types (delta/done/error)
+- SSE scanner for parsing Server-Sent Events from HTTP responses
+- Claude streaming: stream=true, parse content_block_delta/message_stop
+- OpenAI streaming: stream=true, parse choices delta/finish_reason
+- Gemini streaming: streamGenerateContent?alt=sse, parse candidates
+- Driver.DecideStreamCollect: collect all streaming events, parse structured output
+- MockClient streaming: emit full content as delta + done events
+
+#### Tool/Function Calling (Phase 4)
+- Request.Tools and Response.ToolCalls fields on llm types
+- Tool and ToolCall types for provider-agnostic function definitions
+- Claude: tools with input_schema, parse tool_use content blocks
+- OpenAI: tools with function format, parse tool_calls response
+- Gemini: tools with functionDeclarations, parse functionCall parts
+- Driver.DecideWithTools: send prompt with tools, return ToolCallResult
+- types.ToolDefinitions: generate 14 tool schemas from action types
+
 ## v0.3.0 — 2026-06-13
 
 ### Added
