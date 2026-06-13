@@ -73,6 +73,7 @@ type ToTPlanner struct {
 	proposeDriver  *ai.Driver // strategy generation (SONNET tier)
 	evaluateDriver *ai.Driver // scoring, non-generative (HAIKU tier)
 	config         ToTConfig
+	memory         string // cross-session episodic + semantic context prepended to propose prompts
 	logger         *zap.Logger
 }
 
@@ -88,6 +89,33 @@ func NewToTPlanner(proposeDriver, evaluateDriver *ai.Driver, config ToTConfig, l
 		config:         config,
 		logger:         logger,
 	}
+}
+
+// SetMemory injects cross-session episodic + semantic context (the output of
+// Scout.buildEpisodicContext) to prepend to every propose prompt. Empty memory
+// leaves prompts unchanged (no regression for direct/standalone runs). The
+// evaluate step never sees memory — it stays a pure scoring step on the cheap
+// HAIKU tier.
+func (t *ToTPlanner) SetMemory(memory string) { t.memory = memory }
+
+// buildProposeTask renders the propose prompt body, prepending cross-session
+// memory when present so ToT mode composes with Reflexion instead of excluding
+// it. Empty memory yields the bare task (no regression for standalone runs).
+func (t *ToTPlanner) buildProposeTask(parent PlanCandidate, model *project.ProjectModel, goal string) string {
+	modelSummary := formatModelForToT(model)
+	memoryBlock := ""
+	if t.memory != "" {
+		memoryBlock = fmt.Sprintf("Prior-session memory (apply relevant lessons, avoid repeating past failures):\n%s\n\n", t.memory)
+	}
+	return fmt.Sprintf(`Propose %d different test strategies.
+%sParent strategy: %s
+Project Model:
+%s
+
+Test Goal: %s
+
+Each strategy should focus on a different aspect (happy path, error handling, edge cases, security, etc.) and include concrete test case descriptions.`,
+		t.config.GenerateN, memoryBlock, parent.Description, modelSummary, goal)
 }
 
 // Plan runs the ToT beam search: propose → evaluate → select for MaxSteps rounds.
@@ -143,17 +171,7 @@ func (t *ToTPlanner) Plan(ctx context.Context, goal string, model *project.Proje
 
 // propose generates N candidate strategies from a parent candidate.
 func (t *ToTPlanner) propose(ctx context.Context, parent PlanCandidate, model *project.ProjectModel, goal string) ([]PlanCandidate, error) {
-	modelSummary := formatModelForToT(model)
-	task := fmt.Sprintf(`Propose %d different test strategies.
-
-Parent strategy: %s
-Project Model:
-%s
-
-Test Goal: %s
-
-Each strategy should focus on a different aspect (happy path, error handling, edge cases, security, etc.) and include concrete test case descriptions.`,
-		t.config.GenerateN, parent.Description, modelSummary, goal)
+	task := t.buildProposeTask(parent, model, goal)
 
 	prompt := ai.NewPrompt().
 		System(`You are a test strategy planner. Generate diverse, high-quality test strategies.

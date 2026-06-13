@@ -15,6 +15,22 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
+func TestToTPlanner_BuildProposeTask_MemoryInjected(t *testing.T) {
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
+	parent := PlanCandidate{Description: "cover auth endpoints"}
+	model := &project.ProjectModel{}
+
+	// Empty memory: task has no memory section (no regression for standalone).
+	task := planner.buildProposeTask(parent, model, "test login flow")
+	assert.NotContains(t, task, "Prior-session memory")
+
+	// With memory: task prepends the episodic/semantic context.
+	planner.SetMemory("LESSON: /login rate-limits after 5 attempts")
+	task = planner.buildProposeTask(parent, model, "test login flow")
+	assert.Contains(t, task, "Prior-session memory")
+	assert.Contains(t, task, "LESSON: /login rate-limits after 5 attempts")
+}
+
 func TestToTPlanner_SingleStep(t *testing.T) {
 	// MockClient returns proposals then evaluations.
 	// Since MockClient returns same response for all calls, we need a response

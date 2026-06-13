@@ -184,6 +184,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	// Phase 1: Scout — Analyze + Plan.
 	scoutHead := scout.NewScout(s.driverFor(&s.scoutDriver), s.Store, s.Config, s.Logger)
+	scoutHead.SetReflexion(config.ResolveReflexionConfig(s.Config.Settings))
 	if s.DeepPlan {
 		scoutHead.SetDeepPlan(
 			config.ResolveToTConfig(s.Config.Settings),

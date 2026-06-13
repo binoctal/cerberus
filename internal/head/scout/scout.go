@@ -22,21 +22,23 @@ type Scout struct {
 	store          *store.Store
 	config         *project.Config
 	logger         *zap.Logger
-	deepPlan       bool              // Enable ToT deep planning mode
-	totCfg         ToTConfig         // ToT configuration (only used when deepPlan=true)
-	proposeDriver  *ai.Driver        // ToT propose driver (SONNET tier); nil → driver
-	evaluateDriver *ai.Driver        // ToT evaluate driver (HAIKU tier); nil → driver
-	embedder       embedPkg.Provider // embedding provider for semantic search
+	deepPlan       bool                      // Enable ToT deep planning mode
+	totCfg         ToTConfig                 // ToT configuration (only used when deepPlan=true)
+	proposeDriver  *ai.Driver                // ToT propose driver (SONNET tier); nil → driver
+	evaluateDriver *ai.Driver                // ToT evaluate driver (HAIKU tier); nil → driver
+	reflexionCfg   project.ReflexionSettings // cross-session memory recall knobs (defaults 10/5/0.3)
+	embedder       embedPkg.Provider         // embedding provider for semantic search
 }
 
 // NewScout creates a Scout head.
 func NewScout(driver *ai.Driver, store *store.Store, config *project.Config, logger *zap.Logger) *Scout {
 	return &Scout{
-		driver:   driver,
-		store:    store,
-		config:   config,
-		logger:   logger,
-		embedder: embedPkg.NewTrigramProvider(embedPkg.DefaultDimension),
+		driver:       driver,
+		store:        store,
+		config:       config,
+		logger:       logger,
+		reflexionCfg: project.ReflexionSettings{EpisodicLimit: 10, SemanticTopK: 5, SemanticThreshold: 0.3},
+		embedder:     embedPkg.NewTrigramProvider(embedPkg.DefaultDimension),
 	}
 }
 
@@ -50,6 +52,14 @@ func (s *Scout) SetDeepPlan(cfg ToTConfig, proposeDriver, evaluateDriver *ai.Dri
 	s.totCfg = cfg
 	s.proposeDriver = proposeDriver
 	s.evaluateDriver = evaluateDriver
+}
+
+// SetReflexion configures cross-session memory recall knobs used by
+// buildEpisodicContext (episodic_limit, semantic_topk, semantic_threshold).
+// Callers pass config.ResolveReflexionConfig, which fills defaults for unset
+// fields; omitting the call keeps the built-in defaults (10/5/0.3).
+func (s *Scout) SetReflexion(rs project.ReflexionSettings) {
+	s.reflexionCfg = rs
 }
 
 // Analyze builds a ProjectModel from the target info using AI inference
@@ -123,6 +133,11 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 			evaluate = s.driver
 		}
 		planner := NewToTPlanner(propose, evaluate, s.totCfg, s.logger)
+		// ToT mode recalls cross-session memory too (closes the mutual-exclusion
+		// gap where deep planning previously discarded episodic/semantic context).
+		if mem := s.buildEpisodicContext(ctx, goal, model); mem != "" {
+			planner.SetMemory(mem)
+		}
 		plan, err = planner.Plan(ctx, goal, model, s.resolveBaseURL())
 	} else {
 		// Direct AI planning (default).
@@ -366,7 +381,7 @@ func (s *Scout) buildEpisodicContext(ctx context.Context, goal string, model *pr
 
 	var b strings.Builder
 	for _, target := range targets {
-		memories, err := s.store.GetEpisodicByTarget(ctx, target, 10)
+		memories, err := s.store.GetEpisodicByTarget(ctx, target, s.reflexionCfg.EpisodicLimit)
 		if err != nil {
 			s.logger.Debug("episodic lookup failed", zap.String("target", target), zap.Error(err))
 			continue
@@ -383,7 +398,7 @@ func (s *Scout) buildEpisodicContext(ctx context.Context, goal string, model *pr
 	// Append L2 semantic memory: search for facts related to the goal.
 	if goal != "" {
 		queryEmb, _ := s.embedder.Embed(ctx, goal)
-		semanticResults, err := s.store.SearchSemanticForProject(ctx, queryEmb, s.config.Project.Name, 5, 0.3)
+		semanticResults, err := s.store.SearchSemanticForProject(ctx, queryEmb, s.config.Project.Name, s.reflexionCfg.SemanticTopK, s.reflexionCfg.SemanticThreshold)
 		if err != nil {
 			s.logger.Debug("semantic search failed", zap.Error(err))
 		} else if len(semanticResults) > 0 {
