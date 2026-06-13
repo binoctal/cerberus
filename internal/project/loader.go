@@ -3,8 +3,10 @@ package project
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
+	"dario.cat/mergo"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,7 +38,40 @@ func LoadFromFile(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read project config: %w", err)
 	}
-	return LoadFromYAML(data)
+
+	cfg, err := LoadFromYAML(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Environment overlay: CERBERUS_ENV=staging → project.staging.yaml
+	if env := os.Getenv("CERBERUS_ENV"); env != "" {
+		envPath := filepath.Join(filepath.Dir(path), "project."+env+".yaml")
+		if envData, err := os.ReadFile(envPath); err == nil {
+			var overlay Config
+			interpolated := envVarRE.ReplaceAllFunc(envData, func(match []byte) []byte {
+				varName := string(match[2 : len(match)-1])
+				if val := os.Getenv(varName); val != "" {
+					return []byte(val)
+				}
+				return match
+			})
+			if err := yaml.Unmarshal(interpolated, &overlay); err != nil {
+				return nil, fmt.Errorf("parse env overlay %s: %w", envPath, err)
+			}
+			if err := mergo.Merge(cfg, overlay, mergo.WithOverride); err != nil {
+				return nil, fmt.Errorf("merge env overlay: %w", err)
+			}
+			// Re-apply defaults in case overlay zeroed fields that had defaults.
+			applyDefaults(cfg)
+			if err := cfg.Validate(); err != nil {
+				return nil, err
+			}
+		}
+		// env file not found is not an error — env overlay is optional.
+	}
+
+	return cfg, nil
 }
 
 func applyDefaults(cfg *Config) {
