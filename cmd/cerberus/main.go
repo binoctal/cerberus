@@ -36,6 +36,7 @@ var (
 	outputFlag      string
 	parallelFlag    bool
 	workersFlag     int
+	resumeFlag      string
 
 	// Set via -ldflags at build time.
 	version = "dev"
@@ -266,7 +267,7 @@ func runCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&parallelFlag, "parallel", false, "Execute independent test cases in parallel")
 	cmd.Flags().IntVar(&workersFlag, "workers", 4, "Max parallel workers (use with --parallel)")
 	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
-	_ = cmd.MarkFlagRequired("goal")
+	cmd.Flags().StringVar(&resumeFlag, "resume", "", "Resume a previous session by ID")
 	return cmd
 }
 

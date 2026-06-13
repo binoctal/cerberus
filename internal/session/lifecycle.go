@@ -195,6 +195,11 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("scout plan: %w", err)
 	}
 
+	// Persist plan for potential resumption.
+	if saveErr := s.Store.SavePlan(ctx, s.ID, plan); saveErr != nil {
+		s.Logger.Warn("failed to save plan", zap.Error(saveErr))
+	}
+
 	// Phase 2: Agent — Execute.
 	baseURL := s.resolveBaseURL()
 	projectDir := s.ProjectDir
@@ -260,6 +265,129 @@ func (s *Session) Close() {
 	s.Logger.Info("session closed",
 		zap.String("id", s.ID),
 		zap.Int("tokens_spent", s.Driver.Budget().SessionTotal-s.Driver.Budget().Remaining()))
+}
+
+
+// Resume loads a saved plan and continues from the first uncompleted test case.
+// It skips Scout entirely, reuses the stored plan, and only executes remaining cases.
+func (s *Session) Resume(ctx context.Context) error {
+	s.Logger.Info("resuming session", zap.String("id", s.ID))
+	runStart := time.Now()
+	var summary *SessionSummary
+
+	defer func() {
+		elapsed := time.Since(runStart)
+		tokensUsed := s.Driver.Budget().SessionTotal - s.Driver.Budget().Remaining()
+		if summary == nil {
+			summary = &SessionSummary{
+				Goal: s.Goal, TotalTokens: tokensUsed,
+				Duration: elapsed.Round(time.Millisecond).String(),
+				DurationMs: elapsed.Milliseconds(),
+			}
+		} else {
+			summary.TotalTokens = tokensUsed
+			summary.Duration = elapsed.Round(time.Millisecond).String()
+			summary.DurationMs = elapsed.Milliseconds()
+		}
+		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, summary.CoveragePct, summary); statsErr != nil {
+			s.Logger.Error("update session stats", zap.Error(statsErr))
+		}
+		fmt.Println()
+		fmt.Println(summary.String())
+		status := "completed"
+		if statsErr := s.Store.UpdateSessionStatus(ctx, s.ID, status); statsErr != nil {
+			s.Logger.Error("update session status", zap.Error(statsErr))
+		}
+	}()
+
+	// Load saved plan.
+	var plan agent.TestPlan
+	if err := s.Store.LoadPlan(ctx, s.ID, &plan); err != nil {
+		return fmt.Errorf("load plan for session %s: %w", s.ID, err)
+	}
+	if len(plan.Cases) == 0 {
+		return fmt.Errorf("saved plan has no test cases")
+	}
+
+	// Get completed targets.
+	completed, err := s.Store.GetCompletedTargets(ctx, s.ID)
+	if err != nil {
+		return fmt.Errorf("get completed targets: %w", err)
+	}
+
+	// Filter out completed cases.
+	var remaining []agent.TestCase
+	for _, tc := range plan.Cases {
+		if !completed[tc.Target] {
+			remaining = append(remaining, tc)
+		}
+	}
+
+	s.Logger.Info("resuming from saved plan",
+		zap.Int("total_cases", len(plan.Cases)),
+		zap.Int("completed", len(completed)),
+		zap.Int("remaining", len(remaining)),
+	)
+
+	if len(remaining) == 0 {
+		s.Logger.Info("all cases already completed")
+		return nil
+	}
+
+	// Build a reduced plan with only remaining cases.
+	resumePlan := &agent.TestPlan{
+		Goal:       plan.Goal,
+		Cases:      remaining,
+		ProjectURL: plan.ProjectURL,
+	}
+
+	// Execute remaining cases.
+	baseURL := s.resolveBaseURL()
+	projectDir := s.ProjectDir
+	if projectDir == "" {
+		projectDir = "."
+	}
+	engine := agent.NewRuleEngine(baseURL, s.Config.Actors, projectDir)
+	multiExec := agent.BuildMultiExecutor(projectDir, s.Gate, s.Logger)
+	config := agent.DefaultReActConfig()
+	loop := agent.NewReActLoopWithGate(s.driverFor(&s.agentDriver), s.Store, engine, multiExec, config, s.Gate, s.Logger)
+
+	var results []agent.StepResult
+	if s.Parallel {
+		workers := s.MaxWorkers
+		if workers <= 0 {
+			workers = 4
+		}
+		pExec := agent.NewParallelExecutor(loop, agent.ParallelConfig{MaxWorkers: workers}, s.Logger)
+		results, err = pExec.ExecutePlan(ctx, resumePlan, s.ID)
+	} else {
+		results, err = loop.ExecutePlan(ctx, resumePlan, s.ID)
+	}
+	if err != nil {
+		return fmt.Errorf("agent execute (resume): %w", err)
+	}
+
+	// Examine results.
+	examinerCfg := examiner.DefaultExaminerConfig()
+	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
+	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
+	if err != nil {
+		return fmt.Errorf("examiner (resume): %w", err)
+	}
+
+	// Build summary for resumed portion.
+	summary = FromResults(
+		s.Goal,
+		s.resolveBaseURL(),
+		len(remaining),
+		results,
+		verdicts,
+		reflections,
+		0,
+		time.Since(runStart),
+	)
+
+	return nil
 }
 
 // resolveBaseURL returns the first service URL from project config, or empty string.
