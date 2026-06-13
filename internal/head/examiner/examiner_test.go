@@ -429,6 +429,40 @@ func TestExaminer_StepStatusFallback(t *testing.T) {
 	assert.Contains(t, verdicts[0].Reasoning, "Judge failed")
 }
 
+func TestExaminer_Parallel_PreservesVerdictsByIndex(t *testing.T) {
+	s := setupExaminerStore(t)
+	// Invalid JSON → Judge fails → verdict falls back to each step's own status,
+	// so per-index verdicts are distinguishable. Parallel Examine must preserve
+	// the input order exactly (verdicts are written by index into a pre-allocated
+	// slice, with no mutex, so any ordering bug shows up as a mismatch here).
+	mockClient := llm.NewMockClient(map[string]string{"default": "not json"})
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	cfg := DefaultExaminerConfig()
+	cfg.MaxWorkers = 3 // < len(results) to exercise worker slot reuse.
+	examinerHead := NewExaminer(driver, nil, s, cfg, zap.NewNop())
+
+	statuses := []agent.StepStatus{
+		agent.StepPassed, agent.StepFailed, agent.StepPassed,
+		agent.StepFailed, agent.StepPassed, agent.StepFailed,
+	}
+	results := make([]agent.StepResult, len(statuses))
+	for i, st := range statuses {
+		results[i] = makeStepResult("tc-"+string(rune('a'+i)), "Test", "/api", "works", st, 200, "ok")
+	}
+
+	sess, err := s.CreateSession(context.Background(), "run", "test", "test-project")
+	require.NoError(t, err)
+
+	verdicts, _, err := examinerHead.Examine(context.Background(), results, sess.ID, "test-project")
+	require.NoError(t, err)
+	require.Len(t, verdicts, len(statuses))
+
+	for i, st := range statuses {
+		assert.Equal(t, stepStatusToJudgeStatus(st), verdicts[i].Status,
+			"verdict[%d] must match its own step status (parallel preserves order)", i)
+	}
+}
+
 func TestStepStatusToJudgeStatus(t *testing.T) {
 	assert.Equal(t, StatusPass, stepStatusToJudgeStatus(agent.StepPassed))
 	assert.Equal(t, StatusFail, stepStatusToJudgeStatus(agent.StepFailed))

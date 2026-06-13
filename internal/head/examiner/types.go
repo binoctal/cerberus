@@ -51,6 +51,7 @@ type ExaminerConfig struct {
 	MaxCritiques  int     // Session-level max critique count (default 1)
 	ConfThreshold float64 // Confidence threshold for early stop (default 0.9)
 	AutoFix       string  // Auto-fix mode: "off", "low_only", "aggressive" (default "low_only")
+	MaxWorkers    int     // Max concurrent judge evaluations in Examine (default 4)
 }
 
 func DefaultExaminerConfig() ExaminerConfig {
@@ -58,5 +59,6 @@ func DefaultExaminerConfig() ExaminerConfig {
 		MaxCritiques:  1,
 		ConfThreshold: 0.9,
 		AutoFix:       "low_only",
+		MaxWorkers:    4,
 	}
 }

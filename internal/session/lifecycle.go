@@ -243,6 +243,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		examinerCfg.ConfThreshold = s.Config.Settings.ConfidenceThreshold
 		examinerCfg.AutoFix = s.Config.Settings.AutoFix
 	}
+	examinerCfg.MaxWorkers = s.MaxWorkers
 	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
 	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
 	if err != nil {
@@ -383,6 +384,7 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 		examinerCfg.ConfThreshold = s.Config.Settings.ConfidenceThreshold
 		examinerCfg.AutoFix = s.Config.Settings.AutoFix
 	}
+	examinerCfg.MaxWorkers = s.MaxWorkers
 	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
 	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
 	if err != nil {
