@@ -54,6 +54,27 @@ func (m *MockClient) CompleteWithVision(ctx context.Context, prompt string, imag
 	return resp, nil
 }
 
+func (m *MockClient) Stream(ctx context.Context, req Request) (<-chan StreamEvent, error) {
+	// Use Complete to get the full response, then emit as delta + done.
+	resp, err := m.Complete(ctx, req)
+	if err != nil {
+		ch := make(chan StreamEvent, 1)
+		ch <- StreamEvent{Type: StreamError, Err: err}
+		close(ch)
+		return ch, nil
+	}
+
+	ch := make(chan StreamEvent, 2)
+	ch <- StreamEvent{Type: StreamDelta, Content: resp.Content, Usage: &TokenUsage{
+		InputTokens:  resp.Usage.InputTokens,
+		OutputTokens: 0, // partial
+		TotalTokens:  resp.Usage.InputTokens,
+	}}
+	ch <- StreamEvent{Type: StreamDone, Usage: &resp.Usage}
+	close(ch)
+	return ch, nil
+}
+
 func (m *MockClient) matchKey(input string) string {
 	if _, ok := m.responses[input]; ok {
 		return input

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/binoctal/cerberus/internal/llm"
@@ -210,4 +211,70 @@ func containsAny(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+// DecideStreamCollect uses streaming to collect the full response, then
+// parses it into the schema. Useful for progress feedback via the callback.
+func (d *Driver) DecideStreamCollect(ctx context.Context, prompt string, schema any) error {
+	if d.budget.Exhausted() {
+		return fmt.Errorf("token budget exhausted")
+	}
+
+	if !d.budget.CanSpend(d.budget.PerCallLimit) {
+		return fmt.Errorf("insufficient budget: remaining %d, need up to %d",
+			d.budget.Remaining(), d.budget.PerCallLimit)
+	}
+
+	// Check cache.
+	if d.cache != nil {
+		if content, _, ok := d.cache.Get(prompt); ok {
+			return ParseStructuredOutput(content, schema)
+		}
+	}
+
+	events, err := d.client.Stream(ctx, llm.Request{
+		Messages: []llm.Message{
+			{Role: "user", Content: prompt},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("stream: %w", err)
+	}
+
+	var content strings.Builder
+	var usage llm.TokenUsage
+
+	for evt := range events {
+		switch evt.Type {
+		case llm.StreamDelta:
+			content.WriteString(evt.Content)
+			if evt.Usage != nil {
+				usage = *evt.Usage
+			}
+		case llm.StreamDone:
+			if evt.Usage != nil {
+				usage = *evt.Usage
+			}
+		case llm.StreamError:
+			return fmt.Errorf("stream error: %w", evt.Err)
+		}
+	}
+
+	if usage.TotalTokens > 0 {
+		d.budget.Record(usage.TotalTokens)
+	} else {
+		// Estimate if provider didn't report usage.
+		d.budget.Record(len(prompt) / 4 + content.Len() / 4)
+	}
+
+	fullContent := content.String()
+	if err := ParseStructuredOutput(fullContent, schema); err != nil {
+		return fmt.Errorf("parse output: %w\nraw: %s", err, fullContent)
+	}
+
+	if d.cache != nil {
+		d.cache.Set(prompt, fullContent, TokenUsage{TotalTokens: usage.TotalTokens})
+	}
+
+	return nil
 }

@@ -279,3 +279,46 @@ func (c *retryTestClient) Complete(ctx context.Context, req llm.Request) (*llm.R
 func (c *retryTestClient) CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*llm.Response, error) {
 	return c.fn(ctx, llm.Request{Messages: []llm.Message{{Role: "user", Content: prompt}}})
 }
+
+func (c *retryTestClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
+	resp, err := c.fn(ctx, req)
+	if err != nil {
+		ch := make(chan llm.StreamEvent, 1)
+		ch <- llm.StreamEvent{Type: llm.StreamError, Err: err}
+		close(ch)
+		return ch, nil
+	}
+	ch := make(chan llm.StreamEvent, 2)
+	ch <- llm.StreamEvent{Type: llm.StreamDelta, Content: resp.Content}
+	ch <- llm.StreamEvent{Type: llm.StreamDone, Usage: &resp.Usage}
+	close(ch)
+	return ch, nil
+}
+
+func TestDriver_DecideStreamCollect(t *testing.T) {
+	mock := llm.NewMockClient(map[string]string{
+		"default": `{"answer":"42","reasoning":"test"}`,
+	})
+	driver := NewDriver(mock, NewTokenBudget(200000, 10000))
+
+	var result struct {
+		Answer   string `json:"answer"`
+		Reasoning string `json:"reasoning"`
+	}
+
+	err := driver.DecideStreamCollect(context.Background(), "what is the answer?", &result)
+	require.NoError(t, err)
+	assert.Equal(t, "42", result.Answer)
+	assert.Equal(t, "test", result.Reasoning)
+}
+
+func TestDriver_DecideStreamCollect_BudgetExhausted(t *testing.T) {
+	mock := llm.NewMockClient(map[string]string{"default": `{}`})
+	budget := NewTokenBudget(100, 100)
+	budget.Record(100) // exhaust budget
+	driver := NewDriver(mock, budget)
+
+	err := driver.DecideStreamCollect(context.Background(), "test", &struct{}{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "budget exhausted")
+}

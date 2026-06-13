@@ -9,6 +9,24 @@ import (
 type Client interface {
 	Complete(ctx context.Context, req Request) (*Response, error)
 	CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*Response, error)
+	Stream(ctx context.Context, req Request) (<-chan StreamEvent, error)
+}
+
+// StreamEventType identifies the type of a streaming event.
+type StreamEventType string
+
+const (
+	StreamDelta  StreamEventType = "delta"  // Incremental content chunk
+	StreamDone   StreamEventType = "done"   // Stream completed successfully
+	StreamError  StreamEventType = "error"  // Stream encountered an error
+)
+
+// StreamEvent represents a single event from a streaming LLM response.
+type StreamEvent struct {
+	Type    StreamEventType
+	Content string
+	Usage   *TokenUsage
+	Err     error
 }
 
 type Request struct {
