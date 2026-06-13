@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,4 +129,27 @@ func TestSearchSemantic_NoEmbedding(t *testing.T) {
 	results, err := s.SearchSemantic(ctx, []float64{1.0}, 10, 0.0)
 	require.NoError(t, err)
 	assert.Empty(t, results, "records without embeddings should be skipped")
+}
+
+func TestUpdateSemanticTimestamp(t *testing.T) {
+	s := setupSemanticStore(t)
+	ctx := context.Background()
+
+	id, err := s.StoreSemantic(ctx, "ts test", "test", "proj", nil, nil, "")
+	require.NoError(t, err)
+
+	before, err := s.GetSemanticByID(ctx, id)
+	require.NoError(t, err)
+
+	// Small sleep to ensure timestamp differs.
+	time.Sleep(10 * time.Millisecond)
+
+	time.Sleep(1100 * time.Millisecond) // SQLite timestamps are second-precision.
+
+	err = s.UpdateSemanticTimestamp(ctx, id)
+	require.NoError(t, err)
+
+	after, err := s.GetSemanticByID(ctx, id)
+	require.NoError(t, err)
+	assert.NotEqual(t, before.UpdatedAt, after.UpdatedAt, "timestamp should be updated")
 }

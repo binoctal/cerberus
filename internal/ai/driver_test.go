@@ -349,3 +349,32 @@ func TestDriver_DecideWithTools_BudgetExhausted(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "budget exhausted")
 }
+
+func TestDriver_DecideWithVision(t *testing.T) {
+	mock := &retryTestClient{fn: func(ctx context.Context, req llm.Request) (*llm.Response, error) {
+		return &llm.Response{Content: `{"description":"screenshot","status":"ok"}`}, nil
+	}}
+	driver := NewDriver(mock, NewTokenBudget(200000, 10000))
+
+	var result struct {
+		Description string `json:"description"`
+		Status      string `json:"status"`
+	}
+	err := driver.DecideWithVision(context.Background(), "describe this", [][]byte{[]byte("fake-image")}, &result)
+	require.NoError(t, err)
+	assert.Equal(t, "screenshot", result.Description)
+	assert.Equal(t, "ok", result.Status)
+}
+
+func TestDriver_DecideWithVision_BudgetExhausted(t *testing.T) {
+	mock := &retryTestClient{fn: func(ctx context.Context, req llm.Request) (*llm.Response, error) {
+		return &llm.Response{Content: `{}`}, nil
+	}}
+	budget := NewTokenBudget(100, 100)
+	budget.Record(100)
+	driver := NewDriver(mock, budget)
+
+	err := driver.DecideWithVision(context.Background(), "describe", [][]byte{[]byte("img")}, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "budget exhausted")
+}

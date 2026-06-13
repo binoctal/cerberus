@@ -121,3 +121,55 @@ func TestOpenAIStream_Non200(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }
+
+// TestGeminiStream_MockServer tests Gemini streaming with a mock SSE server.
+func TestGeminiStream_MockServer(t *testing.T) {
+	sseResponse := "" +
+		"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Goo\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":2,\"totalTokenCount\":7}}\n\n"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, sseResponse)
+	}))
+	defer server.Close()
+
+	client := &GeminiClient{apiKey: "test", model: "test-model", serverURL: server.URL}
+	events, err := client.Stream(context.Background(), Request{
+		Messages: []Message{{Role: "user", Content: "hi"}},
+	})
+	require.NoError(t, err)
+
+	var content strings.Builder
+	var gotDone bool
+	for evt := range events {
+		switch evt.Type {
+		case StreamDelta:
+			content.WriteString(evt.Content)
+		case StreamDone:
+			gotDone = true
+			if evt.Usage != nil {
+				assert.Equal(t, 7, evt.Usage.TotalTokens)
+			}
+		case StreamError:
+			t.Fatalf("stream error: %v", evt.Err)
+		}
+	}
+	assert.True(t, gotDone)
+	assert.Equal(t, "Goo", content.String())
+}
+
+// TestGeminiStream_Non200 tests error handling on non-200 status.
+func TestGeminiStream_Non200(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(w, `{"error":"overloaded"}`)
+	}))
+	defer server.Close()
+
+	client := &GeminiClient{apiKey: "test", model: "test-model", serverURL: server.URL}
+	_, err := client.Stream(context.Background(), Request{
+		Messages: []Message{{Role: "user", Content: "hi"}},
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "503")
+}
