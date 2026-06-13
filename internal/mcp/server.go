@@ -17,6 +17,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// Version is set at build time via -ldflags. Default matches the latest release.
+var Version = "0.5.0"
+
+
 // Server implements the MCP server for Cerberus.
 type Server struct {
 	store    *store.Store
@@ -96,7 +100,7 @@ func (srv *Server) handleRequest(ctx context.Context, c *conn, req jsonRPCReques
 			Result: map[string]any{
 				"protocolVersion": "2024-11-05",
 				"capabilities":    map[string]any{"tools": map[string]any{}},
-				"serverInfo":      map[string]any{"name": "cerberus", "version": "0.1.0"},
+				"serverInfo":      map[string]any{"name": "cerberus", "version": Version},
 			},
 		})
 	case "notifications/initialized":

@@ -161,7 +161,7 @@ func TestServer_HandleInitialize(t *testing.T) {
 	serverInfo, ok := result["serverInfo"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "cerberus", serverInfo["name"])
-	assert.Equal(t, "0.1.0", serverInfo["version"])
+	assert.Equal(t, "0.5.0", serverInfo["version"])
 }
 
 func TestServer_HandleToolsList(t *testing.T) {

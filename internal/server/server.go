@@ -22,21 +22,26 @@ import (
 
 // Server is the HTTP API server for CI/CD integration.
 type Server struct {
-	store  *store.Store
-	cfg    *config.Config
-	logger *zap.Logger
-	mu     sync.Mutex
-	runs   map[string]context.CancelFunc // session ID → cancel
+	store         *store.Store
+	cfg           *config.Config
+	logger        *zap.Logger
+	mu            sync.Mutex
+	runs          map[string]context.CancelFunc // session ID → cancel
+	clientFactory func(cfg llm.ClientConfig) (llm.Client, error) // optional override
 }
 
 // New creates a new API server.
 func New(s *store.Store, cfg *config.Config, logger *zap.Logger) *Server {
-	return &Server{
+	srv := &Server{
 		store:  s,
 		cfg:    cfg,
 		logger: logger,
 		runs:   make(map[string]context.CancelFunc),
 	}
+	srv.clientFactory = func(cfg llm.ClientConfig) (llm.Client, error) {
+		return llm.NewClientWithConfig(cfg)
+	}
+	return srv
 }
 
 // Handler returns the HTTP handler with all routes registered.
@@ -130,7 +135,7 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		baseURL = srv.cfg.LLMBaseURL
 	}
 
-	client, err := llm.NewClientWithConfig(llm.ClientConfig{
+	client, err := srv.clientFactory(llm.ClientConfig{
 		Model:   model,
 		APIKey:  apiKey,
 		BaseURL: baseURL,
@@ -145,12 +150,12 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sess, err := session.NewSession(ctx, mode, req.Goal, projCfgPtr, srv.store, client, srv.logger, nil, ".")
-		sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL)
 	if err != nil {
 		cancel()
 		writeError(w, http.StatusInternalServerError, "create session: %v", err)
 		return
 	}
+	sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL)
 
 	// Track for cancellation.
 	srv.mu.Lock()

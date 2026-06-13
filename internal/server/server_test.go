@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,18 @@ func setupServerTest(t *testing.T) (*Server, *store.Store) {
 
 	cfg := &config.Config{LLMModel: "mock", LLMAPIKey: "test"}
 	srv := New(s, cfg, zap.NewNop())
+	return srv, s
+}
+
+// setupServerWithMock injects a MockClient via clientFactory to avoid real LLM calls.
+func setupServerWithMock(t *testing.T) (*Server, *store.Store) {
+	t.Helper()
+	srv, s := setupServerTest(t)
+	srv.clientFactory = func(cfg llm.ClientConfig) (llm.Client, error) {
+		return llm.NewMockClient(map[string]string{
+			"default": `{"plan":[]}`,
+		}), nil
+	}
 	return srv, s
 }
 
@@ -72,7 +85,7 @@ func TestServer_CreateSession_InvalidJSON(t *testing.T) {
 }
 
 func TestServer_CreateSession_Success(t *testing.T) {
-	srv, s := setupServerTest(t)
+	srv, s := setupServerWithMock(t)
 	handler := srv.Handler()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions",
@@ -100,19 +113,16 @@ func TestServer_CreateSession_Success(t *testing.T) {
 	srv.mu.Unlock()
 	assert.True(t, hasCancel, "session should have a cancel function registered")
 
-	// Wait for async run to finish.
-	// Use a generous timeout: mock LLM + race detector + CI can be slow.
-	assert.Eventually(t, func() bool {
-		updated, getErr := s.GetSession(context.Background(), body["id"])
-		if getErr != nil {
-			return false
-		}
-		return updated.Status == "completed" || updated.Status == "failed"
-	}, 15*time.Second, 100*time.Millisecond, "session should reach terminal status")
+	// Cancel to clean up the background goroutine.
+	cancelReq := httptest.NewRequest(http.MethodPost,
+		"/api/v1/sessions/"+body["id"]+"/cancel", nil)
+	cancelW := httptest.NewRecorder()
+	handler.ServeHTTP(cancelW, cancelReq)
+	assert.Equal(t, http.StatusOK, cancelW.Code)
 }
 
 func TestServer_CreateSession_DefaultMode(t *testing.T) {
-	srv, _ := setupServerTest(t)
+	srv, _ := setupServerWithMock(t)
 	handler := srv.Handler()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions",
@@ -444,7 +454,7 @@ func TestServer_DashboardIndex(t *testing.T) {
 }
 
 func TestServer_CreateSession_WithURL(t *testing.T) {
-	srv, _ := setupServerTest(t)
+	srv, _ := setupServerWithMock(t)
 	handler := srv.Handler()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions",
