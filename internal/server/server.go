@@ -242,6 +242,14 @@ func (srv *Server) handleGetReport(w http.ResponseWriter, r *http.Request) {
 	case "text/html":
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = report.RenderHTML(w, data)
+	case "application/junit+xml", "application/xml":
+		xmlBytes, err := report.RenderJUnit(data)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "render JUnit: %v", err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/junit+xml; charset=utf-8")
+		_, _ = w.Write(xmlBytes)
 	default:
 		writeJSON(w, http.StatusOK, map[string]any{
 			"session":  data.Session,

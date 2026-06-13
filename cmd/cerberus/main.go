@@ -506,7 +506,7 @@ func reportCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&sessionFlag, "session", "", "Session ID to report")
-	cmd.Flags().StringVar(&formatFlag, "format", "markdown", "Output format: html, markdown, json")
+	cmd.Flags().StringVar(&formatFlag, "format", "markdown", "Output format: html, junit, markdown, json")
 	cmd.Flags().StringVar(&outputFlag, "output", "", "Output file path (default: stdout)")
 	_ = cmd.MarkFlagRequired("session")
 	return cmd
