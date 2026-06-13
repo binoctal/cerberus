@@ -125,7 +125,16 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		model = srv.cfg.LLMModel
 	}
 	apiKey := srv.cfg.LLMAPIKey
-	client, err := llm.NewClient(model, apiKey)
+	baseURL := projCfgPtr.Settings.AIBudget.BaseURL
+	if baseURL == "" {
+		baseURL = srv.cfg.LLMBaseURL
+	}
+
+	client, err := llm.NewClientWithConfig(llm.ClientConfig{
+		Model:   model,
+		APIKey:  apiKey,
+		BaseURL: baseURL,
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "LLM client: %v", err)
 		return
@@ -136,6 +145,7 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sess, err := session.NewSession(ctx, mode, req.Goal, projCfgPtr, srv.store, client, srv.logger, nil, ".")
+		sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL)
 	if err != nil {
 		cancel()
 		writeError(w, http.StatusInternalServerError, "create session: %v", err)

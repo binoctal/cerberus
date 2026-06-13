@@ -38,6 +38,12 @@ type Session struct {
 	Gate       escalation.Gate
 	Parallel   bool
 	MaxWorkers int
+
+	// Per-head drivers. When nil, the shared Driver is used.
+	scoutDriver    *ai.Driver
+	agentDriver    *ai.Driver
+	examinerDriver *ai.Driver
+	criticDriver   *ai.Driver
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
@@ -79,6 +85,57 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 	return sess, nil
 }
 
+// SetupHeadDrivers creates per-head LLM drivers from model config.
+// If models config is empty, all heads use the shared Driver.
+func (s *Session) SetupHeadDrivers(apiKey, baseURL string) {
+	models := s.Config.Settings.Models
+	globalModel := s.Config.Settings.AIBudget.Model
+
+	type head struct {
+		model string
+		field **ai.Driver
+	}
+	heads := []head{
+		{models.Scout, &s.scoutDriver},
+		{models.Agent, &s.agentDriver},
+		{models.Examiner, &s.examinerDriver},
+		{models.Critic, &s.criticDriver},
+	}
+
+	for _, h := range heads {
+		m := h.model
+		if m == "" {
+			continue // will fall back to shared Driver
+		}
+		client, err := llm.NewClientWithConfig(llm.ClientConfig{
+			Model:   m,
+			APIKey:  apiKey,
+			BaseURL: baseURL,
+		})
+		if err != nil {
+			s.Logger.Warn("failed to create head driver, using shared",
+				zap.String("model", m), zap.Error(err))
+			continue
+		}
+		budget := ai.NewTokenBudget(
+			s.Config.Settings.AIBudget.SessionTotalTokens,
+			s.Config.Settings.AIBudget.PerCallLimit,
+		)
+		*h.field = ai.NewDriver(client, budget)
+		s.Logger.Info("head driver configured", zap.String("model", m))
+	}
+
+	_ = globalModel // suppress unused warning
+}
+
+// driverFor returns the per-head driver if set, otherwise the shared Driver.
+func (s *Session) driverFor(head **ai.Driver) *ai.Driver {
+	if head != nil && *head != nil {
+		return *head
+	}
+	return s.Driver
+}
+
 func (s *Session) Run(ctx context.Context) (err error) {
 	s.Logger.Info("session starting", zap.String("id", s.ID))
 	runStart := time.Now()
@@ -102,7 +159,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		}
 
 		// Write stats to store.
-		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, 0, summary); statsErr != nil {
+		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, summary.CoveragePct, summary); statsErr != nil {
 			s.Logger.Error("update session stats", zap.Error(statsErr))
 		}
 
@@ -121,7 +178,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	}()
 
 	// Phase 1: Scout — Analyze + Plan.
-	scoutHead := scout.NewScout(s.Driver, s.Store, s.Config, s.Logger)
+	scoutHead := scout.NewScout(s.driverFor(&s.scoutDriver), s.Store, s.Config, s.Logger)
 	if s.DeepPlan {
 		scoutHead.SetDeepPlan(scout.DefaultToTConfig())
 	}
@@ -147,7 +204,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	engine := agent.NewRuleEngine(baseURL, s.Config.Actors, projectDir)
 	multiExec := agent.BuildMultiExecutor(projectDir, s.Gate, s.Logger)
 	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoopWithGate(s.Driver, s.Store, engine, multiExec, config, s.Gate, s.Logger)
+	loop := agent.NewReActLoopWithGate(s.driverFor(&s.agentDriver), s.Store, engine, multiExec, config, s.Gate, s.Logger)
 
 	s.Logger.Info("executing test plan",
 		zap.String("session_id", s.ID),
@@ -172,7 +229,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	// Phase 3: Examiner — Judge + Learn.
 	examinerCfg := examiner.DefaultExaminerConfig()
-	examinerHead := examiner.NewExaminer(s.Driver, nil, s.Store, examinerCfg, s.Logger)
+	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
 	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
 	if err != nil {
 		return fmt.Errorf("examiner: %w", err)

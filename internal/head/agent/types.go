@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -26,11 +27,33 @@ type TestCase struct {
 	Action      string  `json:"action,omitempty"`
 	Expectation string  `json:"expectation,omitempty"`
 	Priority    float64 `json:"priority,omitempty"`
-	DependsOn   string  `json:"depends_on,omitempty"`
+	DependsOn   Deps    `json:"depends_on,omitempty"`
 	Language    string  `json:"language,omitempty"`
 	Background  bool    `json:"background,omitempty"`
 	WaitFor     string  `json:"wait_for,omitempty"`
 	Cleanup     bool    `json:"cleanup,omitempty"`
+}
+
+// Deps is a []string that unmarshals from either a single string or an array.
+type Deps []string
+
+// UnmarshalJSON handles both `"depends_on": "tc-001"` and `"depends_on": ["tc-001","tc-002"]`.
+func (d *Deps) UnmarshalJSON(data []byte) error {
+	// Try array first.
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err == nil {
+		*d = arr
+		return nil
+	}
+	// Try single string.
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		if s != "" {
+			*d = []string{s}
+		}
+		return nil
+	}
+	return fmt.Errorf("depends_on must be string or array of strings")
 }
 
 // TestPlan is the output from the Scout head, input to the Agent head.

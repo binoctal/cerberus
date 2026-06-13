@@ -66,20 +66,20 @@ func TestNewClientAutoDetection(t *testing.T) {
 }
 
 func TestClaudeRequestConstruction(t *testing.T) {
-	client := NewClaudeClient("test-key", "claude-sonnet-4-6")
+	client := NewClaudeClient("test-key", "claude-sonnet-4-6", "")
 	assert.Equal(t, "test-key", client.apiKey)
 	assert.Equal(t, "claude-sonnet-4-6", client.model)
 	assert.Equal(t, "https://api.anthropic.com/v1/messages", client.baseURL())
 }
 
 func TestOpenAIRequestConstruction(t *testing.T) {
-	client := NewOpenAIClient("test-key", "gpt-4.1-2025-04-14")
+	client := NewOpenAIClient("test-key", "gpt-4.1-2025-04-14", "")
 	assert.Equal(t, "test-key", client.apiKey)
 	assert.Equal(t, "https://api.openai.com/v1/chat/completions", client.baseURL())
 }
 
 func TestGeminiRequestConstruction(t *testing.T) {
-	client := NewGeminiClient("test-key", "gemini-3-flash-preview")
+	client := NewGeminiClient("test-key", "gemini-3-flash-preview", "")
 	assert.Equal(t, "test-key", client.apiKey)
 	assert.Contains(t, client.baseURL(), "generativelanguage.googleapis.com")
 }
@@ -304,4 +304,84 @@ func TestMockClient_MatchKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, `{"matched": true}`, resp2.Content)
+}
+
+func TestClientConfig_BaseURLOverride(t *testing.T) {
+	customURL := "http://localhost:11434/v1/chat/completions"
+
+	tests := []struct {
+		name     string
+		client   Client
+		wantURL  string
+	}{
+		{
+			name:    "claude custom base url",
+			client:  NewClaudeClient("key", "claude-sonnet-4-6", customURL),
+			wantURL: customURL,
+		},
+		{
+			name:    "claude default url",
+			client:  NewClaudeClient("key", "claude-sonnet-4-6", ""),
+			wantURL: "https://api.anthropic.com/v1/messages",
+		},
+		{
+			name:    "openai custom base url",
+			client:  NewOpenAIClient("key", "gpt-4.1", customURL),
+			wantURL: customURL,
+		},
+		{
+			name:    "openai default url",
+			client:  NewOpenAIClient("key", "gpt-4.1", ""),
+			wantURL: "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			name:    "gemini custom base url",
+			client:  NewGeminiClient("key", "gemini-3-flash", customURL),
+			wantURL: customURL,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			switch c := tt.client.(type) {
+			case *ClaudeClient:
+				assert.Equal(t, tt.wantURL, c.baseURL())
+			case *OpenAIClient:
+				assert.Equal(t, tt.wantURL, c.baseURL())
+			case *GeminiClient:
+				assert.Equal(t, tt.wantURL, c.baseURL())
+			}
+		})
+	}
+}
+
+func TestNewClientWithConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{
+			"content": [{"text": "ok"}],
+			"usage": {"input_tokens": 1, "output_tokens": 1},
+			"stop_reason": "end_turn"
+		}`))
+	}))
+	defer server.Close()
+
+	// NewClientWithConfig with custom BaseURL should route to the test server.
+	client, err := NewClientWithConfig(ClientConfig{
+		Model:   "claude-sonnet-4-6",
+		APIKey:  "test-key",
+		BaseURL: server.URL,
+	})
+	require.NoError(t, err)
+
+	resp, err := client.Complete(context.Background(), Request{
+		Messages: []Message{{Role: "user", Content: "test"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "ok", resp.Content)
+
+	// NewClient (shorthand) still works.
+	client2, err := NewClient("mock", "")
+	require.NoError(t, err)
+	assert.NotNil(t, client2)
 }

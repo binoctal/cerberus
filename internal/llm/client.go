@@ -34,21 +34,34 @@ type TokenUsage struct {
 	TotalTokens  int `json:"total_tokens"`
 }
 
+// ClientConfig holds options for creating an LLM client.
+type ClientConfig struct {
+	Model   string
+	APIKey  string
+	BaseURL string // optional: overrides the provider's default API URL
+}
+
+// NewClient creates an LLM client with model and API key (shorthand).
 func NewClient(model, apiKey string) (Client, error) {
-	provider := detectProvider(model)
+	return NewClientWithConfig(ClientConfig{Model: model, APIKey: apiKey})
+}
+
+// NewClientWithConfig creates an LLM client with full configuration.
+func NewClientWithConfig(cfg ClientConfig) (Client, error) {
+	provider := detectProvider(cfg.Model)
 	switch provider {
 	case "anthropic":
-		return NewClaudeClient(apiKey, model), nil
+		return NewClaudeClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil
 	case "openai":
-		return NewOpenAIClient(apiKey, model), nil
+		return NewOpenAIClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil
 	case "gemini":
-		return NewGeminiClient(apiKey, model), nil
+		return NewGeminiClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil
 	case "mock":
 		return NewMockClient(map[string]string{
 			"default": `{"status":"pass","confidence":0.9,"reasoning":"mock response"}`,
 		}), nil
 	default:
-		return nil, fmt.Errorf("unsupported model: %s", model)
+		return nil, fmt.Errorf("unsupported model: %s", cfg.Model)
 	}
 }
 

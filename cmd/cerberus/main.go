@@ -216,8 +216,16 @@ func runCmd() *cobra.Command {
 				model = cfg.LLMModel
 			}
 			apiKey := cfg.LLMAPIKey
+			baseURL := projCfg.Settings.AIBudget.BaseURL
+			if baseURL == "" {
+				baseURL = cfg.LLMBaseURL
+			}
 
-			client, err := llm.NewClient(model, apiKey)
+			client, err := llm.NewClientWithConfig(llm.ClientConfig{
+				Model:   model,
+				APIKey:  apiKey,
+				BaseURL: baseURL,
+			})
 			if err != nil {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
@@ -229,6 +237,7 @@ func runCmd() *cobra.Command {
 			sess.DeepPlan = deepPlanFlag
 			sess.Parallel = parallelFlag
 			sess.MaxWorkers = workersFlag
+			sess.SetupHeadDrivers(apiKey, baseURL)
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -294,8 +303,16 @@ func verifyCmd() *cobra.Command {
 				model = cfg.LLMModel
 			}
 			apiKey := cfg.LLMAPIKey
+			baseURL := projCfg.Settings.AIBudget.BaseURL
+			if baseURL == "" {
+				baseURL = cfg.LLMBaseURL
+			}
 
-			client, err := llm.NewClient(model, apiKey)
+			client, err := llm.NewClientWithConfig(llm.ClientConfig{
+				Model:   model,
+				APIKey:  apiKey,
+				BaseURL: baseURL,
+			})
 			if err != nil {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
@@ -304,6 +321,8 @@ func verifyCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
+
+			sess.SetupHeadDrivers(apiKey, baseURL)
 
 			if err := sess.Run(ctx); err != nil {
 				return fmt.Errorf("session verify: %w", err)

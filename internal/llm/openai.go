@@ -17,8 +17,8 @@ type OpenAIClient struct {
 	serverURL  string       // overrides baseURL if set (for testing)
 }
 
-func NewOpenAIClient(apiKey, model string) *OpenAIClient {
-	return &OpenAIClient{apiKey: apiKey, model: model}
+func NewOpenAIClient(apiKey, model, baseURL string) *OpenAIClient {
+	return &OpenAIClient{apiKey: apiKey, model: model, serverURL: baseURL}
 }
 
 func (c *OpenAIClient) baseURL() string {

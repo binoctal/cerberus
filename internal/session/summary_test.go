@@ -34,6 +34,7 @@ func TestSessionSummary_FromResults(t *testing.T) {
 	assert.Equal(t, 4, summary.Verdicts)
 	assert.Equal(t, 2, summary.ReflectionsStored)
 	assert.Equal(t, 50000, summary.TotalTokens)
+	assert.InDelta(t, 50.0, summary.CoveragePct, 0.01) // 2 passed / 4 total * 100
 }
 
 func TestSessionSummary_String(t *testing.T) {
@@ -64,4 +65,29 @@ func TestSessionSummary_ToJSON(t *testing.T) {
 	j := summary.ToJSON()
 	assert.Contains(t, j, `"passed": 5`)
 	assert.Contains(t, j, `"goal": "test"`)
+}
+
+func TestSessionSummary_CoveragePct_EdgeCases(t *testing.T) {
+	t.Run("zero cases", func(t *testing.T) {
+		summary := FromResults("goal", "", 0, nil, nil, 0, 0, 0)
+		assert.InDelta(t, 0.0, summary.CoveragePct, 0.01)
+	})
+
+	t.Run("all pass", func(t *testing.T) {
+		results := []agent.StepResult{
+			{Status: agent.StepPassed},
+			{Status: agent.StepPassed},
+		}
+		summary := FromResults("goal", "", 2, results, nil, 0, 0, 0)
+		assert.InDelta(t, 100.0, summary.CoveragePct, 0.01)
+	})
+
+	t.Run("all fail", func(t *testing.T) {
+		results := []agent.StepResult{
+			{Status: agent.StepFailed},
+			{Status: agent.StepFailed},
+		}
+		summary := FromResults("goal", "", 2, results, nil, 0, 0, 0)
+		assert.InDelta(t, 0.0, summary.CoveragePct, 0.01)
+	})
 }

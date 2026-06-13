@@ -17,8 +17,8 @@ type ClaudeClient struct {
 	serverURL  string       // overrides baseURL if set (for testing)
 }
 
-func NewClaudeClient(apiKey, model string) *ClaudeClient {
-	return &ClaudeClient{apiKey: apiKey, model: model}
+func NewClaudeClient(apiKey, model, baseURL string) *ClaudeClient {
+	return &ClaudeClient{apiKey: apiKey, model: model, serverURL: baseURL}
 }
 
 func (c *ClaudeClient) baseURL() string {

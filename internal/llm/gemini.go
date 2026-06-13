@@ -17,8 +17,8 @@ type GeminiClient struct {
 	serverURL  string       // overrides baseURL if set (for testing)
 }
 
-func NewGeminiClient(apiKey, model string) *GeminiClient {
-	return &GeminiClient{apiKey: apiKey, model: model}
+func NewGeminiClient(apiKey, model, baseURL string) *GeminiClient {
+	return &GeminiClient{apiKey: apiKey, model: model, serverURL: baseURL}
 }
 
 func (c *GeminiClient) baseURL() string {

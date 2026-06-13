@@ -30,6 +30,9 @@ type SessionSummary struct {
 	PendingReview    int `json:"pending_review"`
 	ReflectionsStored int `json:"reflections_stored"`
 
+	// Coverage.
+	CoveragePct float64 `json:"coverage_pct"`
+
 	// Resource usage.
 	TotalTokens int     `json:"total_tokens"`
 	Duration    string  `json:"duration"`
@@ -67,6 +70,11 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		if v.NeedsReview() {
 			s.PendingReview++
 		}
+	}
+
+	// Compute coverage: passed verdicts / total cases * 100.
+	if s.TotalCases > 0 {
+		s.CoveragePct = float64(s.Passed) / float64(s.TotalCases) * 100
 	}
 
 	return s

@@ -230,7 +230,11 @@ func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolR
 	projCfg.Settings.AIBudget.Model = cfg.LLMModel
 
 	// Create LLM client.
-	client, clientErr := llm.NewClient(cfg.LLMModel, cfg.LLMAPIKey)
+	client, clientErr := llm.NewClientWithConfig(llm.ClientConfig{
+		Model:   cfg.LLMModel,
+		APIKey:  cfg.LLMAPIKey,
+		BaseURL: cfg.LLMBaseURL,
+	})
 	if clientErr != nil {
 		cancel()
 		return errorResult(fmt.Sprintf("create LLM client: %v", clientErr))
@@ -242,7 +246,8 @@ func (srv *Server) handleRun(ctx context.Context, args map[string]any) callToolR
 		cancel()
 		return errorResult(fmt.Sprintf("create session: %v", sessionErr))
 	}
-	sessionID := testSess.ID
+	testSess.SetupHeadDrivers(cfg.LLMAPIKey, cfg.LLMBaseURL)
+		sessionID := testSess.ID
 
 	srv.mu.Lock()
 	srv.sessions[sessionID] = &runningSession{progress: progress, cancel: cancel, gate: mcpGate}

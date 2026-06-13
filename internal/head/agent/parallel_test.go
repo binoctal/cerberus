@@ -116,8 +116,8 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 		Goal:       "dep test",
 		ProjectURL: srv2.URL,
 		Cases: []TestCase{
-			{ID: "tc-001", Name: "create user", Target: "/users", Method: "POST", Expectation: "201"},
-			{ID: "tc-002", Name: "get user", Target: "/users/1", Method: "GET", Expectation: "200", DependsOn: "tc-001"},
+			{ID: "tc-001", Name: "create user", Target: "/users", Method: "GET", Expectation: "200"},
+			{ID: "tc-002", Name: "get user", Target: "/users/1", Method: "GET", Expectation: "200", DependsOn: Deps{"tc-001"}},
 			{ID: "tc-003", Name: "list users", Target: "/users", Method: "GET", Expectation: "200"},
 		},
 	}
@@ -256,9 +256,9 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 		Goal:       "cascade test",
 		ProjectURL: srv.URL,
 		Cases: []TestCase{
-			{ID: "tc-create", Name: "create resource", Target: "/create", Method: "POST", Expectation: "201"},
-			{ID: "tc-get", Name: "get resource", Target: "/resource/1", Method: "GET", Expectation: "200", DependsOn: "tc-create"},
-			{ID: "tc-update", Name: "update resource", Target: "/resource/1", Method: "PUT", Expectation: "200", DependsOn: "tc-get"},
+			{ID: "tc-create", Name: "create resource", Target: "/create", Method: "GET", Expectation: "200"},
+			{ID: "tc-get", Name: "get resource", Target: "/resource/1", Method: "GET", Expectation: "200", DependsOn: Deps{"tc-create"}},
+			{ID: "tc-update", Name: "update resource", Target: "/resource/1", Method: "PUT", Expectation: "200", DependsOn: Deps{"tc-get"}},
 			{ID: "tc-list", Name: "list all", Target: "/list", Method: "GET", Expectation: "200"},
 		},
 	}
@@ -306,7 +306,7 @@ func TestParallelExecutor_CascadeSkip_ErrorMessage(t *testing.T) {
 		ProjectURL: srv.URL,
 		Cases: []TestCase{
 			{ID: "parent", Name: "parent", Target: "/fail", Method: "GET", Expectation: "200"},
-			{ID: "child", Name: "child", Target: "/x", Method: "GET", Expectation: "200", DependsOn: "parent"},
+			{ID: "child", Name: "child", Target: "/x", Method: "GET", Expectation: "200", DependsOn: Deps{"parent"}},
 		},
 	}
 
@@ -325,4 +325,97 @@ func TestParallelExecutor_CascadeSkip_ErrorMessage(t *testing.T) {
 
 func fmtID(i int) string {
 	return string(rune('0' + i))
+}
+
+func TestDeps_UnmarshalJSON(t *testing.T) {
+	t.Run("single string", func(t *testing.T) {
+		var d Deps
+		require.NoError(t, json.Unmarshal([]byte(`"tc-001"`), &d))
+		assert.Equal(t, Deps{"tc-001"}, d)
+	})
+
+	t.Run("array of strings", func(t *testing.T) {
+		var d Deps
+		require.NoError(t, json.Unmarshal([]byte(`["tc-001","tc-002"]`), &d))
+		assert.Equal(t, Deps{"tc-001", "tc-002"}, d)
+	})
+
+	t.Run("empty string", func(t *testing.T) {
+		var d Deps
+		require.NoError(t, json.Unmarshal([]byte(`""`), &d))
+		assert.Nil(t, d)
+	})
+
+	t.Run("null", func(t *testing.T) {
+		var d Deps
+		require.NoError(t, json.Unmarshal([]byte(`null`), &d))
+		assert.Nil(t, d)
+	})
+}
+
+func TestDetectAndBreakCycles_NoCycle(t *testing.T) {
+	graph := map[string][]string{
+		"A": {},
+		"B": {"A"},
+		"C": {"A"},
+	}
+	clean := detectAndBreakCycles(graph, zap.NewNop())
+	assert.Equal(t, []string{}, clean["A"])
+	assert.Equal(t, []string{"A"}, clean["B"])
+	assert.Equal(t, []string{"A"}, clean["C"])
+}
+
+func TestDetectAndBreakCycles_WithCycle(t *testing.T) {
+	graph := map[string][]string{
+		"A": {"C"},
+		"B": {"A"},
+		"C": {"B"},
+	}
+	clean := detectAndBreakCycles(graph, zap.NewNop())
+	// Intra-cycle edges should be removed.
+	assert.Empty(t, clean["A"])
+	assert.Empty(t, clean["B"])
+	assert.Empty(t, clean["C"])
+}
+
+func TestParallelExecutor_MultiDependency(t *testing.T) {
+	loop, s := setupParallelTest(t)
+	sess, err := s.CreateSession(context.Background(), "run", "multi-dep test", "project")
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	engine := NewRuleEngine(srv.URL, nil, ".")
+	httpExec := BuildMultiExecutor(".", nil, zap.NewNop())
+	loop2 := NewReActLoop(loop.driver, s, engine, httpExec, DefaultReActConfig(), zap.NewNop())
+
+	plan := &TestPlan{
+		Goal:       "multi-dep test",
+		ProjectURL: srv.URL,
+		Cases: []TestCase{
+			{ID: "tc-auth", Name: "authenticate", Target: "/a", Method: "GET", Expectation: "200"},
+			{ID: "tc-prod", Name: "create product", Target: "/b", Method: "GET", Expectation: "200"},
+			{ID: "tc-order", Name: "create order", Target: "/c", Method: "GET", Expectation: "200",
+				DependsOn: Deps{"tc-auth", "tc-prod"}},
+			{ID: "tc-free", Name: "independent", Target: "/d", Method: "GET", Expectation: "200"},
+		},
+	}
+
+	pe := NewParallelExecutor(loop2, ParallelConfig{MaxWorkers: 1}, zap.NewNop())
+	results, err := pe.ExecutePlan(context.Background(), plan, sess.ID)
+	require.NoError(t, err)
+	assert.Len(t, results, 4)
+
+	status := make(map[string]StepStatus)
+	for _, r := range results {
+		status[r.TestCase.ID] = r.Status
+	}
+	assert.Equal(t, StepPassed, status["tc-auth"])
+	assert.Equal(t, StepPassed, status["tc-prod"])
+	assert.Equal(t, StepPassed, status["tc-order"])
+	assert.Equal(t, StepPassed, status["tc-free"])
 }

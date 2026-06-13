@@ -55,15 +55,26 @@ type Settings struct {
 	AutoFix             string     `yaml:"auto_fix,omitempty"`
 	AIBudget            AIBudget   `yaml:"ai_budget,omitempty"`
 	CostAlerts          CostAlerts `yaml:"cost_alerts,omitempty"`
+	Models              Models     `yaml:"models,omitempty"`
 }
 
 type AIBudget struct {
 	SessionTotalTokens int    `yaml:"session_total_tokens,omitempty"`
 	PerCallLimit       int    `yaml:"per_call_limit,omitempty"`
 	Model              string `yaml:"model,omitempty"`
+	BaseURL            string `yaml:"base_url,omitempty"`
 }
 
 type CostAlerts struct {
 	WarnAtPct int `yaml:"warn_at_pct,omitempty"`
 	StopAtPct int `yaml:"stop_at_pct,omitempty"`
+}
+
+// Models holds optional per-head model overrides.
+// When a field is empty, the global AIBudget.Model is used.
+type Models struct {
+	Scout    string `yaml:"scout,omitempty"`
+	Agent    string `yaml:"agent,omitempty"`
+	Examiner string `yaml:"examiner,omitempty"`
+	Critic   string `yaml:"critic,omitempty"`
 }

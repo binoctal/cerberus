@@ -9,6 +9,7 @@ type Config struct {
 	LogLevel     string
 	LLMModel     string
 	LLMAPIKey    string
+	LLMBaseURL   string // optional: overrides the provider's default API URL
 }
 
 func Load() *Config {
@@ -18,6 +19,7 @@ func Load() *Config {
 		MigrationDir: getEnv("CERBERUS_MIGRATION_DIR", "migrations"),
 		LogLevel:     getEnv("CERBERUS_LOG_LEVEL", "info"),
 		LLMModel:     getEnv("CERBERUS_LLM_MODEL", "claude-sonnet-4-6"),
+		LLMBaseURL:   os.Getenv("CERBERUS_LLM_BASE_URL"),
 	}
 
 	// API key resolution: explicit CERBERUS key first, then provider-native keys
