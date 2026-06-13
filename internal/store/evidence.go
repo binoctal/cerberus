@@ -27,6 +27,30 @@ func (s *Store) CreateEvidence(ctx context.Context, traceID int64, evType, conte
 	return &Evidence{ID: id, TraceID: traceID, Type: evType, Content: content, CreatedAt: now}, nil
 }
 
+// GetEvidenceBySession returns all evidence for a session, grouped by trace_id.
+func (s *Store) GetEvidenceBySession(ctx context.Context, sessionID string) (map[int64][]Evidence, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT e.id, e.trace_id, e.type, e.content, e.created_at
+		 FROM evidence e
+		 JOIN traces t ON e.trace_id = t.id
+		 WHERE t.session_id = ?
+		 ORDER BY e.created_at`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[int64][]Evidence)
+	for rows.Next() {
+		var e Evidence
+		if err := rows.Scan(&e.ID, &e.TraceID, &e.Type, &e.Content, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		result[e.TraceID] = append(result[e.TraceID], e)
+	}
+	return result, rows.Err()
+}
+
 // GetEvidenceByTrace returns all evidence for a given trace, ordered chronologically.
 func (s *Store) GetEvidenceByTrace(ctx context.Context, traceID int64) ([]Evidence, error) {
 	rows, err := s.db.QueryContext(ctx,

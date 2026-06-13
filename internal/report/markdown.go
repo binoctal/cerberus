@@ -82,6 +82,41 @@ func RenderMarkdown(data *ReportData) string {
 		}
 	}
 
+	// Evidence section.
+	if len(data.Evidence) > 0 {
+		b.WriteString("## Evidence\n\n")
+		for _, v := range data.Verdicts {
+			evs, ok := data.Evidence[v.TraceID]
+			if !ok || len(evs) == 0 {
+				continue
+			}
+			fmt.Fprintf(&b, "<details>\n<summary>%s (%d evidence)</summary>\n\n", v.Target, len(evs))
+			for _, ev := range evs {
+				fmt.Fprintf(&b, "**[%s]** %s\n\n", ev.Type, truncate(ev.Content, 500))
+			}
+			b.WriteString("</details>\n\n")
+		}
+		// Also show evidence for traces without verdicts.
+		shownTraces := make(map[int64]bool)
+		for _, v := range data.Verdicts {
+			shownTraces[v.TraceID] = true
+		}
+		for _, tr := range data.Traces {
+			if shownTraces[tr.ID] {
+				continue
+			}
+			evs, ok := data.Evidence[tr.ID]
+			if !ok || len(evs) == 0 {
+				continue
+			}
+			fmt.Fprintf(&b, "<details>\n<summary>%s (%d evidence)</summary>\n\n", tr.Target, len(evs))
+			for _, ev := range evs {
+				fmt.Fprintf(&b, "**[%s]** %s\n\n", ev.Type, truncate(ev.Content, 500))
+			}
+			b.WriteString("</details>\n\n")
+		}
+	}
+
 	// Traces timeline.
 	if len(data.Traces) > 0 {
 		b.WriteString("## Execution Timeline\n\n")

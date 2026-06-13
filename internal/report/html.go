@@ -93,6 +93,21 @@ const htmlTemplate = `<!DOCTYPE html>
   <p>{{.Reasoning}}</p>
 </details>
 {{end}}{{end}}
+
+{{if .Evidence}}
+<h2>Evidence</h2>
+{{range .Verdicts}}{{if index $.Evidence .TraceID}}
+<details class="detail">
+  <summary><code>{{.Target}}</code> — evidence</summary>
+  {{range $i, $ev := (index $.Evidence .TraceID)}}
+  <div class="evidence-item">
+    <strong>[{{$ev.Type}}]</strong>
+    <pre>{{truncate $ev.Content 500}}</pre>
+  </div>
+  {{end}}
+</details>
+{{end}}{{end}}
+{{end}}
 {{end}}
 
 {{if .Traces}}
@@ -117,7 +132,8 @@ const htmlTemplate = `<!DOCTYPE html>
 
 // htmlTmpl is the parsed HTML template with custom functions.
 var htmlTmpl = template.Must(template.New("report").Funcs(template.FuncMap{
-	"add": func(a, b int) int { return a + b },
+	"add":      func(a, b int) int { return a + b },
+	"truncate": truncate,
 }).Parse(htmlTemplate))
 
 // RenderHTMLString returns the HTML report as a string.

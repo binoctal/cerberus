@@ -75,22 +75,35 @@ func RenderJUnit(data *ReportData) ([]byte, error) {
 			Classname: "cerberus",
 		}
 
+		// Build evidence summary for this verdict.
+		evSummary := evidenceSummary(data.Evidence, v.TraceID)
+
 		switch v.Status {
 		case "pass":
-			// No child element for passing tests.
+			if evSummary != "" {
+				tc.SystemOut = evSummary
+			}
 		case "fail":
 			suite.Failures++
+			contents := v.Reasoning
+			if evSummary != "" {
+				contents += "\n\n--- Evidence ---\n" + evSummary
+			}
 			tc.Failure = &junitFailure{
 				Message:  fmt.Sprintf("FAIL: %s (confidence %.2f)", v.Target, v.Confidence),
 				Type:     "AssertionError",
-				Contents: truncate(v.Reasoning, 500),
+				Contents: truncate(contents, 2000),
 			}
 		case "uncertain":
 			suite.Errors++
+			contents := v.Reasoning
+			if evSummary != "" {
+				contents += "\n\n--- Evidence ---\n" + evSummary
+			}
 			tc.Error = &junitError{
 				Message:  fmt.Sprintf("UNCERTAIN: %s (confidence %.2f)", v.Target, v.Confidence),
 				Type:     "UncertainVerdict",
-				Contents: truncate(v.Reasoning, 500),
+				Contents: truncate(contents, 2000),
 			}
 		case "skip":
 			suite.Skipped++
@@ -123,6 +136,22 @@ func RenderJUnit(data *ReportData) ([]byte, error) {
 	}
 
 	return append([]byte(xml.Header), output...), nil
+}
+
+// evidenceSummary builds a compact text summary of evidence for a trace.
+func evidenceSummary(evidence map[int64][]store.Evidence, traceID int64) string {
+	evs, ok := evidence[traceID]
+	if !ok || len(evs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, ev := range evs {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "[%s] %s", ev.Type, truncate(ev.Content, 200))
+	}
+	return b.String()
 }
 
 // verdictName builds a human-readable test case name from a verdict.

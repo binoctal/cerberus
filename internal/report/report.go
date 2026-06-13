@@ -11,10 +11,11 @@ import (
 
 // ReportData assembles all data needed for a session report.
 type ReportData struct {
-	Session  *store.Session           `json:"session"`
-	Traces   []store.Trace            `json:"traces"`
-	Verdicts []store.Verdict          `json:"verdicts"`
-	Summary  *session.SessionSummary  `json:"summary"`
+	Session  *store.Session              `json:"session"`
+	Traces   []store.Trace               `json:"traces"`
+	Verdicts []store.Verdict             `json:"verdicts"`
+	Evidence map[int64][]store.Evidence  `json:"evidence"` // trace_id → evidence
+	Summary  *session.SessionSummary     `json:"summary"`
 }
 
 // BuildReport assembles a full report for the given session.
@@ -40,10 +41,17 @@ func BuildReport(ctx context.Context, s *store.Store, sessionID string) (*Report
 		verdicts = []store.Verdict{}
 	}
 
+	// Load evidence grouped by trace_id.
+	evidence, _ := s.GetEvidenceBySession(ctx, sessionID)
+	if evidence == nil {
+		evidence = make(map[int64][]store.Evidence)
+	}
+
 	return &ReportData{
 		Session:  sess,
 		Traces:   traces,
 		Verdicts: verdicts,
+		Evidence: evidence,
 		Summary:  &summary,
 	}, nil
 }
