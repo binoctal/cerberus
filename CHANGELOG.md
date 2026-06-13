@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.0 — 2026-06-13
+
+### Fixed
+
+- Server crash: `SetupHeadDrivers` moved after nil check in `handleCreateSession`
+- MCP server version: hardcoded `"0.1.0"` replaced with build-time `Version` variable
+- Flaky `TestServer_CreateSession_Success`: clientFactory DI + sync verification replaces `Eventually` wait
+
+### Added
+
+#### MCP Streaming Notifications
+- `conn` mutex for safe concurrent JSON-RPC writes
+- `writeNotification` method for server-pushed progress events (no `id` field)
+- `handleRun` streams `notifications/progress` to MCP host in real time
+- `notifications` capability declared in `initialize` response
+- Tests: notification format, nil params, concurrent writes, capability check
+
+#### Embedding Provider Interface
+- `embed.Provider` interface: `Embed(ctx, text)`, `Dimension()`, `ModelName()`
+- `TrigramProvider` wrapping existing `Generate()` as default implementation
+- Scout and Examiner Learner now use Provider interface instead of direct calls
+- 7 TrigramProvider tests: interface compliance, determinism, parity with `Generate`
+
+#### Test Hardening
+- 10 SSE scanner tests: single/multi event, multiline data, comments, `[DONE]` sentinel
+- Claude and OpenAI stream integration tests with httptest mock SSE servers
+- Stream error handling tests for non-200 responses
+- Session lifecycle `fmt.Println` replaced with `zap.Logger.Info`
+
 ## v0.4.0 — 2026-06-13
 
 ### Added
