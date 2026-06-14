@@ -1,6 +1,9 @@
 package config
 
-import "github.com/binoctal/cerberus/internal/detect"
+import (
+	"github.com/binoctal/cerberus/internal/detect"
+	"github.com/binoctal/cerberus/internal/llm"
+)
 
 // Head identifies a cerberus head that consumes its own LLM driver.
 type Head string
@@ -16,6 +19,23 @@ const (
 // A head mapped to "" has no tier assignment; the caller applies the global
 // model / built-in default fallback.
 type TierModels map[Head]string
+
+// TierContexts maps each head to its model's input-token capacity, looked up
+// from the llm registry. A head with no resolved model has context 0.
+type TierContexts map[Head]int
+
+// resolveTierContexts looks up each head's tier model in the llm registry to
+// capture its context window. Used to scale ToT/Reflexion depth to what the
+// model can actually hold.
+func resolveTierContexts(tiers TierModels) TierContexts {
+	ctxs := TierContexts{}
+	for head, model := range tiers {
+		if model != "" {
+			ctxs[head] = llm.ContextWindow(model)
+		}
+	}
+	return ctxs
+}
 
 // resolveTierModels assigns each head a model tier by task complexity. Tiers
 // are read from the settings map that settings.go populates from the host CLI's

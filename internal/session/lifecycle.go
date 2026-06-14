@@ -46,6 +46,7 @@ type Session struct {
 	agentDriver    *ai.Driver
 	examinerDriver *ai.Driver
 	criticDriver   *ai.Driver
+	tiers          config.TierModels // head → tier model, for context lookup
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
@@ -92,6 +93,7 @@ func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config
 // explicit settings.models > tier from the host CLI > global ai_budget.model.
 // Heads with no resolved model fall back to the shared Driver.
 func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierModels) {
+	s.tiers = tiers
 	globalModel := s.Config.Settings.AIBudget.Model
 	models := s.Config.Settings.Models
 
@@ -184,10 +186,17 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	// Phase 1: Scout — Analyze + Plan.
 	scoutHead := scout.NewScout(s.driverFor(&s.scoutDriver), s.Store, s.Config, s.Logger)
-	scoutHead.SetReflexion(config.ResolveReflexionConfig(s.Config.Settings))
+	// Scale ToT/Reflexion depth to the Scout model's context window, looked up
+	// from its tier model in the llm registry. Unknown/standalone → 0 → conservative.
+	scoutModel := s.tiers[config.HeadScout]
+	scoutCtx := 0
+	if scoutModel != "" {
+		scoutCtx = llm.ContextWindow(scoutModel)
+	}
+	scoutHead.SetReflexion(config.ResolveReflexionConfig(s.Config.Settings, scoutCtx))
 	if s.DeepPlan {
 		scoutHead.SetDeepPlan(
-			config.ResolveToTConfig(s.Config.Settings),
+			config.ResolveToTConfig(s.Config.Settings, scoutCtx),
 			s.driverFor(&s.scoutDriver), // ToT propose: SONNET tier
 			s.driverFor(&s.agentDriver), // ToT evaluate: HAIKU tier
 		)

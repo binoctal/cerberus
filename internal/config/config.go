@@ -18,6 +18,7 @@ type Config struct {
 	LLMProvider  string         // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
 	CLIProfile   detect.Profile // resolved host CLI identity
 	TierModels   TierModels     // head → model tier (empty when CLI unknown)
+	TierContexts TierContexts   // head → model context-window tokens (drives depth scaling)
 }
 
 func Load() *Config {
@@ -46,6 +47,7 @@ func Load() *Config {
 	// model-name inference (see resolveAPIKey).
 	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings, profile)
 	cfg.TierModels = resolveTierModels(profile.CLI, settings)
+	cfg.TierContexts = resolveTierContexts(cfg.TierModels)
 
 	return cfg
 }
