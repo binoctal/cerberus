@@ -24,20 +24,21 @@ import (
 )
 
 var (
-	urlFlag      string
-	goalFlag     string
-	actorFlags   []string
-	dbFlag       string
-	configFlag   string
-	portFlag     string
-	deepPlanFlag bool
-	dirFlag      string
-	sessionFlag  string
-	formatFlag   string
-	outputFlag   string
-	parallelFlag bool
-	workersFlag  int
-	resumeFlag   string
+	urlFlag            string
+	goalFlag           string
+	actorFlags         []string
+	dbFlag             string
+	configFlag         string
+	portFlag           string
+	deepPlanFlag       bool
+	dirFlag            string
+	sessionFlag        string
+	formatFlag         string
+	outputFlag         string
+	parallelFlag       bool
+	workersFlag        int
+	resumeFlag         string
+	autoTestSafetyFlag string
 
 	// Set via -ldflags at build time.
 	version = "dev"
@@ -240,6 +241,7 @@ func runCmd() *cobra.Command {
 			sess.DeepPlan = deepPlanFlag
 			sess.Parallel = parallelFlag
 			sess.MaxWorkers = workersFlag
+			sess.AutoTestSafety = autoTestSafetyFlag
 			sess.SetupHeadDrivers(apiKey, baseURL, cfg.TierModels)
 
 			ctx, cancel := context.WithCancel(ctx)
@@ -277,6 +279,7 @@ func runCmd() *cobra.Command {
 	cmd.Flags().IntVar(&workersFlag, "workers", 4, "Max parallel workers (use with --parallel)")
 	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Project root directory for file/process executors")
 	cmd.Flags().StringVar(&resumeFlag, "resume", "", "Resume a previous session by ID")
+	cmd.Flags().StringVar(&autoTestSafetyFlag, "auto-test-safety", "off", "AutoTest phase: off|approve|auto|dry-run")
 	return cmd
 }
 

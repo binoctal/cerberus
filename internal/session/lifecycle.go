@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -40,6 +41,10 @@ type Session struct {
 	Gate       escalation.Gate
 	Parallel   bool
 	MaxWorkers int
+
+	// AutoTest phase configuration
+	AutoTestSafety     string // "" | "off" | "approve" | "auto" | "dry-run"
+	LastAutoTestReport *autotest.AutoTestReport
 
 	// Per-head drivers. When nil, the shared Driver is used.
 	scoutDriver    *ai.Driver
@@ -268,6 +273,19 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		zap.Int("verdicts", len(verdicts)),
 		zap.Int("reflections_stored", reflections),
 	)
+
+	// Phase 4: AutoTest — Coverage-driven test generation (optional).
+	if s.AutoTestSafety != "" && s.AutoTestSafety != "off" {
+		mode := autotest.SafetyMode(s.AutoTestSafety)
+		cov := autotest.NewGoCoverageProvider(autotest.DefaultGoCoverageRunner, s.Logger)
+		gen := autotest.NewGoTestGenerator(s.driverFor(&s.scoutDriver), s.Logger)
+		at := autotest.NewAutoTest(cov, gen, autotest.NewEscalationGateAdapter(s.Gate), nil, mode, s.Logger)
+		report, atErr := at.Run(ctx, s.ProjectDir)
+		if atErr != nil {
+			s.Logger.Warn("autotest phase failed", zap.Error(atErr))
+		}
+		s.LastAutoTestReport = report
+	}
 
 	// Build summary.
 	summary = FromResults(
