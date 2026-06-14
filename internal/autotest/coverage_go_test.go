@@ -2,6 +2,8 @@ package autotest
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,4 +38,19 @@ func TestGoCoverage_Gaps_ZeroCover(t *testing.T) {
 	require.Len(t, gaps, 1)
 	assert.Equal(t, "pkg/a.go", gaps[0].File)
 	assert.Equal(t, ReasonZeroCover, gaps[0].Reason)
+}
+
+func TestGoCoverage_NoTestFileGaps(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package p\nfunc A(){}\n"), 0o644))
+	// a_test.go missing
+	p := NewGoCoverageProvider(nil, nil)
+	gaps := p.NoTestFileGaps(dir)
+	require.Len(t, gaps, 1)
+	assert.Equal(t, filepath.Join(dir, "a.go"), gaps[0].File)
+	assert.Equal(t, ReasonNoTestFile, gaps[0].Reason)
+
+	// adding a_test.go removes the gap
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a_test.go"), []byte("package p\n"), 0o644))
+	assert.Empty(t, p.NoTestFileGaps(dir))
 }
