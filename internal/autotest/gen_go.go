@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
@@ -78,8 +77,8 @@ func extractFunc(source []byte, funcName string) (string, string) {
 }
 
 func testFilePath(src string) string {
-	base := filepath.Base(src)
-	return strings.TrimSuffix(base, ".go") + "_test.go"
+	// Preserve the source directory: internal/llm/claude.go → internal/llm/claude_test.go
+	return strings.TrimSuffix(src, ".go") + "_test.go"
 }
 
 func stripFences(s string) string {
