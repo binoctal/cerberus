@@ -1,5 +1,9 @@
 .PHONY: build test lint fmt check clean run coverage e2e
 
+# Put GOPATH/bin (where `go install` places tools like goimports) on PATH so
+# fmt/lint work without per-user shell configuration.
+export PATH := $(PATH):$(shell go env GOPATH)/bin
+
 build:
 	go build -o bin/cerberus ./cmd/cerberus
 
