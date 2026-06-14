@@ -33,6 +33,7 @@ type AutoTest struct {
 	gate     RequestGate
 	writer   Writer
 	mode     SafetyMode
+	MaxGaps  int // cap on gaps generated per run (0 = unlimited); defaults to 5
 	logger   *zap.Logger
 }
 
@@ -43,7 +44,7 @@ func NewAutoTest(cov CoverageProvider, gen TestGenerator, gate RequestGate, w Wr
 	if w == nil {
 		w = FSWriter{}
 	}
-	return &AutoTest{coverage: cov, gen: gen, gate: gate, writer: w, mode: mode, logger: logger}
+	return &AutoTest{coverage: cov, gen: gen, gate: gate, writer: w, mode: mode, MaxGaps: 5, logger: logger}
 }
 
 func (a *AutoTest) Run(ctx context.Context, projectDir string) (*AutoTestReport, error) {
@@ -61,6 +62,12 @@ func (a *AutoTest) Run(ctx context.Context, projectDir string) (*AutoTestReport,
 	// Addendum: a concrete GoCoverageProvider also knows no-test-file gaps.
 	if gcp, ok := a.coverage.(*GoCoverageProvider); ok {
 		rep.Gaps = append(rep.Gaps, gcp.NoTestFileGaps(projectDir)...)
+	}
+	// Cap gaps generated per run: a large codebase can have hundreds of gaps;
+	// generating tests for all of them would be slow and expensive. Take the
+	// first MaxGaps (>0). A future revision can rank by estimated coverage gain.
+	if a.MaxGaps > 0 && len(rep.Gaps) > a.MaxGaps {
+		rep.Gaps = rep.Gaps[:a.MaxGaps]
 	}
 
 	for _, gap := range rep.Gaps {
