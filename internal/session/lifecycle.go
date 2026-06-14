@@ -283,6 +283,15 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		report, atErr := at.Run(ctx, s.ProjectDir)
 		if atErr != nil {
 			s.Logger.Warn("autotest phase failed", zap.Error(atErr))
+		} else if report != nil {
+			s.Logger.Info("autotest phase complete",
+				zap.String("mode", string(mode)),
+				zap.Int("gaps", len(report.Gaps)),
+				zap.Int("generated", len(report.Generated)),
+				zap.Int("written", len(report.Written)),
+				zap.Int("reverted", len(report.Reverted)),
+				zap.Float64("before_pct", report.BeforeCoveragePct),
+				zap.Float64("after_pct", report.AfterCoveragePct))
 		}
 		s.LastAutoTestReport = report
 	}
