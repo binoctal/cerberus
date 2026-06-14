@@ -160,6 +160,11 @@ func (d *Driver) Budget() *TokenBudget {
 	return d.budget
 }
 
+// Client returns the underlying LLM client for direct access (e.g., raw completion fallback).
+func (d *Driver) Client() llm.Client {
+	return d.client
+}
+
 // backoff computes exponential backoff with jitter: base * 2^attempt, capped at maxDelay.
 func (d *Driver) backoff(attempt int) time.Duration {
 	delay := time.Duration(float64(d.retry.BaseDelay) * math.Pow(2, float64(attempt-1)))
