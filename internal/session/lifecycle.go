@@ -292,6 +292,14 @@ func (s *Session) Run(ctx context.Context) (err error) {
 				zap.Int("reverted", len(report.Reverted)),
 				zap.Float64("before_pct", report.BeforeCoveragePct),
 				zap.Float64("after_pct", report.AfterCoveragePct))
+			// dry-run: print each generated _test.go to stdout for review.
+			// No files are written; this is the preview of what would be adopted.
+			if mode == autotest.SafetyDryRun {
+				fmt.Println("\nAutoTest dry-run — generated test previews:")
+				for _, tf := range report.Generated {
+					fmt.Printf("\n--- %s ---\n%s\n", tf.Path, tf.Content)
+				}
+			}
 		}
 		s.LastAutoTestReport = report
 	}
