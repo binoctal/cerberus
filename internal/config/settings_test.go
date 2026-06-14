@@ -143,6 +143,18 @@ func TestResolveAPIKey_UsesCLIPrefix(t *testing.T) {
 	}
 }
 
+func TestResolveAPIKey_UpperCaseModelUsesCorrectProvider(t *testing.T) {
+	for _, key := range []string{"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY"} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("OPENAI_API_KEY", "oai-key")
+	// Upper-case prefix must still route to OPENAI, not fall through to anthropic.
+	got := resolveAPIKey("GPT-5.5", nil, detect.Profile{})
+	if got != "oai-key" {
+		t.Errorf("resolveAPIKey(GPT-5.5) = %q, want oai-key (case-insensitive provider match)", got)
+	}
+}
+
 func TestResolveAPIKey_ExplicitOverrideWins(t *testing.T) {
 	t.Setenv("CERBERUS_LLM_API_KEY", "explicit")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "auth-tok")

@@ -123,10 +123,12 @@ func detectProvider(model string) string {
 	if model == "mock" {
 		return "mock"
 	}
-	if strings.HasPrefix(model, "gpt") {
+	// Match case-insensitively: vendors/users mix case ("GPT-5.5", "Gemini-3.5").
+	m := strings.ToLower(model)
+	if strings.HasPrefix(m, "gpt") {
 		return "openai"
 	}
-	if strings.HasPrefix(model, "gemini") {
+	if strings.HasPrefix(m, "gemini") {
 		return "gemini"
 	}
 	// Default to anthropic: cerberus deep-integrates with Claude Code, so

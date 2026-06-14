@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"github.com/binoctal/cerberus/internal/detect"
 )
@@ -129,8 +130,11 @@ func providerKey(prefix string, settings map[string]string) string {
 	return ""
 }
 
+// isModel reports whether model's name starts with prefix, case-insensitively.
+// Vendors and users mix case (e.g. "GPT-5.5"), and the APIs treat model ids as
+// case-equivalent.
 func isModel(model, prefix string) bool {
-	return len(model) >= len(prefix) && model[:len(prefix)] == prefix
+	return len(model) >= len(prefix) && strings.EqualFold(model[:len(prefix)], prefix)
 }
 
 func getEnv(key, fallback string) string {

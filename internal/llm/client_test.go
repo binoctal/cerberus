@@ -26,6 +26,25 @@ func TestMockClient(t *testing.T) {
 	assert.Greater(t, resp.Usage.TotalTokens, 0)
 }
 
+func TestDetectProvider_CaseInsensitive(t *testing.T) {
+	cases := map[string]string{
+		"gpt-5.5":          "openai",
+		"GPT-5.5":          "openai",
+		"GPT-5.5-MINI":     "openai",
+		"Gemini-3.5-Flash": "gemini",
+		"gemini-2.5-pro":   "gemini",
+		"GEMINI-3.5-FLASH": "gemini",
+		"GLM-4.5-Air":      "anthropic",
+		"claude-opus-4-8":  "anthropic",
+		"mock":             "mock",
+	}
+	for model, want := range cases {
+		if got := detectProvider(model); got != want {
+			t.Errorf("detectProvider(%q) = %q, want %q", model, got, want)
+		}
+	}
+}
+
 func TestMockClientWithVision(t *testing.T) {
 	mock := NewMockClient(map[string]string{
 		"default": `{"status":"pass"}`,
