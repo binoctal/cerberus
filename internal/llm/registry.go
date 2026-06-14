@@ -67,7 +67,7 @@ func loadRegistry() *modelRegistry {
 				r.Defaults.Output = tmp.Defaults.Output
 			}
 			for k, v := range tmp.Models {
-				r.Models[k] = v
+				r.Models[strings.ToLower(k)] = v
 			}
 		}
 	}
@@ -85,7 +85,7 @@ func loadRegistry() *modelRegistry {
 					r.Defaults.Output = ext.Defaults.Output
 				}
 				for k, v := range ext.Models {
-					r.Models[k] = v
+					r.Models[strings.ToLower(k)] = v
 				}
 			}
 		}
@@ -116,12 +116,16 @@ func sortedPrefixes(m map[string]ModelCaps) []string {
 // resolveCaps finds capabilities for a model id: exact match, then longest
 // prefix match (dated variants resolve to their family), then the table default.
 func resolveCaps(model string) ModelCaps {
+	// Model ids are matched case-insensitively: vendors and users mix case
+	// (e.g. settings.json "GLM-4.5-Air" vs the lowercase registry key), and the
+	// APIs treat them as equivalent.
+	m := strings.ToLower(model)
 	r := loadRegistry()
-	if c, ok := r.Models[model]; ok {
+	if c, ok := r.Models[m]; ok {
 		return c
 	}
 	for _, p := range r.prefixes {
-		if strings.HasPrefix(model, p) {
+		if strings.HasPrefix(m, p) {
 			return r.Models[p]
 		}
 	}

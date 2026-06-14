@@ -39,6 +39,17 @@ func TestContextWindow_Unknown_Default(t *testing.T) {
 	assert.Equal(t, defaultContextWindow, ContextWindow("glm-9-preview"))
 }
 
+func TestContextWindow_CaseInsensitive(t *testing.T) {
+	resetRegistry()
+	// Vendors/users mix case ("GLM-4.5-Air"); registry keys are lowercase and
+	// the APIs treat model ids as case-equivalent.
+	assert.Equal(t, 128_000, ContextWindow("GLM-4.5-Air"))
+	assert.Equal(t, 200_000, ContextWindow("GLM-4.7"))
+	assert.Equal(t, 1_050_000, ContextWindow("GPT-5.5"))
+	assert.Equal(t, 1_000_000, ContextWindow("CLAUDE-OPUS-4-8"))
+	assert.Equal(t, 1_000_000, ContextWindow("glm-5.2[1m]")) // lowercase still works
+}
+
 func TestMaxOutput(t *testing.T) {
 	resetRegistry()
 	assert.Equal(t, 128_000, MaxOutput("claude-opus-4-8"))
