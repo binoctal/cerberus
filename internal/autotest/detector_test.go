@@ -104,6 +104,13 @@ func TestNodeProjectDetector_Detect(t *testing.T) {
 				if err := os.WriteFile(pkgJson, []byte(pkgContent), 0644); err != nil {
 					t.Fatal(err)
 				}
+
+				// Create node_modules to simulate installed dependencies
+				nodeModules := filepath.Join(tmpDir, "node_modules")
+				if err := os.MkdirAll(nodeModules, 0755); err != nil {
+					t.Fatal(err)
+				}
+
 				return tmpDir, func() {}
 			},
 			wantSupported: false,

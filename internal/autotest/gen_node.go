@@ -95,8 +95,17 @@ func (g *NodeTestGenerator) SetLogger(logger *zap.Logger) {
 func nodeTestFilePath(file string) string {
 	dir := filepath.Dir(file)
 	base := filepath.Base(file)
-	name := strings.TrimSuffix(base, ".js")
-	return filepath.Join(dir, name+".test.js")
+
+	// Try common extensions in order
+	for _, ext := range []string{".jsx", ".tsx", ".ts", ".js"} {
+		if strings.HasSuffix(base, ext) {
+			name := strings.TrimSuffix(base, ext)
+			return filepath.Join(dir, name+".test"+ext)
+		}
+	}
+
+	// Fallback: just append .test.js
+	return filepath.Join(dir, base+".test.js")
 }
 
 // extractNodeFunction extracts a function/class from source using regex patterns
