@@ -12,11 +12,36 @@ agent_steer_system: |
   - Never fabricate data. Only reference information visible in the observation.
 
 agent_steer_output: |
-  Respond with JSON:
+  CRITICAL: Respond with VALID JSON only. No markdown, no explanations, no text before/after.
+
+  Your response MUST be valid JSON that parses successfully. Follow this EXACT format:
   {
     "reasoning": "why this action",
     "action": {"type": "click|type|navigate|api_request|wait", "target": "...", "value": "...", "method": "...", "headers": {...}}
   }
+
+  JSON VALIDATION CHECKLIST:
+  - Start with {, end with }
+  - All strings in double quotes
+  - No trailing commas
+  - No comments (// or /* */)
+  - Escape special characters: " \\ \n \t
+  - Numbers: 0.9 (not 0,9 or .9)
+  - Booleans: true/false (not True/False)
+  - null (not Null or NULL)
+
+  COMMON JSON SYNTAX ERRORS TO AVOID:
+  - Missing closing brace }
+  - Unmatched quotes "
+  - Trailing comma: "value": 123,
+  - Single quotes instead of double: 'value'
+  - Unescaped newlines in strings
+  - Missing commas between fields
+
+  If you're unsure about JSON syntax, keep it simple:
+  - Use minimal nesting
+  - Avoid complex structures
+  - Test your JSON mentally before outputting
 
 agent_recover_system: |
   You are a test recovery agent. A test action failed. Analyze the failure and decide the next action.
@@ -28,12 +53,37 @@ agent_recover_system: |
   - Never repeat the same action that just failed.
 
 agent_recover_output: |
-  Respond with JSON:
+  CRITICAL: Respond with VALID JSON only. No markdown, no explanations, no text before/after.
+
+  Your response MUST be valid JSON that parses successfully. Follow this EXACT format:
   {
     "diagnosis": "root cause of failure",
     "action": {"type": "...", "target": "...", "value": "..."},
     "skip": false
   }
+
+  JSON VALIDATION CHECKLIST:
+  - Start with {, end with }
+  - All strings in double quotes
+  - No trailing commas
+  - No comments (// or /* */)
+  - Escape special characters: " \\ \n \t
+  - Numbers: 0.9 (not 0,9 or .9)
+  - Booleans: true/false (not True/False)
+  - null (not Null or NULL)
+
+  COMMON JSON SYNTAX ERRORS TO AVOID:
+  - Missing closing brace }
+  - Unmatched quotes "
+  - Trailing comma: "value": 123,
+  - Single quotes instead of double: 'value'
+  - Unescaped newlines in strings
+  - Missing commas between fields
+
+  If you're unsure about JSON syntax, keep it simple:
+  - Use minimal nesting
+  - Avoid complex structures
+  - Test your JSON mentally before outputting
 
 examiner_judge_system: |
   You are a test verdict judge. Evaluate test evidence against expectations.
@@ -47,13 +97,39 @@ examiner_judge_system: |
   - Never give correctness_confidence > 0.9 without seeing response body.
 
 examiner_judge_output: |
-  Respond with JSON:
+  CRITICAL: Respond with VALID JSON only. No markdown, no explanations, no text before/after.
+
+  Your response MUST be valid JSON that parses successfully. Follow this EXACT format:
   {
     "status": "pass | fail | uncertain | skip",
     "existence_confidence": 0.0,
     "correctness_confidence": 0.0,
     "reasoning": "explanation of verdict"
   }
+
+  JSON VALIDATION CHECKLIST:
+  - Start with {, end with }
+  - All strings in double quotes
+  - No trailing commas
+  - No comments (// or /* */)
+  - Escape special characters: " \\ \n \t
+  - Numbers: 0.9 (not 0,9 or .9)
+  - Booleans: true/false (not True/False)
+  - Strings like "pass" must be in double quotes
+  - null (not Null or NULL)
+
+  COMMON JSON SYNTAX ERRORS TO AVOID:
+  - Missing closing brace }
+  - Unmatched quotes "
+  - Trailing comma: "value": 123,
+  - Single quotes instead of double: 'value'
+  - Unescaped newlines in strings
+  - Missing commas between fields
+
+  If you're unsure about JSON syntax, keep it simple:
+  - Use minimal nesting
+  - Avoid complex structures
+  - Test your JSON mentally before outputting
 
 examiner_critic_system: |
   You are a verdict quality reviewer. Check the initial verdict below for common errors.
@@ -67,13 +143,39 @@ examiner_critic_system: |
   Be skeptical. Only flag real issues.
 
 examiner_critic_output: |
-  Respond with JSON:
+  CRITICAL: Respond with VALID JSON only. No markdown, no explanations, no text before/after.
+
+  Your response MUST be valid JSON that parses successfully. Follow this EXACT format:
   {
     "issues_found": false,
     "critique": "description of issues found, empty if none",
     "suggested_status": "pass | fail | uncertain | skip",
     "suggested_confidence": 0.0
   }
+
+  JSON VALIDATION CHECKLIST:
+  - Start with {, end with }
+  - All strings in double quotes
+  - No trailing commas
+  - No comments (// or /* */)
+  - Escape special characters: " \\ \n \t
+  - Numbers: 0.9 (not 0,9 or .9)
+  - Booleans: true/false (not True/False)
+  - Strings like "pass" must be in double quotes
+  - null (not Null or NULL)
+
+  COMMON JSON SYNTAX ERRORS TO AVOID:
+  - Missing closing brace }
+  - Unmatched quotes "
+  - Trailing comma: "value": 123,
+  - Single quotes instead of double: 'value'
+  - Unescaped newlines in strings
+  - Missing commas between fields
+
+  If you're unsure about JSON syntax, keep it simple:
+  - Use minimal nesting
+  - Avoid complex structures
+  - Test your JSON mentally before outputting
 
 examiner_reflection_system: |
   You are a test learning agent. Analyze ALL test results below and generate concise, actionable reflections.
@@ -89,7 +191,9 @@ examiner_reflection_system: |
   - Pick the most specific category from: timeout_recovery, auth_failure, endpoint_not_found, server_error, ambiguous_result, general_failure.
 
 examiner_reflection_output: |
-  Respond with JSON array:
+  CRITICAL: Respond with VALID JSON array only. No markdown, no explanations, no text before/after.
+
+  Your response MUST be a valid JSON array that parses successfully. Follow this EXACT format:
   [
     {
       "type": "failure | success",
@@ -99,6 +203,29 @@ examiner_reflection_output: |
       "category": "timeout_recovery | auth_failure | endpoint_not_found | server_error | ambiguous_result | general_failure"
     }
   ]
+
+  JSON VALIDATION CHECKLIST:
+  - Start with [, end with ]
+  - All objects between { and }
+  - All strings in double quotes
+  - Commas between array elements
+  - No trailing comma after last element
+  - No comments (// or /* */)
+  - Escape special characters: " \\ \n \t
+
+  COMMON JSON SYNTAX ERRORS TO AVOID:
+  - Missing closing bracket ]
+  - Missing closing brace }
+  - Unmatched quotes "
+  - Trailing comma: "value": 123,]
+  - Single quotes instead of double: 'value'
+  - Unescaped newlines in strings
+  - Missing commas between objects
+
+  If you're unsure about JSON syntax, keep it simple:
+  - Use minimal nesting
+  - Avoid complex structures
+  - Test your JSON mentally before outputting
 
 scout_analyze_system: |
   You are a test reconnaissance agent. Your job is to analyze a SaaS project and build a cognitive model of its API surface and page structure.

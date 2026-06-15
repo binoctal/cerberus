@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"io"
 	"strings"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 // RenderHTML writes an HTML report to w.
@@ -77,16 +79,31 @@ const htmlTemplate = `<!DOCTYPE html>
 </div>
 {{end}}{{end}}
 
+{{if .Summary}}{{if .Summary.Failed}}
+<h3>Failure Breakdown</h3>
+<table>
+  <tr><th>Failure Type</th><th>Count</th><th>Is System Bug?</th></tr>
+  {{range indexFailureReasons .}}
+  <tr>
+    <td><strong>{{.Reason.DisplayName}}</strong></td>
+    <td>{{.Count}}</td>
+    <td>{{if .Reason.IsSystemBug}}✅ Yes{{else}}❌ No{{end}}</td>
+  </tr>
+  {{end}}
+</table>
+{{end}}{{end}}
+
 {{if .Verdicts}}
 <h2>Verdicts</h2>
 <table>
-  <tr><th>#</th><th>Target</th><th>Status</th><th>Confidence</th><th>Source</th></tr>
+  <tr><th>#</th><th>Target</th><th>Status</th><th>Confidence</th><th>Failure Reason</th><th>Source</th></tr>
   {{range $i, $v := .Verdicts}}
   <tr>
     <td>{{add $i 1}}</td>
     <td><code>{{$v.Target}}</code></td>
     <td><span class="badge badge-{{$v.Status}}">{{$v.Status}}</span></td>
     <td>{{printf "%.2f" $v.Confidence}}</td>
+    <td>{{if or (eq $v.Status "fail") (eq $v.Status "failed")}}{{if $v.FailureReason}}{{$v.FailureReason.DisplayName}}{{else}}—{{end}}{{else}}—{{end}}</td>
     <td>{{$v.Source}}</td>
   </tr>
   {{end}}
@@ -160,10 +177,11 @@ const htmlTemplate = `<!DOCTYPE html>
 
 // htmlTmpl is the parsed HTML template with custom functions.
 var htmlTmpl = template.Must(template.New("report").Funcs(template.FuncMap{
-	"add":        func(a, b int) int { return a + b },
-	"truncate":   truncate,
-	"countStatus": countStatusInItems,
-	"baseName":   baseName,
+	"add":                 func(a, b int) int { return a + b },
+	"truncate":            truncate,
+	"countStatus":         countStatusInItems,
+	"baseName":            baseName,
+	"indexFailureReasons": indexFailureReasonsInHTML,
 }).Parse(htmlTemplate))
 
 // RenderHTMLString returns the HTML report as a string.
@@ -208,4 +226,46 @@ func baseName(path string) string {
 		return path[idx+1:]
 	}
 	return path
+}
+
+// indexFailureReasonsInHTML counts failed verdicts by their failure reason (for HTML template).
+// Returns a slice of FailureInfo sorted by count (descending).
+func indexFailureReasonsInHTML(data interface{}) []FailureInfo {
+	var result []FailureInfo
+
+	reportData, ok := data.(*ReportData)
+	if !ok {
+		return result
+	}
+
+	// Count failures by reason
+	counts := make(map[store.FailureReason]int)
+	for _, v := range reportData.Verdicts {
+		if v.Status == "fail" || v.Status == "failed" {
+			reason := v.FailureReason
+			if reason == "" {
+				reason = store.FailureReasonSystemError // Default to system error if not specified
+			}
+			counts[reason]++
+		}
+	}
+
+	// Convert to slice and sort by count (descending)
+	for reason, count := range counts {
+		result = append(result, FailureInfo{
+			Reason: reason,
+			Count:  count,
+		})
+	}
+
+	// Sort by count descending (bubble sort for simplicity)
+	for i := 0; i < len(result); i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].Count > result[i].Count {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	return result
 }

@@ -113,6 +113,15 @@ func (e *Examiner) Examine(ctx context.Context, results []agent.StepResult, sess
 		// Non-fatal: verdicts are still valid.
 	}
 
+	// Persist verdicts to database with failure reason classification
+	verdictsStored, persistErr := PersistFinalVerdicts(ctx, e.store, e.logger, sessionID, verdicts)
+	if persistErr != nil {
+		e.logger.Warn("persist verdicts failed", zap.Error(persistErr))
+		// Non-fatal: examination results are still valid
+	} else {
+		e.logger.Info("verdicts persisted", zap.Int("count", verdictsStored))
+	}
+
 	return verdicts, reflectionsStored, nil
 }
 

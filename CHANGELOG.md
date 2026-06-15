@@ -42,6 +42,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced ParseStructuredOutput with input length and content preview
   - Improved brace matching algorithm for nested JSON objects
 
+#### Failure Reason Classification System
+- **Enhanced Reporting Accuracy**
+  - Added FailureReason enum with 7 failure types for precise root cause tracking
+  - Distinguishes between system bugs, LLM quality issues, policy rejections, and environment problems
+  - Verdicts table now includes "Failure Reason" column
+  - Reports show "Is System Bug?" column for quick identification
+
+- **Failure Type Classification**
+  - FailureReasonNone: test passed
+  - FailureReasonAssertionFailed: genuine functional failure (system bug)
+  - FailureReasonLLMQuality: LLM output quality issues (not a system bug)
+  - FailureReasonPolicyRejected: security policy enforcement (expected behavior)
+  - FailureReasonDependencyMissing: dependency/build issues (environment problem)
+  - FailureReasonTimeout: test timeout
+  - FailureReasonSystemError: system crash/panic (system bug)
+
+- **Improved Report Clarity**
+  - Summary section includes failure breakdown table
+  - Intelligent messages: "🎉 Good News" when no system bugs found
+  - "⚠️ Attention" when genuine system bugs require investigation
+  - Helper methods: IsSystemBug(), IsLLMIssue(), IsEnvironmentIssue(), IsExpectedBehavior()
+
+- **Automated Failure Classification**
+  - ClassifyFailureReason() function analyzes errors and reasoning
+  - Automatic classification in examiner.PersistFinalVerdicts()
+  - Detects JSON parsing errors, policy rejections, dependency issues
+  - Stores failure reasons in database (V006 migration)
+
+#### LLM Prompt Quality Improvements
+- **Enhanced JSON Format Validation**
+  - All agent and examiner prompts now include comprehensive JSON validation checklists
+  - Critical warnings about common JSON syntax errors
+  - Step-by-step JSON validation instructions
+  - Examples of common mistakes to avoid
+
+- **Improved Prompts**
+  - agent_steer_output: detailed JSON validation checklist
+  - agent_recover_output: strict JSON format requirements
+  - examiner_judge_output: JSON parsing best practices
+  - examiner_critic_output: validation for complex critique responses
+  - examiner_reflection_output: JSON array format validation
+
+- **Error Prevention**
+  - No markdown, no explanations, no text before/after JSON
+  - Must start with {, end with } (or [, ])
+  - All strings in double quotes
+  - No trailing commas
+  - No comments in JSON
+  - Proper escaping of special characters
+
 ### Changed
 - AutoTest defaults to serial execution (MaxConcurrency = 1) for backward compatibility
 - FallbackParseAction now handles browser actions correctly

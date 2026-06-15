@@ -20,7 +20,7 @@ func TestRegistry_LoadDefaults(t *testing.T) {
 	assert.Contains(t, r.Get("agent_steer_system"), "test execution agent")
 	assert.Contains(t, r.Get("examiner_judge_system"), "test verdict judge")
 	assert.Contains(t, r.Get("scout_plan_system"), "test planning agent")
-	assert.Contains(t, r.Get("agent_recover_output"), "Respond with JSON")
+	assert.Contains(t, r.Get("agent_recover_output"), "CRITICAL: Respond with VALID JSON")
 }
 
 func TestRegistry_MustGet(t *testing.T) {
