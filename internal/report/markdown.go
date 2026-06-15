@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 // RenderMarkdown returns a Markdown report for the given data.
@@ -50,16 +52,49 @@ func RenderMarkdown(data *ReportData) string {
 			fmt.Fprintf(&b, "| **Tokens Used** | ~%dK |\n", sum.TotalTokens/1000)
 		}
 		b.WriteString("\n")
+
+		// Failure reason breakdown for failed verdicts
+		if sum.Failed > 0 {
+			b.WriteString("### Failure Breakdown\n\n")
+			b.WriteString("| Failure Type | Count | Is System Bug? |\n")
+			b.WriteString("|---------------|-------|----------------|\n")
+
+			// Count failures by reason
+			failCountByReason := countFailuresByReason(data)
+			totalSystemBugs := 0
+
+			for _, failInfo := range failCountByReason {
+				isBug := "❌ No"
+				if failInfo.Reason.IsSystemBug() {
+					isBug = "✅ Yes"
+					totalSystemBugs += failInfo.Count
+				}
+				fmt.Fprintf(&b, "| **%s** | %d | %s |\n",
+					failInfo.Reason.DisplayName(), failInfo.Count, isBug)
+			}
+
+			b.WriteString("\n")
+			if totalSystemBugs == 0 && sum.Failed > 0 {
+				b.WriteString("🎉 **Good News:** None of the failures are system bugs! ")
+				b.WriteString("Most failures are due to LLM quality issues or expected policy rejections.\n\n")
+			} else if totalSystemBugs > 0 {
+				b.WriteString(fmt.Sprintf("⚠️ **Attention:** %d failure(s) appear to be genuine system bugs requiring investigation.\n\n", totalSystemBugs))
+			}
+		}
 	}
 
 	// Verdicts table.
 	if len(data.Verdicts) > 0 {
 		b.WriteString("## Verdicts\n\n")
-		b.WriteString("| # | Target | Status | Confidence | Source |\n")
-		b.WriteString("|---|--------|--------|------------|--------|\n")
+		b.WriteString("| # | Target | Status | Confidence | Failure Reason | Source |\n")
+		b.WriteString("|---|--------|--------|------------|----------------|--------|\n")
 		for i, v := range data.Verdicts {
-			fmt.Fprintf(&b, "| %d | `%s` | %s | %.2f | %s |\n",
-				i+1, v.Target, statusEmoji(v.Status), v.Confidence, v.Source)
+			failReason := "—"
+			if (v.Status == "fail" || v.Status == "failed") && v.FailureReason != "" {
+				failReason = v.FailureReason.DisplayName()
+			}
+			fmt.Fprintf(&b, "| %d | `%s` | %s | %.2f | %s | %s |\n",
+				i+1, v.Target, statusEmoji(v.Status), v.Confidence, failReason, v.Source)
 		}
 		b.WriteString("\n")
 
@@ -227,4 +262,42 @@ func countStatus(data *ReportData, status string) int {
 		}
 	}
 	return count
+}
+
+// FailureInfo holds failure count grouped by reason.
+type FailureInfo struct {
+	Reason store.FailureReason
+	Count  int
+}
+
+// countFailuresByReason counts failed verdicts by their failure reason.
+func countFailuresByReason(data *ReportData) []FailureInfo {
+	counts := make(map[store.FailureReason]int)
+
+	for _, v := range data.Verdicts {
+		if v.Status == "fail" || v.Status == "failed" {
+			reason := v.FailureReason
+			if reason == "" {
+				reason = store.FailureReasonSystemError // Default to system error if not specified
+			}
+			counts[reason]++
+		}
+	}
+
+	// Convert to slice and sort by count (descending)
+	var result []FailureInfo
+	for reason, count := range counts {
+		result = append(result, FailureInfo{Reason: reason, Count: count})
+	}
+
+	// Sort by count descending
+	for i := 0; i < len(result); i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].Count > result[i].Count {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	return result
 }
