@@ -92,7 +92,7 @@ func PersistFinalVerdicts(ctx context.Context, s *store.Store, logger *zap.Logge
 			target,
 			status,
 			v.CorrectnessConfidence,
-			"examiner",
+			"judge", // Use "judge" to satisfy database constraint
 			v.Reasoning,
 			nil, // suggestions
 			failureReason,
