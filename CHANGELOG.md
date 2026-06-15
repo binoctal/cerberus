@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.10.0 — 2026-06-16
+
+### Added
+
+#### AutoTest Parallel Test Generation
+- **Concurrent Test Generation**
+  - Worker pool pattern for processing multiple coverage gaps in parallel
+  - MaxConcurrency field to control parallel workers (default 1 for backward compatibility)
+  - executeSerial() and executeParallel() methods for dual execution modes
+  - Thread-safe gap processing with proper synchronization
+  - Channel-based work distribution and result collection
+
+- **Performance Improvements**
+  - Reduces test generation time for projects with many coverage gaps
+  - Maintains per-test verification for stability
+  - Respects MaxGaps limit and safety modes (DryRun/Approve/Auto)
+  - Opt-in parallel execution by setting MaxConcurrency > 1
+
+#### ReAct Loop JSON Parsing Improvements
+- **Enhanced Error Detection**
+  - isParseError() now detects more parsing failure patterns
+  - JSON unmarshaling errors (unmarshal, invalid character, unexpected end)
+  - JSON syntax/format errors (json + syntax/error/format/invalid)
+  - Structured output parsing errors (parse output)
+
+- **Fixed Fallback Action Mappings**
+  - click correctly maps to BrowserClickAction (not NavigateAction)
+  - type/fill map to BrowserFillAction
+  - goto maps to NavigateAction
+  - Added support for common browser interaction keywords
+
+- **Improved Error Handling**
+  - Better cleanup of error messages (removes raw content dump)
+  - More robust extraction of intent from error messages
+  - Enhanced ParseStructuredOutput with input length and content preview
+  - Improved brace matching algorithm for nested JSON objects
+
+### Changed
+- AutoTest defaults to serial execution (MaxConcurrency = 1) for backward compatibility
+- FallbackParseAction now handles browser actions correctly
+- JSON parsing errors provide more detailed debugging information
+
+### Fixed
+- Fixed file read error handling in parallel AutoTest mode (now ignores errors like serial mode)
+- Fixed browser action keyword mappings in fallback parsing
+- Updated test expectations for improved error detection patterns
+
 ## v0.9.0 — 2026-06-16
 
 ### Added
