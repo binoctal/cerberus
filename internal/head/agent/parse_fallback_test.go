@@ -10,8 +10,9 @@ import (
 
 func TestFallbackParseAction_ClickKeyword(t *testing.T) {
 	action := FallbackParseAction("I should click on the submit button", "#submit")
-	_, ok := action.(types.NavigateAction)
-	assert.True(t, ok, "expected NavigateAction for click keyword")
+	browserAct, ok := action.(types.BrowserClickAction)
+	assert.True(t, ok, "expected BrowserClickAction for click keyword")
+	assert.Equal(t, "#submit", browserAct.Selector)
 }
 
 func TestFallbackParseAction_PostKeyword(t *testing.T) {
@@ -59,4 +60,35 @@ func TestFallbackParseAction_CaseInsensitive(t *testing.T) {
 	httpAct, ok := action.(types.HTTPAction)
 	assert.True(t, ok, "expected HTTPAction for delete keyword")
 	assert.Equal(t, "DELETE", httpAct.Method)
+}
+
+func TestFallbackParseAction_TypeKeyword(t *testing.T) {
+	action := FallbackParseAction("I need to type in the username field", "#username")
+	fillAct, ok := action.(types.BrowserFillAction)
+	assert.True(t, ok, "expected BrowserFillAction for type keyword")
+	assert.Equal(t, "#username", fillAct.Selector)
+}
+
+func TestFallbackParseAction_FillKeyword(t *testing.T) {
+	action := FallbackParseAction("Fill in the password field", "#password")
+	fillAct, ok := action.(types.BrowserFillAction)
+	assert.True(t, ok, "expected BrowserFillAction for fill keyword")
+	assert.Equal(t, "#password", fillAct.Selector)
+}
+
+func TestFallbackParseAction_GotoKeyword(t *testing.T) {
+	action := FallbackParseAction("Goto the settings page", "/settings")
+	navAct, ok := action.(types.NavigateAction)
+	assert.True(t, ok, "expected NavigateAction for goto keyword")
+	assert.Equal(t, "/settings", navAct.URL)
+}
+
+func TestFallbackParseAction_ErrorMessageCleanup(t *testing.T) {
+	// Test that fallback properly handles error messages with raw content dump
+	errorMsg := "parse output: unexpected end of JSON input\nraw: {\"type\":\"navigate\",\"url\":\"/test\"}"
+	action := FallbackParseAction(errorMsg, "/default")
+	// Should extract meaningful intent from error message, not fail on raw content
+	waitAct, ok := action.(types.WaitAction)
+	assert.True(t, ok, "expected WaitAction when no clear intent in error message")
+	assert.Equal(t, "1s", waitAct.Duration)
 }

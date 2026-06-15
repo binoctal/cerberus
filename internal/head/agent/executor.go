@@ -453,8 +453,26 @@ func evidenceType(result types.ExecutorResult) string {
 }
 
 // isParseError checks if the error is from structured output parsing.
+// It looks for common patterns that indicate JSON/structured parsing failures.
 func isParseError(err error) bool {
-	return err != nil && (contains(err.Error(), "parse output") || contains(err.Error(), "json"))
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	// Check for structured output parsing errors from AI driver
+	if contains(msg, "parse output") {
+		return true
+	}
+	// Check for JSON unmarshaling errors (these are wrapped in "parse output" errors,
+	// but we check directly as a safety measure)
+	if contains(msg, "unmarshal") || contains(msg, "invalid character") || contains(msg, "unexpected end") {
+		return true
+	}
+	// Check for JSON syntax/format errors (standalone or with error)
+	if contains(msg, "json") && (contains(msg, "syntax") || contains(msg, "error") || contains(msg, "format") || contains(msg, "invalid")) {
+		return true
+	}
+	return false
 }
 
 func contains(s, sub string) bool {
