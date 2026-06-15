@@ -152,3 +152,41 @@ func TestAutoTest_Items_FailedGeneration(t *testing.T) {
 	assert.Equal(t, "failed", item.Status, "status should be failed when generation fails")
 	assert.Empty(t, item.TestPath, "test path should be empty on failure")
 }
+
+func TestAutoTest_ParallelExecution(t *testing.T) {
+	w := &memoryWriter{}
+
+	// Create a provider that returns multiple gaps
+	multiGapProvider := &mockCoverageProvider{
+		pass: true,
+		gaps: []CoverageGap{
+			{File: "a.go", Func: "F", Reason: ReasonZeroCover},
+			{File: "b.go", Func: "G", Reason: ReasonZeroCover},
+			{File: "c.go", Func: "H", Reason: ReasonZeroCover},
+		},
+	}
+
+	a := NewAutoTest(multiGapProvider, stubGen{"package p"}, allowGate{}, w, SafetyDryRun, zap.NewNop())
+	a.MaxConcurrency = 2 // Enable parallel execution
+	a.MaxGaps = 0 // Disable gap limiting for this test
+
+	rep, err := a.Run(context.Background(), ".")
+	require.NoError(t, err)
+	assert.Len(t, rep.Generated, 3, "should generate 3 tests for 3 gaps")
+	assert.Len(t, rep.Items, 3, "should have 3 items for 3 gaps")
+	assert.Empty(t, w.written, "dry-run should not write files")
+}
+
+// mockCoverageProvider is a configurable mock provider for testing
+type mockCoverageProvider struct {
+	pass bool
+	gaps []CoverageGap
+}
+
+func (m *mockCoverageProvider) RunCoverage(_ context.Context, _ string) (*CoverageReport, error) {
+	return &CoverageReport{Pass: m.pass, CoveredFuncs: 5, TotalFuncs: 10}, nil
+}
+
+func (m *mockCoverageProvider) Gaps(_ *CoverageReport) []CoverageGap {
+	return m.gaps
+}
