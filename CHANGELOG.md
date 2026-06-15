@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0 — 2026-06-16
+
+### Added
+
+#### AutoTest Mocha Provider Support
+- **Node.js (Mocha + nyc) Support**
+  - Automatic project detection via package.json and node_modules
+  - Mocha + nyc (Istanbul) coverage parsing
+  - Istanbul JSON format parsing (reuses Jest coverage parser)
+  - Mocha describe/it style test generation with assert library
+  - Support for multiple file extensions (`.js`, `.jsx`, `.tsx`, `.ts`)
+  - Intelligent test file organization: test/ directory vs same-directory
+  - Test file naming: `src/users.js` → `test/users.test.js` or `src/users.test.js`
+  - Hybrid detection confidence levels: 0.5 (base) → 0.7 (loose) → 0.9 (strict) → 1.0 (validated)
+  - Detection priority: Go > Node (Jest) > Node (Mocha) > Python
+
+- **Project Detection Enhancements**
+  - MochaProjectDetector with mocha/nyc keyword detection
+  - Updated NodeProjectDetector to not interfere with Mocha projects
+  - Enhanced DetectProjectType to include Mocha detector
+  - Updated CreateProvider to handle ProjectTypeMocha
+
+- **Configuration System**
+  - DefaultMochaCoverageConfig with npm test command
+  - Coverage configuration: `coverage/coverage-final.json`
+  - 5-minute timeout with NODE_ENV=test
+
+- **Testing and Fixtures**
+  - Comprehensive unit tests for MochaProjectDetector (4 test cases)
+  - MochaTestFilePath tests for both directory modes
+  - Integration test fixture: mocha_project with calculator.js
+  - Test coverage: Mocha provider, generator, and detection logic
+
+- **Code Quality**
+  - Reuses Istanbul JSON parsing from Jest provider (DRY principle)
+  - Consistent error handling and logging patterns
+  - All existing tests pass with no breaking changes
+
+### Changed
+- Updated AutoTest feature description to include Mocha support
+- NodeProjectDetector now returns confidence 0 for non-Jest projects (lets Mocha detector handle them)
+
+### Fixed
+- Updated test expectations for NodeProjectDetector to reflect new behavior
+- Fixed MochaTestFilePath to properly trim extensions in test directory mode
+
 ## v0.8.0 — 2026-06-15
 
 ### Added

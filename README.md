@@ -19,7 +19,7 @@ Full documentation lives in [`docs/`](docs/):
 
 ## Features
 
-- **AutoTest** — Coverage-driven test generation for Go, Node.js (Jest), and Python (pytest) with AI
+- **AutoTest** — Coverage-driven test generation for Go, Node.js (Jest and Mocha), and Python (pytest) with AI
 - **Scout** — Analyzes your project config and generates intelligent test plans
 - **Agent** — Executes tests via ReAct loop (Reason-Act-Observe) with LLM steering
 - **Examiner** — Judges results, learns from failures, stores procedural memory
