@@ -52,6 +52,10 @@ type Session struct {
 	examinerDriver *ai.Driver
 	criticDriver   *ai.Driver
 	tiers          config.TierModels // head → tier model, for context lookup
+
+	// clientFactory creates LLM clients for per-head drivers. If nil, uses llm.NewClientWithConfig.
+	// Injected by tests to provide mock clients.
+	clientFactory func(llm.ClientConfig) (llm.Client, error)
 }
 
 func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
@@ -119,11 +123,23 @@ func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierMode
 		if m == "" {
 			continue // will fall back to shared Driver
 		}
-		client, err := llm.NewClientWithConfig(llm.ClientConfig{
-			Model:   m,
-			APIKey:  apiKey,
-			BaseURL: baseURL,
-		})
+
+		// Use injected clientFactory if available, otherwise default to llm.NewClientWithConfig
+		var client llm.Client
+		var err error
+		if s.clientFactory != nil {
+			client, err = s.clientFactory(llm.ClientConfig{
+				Model:   m,
+				APIKey:  apiKey,
+				BaseURL: baseURL,
+			})
+		} else {
+			client, err = llm.NewClientWithConfig(llm.ClientConfig{
+				Model:   m,
+				APIKey:  apiKey,
+				BaseURL: baseURL,
+			})
+		}
 		if err != nil {
 			s.Logger.Warn("failed to create head driver, using shared",
 				zap.String("head", string(h.head)),
@@ -139,6 +155,12 @@ func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierMode
 			zap.String("head", string(h.head)),
 			zap.String("model", m))
 	}
+}
+
+// SetClientFactory injects a clientFactory for creating per-head LLM drivers.
+// Used by tests to provide mock clients. If nil, SetupHeadDrivers uses llm.NewClientWithConfig.
+func (s *Session) SetClientFactory(factory func(llm.ClientConfig) (llm.Client, error)) {
+	s.clientFactory = factory
 }
 
 // driverFor returns the per-head driver if set, otherwise the shared Driver.

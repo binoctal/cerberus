@@ -157,6 +157,9 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "create session: %v", err)
 		return
 	}
+
+	// Inject clientFactory so SetupHeadDrivers uses mocked clients in tests
+	sess.SetClientFactory(srv.clientFactory)
 	sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL, srv.cfg.TierModels)
 
 	// Track for cancellation.
