@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.0 — 2026-06-15
+
+### Added
+
+#### AutoTest Multi-Language Support
+- **Node.js (Jest) Support**
+  - Automatic project detection via `package.json` and `node_modules`
+  - Jest JSON coverage parsing (`coverage/coverage-final.json`)
+  - Regex-based AST extraction for exported functions and classes
+  - Jest describe/it style test generation
+  - Support for multiple file extensions (`.js`, `.jsx`, `.tsx`, `.ts`)
+  - Test file naming: `src/users.js` → `src/users.test.js`
+
+- **Python (pytest) Support**
+  - Automatic project detection via `requirements.txt`, `setup.py`, or `pyproject.toml`
+  - Virtual environment detection (venv, .venv, env)
+  - coverage.py SQLite and JSON parsing
+  - Python `ast` module integration for function/class extraction
+  - pytest fixtures and parametrize style test generation
+  - Smart test file organization: prefers `tests/` directory, falls back to same directory
+
+- **Project Detection Infrastructure**
+  - `ProjectDetector` interface with confidence scoring (0.0-1.0)
+  - Tool availability verification (Jest, pytest, coverage.py)
+  - Detection priority: Go > Node > Python
+  - `DetectAndCreateProvider()` for automatic provider selection
+
+- **Provider Configuration System**
+  - Unified `CoverageConfig` structure for all providers
+  - Project-level overrides via `.cerberus/project.yaml`
+  - Provider-specific settings: test command, coverage args, timeout, environment
+  - Default configurations for Node and Python
+
+- **Test Generation Enhancements**
+  - Line-number-based snippet extraction for accurate context
+  - Support for class methods and nested structures
+  - Fallback mechanisms for missing tools or parse errors
+
+- **Comprehensive Testing**
+  - Unit tests for detectors, providers, and generators
+  - Integration test fixtures (Node + Jest project, Python + pytest project)
+  - Test coverage for new code paths
+
+- **Documentation**
+  - Complete user guide (50+ pages) with examples
+  - Design spec document with architecture decisions
+  - Updated README.md with AutoTest features
+  - Quick start examples for Node and Python
+
+### Changed
+- README.md updated with AutoTest documentation links and feature list
+- Quick start guide enhanced with AutoTest examples
+- Project structure documentation updated to include `autotest/` package
+
+### Fixed
+- Flaky test `TestServer_CreateSession_Success`: implemented clientFactory dependency injection pattern
+- Duplicate Scan field in `ListSessions` handler (removed duplicate `sess.Stats`)
+- Node provider test expectations for `.jsx` file handling
+- Node project detector test now creates `node_modules` directory for accurate testing
+
 ## v0.7.1 — 2026-06-13
 
 ### Changed

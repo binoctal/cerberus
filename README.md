@@ -15,9 +15,11 @@ Full documentation lives in [`docs/`](docs/):
 - [Getting Started](docs/getting-started/quick-start.md)
 - [Claude Code Integration](docs/integrations/claude-code.md) — MCP server
 - [CI/CD Integration](docs/integrations/ci-cd.md)
+- **[AutoTest Guide](docs/guide/autotest-node-python.md)** — Coverage-driven test generation for Go, Node.js, and Python
 
 ## Features
 
+- **AutoTest** — Coverage-driven test generation for Go, Node.js (Jest), and Python (pytest) with AI
 - **Scout** — Analyzes your project config and generates intelligent test plans
 - **Agent** — Executes tests via ReAct loop (Reason-Act-Observe) with LLM steering
 - **Examiner** — Judges results, learns from failures, stores procedural memory
@@ -44,6 +46,9 @@ vim .cerberus/project.yaml
 
 # Run tests
 cerberus run --url http://localhost:3000 --goal "Test all API endpoints"
+
+# Generate tests automatically (Go/Node.js/Python)
+cerberus run --dir . --goal "Generate tests for uncovered code" --auto-test-safety=dry-run
 
 # Start API server for CI
 cerberus serve --port 8090
@@ -78,6 +83,7 @@ cerberus mcp
 cmd/cerberus/        CLI entry point
 internal/
 ├── ai/              Token budget, prompt builder, driver with retry
+├── autotest/        Coverage-driven test generation (Go, Node.js, Python)
 ├── config/          Environment configuration
 ├── head/
 │   ├── scout/       Analyze + Plan (with ToT beam search)
@@ -100,7 +106,7 @@ migrations/          SQL schema versions
 | Command | Description |
 |---------|-------------|
 | `cerberus init` | Initialize `.cerberus/` config + seed strategies |
-| `cerberus run` | Run intelligent tests |
+| `cerberus run` | Run intelligent tests (with `--auto-test-safety` for coverage-driven generation) |
 | `cerberus verify` | Regression mode against known model |
 | `cerberus serve` | Start HTTP API server |
 | `cerberus mcp` | Start MCP server (Claude Code) |
