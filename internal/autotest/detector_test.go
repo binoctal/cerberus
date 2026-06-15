@@ -114,7 +114,7 @@ func TestNodeProjectDetector_Detect(t *testing.T) {
 				return tmpDir, func() {}
 			},
 			wantSupported: false,
-			wantConfidence: 0.7,
+			wantConfidence: 0,
 		},
 		{
 			name: "no package.json",

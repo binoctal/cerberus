@@ -34,6 +34,18 @@ func DefaultNodeCoverageConfig() *CoverageConfig {
 	}
 }
 
+// DefaultMochaCoverageConfig returns default configuration for Node.js Mocha projects
+func DefaultMochaCoverageConfig() *CoverageConfig {
+	return &CoverageConfig{
+		TestCommand:  []string{"npm", "test"},
+		CoverageArgs: []string{"--", "--coverage", "--coverage-reporter=json"},
+		OutputPath:   "coverage/coverage-final.json",
+		Timeout:      5 * time.Minute,
+		Env:          []string{"NODE_ENV=test"},
+		ProjectType:  ProjectTypeMocha,
+	}
+}
+
 // DefaultPythonCoverageConfig returns default configuration for Python pytest projects
 func DefaultPythonCoverageConfig() *CoverageConfig {
 	return &CoverageConfig{

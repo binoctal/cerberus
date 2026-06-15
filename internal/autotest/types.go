@@ -23,6 +23,17 @@ const (
 	ReasonNoTestFile = "no test file"
 )
 
+// ProjectType represents the type of project (Go, Node, Mocha, Python)
+type ProjectType string
+
+// ProjectType constants for AutoTest providers.
+const (
+	ProjectTypeGo     ProjectType = "go"
+	ProjectTypeNode   ProjectType = "node"   // Jest
+	ProjectTypeMocha  ProjectType = "mocha"  // Mocha + nyc
+	ProjectTypePython ProjectType = "python"
+)
+
 // CoverageLine is one covered span from a coverage profile.
 type CoverageLine struct {
 	File       string
