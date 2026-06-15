@@ -302,6 +302,13 @@ func (s *Session) Run(ctx context.Context) (err error) {
 			}
 		}
 		s.LastAutoTestReport = report
+
+		// Persist AutoTest report to DB (best-effort, non-blocking).
+		if report != nil {
+			if perr := s.Store.UpdateSessionAutoTest(ctx, s.ID, report); perr != nil {
+				s.Logger.Warn("persist autotest report", zap.Error(perr))
+			}
+		}
 	}
 
 	// Build summary.

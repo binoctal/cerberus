@@ -496,12 +496,26 @@ func reportCmd() *cobra.Command {
 					return fmt.Errorf("render HTML: %w", err)
 				}
 				output = html
-			case "json":
-				output = data.Session.Stats
-				if output == "" || output == "{}" {
-					b, _ := json.MarshalIndent(data, "", "  ")
-					output = string(b)
-				}
+				case "json":
+					// If stats non-empty, merge autotest into top-level
+					if data.Session.Stats != "" && data.Session.Stats != "{}" {
+						var statsMap map[string]interface{}
+						if err := json.Unmarshal([]byte(data.Session.Stats), &statsMap); err == nil {
+							// Add autotest if present
+							if data.AutoTest != nil {
+								statsMap["autotest"] = data.AutoTest
+							}
+							b, _ := json.MarshalIndent(statsMap, "", "  ")
+							output = string(b)
+						} else {
+							// Fallback to raw stats on error
+							output = data.Session.Stats
+						}
+					} else {
+						// Otherwise marshal full ReportData (AutoTest included via json tag)
+						b, _ := json.MarshalIndent(data, "", "  ")
+						output = string(b)
+					}
 			case "junit":
 				xml, err := report.RenderJUnit(data)
 				if err != nil {

@@ -46,19 +46,30 @@ type CoverageGap struct {
 // TestFile is a generated test awaiting (possible) write.
 type TestFile struct {
 	Path    string
-	Content []byte
+	Content []byte `json:"-"` // Don't marshal to DB (dry-run stdout reads from memory)
+}
+
+// AutoTestItem represents a single gap's target and result.
+type AutoTestItem struct {
+	TargetFile string `json:"target_file"` // gap.File - source file being tested
+	TargetFunc string `json:"target_func"` // gap.Func - function being tested
+	Reason     string `json:"reason"`      // "0% covered" | "no test file" - why generated
+	TestPath   string `json:"test_path"`   // generated _test.go path (empty if failed)
+	Status     string `json:"status"`      // "written" | "reverted" | "skipped" | "failed" | "generated"
 }
 
 // AutoTestReport is the phase output.
 type AutoTestReport struct {
-	Gaps              []CoverageGap
-	Generated         []TestFile
-	Written           []string
-	Skipped, Failed   []string
-	Reverted          []string
-	BeforeCoveragePct float64
-	AfterCoveragePct  float64
-	Duration          time.Duration
+	Gaps              []CoverageGap   `json:"gaps"`
+	Generated         []TestFile      `json:"generated"`
+	Written           []string        `json:"written"`
+	Skipped           []string        `json:"skipped"`
+	Failed            []string        `json:"failed"`
+	Reverted          []string        `json:"reverted"`
+	Items             []AutoTestItem  `json:"items"`             // Per-item aligned records (target + result)
+	BeforeCoveragePct float64         `json:"before_coverage_pct"`
+	AfterCoveragePct  float64         `json:"after_coverage_pct"`
+	Duration          time.Duration   `json:"duration"`
 }
 
 // context import retained for interface signatures in provider.go.

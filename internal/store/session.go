@@ -8,15 +8,16 @@ import (
 )
 
 type Session struct {
-	ID          string  `json:"id"`
-	Mode        string  `json:"mode"`
-	Status      string  `json:"status"`
-	Goal        string  `json:"goal,omitempty"`
-	ProjectName string  `json:"project_name,omitempty"`
-	CoveragePct float64 `json:"coverage_pct"`
-	Stats       string  `json:"stats"`
-	StartedAt   string  `json:"started_at"`
-	FinishedAt  string  `json:"finished_at,omitempty"`
+	ID             string  `json:"id"`
+	Mode           string  `json:"mode"`
+	Status         string  `json:"status"`
+	Goal           string  `json:"goal,omitempty"`
+	ProjectName    string  `json:"project_name,omitempty"`
+	CoveragePct    float64 `json:"coverage_pct"`
+	Stats          string  `json:"stats"`
+	AutoTestReport string  `json:"autotest_report,omitempty"`
+	StartedAt      string  `json:"started_at"`
+	FinishedAt     string  `json:"finished_at,omitempty"`
 }
 
 func (s *Store) CreateSession(ctx context.Context, mode, goal, projectName string) (*Session, error) {
@@ -38,10 +39,10 @@ func (s *Store) CreateSession(ctx context.Context, mode, goal, projectName strin
 func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	sess := &Session{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, started_at, COALESCE(finished_at, '')
+		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, autotest_report, started_at, COALESCE(finished_at, '')
 		 FROM sessions WHERE id = ?`, id).Scan(
 		&sess.ID, &sess.Mode, &sess.Status, &sess.Goal, &sess.ProjectName,
-		&sess.CoveragePct, &sess.Stats, &sess.StartedAt, &sess.FinishedAt)
+		&sess.CoveragePct, &sess.Stats, &sess.AutoTestReport, &sess.StartedAt, &sess.FinishedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 
 func (s *Store) ListSessions(ctx context.Context, limit int) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, started_at, COALESCE(finished_at, '')
+		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, autotest_report, started_at, COALESCE(finished_at, '')
 		 FROM sessions ORDER BY started_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func (s *Store) ListSessions(ctx context.Context, limit int) ([]Session, error) 
 	for rows.Next() {
 		var sess Session
 		if err := rows.Scan(&sess.ID, &sess.Mode, &sess.Status, &sess.Goal,
-			&sess.ProjectName, &sess.CoveragePct, &sess.Stats,
+			&sess.ProjectName, &sess.CoveragePct, &sess.Stats, &sess.AutoTestReport,
 			&sess.StartedAt, &sess.FinishedAt); err != nil {
 			return nil, err
 		}
@@ -94,5 +95,18 @@ func (s *Store) UpdateSessionStats(ctx context.Context, id string, coveragePct f
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE sessions SET coverage_pct = ?, stats = ? WHERE id = ?`,
 		coveragePct, jsonText(stats), id)
+	return err
+}
+
+// UpdateSessionAutoTest persists AutoTest report JSON to a session.
+func (s *Store) UpdateSessionAutoTest(ctx context.Context, id string, report any) error {
+	json := jsonText(report)
+	if json == nil {
+		empty := ""
+		json = &empty
+	}
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE sessions SET autotest_report = ? WHERE id = ?`,
+		*json, id)
 	return err
 }

@@ -54,6 +54,12 @@ func (denyGate) Request(_ context.Context, _ string, _ []string, _ string) (bool
 	return false, nil
 }
 
+type failGen struct{}
+
+func (g failGen) Generate(_ context.Context, _ CoverageGap, _ []byte) (TestFile, error) {
+	return TestFile{}, assert.AnError
+}
+
 func TestAutoTest_DryRun_NoWrite(t *testing.T) {
 	w := &memoryWriter{}
 	a := NewAutoTest(stubProvider{pass: true}, stubGen{"package p"}, allowGate{}, w, SafetyDryRun, zap.NewNop())
@@ -87,4 +93,62 @@ func TestAutoTest_AbortsOnFailingBaseline(t *testing.T) {
 	a := NewAutoTest(stubProvider{pass: false}, stubGen{"package p"}, allowGate{}, w, SafetyAuto, zap.NewNop())
 	_, err := a.Run(context.Background(), ".")
 	require.Error(t, err)
+}
+
+func TestAutoTest_Items_DryRun(t *testing.T) {
+	w := &memoryWriter{}
+	a := NewAutoTest(stubProvider{pass: true}, stubGen{"package p"}, allowGate{}, w, SafetyDryRun, zap.NewNop())
+	rep, err := a.Run(context.Background(), ".")
+	require.NoError(t, err)
+	assert.Len(t, rep.Items, 1, "should have 1 item for 1 gap")
+
+	item := rep.Items[0]
+	assert.Equal(t, "a.go", item.TargetFile, "target file should match gap")
+	assert.Equal(t, "F", item.TargetFunc, "target func should match gap")
+	assert.Equal(t, ReasonZeroCover, item.Reason, "reason should match gap")
+	assert.Equal(t, "a_test.go", item.TestPath, "test path should match generated")
+	assert.Equal(t, "generated", item.Status, "status should be generated in dry-run")
+}
+
+func TestAutoTest_Items_AutoMode_Reverted(t *testing.T) {
+	w := &memoryWriter{}
+	a := NewAutoTest(stubProvider{pass: true}, stubGen{"bad"}, allowGate{}, w, SafetyAuto, zap.NewNop())
+	rep, err := a.Run(context.Background(), ".")
+	require.NoError(t, err)
+	assert.Len(t, rep.Items, 1, "should have 1 item for 1 gap")
+
+	item := rep.Items[0]
+	assert.Equal(t, "a.go", item.TargetFile)
+	assert.Equal(t, "F", item.TargetFunc)
+	assert.Equal(t, ReasonZeroCover, item.Reason)
+	assert.Equal(t, "a_test.go", item.TestPath)
+	assert.Equal(t, "reverted", item.Status, "status should be reverted when coverage doesn't improve")
+}
+
+func TestAutoTest_Items_ApproveMode_Skipped(t *testing.T) {
+	w := &memoryWriter{}
+	a := NewAutoTest(stubProvider{pass: true}, stubGen{"package p"}, denyGate{}, w, SafetyApprove, zap.NewNop())
+	rep, err := a.Run(context.Background(), ".")
+	require.NoError(t, err)
+	assert.Len(t, rep.Items, 1, "should have 1 item for 1 gap")
+
+	item := rep.Items[0]
+	assert.Equal(t, "a.go", item.TargetFile)
+	assert.Equal(t, "F", item.TargetFunc)
+	assert.Equal(t, ReasonZeroCover, item.Reason)
+	assert.Equal(t, "a_test.go", item.TestPath)
+	assert.Equal(t, "skipped", item.Status, "status should be skipped when gate denies")
+}
+
+func TestAutoTest_Items_FailedGeneration(t *testing.T) {
+	w := &memoryWriter{}
+	a := NewAutoTest(stubProvider{pass: true}, failGen{}, allowGate{}, w, SafetyAuto, zap.NewNop())
+	rep, err := a.Run(context.Background(), ".")
+	// Should not error, but item should be marked failed
+	require.NoError(t, err)
+	assert.Len(t, rep.Items, 1)
+
+	item := rep.Items[0]
+	assert.Equal(t, "failed", item.Status, "status should be failed when generation fails")
+	assert.Empty(t, item.TestPath, "test path should be empty on failure")
 }

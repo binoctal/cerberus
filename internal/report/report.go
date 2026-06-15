@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -16,6 +17,7 @@ type ReportData struct {
 	Verdicts []store.Verdict            `json:"verdicts"`
 	Evidence map[int64][]store.Evidence `json:"evidence"` // trace_id → evidence
 	Summary  *session.SessionSummary    `json:"summary"`
+	AutoTest *autotest.AutoTestReport   `json:"autotest,omitempty"`
 }
 
 // BuildReport assembles a full report for the given session.
@@ -47,11 +49,22 @@ func BuildReport(ctx context.Context, s *store.Store, sessionID string) (*Report
 		evidence = make(map[int64][]store.Evidence)
 	}
 
-	return &ReportData{
+	data := &ReportData{
 		Session:  sess,
 		Traces:   traces,
 		Verdicts: verdicts,
 		Evidence: evidence,
 		Summary:  &summary,
-	}, nil
+	}
+
+	// Unmarshal AutoTest report if present.
+	if sess.AutoTestReport != "" {
+		var atReport autotest.AutoTestReport
+		if err := json.Unmarshal([]byte(sess.AutoTestReport), &atReport); err == nil {
+			data.AutoTest = &atReport
+		}
+		// If unmarshal fails, AutoTest remains nil (non-blocking).
+	}
+
+	return data, nil
 }
