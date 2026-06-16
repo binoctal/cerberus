@@ -1,0 +1,67 @@
+project:
+  name: "cerberus-self-test"
+
+services:
+  - name: cerberus-api
+    url: "http://localhost:8090"
+    health: "/health"
+
+actors: []
+
+databases: []
+
+invariants:
+  # API Health & Availability
+  - id: health-200
+    description: "the /health endpoint returns HTTP 200"
+    check: "GET /health status == 200"
+
+  # Session Management
+  - id: create-session-201
+    description: "can create a new session with valid data"
+    check: "POST /api/v1/sessions {\"mode\":\"run\",\"goal\":\"test goal\"} status == 201"
+
+  - id: create-session-400
+    description: "rejects session creation without required goal"
+    check: "POST /api/v1/sessions {\"mode\":\"run\"} status == 400"
+
+  - id: list-sessions-200
+    description: "can list all sessions"
+    check: "GET /api/v1/sessions status == 200"
+
+  # Session Retrieval
+  - id: get-session-200
+    description: "can retrieve a specific session"
+    check: "GET /api/v1/sessions/{id} status == 200"
+
+  - id: get-session-404
+    description: "returns 404 for non-existent session"
+    check: "GET /api/v1/sessions/nonexistent status == 404"
+
+  # Report Generation
+  - id: get-report-200
+    description: "can generate session report"
+    check: "GET /api/v1/sessions/{id}/report status == 200"
+
+  - id: get-results-200
+    description: "can retrieve session test results"
+    check: "GET /api/v1/sessions/{id}/results status == 200"
+
+settings:
+  max_duration: 10m
+  confidence_threshold: 0.6
+  auto_fix: low_only
+
+  # Enhanced AI budget for comprehensive testing
+  ai_budget:
+    session_total_tokens: 100000
+    per_call_limit: 15000
+    model: "glm-5.1"
+
+  # AutoTest configuration for coverage analysis
+  autotest:
+    enabled: true
+    max_gaps: 10
+    max_concurrency: 2
+    safety_mode: "approve"
+    target_coverage: 80.0
