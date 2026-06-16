@@ -1,0 +1,49 @@
+package session
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/escalation"
+)
+
+// NewSession creates a new session with the given configuration.
+func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
+	if cfg.Gate == nil {
+		cfg.Gate = escalation.NoOpGate{}
+	}
+
+	budget := ai.NewTokenBudget(
+		cfg.Config.Settings.AIBudget.SessionTotalTokens,
+		cfg.Config.Settings.AIBudget.PerCallLimit,
+	)
+
+	sess := &Session{
+		Mode:       cfg.Mode,
+		Goal:       cfg.Goal,
+		Config:     cfg.Config,
+		Store:      cfg.Store,
+		Driver:     ai.NewDriver(cfg.Client, budget),
+		Logger:     cfg.Logger,
+		StartedAt:  time.Now(),
+		ProjectDir: cfg.ProjectDir,
+		Gate:       cfg.Gate,
+	}
+
+	dbSess, err := sess.Store.CreateSession(ctx, string(cfg.Mode), cfg.Goal, cfg.Config.Project.Name)
+	if err != nil {
+		return nil, fmt.Errorf("create session: %w", err)
+	}
+	sess.ID = dbSess.ID
+
+	cfg.Logger.Info("session created",
+		zap.String("id", sess.ID),
+		zap.String("mode", string(cfg.Mode)),
+		zap.String("goal", cfg.Goal))
+
+	return sess, nil
+}
