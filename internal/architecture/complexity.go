@@ -128,37 +128,66 @@ func (a *Analyzer) analyzeFunction(fn *ast.FuncDecl, fset *token.FileSet) *Funct
 
 // complexityVisitor visits AST nodes to calculate complexity
 type complexityVisitor struct {
-	depth      int
-	maxDepth   int
-	complexity int
+	depth       int
+	maxDepth    int
+	complexity  int
+	inControlFlow bool // Track if we're inside a control flow structure
 }
 
 func (v *complexityVisitor) Visit(node ast.Node) ast.Visitor {
 	if node == nil {
+		// Exiting a node, decrement depth if we were in control flow
+		if v.inControlFlow {
+			v.depth--
+			v.inControlFlow = false
+		}
 		return nil
 	}
 
-	switch n := node.(type) {
-	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.CaseClause:
+	switch node.(type) {
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt:
 		v.complexity++
 		v.depth++
 		if v.depth > v.maxDepth {
 			v.maxDepth = v.depth
 		}
-		// Visit children, then decrement depth
-		ast.Walk(v, n)
-		v.depth--
-		return nil // Don't continue automatic walk
+		// Mark that we're entering control flow
+		// Set inControlFlow after processing this node
+		return &controlFlowVisitor{parent: v}
 
-	case *ast.BlockStmt:
-		// Just visit children, don't track nesting for blocks themselves
-		for _, stmt := range n.List {
-			ast.Walk(v, stmt)
-		}
-		return nil
+	case *ast.CaseClause:
+		v.complexity++
+		// No depth tracking for case clauses (they're part of switch)
+		return v
 
 	default:
 		return v
+	}
+}
+
+// controlFlowVisitor handles visiting children of control flow structures
+type controlFlowVisitor struct {
+	parent *complexityVisitor
+}
+
+func (c *controlFlowVisitor) Visit(node ast.Node) ast.Visitor {
+	if node == nil {
+		// Exiting the control flow structure
+		c.parent.depth--
+		return nil
+	}
+
+	// For nested control flow, return another controlFlowVisitor
+	switch node.(type) {
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt:
+		c.parent.complexity++
+		c.parent.depth++
+		if c.parent.depth > c.parent.maxDepth {
+			c.parent.maxDepth = c.parent.depth
+		}
+		return c
+	default:
+		return c.parent
 	}
 }
 

@@ -177,18 +177,6 @@ func (a *Analyzer) analyzeFileComplexity(filePath string, report *ArchitectureRe
 	return issues, metrics, nil
 }
 
-// analyzeDependencies analyzes dependencies between modules
-func (a *Analyzer) analyzeDependencies(report *ArchitectureReport) error {
-	// Stub implementation - will be fully implemented in Phase 1.3
-	return nil
-}
-
-// analyzeAbstractions analyzes abstraction usage
-func (a *Analyzer) analyzeAbstractions(report *ArchitectureReport) error {
-	// Stub implementation - will be fully implemented in Phase 2.1
-	return nil
-}
-
 // analyzeSOLID analyzes SOLID principle compliance
 func (a *Analyzer) analyzeSOLID(report *ArchitectureReport) error {
 	// Stub implementation - will be fully implemented in Phase 2.2
