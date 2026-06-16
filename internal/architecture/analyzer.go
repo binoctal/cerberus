@@ -177,12 +177,6 @@ func (a *Analyzer) analyzeFileComplexity(filePath string, report *ArchitectureRe
 	return issues, metrics, nil
 }
 
-// analyzeScenarios analyzes scenario documentation
-func (a *Analyzer) analyzeScenarios(report *ArchitectureReport) error {
-	// Stub implementation - will be fully implemented in Phase 3.1
-	return nil
-}
-
 // calculateSummary calculates summary statistics
 func (r *ArchitectureReport) calculateSummary() {
 	if r.Summary == nil {

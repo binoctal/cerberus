@@ -91,6 +91,11 @@ type ArchitectureMetrics struct {
 	LSPViolations int // Liskov Substitution Principle
 	ISPViolations int // Interface Segregation Principle
 	DIPViolations int // Dependency Inversion Principle
+
+	// Documentation metrics
+	ADRFiles    int // Architecture Decision Records
+	DesignDocs  int // Design specification documents
+	PlanDocs    int // Implementation plan documents
 }
 
 // CategoryScores provides scores by category
