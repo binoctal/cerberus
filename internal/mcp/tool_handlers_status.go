@@ -4,8 +4,6 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/binoctal/cerberus/internal/escalation"
 )
 
 // handleStatus returns the current status of a running or completed session.

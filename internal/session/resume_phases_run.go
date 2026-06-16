@@ -1,7 +1,6 @@
 package session
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/binoctal/cerberus/internal/head/agent"

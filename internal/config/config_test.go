@@ -30,9 +30,9 @@ func TestLoadDefaults(t *testing.T) {
 
 	cfg := Load()
 	assert.Equal(t, "8090", cfg.Port)
-	// DBPath now defaults to runtime path, not "cerberus.db"
+	// DBPath now defaults to project runtime path (<project>/.cerberus/runtime/data/cerberus.db)
 	assert.Contains(t, cfg.DBPath, "cerberus.db", "DBPath should contain cerberus.db")
-	assert.Contains(t, cfg.DBPath, ".local", "DBPath should be in user local directory")
+	assert.Contains(t, cfg.DBPath, ".cerberus", "DBPath should be in project runtime directory")
 	assert.Equal(t, "migrations", cfg.MigrationDir)
 	assert.Equal(t, "info", cfg.LogLevel)
 	assert.Equal(t, "claude-sonnet-4-6", cfg.LLMModel)

@@ -1,7 +1,6 @@
 package session
 
 import (
-	"context"
 	"time"
 
 	"go.uber.org/zap"
