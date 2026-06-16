@@ -250,14 +250,13 @@ func TestDriver_RetryCancelledByContext(t *testing.T) {
 
 func TestBackoff(t *testing.T) {
 	retry := RetryConfig{MaxRetries: 5, BaseDelay: 100 * time.Millisecond, MaxDelay: 2 * time.Second}
-	d := &Driver{retry: retry}
 
-	assert.Equal(t, 100*time.Millisecond, d.backoff(1))
-	assert.Equal(t, 200*time.Millisecond, d.backoff(2))
-	assert.Equal(t, 400*time.Millisecond, d.backoff(3))
-	assert.Equal(t, 800*time.Millisecond, d.backoff(4))
-	assert.Equal(t, 1600*time.Millisecond, d.backoff(5))
-	assert.Equal(t, 2*time.Second, d.backoff(6), "should cap at maxDelay")
+	assert.Equal(t, 100*time.Millisecond, computeBackoff(1, retry.BaseDelay, retry.MaxDelay))
+	assert.Equal(t, 200*time.Millisecond, computeBackoff(2, retry.BaseDelay, retry.MaxDelay))
+	assert.Equal(t, 400*time.Millisecond, computeBackoff(3, retry.BaseDelay, retry.MaxDelay))
+	assert.Equal(t, 800*time.Millisecond, computeBackoff(4, retry.BaseDelay, retry.MaxDelay))
+	assert.Equal(t, 1600*time.Millisecond, computeBackoff(5, retry.BaseDelay, retry.MaxDelay))
+	assert.Equal(t, 2*time.Second, computeBackoff(6, retry.BaseDelay, retry.MaxDelay), "should cap at maxDelay")
 }
 
 func TestIsRetryable(t *testing.T) {

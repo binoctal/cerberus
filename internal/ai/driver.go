@@ -3,7 +3,6 @@ package ai
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -58,102 +57,75 @@ func (d *Driver) SetCache(c *ResponseCache) {
 }
 
 func (d *Driver) Decide(ctx context.Context, prompt string, schema any) error {
-	if d.budget.Exhausted() {
-		return fmt.Errorf("token budget exhausted")
+	// Check budget
+	if err := checkBudget(d.budget); err != nil {
+		return err
 	}
 
-	if !d.budget.CanSpend(d.budget.PerCallLimit) {
-		return fmt.Errorf("insufficient budget: remaining %d, need up to %d",
-			d.budget.Remaining(), d.budget.PerCallLimit)
+	// Try cache
+	if _, ok, err := tryGetCachedResponse(d.cache, prompt, schema); ok {
+		return err
 	}
 
-	// Check cache before making an LLM call.
-	if d.cache != nil {
-		if content, _, ok := d.cache.Get(prompt); ok {
-			return ParseStructuredOutput(content, schema)
-		}
-	}
-
-	var lastErr error
-	for attempt := 0; attempt <= d.retry.MaxRetries; attempt++ {
-		if attempt > 0 {
-			delay := d.backoff(attempt)
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				return ctx.Err()
+	// Execute with retry
+	tokens, err := executeWithRetry(ctx, d.retry.MaxRetries, d.retry.BaseDelay, d.retry.MaxDelay,
+		func(ctx context.Context) (int, error) {
+			resp, err := d.client.Complete(ctx, llm.Request{
+				Messages: []llm.Message{
+					{Role: "user", Content: prompt},
+				},
+			})
+			if err != nil {
+				return 0, fmt.Errorf("llm call: %w", err)
 			}
-		}
 
-		resp, err := d.client.Complete(ctx, llm.Request{
-			Messages: []llm.Message{
-				{Role: "user", Content: prompt},
-			},
+			// Parse response
+			if err := ParseStructuredOutput(resp.Content, schema); err != nil {
+				return 0, fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
+			}
+
+			tokens := resp.Usage.TotalTokens
+			// Cache successful response
+			cacheResponse(d.cache, prompt, resp.Content, tokens)
+			return tokens, nil
 		})
-		if err != nil {
-			lastErr = err
-			if !isRetryable(err) {
-				return fmt.Errorf("llm call: %w", err)
-			}
-			continue // Retry on transient errors.
-		}
 
-		d.budget.Record(resp.Usage.TotalTokens)
-
-		if err := ParseStructuredOutput(resp.Content, schema); err != nil {
-			return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
-		}
-
-		// Cache successful response.
-		if d.cache != nil {
-			d.cache.Set(prompt, resp.Content, TokenUsage{TotalTokens: resp.Usage.TotalTokens})
-		}
-		return nil
+	if err != nil {
+		return err
 	}
 
-	return fmt.Errorf("llm call failed after %d retries: %w", d.retry.MaxRetries, lastErr)
+	d.budget.Record(tokens)
+	return nil
 }
 
 func (d *Driver) DecideWithVision(ctx context.Context, prompt string, images [][]byte, schema any) error {
-	if d.budget.Exhausted() {
-		return fmt.Errorf("token budget exhausted")
+	// Check budget
+	if err := checkBudget(d.budget); err != nil {
+		return err
 	}
 
-	if !d.budget.CanSpend(d.budget.PerCallLimit) {
-		return fmt.Errorf("insufficient budget: remaining %d, need up to %d",
-			d.budget.Remaining(), d.budget.PerCallLimit)
-	}
-
-	var lastErr error
-	for attempt := 0; attempt <= d.retry.MaxRetries; attempt++ {
-		if attempt > 0 {
-			delay := d.backoff(attempt)
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				return ctx.Err()
+	// Execute with retry (no caching for vision calls)
+	tokens, err := executeWithRetry(ctx, d.retry.MaxRetries, d.retry.BaseDelay, d.retry.MaxDelay,
+		func(ctx context.Context) (int, error) {
+			resp, err := d.client.CompleteWithVision(ctx, prompt, images)
+			if err != nil {
+				return 0, fmt.Errorf("llm vision call: %w", err)
 			}
-		}
 
-		resp, err := d.client.CompleteWithVision(ctx, prompt, images)
-		if err != nil {
-			lastErr = err
-			if !isRetryable(err) {
-				return fmt.Errorf("llm vision call: %w", err)
+			// Parse response
+			if err := ParseStructuredOutput(resp.Content, schema); err != nil {
+				return 0, fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
 			}
-			continue
-		}
 
-		d.budget.Record(resp.Usage.TotalTokens)
+			return resp.Usage.TotalTokens, nil
+		})
 
-		if err := ParseStructuredOutput(resp.Content, schema); err != nil {
-			return fmt.Errorf("parse output: %w\nraw: %s", err, resp.Content)
-		}
-
-		return nil
+	if err != nil {
+		return err
 	}
 
-	return fmt.Errorf("llm vision call failed after %d retries: %w", d.retry.MaxRetries, lastErr)
+	d.budget.Record(tokens)
+	return nil
 }
 
 func (d *Driver) Budget() *TokenBudget {
@@ -163,15 +135,6 @@ func (d *Driver) Budget() *TokenBudget {
 // Client returns the underlying LLM client for direct access (e.g., raw completion fallback).
 func (d *Driver) Client() llm.Client {
 	return d.client
-}
-
-// backoff computes exponential backoff with jitter: base * 2^attempt, capped at maxDelay.
-func (d *Driver) backoff(attempt int) time.Duration {
-	delay := time.Duration(float64(d.retry.BaseDelay) * math.Pow(2, float64(attempt-1)))
-	if delay > d.retry.MaxDelay {
-		delay = d.retry.MaxDelay
-	}
-	return delay
 }
 
 // isRetryable determines if an LLM error is transient and worth retrying.
@@ -220,22 +183,17 @@ func containsAny(s string, substrs ...string) bool {
 // DecideStreamCollect uses streaming to collect the full response, then
 // parses it into the schema. Useful for progress feedback via the callback.
 func (d *Driver) DecideStreamCollect(ctx context.Context, prompt string, schema any) error {
-	if d.budget.Exhausted() {
-		return fmt.Errorf("token budget exhausted")
+	// Check budget
+	if err := checkBudget(d.budget); err != nil {
+		return err
 	}
 
-	if !d.budget.CanSpend(d.budget.PerCallLimit) {
-		return fmt.Errorf("insufficient budget: remaining %d, need up to %d",
-			d.budget.Remaining(), d.budget.PerCallLimit)
+	// Try cache
+	if _, ok, err := tryGetCachedResponse(d.cache, prompt, schema); ok {
+		return err
 	}
 
-	// Check cache.
-	if d.cache != nil {
-		if content, _, ok := d.cache.Get(prompt); ok {
-			return ParseStructuredOutput(content, schema)
-		}
-	}
-
+	// Stream response
 	events, err := d.client.Stream(ctx, llm.Request{
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
@@ -264,10 +222,11 @@ func (d *Driver) DecideStreamCollect(ctx context.Context, prompt string, schema 
 		}
 	}
 
+	// Record token usage
 	if usage.TotalTokens > 0 {
 		d.budget.Record(usage.TotalTokens)
 	} else {
-		// Estimate if provider didn't report usage.
+		// Estimate if provider didn't report usage
 		d.budget.Record(len(prompt)/4 + content.Len()/4)
 	}
 
@@ -276,9 +235,8 @@ func (d *Driver) DecideStreamCollect(ctx context.Context, prompt string, schema 
 		return fmt.Errorf("parse output: %w\nraw: %s", err, fullContent)
 	}
 
-	if d.cache != nil {
-		d.cache.Set(prompt, fullContent, TokenUsage{TotalTokens: usage.TotalTokens})
-	}
+	// Cache response
+	cacheResponse(d.cache, prompt, fullContent, usage.TotalTokens)
 
 	return nil
 }
@@ -293,13 +251,9 @@ type ToolCallResult struct {
 // DecideWithTools sends a prompt with tool definitions and returns any tool calls
 // made by the LLM. If no tools are called, returns the text content.
 func (d *Driver) DecideWithTools(ctx context.Context, prompt string, tools []llm.Tool) (*ToolCallResult, error) {
-	if d.budget.Exhausted() {
-		return nil, fmt.Errorf("token budget exhausted")
-	}
-
-	if !d.budget.CanSpend(d.budget.PerCallLimit) {
-		return nil, fmt.Errorf("insufficient budget: remaining %d, need up to %d",
-			d.budget.Remaining(), d.budget.PerCallLimit)
+	// Check budget
+	if err := checkBudget(d.budget); err != nil {
+		return nil, err
 	}
 
 	resp, err := d.client.Complete(ctx, llm.Request{
