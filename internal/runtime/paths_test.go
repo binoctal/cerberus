@@ -3,20 +3,19 @@ package runtime
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
-func TestNewDevelopmentPaths(t *testing.T) {
-	root := "/tmp/cerberus-test"
-	paths := newDevelopmentPaths(root)
+func TestNew(t *testing.T) {
+	root := "/tmp/test-project"
+	paths := New(root)
 
 	expectedConfig := filepath.Join(root, ".cerberus")
 	if paths.ConfigDir != expectedConfig {
 		t.Errorf("Expected ConfigDir %s, got %s", expectedConfig, paths.ConfigDir)
 	}
 
-	expectedRuntime := filepath.Join(root, "runtime")
+	expectedRuntime := filepath.Join(root, ".cerberus", "runtime")
 	expectedData := filepath.Join(expectedRuntime, "data")
 	if paths.DataDir != expectedData {
 		t.Errorf("Expected DataDir %s, got %s", expectedData, paths.DataDir)
@@ -36,159 +35,24 @@ func TestNewDevelopmentPaths(t *testing.T) {
 	if paths.DBPath != expectedDB {
 		t.Errorf("Expected DBPath %s, got %s", expectedDB, paths.DBPath)
 	}
-}
 
-func TestNewLinuxPaths(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Skipping Linux paths test on non-Linux system")
-	}
-
-	// Clear XDG env vars to test defaults
-	os.Unsetenv("XDG_CONFIG_HOME")
-	os.Unsetenv("XDG_DATA_HOME")
-	os.Unsetenv("XDG_CACHE_HOME")
-
-	paths := newLinuxPaths()
-
-	home, _ := os.UserHomeDir()
-
-	// Default: ~/.config/cerberus
-	expectedConfig := filepath.Join(home, ".config", "cerberus")
-	if paths.ConfigDir != expectedConfig {
-		t.Errorf("Expected ConfigDir %s, got %s", expectedConfig, paths.ConfigDir)
-	}
-
-	// Default: ~/.local/share/cerberus
-	expectedData := filepath.Join(home, ".local", "share", "cerberus")
-	if paths.DataDir != expectedData {
-		t.Errorf("Expected DataDir %s, got %s", expectedData, paths.DataDir)
-	}
-
-	// Default: ~/.local/state/cerberus (logs)
-	expectedLogs := filepath.Join(home, ".local", "state", "cerberus")
-	if paths.LogsDir != expectedLogs {
-		t.Errorf("Expected LogsDir %s, got %s", expectedLogs, paths.LogsDir)
-	}
-
-	// Default: ~/.cache/cerberus
-	expectedCache := filepath.Join(home, ".cache", "cerberus")
-	if paths.CacheDir != expectedCache {
-		t.Errorf("Expected CacheDir %s, got %s", expectedCache, paths.CacheDir)
-	}
-
-	// DB path should be in data/data/
-	expectedDB := filepath.Join(expectedData, "data", "cerberus.db")
-	if paths.DBPath != expectedDB {
-		t.Errorf("Expected DBPath %s, got %s", expectedDB, paths.DBPath)
-	}
-}
-
-func TestNewLinuxPathsWithXDGEnv(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Skipping Linux paths test on non-Linux system")
-	}
-
-	// Set custom XDG paths
-	customConfig := "/tmp/test-config"
-	customData := "/tmp/test-data"
-	customCache := "/tmp/test-cache"
-
-	os.Setenv("XDG_CONFIG_HOME", customConfig)
-	os.Setenv("XDG_DATA_HOME", customData)
-	os.Setenv("XDG_CACHE_HOME", customCache)
-	defer func() {
-		os.Unsetenv("XDG_CONFIG_HOME")
-		os.Unsetenv("XDG_DATA_HOME")
-		os.Unsetenv("XDG_CACHE_HOME")
-	}()
-
-	paths := newLinuxPaths()
-
-	expectedConfig := filepath.Join(customConfig, "cerberus")
-	if paths.ConfigDir != expectedConfig {
-		t.Errorf("Expected ConfigDir %s, got %s", expectedConfig, paths.ConfigDir)
-	}
-
-	expectedData := filepath.Join(customData, "cerberus")
-	if paths.DataDir != expectedData {
-		t.Errorf("Expected DataDir %s, got %s", expectedData, paths.DataDir)
-	}
-
-	expectedCache := filepath.Join(customCache, "cerberus")
-	if paths.CacheDir != expectedCache {
-		t.Errorf("Expected CacheDir %s, got %s", expectedCache, paths.CacheDir)
-	}
-
-	// Logs still use ~/.local/state (not XDG override)
-	home, _ := os.UserHomeDir()
-	expectedLogs := filepath.Join(home, ".local", "state", "cerberus")
-	if paths.LogsDir != expectedLogs {
-		t.Errorf("Expected LogsDir %s, got %s", expectedLogs, paths.LogsDir)
-	}
-}
-
-func TestNewMacOSPaths(t *testing.T) {
-	if runtime.GOOS != "darwin" {
-		t.Skip("Skipping macOS paths test on non-macOS system")
-	}
-
-	paths := newMacOSPaths()
-	home, _ := os.UserHomeDir()
-
-	expectedConfig := filepath.Join(home, ".config", "cerberus")
-	if paths.ConfigDir != expectedConfig {
-		t.Errorf("Expected ConfigDir %s, got %s", expectedConfig, paths.ConfigDir)
-	}
-
-	expectedData := filepath.Join(home, ".local", "share", "cerberus")
-	if paths.DataDir != expectedData {
-		t.Errorf("Expected DataDir %s, got %s", expectedData, paths.DataDir)
-	}
-}
-
-func TestNewDockerPaths(t *testing.T) {
-	paths := newDockerPaths()
-
-	expectedConfig := "/app/config"
-	if paths.ConfigDir != expectedConfig {
-		t.Errorf("Expected ConfigDir %s, got %s", expectedConfig, paths.ConfigDir)
-	}
-
-	expectedData := "/app/data"
-	if paths.DataDir != expectedData {
-		t.Errorf("Expected DataDir %s, got %s", expectedData, paths.DataDir)
-	}
-
-	expectedLogs := "/app/logs"
-	if paths.LogsDir != expectedLogs {
-		t.Errorf("Expected LogsDir %s, got %s", expectedLogs, paths.LogsDir)
-	}
-
-	expectedCache := "/app/cache"
-	if paths.CacheDir != expectedCache {
-		t.Errorf("Expected CacheDir %s, got %s", expectedCache, paths.CacheDir)
-	}
-
-	expectedDB := "/app/data/cerberus.db"
-	if paths.DBPath != expectedDB {
-		t.Errorf("Expected DBPath %s, got %s", expectedDB, paths.DBPath)
+	if paths.ProjectRoot != root {
+		t.Errorf("Expected ProjectRoot %s, got %s", root, paths.ProjectRoot)
 	}
 }
 
 func TestEnsure(t *testing.T) {
 	tmpDir := t.TempDir()
-	paths := newDevelopmentPaths(tmpDir)
+	paths := New(tmpDir)
 
-	// Ensure all directories
 	err := paths.Ensure()
 	if err != nil {
 		t.Fatalf("Ensure failed: %v", err)
 	}
 
-	// Check that directories exist
 	dirs := []string{
 		paths.ConfigDir,
-		paths.DataDir, // Database directory directly
+		paths.DataDir,
 		paths.LogsDir,
 		paths.CacheDir,
 	}
@@ -204,16 +68,126 @@ func TestEnsure(t *testing.T) {
 	}
 }
 
-func TestGetEnv(t *testing.T) {
-	// Test with env var set
-	os.Setenv("TEST_VAR", "test-value")
-	if got := getEnv("TEST_VAR", "fallback"); got != "test-value" {
-		t.Errorf("Expected 'test-value', got '%s'", got)
-	}
-	os.Unsetenv("TEST_VAR")
+func TestGetPaths(t *testing.T) {
+	origWd, _ := os.Getwd()
+	defer os.Chdir(origWd)
 
-	// Test with fallback
-	if got := getEnv("NON_EXISTENT_VAR", "fallback"); got != "fallback" {
-		t.Errorf("Expected 'fallback', got '%s'", got)
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	paths := GetPaths()
+
+	if paths.ProjectRoot != tmpDir {
+		t.Errorf("Expected ProjectRoot %s, got %s", tmpDir, paths.ProjectRoot)
+	}
+
+	expectedConfig := filepath.Join(tmpDir, ".cerberus")
+	if paths.ConfigDir != expectedConfig {
+		t.Errorf("Expected ConfigDir %s, got %s", expectedConfig, paths.ConfigDir)
+	}
+
+	expectedDB := filepath.Join(tmpDir, ".cerberus", "runtime", "data", "cerberus.db")
+	if paths.DBPath != expectedDB {
+		t.Errorf("Expected DBPath %s, got %s", expectedDB, paths.DBPath)
+	}
+}
+
+func TestIsDevelopment(t *testing.T) {
+	origWd, _ := os.Getwd()
+	defer os.Chdir(origWd)
+
+	cerberusDir := t.TempDir()
+	goModContent := `module github.com/binoctal/cerberus
+
+go 1.25
+`
+	if err := os.WriteFile(filepath.Join(cerberusDir, "go.mod"), []byte(goModContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chdir(cerberusDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if !IsDevelopment() {
+		t.Error("Expected IsDevelopment() to return true in cerberus project")
+	}
+
+	nonCerberusDir := t.TempDir()
+	otherGoMod := `module github.com/example/other-project
+
+go 1.25
+`
+	if err := os.WriteFile(filepath.Join(nonCerberusDir, "go.mod"), []byte(otherGoMod), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chdir(nonCerberusDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if IsDevelopment() {
+		t.Error("Expected IsDevelopment() to return false in non-cerberus project")
+	}
+
+	noGoModDir := t.TempDir()
+	if err := os.Chdir(noGoModDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if IsDevelopment() {
+		t.Error("Expected IsDevelopment() to return false when go.mod is missing")
+	}
+}
+
+func TestContains(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		substr   string
+		expected bool
+	}{
+		{
+			name:     "contains substring",
+			s:        "hello world",
+			substr:   "hello",
+			expected: true,
+		},
+		{
+			name:     "does not contain substring",
+			s:        "hello world",
+			substr:   "goodbye",
+			expected: false,
+		},
+		{
+			name:     "empty substring",
+			s:        "hello",
+			substr:   "",
+			expected: false,
+		},
+		{
+			name:     "substring longer than string",
+			s:        "hi",
+			substr:   "hello",
+			expected: false,
+		},
+		{
+			name:     "exact match",
+			s:        "hello",
+			substr:   "hello",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := contains(tt.s, tt.substr)
+			if result != tt.expected {
+				t.Errorf("contains(%q, %q) = %v, want %v",
+					tt.s, tt.substr, result, tt.expected)
+			}
+		})
 	}
 }

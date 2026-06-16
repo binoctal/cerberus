@@ -4,8 +4,11 @@ bin/
 *.exe
 /cerberus
 
-# Runtime files (data, logs, cache)
-runtime/
+# Project runtime files (now in .cerberus/runtime/)
+.cerberus/runtime/
+
+# Cerberus credentials (sensitive - never commit)
+.cerberus/credentials.yaml
 
 # IDE / tool directories
 .claude/*
@@ -19,10 +22,10 @@ runtime/
 docs/
 learning/
 
-# Cerberus configuration (sensitive files only)
-.cerberus/credentials.yaml
+# Legacy runtime location (still clean up old files)
+runtime/
 
-# Test coverage (global, not in runtime/)
+# Test coverage (global, not in .cerberus/runtime/)
 cover.out
 cover.html
 *.test

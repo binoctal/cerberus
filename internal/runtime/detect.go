@@ -2,11 +2,11 @@ package runtime
 
 import (
 	"os"
-	"path/filepath"
 )
 
 // IsDevelopment detects if running in the cerberus development environment
 // by checking if the current directory contains a go.mod file with the cerberus module name
+// Can be used for enabling dev features like verbose logging
 func IsDevelopment() bool {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -14,7 +14,7 @@ func IsDevelopment() bool {
 	}
 
 	// Check if go.mod exists
-	goModPath := filepath.Join(wd, "go.mod")
+	goModPath := wd + "/go.mod" // filepath.Join is overkill here
 	if _, err := os.Stat(goModPath); err != nil {
 		return false
 	}
@@ -29,19 +29,14 @@ func IsDevelopment() bool {
 	return contains(string(content), "module github.com/binoctal/cerberus")
 }
 
-// GetPaths returns appropriate paths based on the current environment
-// If in development environment, returns project-local paths
-// Otherwise, returns system-standard paths
+// GetPaths returns runtime paths based on the current project directory
+// All runtime files are stored in .cerberus/runtime/ under the project root
 func GetPaths() *Paths {
-	if IsDevelopment() {
-		wd, err := os.Getwd()
-		if err != nil {
-			// Fallback to system paths if we can't get working directory
-			return New()
-		}
-		return newDevelopmentPaths(wd)
+	wd, err := os.Getwd()
+	if err != nil {
+		wd = "."
 	}
-	return New()
+	return New(wd)
 }
 
 // contains checks if s starts with substr
