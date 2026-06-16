@@ -9,7 +9,7 @@ bin/
 .codegraph/
 
 # Project docs and learning
-# cerberus-docs/ is a separate documentation repository - NOT ignored
+docs/                      # Legacy docs location - ignored, use cerberus-docs/
 learning/
 
 # Cerberus runtime

@@ -1,0 +1,66 @@
+site_name: Cerberus
+site_description: Universal AI Testing Framework
+site_url: https://binoctal.github.io/cerberus
+repo_url: https://github.com/binoctal/cerberus
+repo_name: binoctal/cerberus
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+  - Configuration:
+    - Project Config: configuration/project.md
+    - Credentials: configuration/credentials.md
+  - Executors:
+    - Overview: executors/index.md
+    - HTTP: executors/http.md
+    - Database: executors/database.md
+    - GraphQL: executors/graphql.md
+    - WebSocket: executors/websocket.md
+    - Browser: executors/browser.md
+    - Process: executors/process.md
+    - File: executors/file.md
+    - MCP: executors/mcp.md
+    - Code Analysis: executors/code.md
+    - Wait: executors/wait.md
+  - Integrations:
+    - Claude Code (MCP): integrations/claude-code.md
+    - CI/CD: integrations/ci-cd.md
+  - CLI Reference: cli.md
+  - Architecture: architecture.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - admonition
+  - toc:
+      permalink: true
