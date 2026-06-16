@@ -10,10 +10,12 @@ import (
 
 func TestLoad(t *testing.T) {
 	t.Setenv("CERBERUS_PORT", "9090")
+	t.Setenv("CERBERUS_DB_PATH", "cerberus.db") // Use explicit path for test
 
 	cfg := Load()
 	assert.Equal(t, "9090", cfg.Port)
 	assert.Equal(t, "cerberus.db", cfg.DBPath)
+	assert.NotNil(t, cfg.Paths, "Paths should be initialized")
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -28,11 +30,14 @@ func TestLoadDefaults(t *testing.T) {
 
 	cfg := Load()
 	assert.Equal(t, "8090", cfg.Port)
-	assert.Equal(t, "cerberus.db", cfg.DBPath)
+	// DBPath now defaults to runtime path, not "cerberus.db"
+	assert.Contains(t, cfg.DBPath, "cerberus.db", "DBPath should contain cerberus.db")
+	assert.Contains(t, cfg.DBPath, ".local", "DBPath should be in user local directory")
 	assert.Equal(t, "migrations", cfg.MigrationDir)
 	assert.Equal(t, "info", cfg.LogLevel)
 	assert.Equal(t, "claude-sonnet-4-6", cfg.LLMModel)
 	assert.Equal(t, "", cfg.LLMAPIKey, "no key when all env vars unset")
+	assert.NotNil(t, cfg.Paths, "Paths should be initialized")
 }
 
 func TestDBPath(t *testing.T) {

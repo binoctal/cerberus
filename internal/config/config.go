@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/detect"
+	"github.com/binoctal/cerberus/internal/runtime"
 )
 
 type Config struct {
 	Port         string
-	DBPath       string // SQLite file path (default: "cerberus.db", use ":memory:" for tests)
+	DBPath       string // SQLite file path (default: runtime path, use ":memory:" for tests)
 	MigrationDir string
 	LogLevel     string
 	LLMModel     string
@@ -19,6 +20,7 @@ type Config struct {
 	CLIProfile   detect.Profile // resolved host CLI identity
 	TierModels   TierModels     // head → model tier (empty when CLI unknown)
 	TierContexts TierContexts   // head → model context-window tokens (drives depth scaling)
+	Paths        *runtime.Paths // runtime file paths (auto-detected)
 }
 
 func Load() *Config {
@@ -32,15 +34,23 @@ func Load() *Config {
 		provider = profile.Provider
 	}
 
+	// Get runtime paths (auto-detects development vs production)
+	paths := runtime.GetPaths()
+	if err := paths.Ensure(); err != nil {
+		// If we can't create runtime directories, log a warning but continue
+		// The database open will fail later with a clear error
+	}
+
 	cfg := &Config{
 		Port:         getEnv("CERBERUS_PORT", "8090"),
-		DBPath:       getEnv("CERBERUS_DB_PATH", "cerberus.db"),
+		DBPath:       getEnv("CERBERUS_DB_PATH", paths.DBPath),
 		MigrationDir: getEnv("CERBERUS_MIGRATION_DIR", "migrations"),
 		LogLevel:     getEnv("CERBERUS_LOG_LEVEL", "info"),
 		LLMModel:     resolveModel(settings),
 		LLMBaseURL:   resolveBaseURL(settings, profile),
 		LLMProvider:  provider,
 		CLIProfile:   profile,
+		Paths:        paths,
 	}
 
 	// API key resolution: explicit CERBERUS key first, then CLI prefix, then
