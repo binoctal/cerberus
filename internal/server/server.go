@@ -151,7 +151,16 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	mode := session.Mode(req.Mode)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sess, err := session.NewSession(ctx, mode, req.Goal, projCfgPtr, srv.store, client, srv.logger, nil, ".")
+	sess, err := session.NewSession(ctx, session.SessionConfig{
+		Mode:       mode,
+		Goal:       req.Goal,
+		Config:     projCfgPtr,
+		Store:      srv.store,
+		Client:     client,
+		Logger:     srv.logger,
+		Gate:       nil,
+		ProjectDir: ".",
+	})
 	if err != nil {
 		cancel()
 		writeError(w, http.StatusInternalServerError, "create session: %v", err)

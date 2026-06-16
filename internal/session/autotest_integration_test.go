@@ -22,7 +22,16 @@ func TestRun_InvokesAutoTestPhase(t *testing.T) {
 	// Use a temporary directory without Go files to avoid running actual tests
 	tmpDir := t.TempDir()
 
-	sess, err := NewSession(context.Background(), ModeRun, "verify service health", &cfg, s, mockClient, logger, nil, tmpDir)
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "verify service health",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: tmpDir,
+	})
 	require.NoError(t, err)
 
 	sess.AutoTestSafety = "dry-run"
@@ -43,7 +52,16 @@ func TestRun_SkipsAutoTestPhaseWhenOff(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "verify service health", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode:       ModeRun,
+		Goal:       "verify service health",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	sess.AutoTestSafety = "off"
@@ -64,7 +82,16 @@ func TestRun_SkipsAutoTestPhaseWhenEmpty(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "verify service health", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode:       ModeRun,
+		Goal:       "verify service health",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	// AutoTestSafety defaults to empty string

@@ -73,7 +73,16 @@ func TestNewSession(t *testing.T) {
 	cfg := project.DefaultConfig()
 	cfg.Project.Name = "test-project"
 
-	sess, err := NewSession(context.Background(), ModeRun, "test goal", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "test goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)
 	assert.Equal(t, ModeRun, sess.Mode)
@@ -98,7 +107,16 @@ func TestNewSession_StoreError(t *testing.T) {
 	logger := zap.NewNop()
 	cfg := project.DefaultConfig()
 
-	_, err := NewSession(context.Background(), ModeRun, "goal", &cfg, s, mockClient, logger, nil, ".")
+	_, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create session")
 }
@@ -111,7 +129,16 @@ func TestNewSession_NilGate(t *testing.T) {
 	logger := zap.NewNop()
 	cfg := project.DefaultConfig()
 
-	sess, err := NewSession(context.Background(), ModeRun, "goal", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	// nil gate should be replaced with NoOpGate.
@@ -128,7 +155,16 @@ func TestNewSession_WithExplicitGate(t *testing.T) {
 	cfg := project.DefaultConfig()
 
 	gate := escalation.NoOpGate{}
-	sess, err := NewSession(context.Background(), ModeRun, "goal", &cfg, s, mockClient, logger, gate, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode:       ModeRun,
+		Goal:       "goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       gate,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 	assert.Equal(t, gate, sess.Gate)
 }
@@ -145,14 +181,32 @@ func TestSession_ResolveBaseURL(t *testing.T) {
 		cfg.Services = []project.Service{
 			{Name: "api", URL: "http://localhost:3000"},
 		}
-		sess, err := NewSession(context.Background(), ModeRun, "goal", &cfg, s, mockClient, logger, nil, ".")
+		sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 		require.NoError(t, err)
 		assert.Equal(t, "http://localhost:3000", sess.resolveBaseURL())
 	})
 
 	t.Run("without services", func(t *testing.T) {
 		cfg := project.DefaultConfig()
-		sess, err := NewSession(context.Background(), ModeRun, "goal", &cfg, s, mockClient, logger, nil, ".")
+		sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 		require.NoError(t, err)
 		assert.Equal(t, "", sess.resolveBaseURL())
 	})
@@ -166,7 +220,16 @@ func TestSession_Close(t *testing.T) {
 	logger := zap.NewNop()
 	cfg := project.DefaultConfig()
 
-	sess, err := NewSession(context.Background(), ModeRun, "goal", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	// Close should not panic.
@@ -183,7 +246,16 @@ func TestSession_Run_FullLifecycle(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "verify service health", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "verify service health",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	err = sess.Run(context.Background())
@@ -208,7 +280,16 @@ func TestSession_Run_VerifyMode(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeVerify, "verify service", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode:       ModeVerify,
+		Goal:       "verify service",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 	assert.Equal(t, ModeVerify, sess.Mode)
 
@@ -230,7 +311,16 @@ func TestSession_Run_ParallelExecution(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "parallel test", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "parallel test",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 	sess.Parallel = true
 	sess.MaxWorkers = 2
@@ -266,7 +356,16 @@ func TestSession_Run_ScoutFailure(t *testing.T) {
 	})
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "test goal", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "test goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	err = sess.Run(context.Background())
@@ -296,7 +395,16 @@ func TestSession_Run_AgentFailure(t *testing.T) {
 	})
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "test goal", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "test goal",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	err = sess.Run(context.Background())
@@ -321,7 +429,16 @@ func TestSession_Run_TracksTokenBudget(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "budget tracking", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "budget tracking",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	initialBudget := sess.Driver.Budget().SessionTotal
@@ -347,7 +464,16 @@ func TestSession_Run_DeepPlan(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "deep plan test", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "deep plan test",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 	sess.DeepPlan = true
 
@@ -367,7 +493,16 @@ func TestSession_Run_CancelledContext(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "cancel test", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "cancel test",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	// Cancel context immediately. The mock client is fast so Run may
@@ -393,7 +528,16 @@ func TestSession_Run_DefaultWorkers(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "default workers", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "default workers",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 	sess.Parallel = true
 	sess.MaxWorkers = 0 // should default to 4
@@ -436,7 +580,16 @@ func TestSession_Resume_SkipsCompleted(t *testing.T) {
 	mockClient := llm.NewMockClient(fullRunResponses())
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "resume test", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "resume test",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	// Manually save a plan with 2 cases.
@@ -472,7 +625,16 @@ func TestSession_Resume_NoPlan(t *testing.T) {
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "no plan resume", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "no plan resume",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	err = sess.Resume(context.Background())
@@ -499,7 +661,16 @@ func TestSession_driverFor_PerHeadOverride(t *testing.T) {
 	mockClient := llm.NewMockClient(nil)
 	logger := zap.NewNop()
 
-	sess, err := NewSession(context.Background(), ModeRun, "per-head", &cfg, s, mockClient, logger, nil, ".")
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode: ModeRun,
+		Goal: "per-head",
+		Config: &cfg,
+		Store: s,
+		Client: mockClient,
+		Logger: logger,
+		Gate: nil,
+		ProjectDir: ".",
+	})
 	require.NoError(t, err)
 
 	// Setup per-head drivers. Will fail to connect but should at least attempt.

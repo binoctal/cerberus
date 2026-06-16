@@ -32,7 +32,16 @@ func TestDogfood_LocalProjectMode(t *testing.T) {
 	cfg := project.DefaultConfig()
 	cfg.Project.Name = "cerberus-dogfood"
 
-	sess, err := session.NewSession(ctx, session.ModeRun, "dogfood test", &cfg, s, client, logger, nil, "../..")
+	sess, err := session.NewSession(ctx, session.SessionConfig{
+		Mode:       session.ModeRun,
+		Goal:       "dogfood test",
+		Config:     &cfg,
+		Store:      s,
+		Client:     client,
+		Logger:     logger,
+		Gate:       nil,
+		ProjectDir: "../..",
+	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)
 

@@ -11,9 +11,6 @@ import (
 	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
-	"github.com/binoctal/cerberus/internal/head/agent"
-	"github.com/binoctal/cerberus/internal/head/examiner"
-	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
@@ -26,6 +23,19 @@ const (
 	ModeVerify Mode = "verify"
 	ModeServe  Mode = "serve"
 )
+
+// SessionConfig holds configuration for creating a new Session.
+// This replaces the multiple parameters previously passed to NewSession.
+type SessionConfig struct {
+	Mode       Mode
+	Goal       string
+	Config     *project.Config
+	Store      *store.Store
+	Client     llm.Client
+	Logger     *zap.Logger
+	Gate       escalation.Gate
+	ProjectDir string
+}
 
 type Session struct {
 	ID         string
@@ -58,41 +68,38 @@ type Session struct {
 	clientFactory func(llm.ClientConfig) (llm.Client, error)
 }
 
-func NewSession(ctx context.Context, mode Mode, goal string, cfg *project.Config,
-	s *store.Store, client llm.Client, logger *zap.Logger, gate escalation.Gate,
-	projectDir string) (*Session, error) {
-
-	if gate == nil {
-		gate = escalation.NoOpGate{}
+func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
+	if cfg.Gate == nil {
+		cfg.Gate = escalation.NoOpGate{}
 	}
 
 	budget := ai.NewTokenBudget(
-		cfg.Settings.AIBudget.SessionTotalTokens,
-		cfg.Settings.AIBudget.PerCallLimit,
+		cfg.Config.Settings.AIBudget.SessionTotalTokens,
+		cfg.Config.Settings.AIBudget.PerCallLimit,
 	)
 
 	sess := &Session{
-		Mode:       mode,
-		Goal:       goal,
-		Config:     cfg,
-		Store:      s,
-		Driver:     ai.NewDriver(client, budget),
-		Logger:     logger,
+		Mode:       cfg.Mode,
+		Goal:       cfg.Goal,
+		Config:     cfg.Config,
+		Store:      cfg.Store,
+		Driver:     ai.NewDriver(cfg.Client, budget),
+		Logger:     cfg.Logger,
 		StartedAt:  time.Now(),
-		ProjectDir: projectDir,
-		Gate:       gate,
+		ProjectDir: cfg.ProjectDir,
+		Gate:       cfg.Gate,
 	}
 
-	dbSess, err := s.CreateSession(ctx, string(mode), goal, cfg.Project.Name)
+	dbSess, err := sess.Store.CreateSession(ctx, string(cfg.Mode), cfg.Goal, cfg.Config.Project.Name)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 	sess.ID = dbSess.ID
 
-	logger.Info("session created",
+	cfg.Logger.Info("session created",
 		zap.String("id", sess.ID),
-		zap.String("mode", string(mode)),
-		zap.String("goal", goal))
+		zap.String("mode", string(cfg.Mode)),
+		zap.String("goal", cfg.Goal))
 
 	return sess, nil
 }
@@ -172,179 +179,48 @@ func (s *Session) driverFor(head **ai.Driver) *ai.Driver {
 }
 
 func (s *Session) Run(ctx context.Context) (err error) {
-	s.Logger.Info("session starting", zap.String("id", s.ID))
 	runStart := time.Now()
-	var summary *SessionSummary
 
-	defer func() {
-		elapsed := time.Since(runStart)
-		tokensUsed := s.Driver.Budget().SessionTotal - s.Driver.Budget().Remaining()
-
-		// Build summary if not yet built (e.g. on early error).
-		if summary == nil {
-			summary = &SessionSummary{
-				Goal: s.Goal, TotalTokens: tokensUsed,
-				Duration:   elapsed.Round(time.Millisecond).String(),
-				DurationMs: elapsed.Milliseconds(),
-			}
-		} else {
-			summary.TotalTokens = tokensUsed
-			summary.Duration = elapsed.Round(time.Millisecond).String()
-			summary.DurationMs = elapsed.Milliseconds()
-		}
-
-		// Write stats to store.
-		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, summary.CoveragePct, summary); statsErr != nil {
-			s.Logger.Error("update session stats", zap.Error(statsErr))
-		}
-
-		// Print human-readable summary.
-		s.Logger.Info("session summary", zap.String("summary", summary.String()))
-
-		// Update status (terminal).
-		status := "completed"
-		if err != nil {
-			status = "failed"
-		}
-		if updateErr := s.Store.UpdateSessionStatus(ctx, s.ID, status); updateErr != nil {
-			s.Logger.Error("update session status", zap.Error(updateErr))
-		}
-	}()
-
-	// Phase 1: Scout — Analyze + Plan.
-	scoutHead := scout.NewScout(s.driverFor(&s.scoutDriver), s.Store, s.Config, s.Logger)
-	// Scale ToT/Reflexion depth to the Scout model's context window, looked up
-	// from its tier model in the llm registry. Unknown/standalone → 0 → conservative.
-	scoutModel := s.tiers[config.HeadScout]
-	scoutCtx := 0
-	if scoutModel != "" {
-		scoutCtx = llm.ContextWindow(scoutModel)
+	// Create run phase with state
+	rp := &runPhase{
+		session:   s,
+		ctx:       ctx,
+		startTime: runStart,
 	}
-	scoutHead.SetReflexion(config.ResolveReflexionConfig(s.Config.Settings, scoutCtx))
-	if s.DeepPlan {
-		scoutHead.SetDeepPlan(
-			config.ResolveToTConfig(s.Config.Settings, scoutCtx),
-			s.driverFor(&s.scoutDriver), // ToT propose: SONNET tier
-			s.driverFor(&s.agentDriver), // ToT evaluate: HAIKU tier
-		)
+
+	// Ensure finalization always runs
+	defer rp.finalize()
+
+	// Initialize
+	if err := rp.initialize(); err != nil {
+		rp.err = err
+		return err
 	}
-	model, err := scoutHead.Analyze(ctx, scout.TargetInfo{
-		URL:  s.resolveBaseURL(),
-		Goal: s.Goal,
-	})
+
+	// Phase 1: Scout — Analyze + Plan
+	model, err := rp.executeScoutPhase()
 	if err != nil {
-		return fmt.Errorf("scout analyze: %w", err)
+		rp.err = err
+		return err
 	}
 
-	plan, err := scoutHead.Plan(ctx, s.Goal, model)
-	if err != nil {
-		return fmt.Errorf("scout plan: %w", err)
+	// Phase 2: Agent — Execute
+	if err := rp.executeAgentPhase(); err != nil {
+		rp.err = fmt.Errorf("agent execute: %w", err)
+		return rp.err
 	}
 
-	// Persist plan for potential resumption.
-	if saveErr := s.Store.SavePlan(ctx, s.ID, plan); saveErr != nil {
-		s.Logger.Warn("failed to save plan", zap.Error(saveErr))
+	// Phase 3: Examiner — Judge + Learn
+	if err := rp.executeExaminerPhase(); err != nil {
+		rp.err = fmt.Errorf("examiner: %w", err)
+		return rp.err
 	}
 
-	// Phase 2: Agent — Execute.
-	baseURL := s.resolveBaseURL()
-	projectDir := s.ProjectDir
-	if projectDir == "" {
-		projectDir = "."
-	}
-	engine := agent.NewRuleEngine(baseURL, s.Config.Actors, projectDir)
-	multiExec := agent.BuildMultiExecutor(projectDir, s.Gate, s.Logger)
-	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoopWithGate(s.driverFor(&s.agentDriver), s.Store, engine, multiExec, config, s.Gate, s.Logger)
+	// Phase 4: AutoTest — Coverage-driven test generation (optional)
+	rp.executeAutoTestPhase()
 
-	s.Logger.Info("executing test plan",
-		zap.String("session_id", s.ID),
-		zap.Int("cases", len(plan.Cases)),
-		zap.Bool("parallel", s.Parallel),
-	)
-
-	var results []agent.StepResult
-	if s.Parallel {
-		workers := s.MaxWorkers
-		if workers <= 0 {
-			workers = 4
-		}
-		pExec := agent.NewParallelExecutor(loop, agent.ParallelConfig{MaxWorkers: workers}, s.Logger)
-		results, err = pExec.ExecutePlan(ctx, plan, s.ID)
-	} else {
-		results, err = loop.ExecutePlan(ctx, plan, s.ID)
-	}
-	if err != nil {
-		return fmt.Errorf("agent execute: %w", err)
-	}
-
-	// Phase 3: Examiner — Judge + Learn.
-	examinerCfg := examiner.DefaultExaminerConfig()
-	if s.Config.Settings.ConfidenceThreshold > 0 {
-		examinerCfg.ConfThreshold = s.Config.Settings.ConfidenceThreshold
-		examinerCfg.AutoFix = s.Config.Settings.AutoFix
-	}
-	examinerCfg.MaxWorkers = s.MaxWorkers
-	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
-	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
-	if err != nil {
-		return fmt.Errorf("examiner: %w", err)
-	}
-
-	s.Logger.Info("examination complete",
-		zap.Int("verdicts", len(verdicts)),
-		zap.Int("reflections_stored", reflections),
-	)
-
-	// Phase 4: AutoTest — Coverage-driven test generation (optional).
-	if s.AutoTestSafety != "" && s.AutoTestSafety != "off" {
-		mode := autotest.SafetyMode(s.AutoTestSafety)
-		cov := autotest.NewGoCoverageProvider(autotest.DefaultGoCoverageRunner, s.Logger)
-		gen := autotest.NewGoTestGenerator(s.driverFor(&s.scoutDriver), s.Logger)
-		at := autotest.NewAutoTest(cov, gen, autotest.NewEscalationGateAdapter(s.Gate), nil, mode, s.Logger)
-		report, atErr := at.Run(ctx, s.ProjectDir)
-		if atErr != nil {
-			s.Logger.Warn("autotest phase failed", zap.Error(atErr))
-		} else if report != nil {
-			s.Logger.Info("autotest phase complete",
-				zap.String("mode", string(mode)),
-				zap.Int("gaps", len(report.Gaps)),
-				zap.Int("generated", len(report.Generated)),
-				zap.Int("written", len(report.Written)),
-				zap.Int("reverted", len(report.Reverted)),
-				zap.Float64("before_pct", report.BeforeCoveragePct),
-				zap.Float64("after_pct", report.AfterCoveragePct))
-			// dry-run: print each generated _test.go to stdout for review.
-			// No files are written; this is the preview of what would be adopted.
-			if mode == autotest.SafetyDryRun {
-				fmt.Println("\nAutoTest dry-run — generated test previews:")
-				for _, tf := range report.Generated {
-					fmt.Printf("\n--- %s ---\n%s\n", tf.Path, tf.Content)
-				}
-			}
-		}
-		s.LastAutoTestReport = report
-
-		// Persist AutoTest report to DB (best-effort, non-blocking).
-		if report != nil {
-			if perr := s.Store.UpdateSessionAutoTest(ctx, s.ID, report); perr != nil {
-				s.Logger.Warn("persist autotest report", zap.Error(perr))
-			}
-		}
-	}
-
-	// Build summary.
-	summary = FromResults(
-		s.Goal,
-		s.resolveBaseURL(),
-		len(plan.Cases),
-		results,
-		verdicts,
-		reflections,
-		0, // tokens filled in defer
-		time.Since(runStart),
-	)
-	summary.EndpointsFound = len(model.API.Endpoints)
+	// Build summary
+	rp.buildSummary(model)
 
 	return nil
 }
@@ -358,128 +234,52 @@ func (s *Session) Close() {
 // Resume loads a saved plan and continues from the first uncompleted test case.
 // It skips Scout entirely, reuses the stored plan, and only executes remaining cases.
 func (s *Session) Resume(ctx context.Context) (err error) {
-	s.Logger.Info("resuming session", zap.String("id", s.ID))
-	runStart := time.Now()
-	var summary *SessionSummary
+	// Create resume phase with state
+	rp := &resumePhase{
+		session:   s,
+		ctx:       ctx,
+		startTime: time.Now(),
+	}
 
-	defer func() {
-		elapsed := time.Since(runStart)
-		tokensUsed := s.Driver.Budget().SessionTotal - s.Driver.Budget().Remaining()
-		if summary == nil {
-			summary = &SessionSummary{
-				Goal: s.Goal, TotalTokens: tokensUsed,
-				Duration:   elapsed.Round(time.Millisecond).String(),
-				DurationMs: elapsed.Milliseconds(),
-			}
-		} else {
-			summary.TotalTokens = tokensUsed
-			summary.Duration = elapsed.Round(time.Millisecond).String()
-			summary.DurationMs = elapsed.Milliseconds()
+	// Ensure finalization always runs
+	defer rp.finalize()
+
+	// Initialize
+	if err := rp.initialize(); err != nil {
+		rp.err = err
+		return err
+	}
+
+	// Load saved plan
+	if err := rp.loadSavedPlan(); err != nil {
+		rp.err = err
+		return err
+	}
+
+	// Filter out completed cases
+	if err := rp.filterRemainingCases(); err != nil {
+		// If all cases completed, this is not an error
+		if err.Error() == "all cases already completed" {
+			return nil
 		}
-		if statsErr := s.Store.UpdateSessionStats(ctx, s.ID, summary.CoveragePct, summary); statsErr != nil {
-			s.Logger.Error("update session stats", zap.Error(statsErr))
-		}
-		s.Logger.Info("session summary", zap.String("summary", summary.String()))
-		status := "completed"
-		if err != nil {
-			status = "failed"
-		}
-		if statsErr := s.Store.UpdateSessionStatus(ctx, s.ID, status); statsErr != nil {
-			s.Logger.Error("update session status", zap.Error(statsErr))
-		}
-	}()
-
-	// Load saved plan.
-	var plan agent.TestPlan
-	if err := s.Store.LoadPlan(ctx, s.ID, &plan); err != nil {
-		return fmt.Errorf("load plan for session %s: %w", s.ID, err)
-	}
-	if len(plan.Cases) == 0 {
-		return fmt.Errorf("saved plan has no test cases")
+		rp.err = err
+		return err
 	}
 
-	// Get completed targets.
-	completed, err := s.Store.GetCompletedTargets(ctx, s.ID)
-	if err != nil {
-		return fmt.Errorf("get completed targets: %w", err)
+	// Execute remaining cases
+	if err := rp.executeRemainingCases(); err != nil {
+		rp.err = fmt.Errorf("agent execute (resume): %w", err)
+		return rp.err
 	}
 
-	// Filter out completed cases.
-	var remaining []agent.TestCase
-	for _, tc := range plan.Cases {
-		if !completed[tc.Target] {
-			remaining = append(remaining, tc)
-		}
+	// Examine results
+	if err := rp.examineResults(); err != nil {
+		rp.err = fmt.Errorf("examiner (resume): %w", err)
+		return rp.err
 	}
 
-	s.Logger.Info("resuming from saved plan",
-		zap.Int("total_cases", len(plan.Cases)),
-		zap.Int("completed", len(completed)),
-		zap.Int("remaining", len(remaining)),
-	)
-
-	if len(remaining) == 0 {
-		s.Logger.Info("all cases already completed")
-		return nil
-	}
-
-	// Build a reduced plan with only remaining cases.
-	resumePlan := &agent.TestPlan{
-		Goal:       plan.Goal,
-		Cases:      remaining,
-		ProjectURL: plan.ProjectURL,
-	}
-
-	// Execute remaining cases.
-	baseURL := s.resolveBaseURL()
-	projectDir := s.ProjectDir
-	if projectDir == "" {
-		projectDir = "."
-	}
-	engine := agent.NewRuleEngine(baseURL, s.Config.Actors, projectDir)
-	multiExec := agent.BuildMultiExecutor(projectDir, s.Gate, s.Logger)
-	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoopWithGate(s.driverFor(&s.agentDriver), s.Store, engine, multiExec, config, s.Gate, s.Logger)
-
-	var results []agent.StepResult
-	if s.Parallel {
-		workers := s.MaxWorkers
-		if workers <= 0 {
-			workers = 4
-		}
-		pExec := agent.NewParallelExecutor(loop, agent.ParallelConfig{MaxWorkers: workers}, s.Logger)
-		results, err = pExec.ExecutePlan(ctx, resumePlan, s.ID)
-	} else {
-		results, err = loop.ExecutePlan(ctx, resumePlan, s.ID)
-	}
-	if err != nil {
-		return fmt.Errorf("agent execute (resume): %w", err)
-	}
-
-	// Examine results.
-	examinerCfg := examiner.DefaultExaminerConfig()
-	if s.Config.Settings.ConfidenceThreshold > 0 {
-		examinerCfg.ConfThreshold = s.Config.Settings.ConfidenceThreshold
-		examinerCfg.AutoFix = s.Config.Settings.AutoFix
-	}
-	examinerCfg.MaxWorkers = s.MaxWorkers
-	examinerHead := examiner.NewExaminer(s.driverFor(&s.examinerDriver), s.criticDriver, s.Store, examinerCfg, s.Logger)
-	verdicts, reflections, err := examinerHead.Examine(ctx, results, s.ID, s.Config.Project.Name)
-	if err != nil {
-		return fmt.Errorf("examiner (resume): %w", err)
-	}
-
-	// Build summary for resumed portion.
-	summary = FromResults(
-		s.Goal,
-		s.resolveBaseURL(),
-		len(remaining),
-		results,
-		verdicts,
-		reflections,
-		0,
-		time.Since(runStart),
-	)
+	// Build summary
+	rp.buildSummary()
 
 	return nil
 }

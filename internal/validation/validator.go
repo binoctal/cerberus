@@ -1,5 +1,12 @@
 package validation
 
+// ValidationResult represents a single validation check result
+type ValidationResult struct {
+	Passed      bool     // true if the validation passed
+	Description string   // human-readable description of what was checked
+	Details     []string // detailed information about the result
+}
+
 // Validator orchestrates all validation tools
 type Validator struct {
 	compileChecker  *CompileChecker

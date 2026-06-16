@@ -52,7 +52,7 @@ func main() {
 		Short: "Cerberus — Universal AI Testing Framework",
 	}
 
-	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd(), architectureCmd(), versionCmd())
+	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd(), architectureCmd(), regressionCmd(), accuracyCmd(), knownIssueCmd(), versionCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -236,7 +236,16 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.ModeRun, goalFlag, projCfg, s, client, logger, nil, dirFlag)
+			sess, err := session.NewSession(ctx, session.SessionConfig{
+				Mode:       session.ModeRun,
+				Goal:       goalFlag,
+				Config:     projCfg,
+				Store:      s,
+				Client:     client,
+				Logger:     logger,
+				Gate:       nil,
+				ProjectDir: dirFlag,
+			})
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
@@ -333,7 +342,16 @@ func verifyCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.ModeVerify, goalFlag, projCfg, s, client, logger, nil, dirFlag)
+			sess, err := session.NewSession(ctx, session.SessionConfig{
+				Mode:       session.ModeVerify,
+				Goal:       goalFlag,
+				Config:     projCfg,
+				Store:      s,
+				Client:     client,
+				Logger:     logger,
+				Gate:       nil,
+				ProjectDir: dirFlag,
+			})
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}

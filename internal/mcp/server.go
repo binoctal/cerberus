@@ -249,7 +249,16 @@ func (srv *Server) handleRun(ctx context.Context, c *conn, args map[string]any) 
 	}
 
 	// NewSession creates the session row in the database (single source of truth).
-	testSess, sessionErr := session.NewSession(runCtx, session.ModeRun, goal, &projCfg, srv.store, client, srv.logger, mcpGate, ".")
+	testSess, sessionErr := session.NewSession(runCtx, session.SessionConfig{
+		Mode:       session.ModeRun,
+		Goal:       goal,
+		Config:     &projCfg,
+		Store:      srv.store,
+		Client:     client,
+		Logger:     srv.logger,
+		Gate:       mcpGate,
+		ProjectDir: ".",
+	})
 	if sessionErr != nil {
 		cancel()
 		return errorResult(fmt.Sprintf("create session: %v", sessionErr))
