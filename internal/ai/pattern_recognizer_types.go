@@ -49,26 +49,32 @@ type PatternDatabase struct {
 func (p PatternType) String() string {
 	switch p {
 	case BusinessPatterns:
-		return "business"
+		return "Business"
 	case DomainPattern:
-		return "domain"
+		return "Domain"
 	case WorkflowPattern:
-		return "workflow"
+		return "Workflow"
 	case StateMachinePattern:
-		return "state_machine"
+		return "StateMachine"
 	case RulePattern:
-		return "rule"
+		return "Rule"
 	case EdgeCasePattern:
-		return "edge_case"
+		return "EdgeCase"
 	case ErrorHandlingPattern:
-		return "error_handling"
+		return "ErrorHandling"
 	default:
-		return "unknown"
+		return "Unknown"
 	}
 }
 
 // Validate checks if a pattern has all required fields
 func (p *Pattern) Validate() error {
+	if p == nil {
+		return fmt.Errorf("pattern is nil")
+	}
+	if p.ID == "" {
+		return fmt.Errorf("pattern ID is required")
+	}
 	if p.Name == "" {
 		return fmt.Errorf("pattern name is required")
 	}
