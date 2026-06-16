@@ -1,109 +1,12 @@
 package autotest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"go.uber.org/zap"
-
-	"github.com/binoctal/cerberus/internal/ai"
-	"github.com/binoctal/cerberus/internal/llm"
 )
-
-// PythonTestGenerator generates pytest tests for Python projects
-type PythonTestGenerator struct {
-	driver     *ai.Driver
-	logger     *zap.Logger
-	pythonCmd  string
-}
-
-// NewPythonTestGenerator creates a new Python test generator
-func NewPythonTestGenerator(driver interface{}) *PythonTestGenerator {
-	var d *ai.Driver
-	if v, ok := driver.(*ai.Driver); ok {
-		d = v
-	}
-	return &PythonTestGenerator{
-		driver:    d,
-		logger:    zap.NewNop(),
-		pythonCmd: "python3",
-	}
-}
-
-// PythonAstInfo represents extracted function/class info from Python AST
-type PythonAstInfo struct {
-	Name      string   `json:"name"`
-	Type      string   `json:"type"` // "function", "class", "method"
-	LineNo    int      `json:"lineno"`
-	ClassName string   `json:"class,omitempty"`
-	Docstring string   `json:"docstring,omitempty"`
-	Args      []string `json:"args,omitempty"`
-}
-
-// Generate generates a pytest test file for a coverage gap
-func (g *PythonTestGenerator) Generate(ctx context.Context, gap CoverageGap, source []byte) (TestFile, error) {
-	// Extract function/class info using Python ast
-	pkg, snippet := extractPythonFunction(g.pythonCmd, source, gap.Func)
-
-	prompt := g.buildPrompt(pkg, gap.File, snippet)
-
-	// Try JSON response first
-	var out struct {
-		Test string `json:"test"`
-	}
-
-	err := g.driver.Decide(ctx, prompt, &out)
-	if err == nil && strings.TrimSpace(out.Test) != "" {
-		content := []byte(stripFences(out.Test))
-		return TestFile{
-			Path:    pythonTestFilePath(gap.File),
-			Content: content,
-		}, nil
-	}
-
-	// Fallback: use raw completion
-	resp, rerr := g.driver.Client().Complete(ctx, llm.Request{
-		Messages: []llm.Message{{Role: "user", Content: prompt}},
-	})
-	if rerr != nil {
-		return TestFile{}, fmt.Errorf("python gen: decide %w, fallback %w", err, rerr)
-	}
-
-	content := []byte(stripFences(resp.Content))
-	return TestFile{
-		Path:    pythonTestFilePath(gap.File),
-		Content: content,
-	}, nil
-}
-
-// buildPrompt creates the prompt for test generation
-func (g *PythonTestGenerator) buildPrompt(pkg, file, snippet string) string {
-	return fmt.Sprintf(`You are a pytest test author. Emit a single complete test_*.py file using pytest fixtures and parametrize.
-Use modern Python (3.7+) and pytest best practices.
-Include proper imports, fixtures, and parameterized test cases using @pytest.mark.parametrize.
-Output ONLY the Python source, no markdown fences.
-
-Write a pytest test file for this code.
-
-File: %s
-Module: %s
-
-Source code:
-%s
-
-Return a complete test_*.py file with:
-- Proper imports (including pytest, unittest.mock if needed)
-- Fixture functions using @pytest.fixture
-- Parameterized test cases using @pytest.mark.parametrize
-- Test class structure if testing a class
-- Edge cases and error handling
-- Clear test names that describe what is being tested`, file, pkg, snippet)
-}
 
 // extractPythonFunction extracts a function/class from source using Python ast module
 func extractPythonFunction(pythonCmd string, source []byte, funcName string) (string, string) {
@@ -254,42 +157,4 @@ print(json.dumps(functions))
 	}
 
 	return infos, nil
-}
-
-// pythonTestFilePath returns the test file path for a Python source file
-func pythonTestFilePath(sourceFile string) string {
-	// Check if there's a tests/ directory at project root
-	projectRoot := findProjectRoot(sourceFile)
-	testsDir := filepath.Join(projectRoot, "tests")
-
-	if _, err := os.Stat(testsDir); err == nil {
-		// Use tests/ directory
-		relPath, _ := filepath.Rel(projectRoot, sourceFile)
-		testRelPath := "test_" + filepath.Base(relPath)
-		return filepath.Join(testsDir, testRelPath)
-	}
-
-	// Default: same directory as source
-	dir := filepath.Dir(sourceFile)
-	base := filepath.Base(sourceFile)
-	name := strings.TrimSuffix(base, ".py")
-	return filepath.Join(dir, "test_"+name+".py")
-}
-
-// SetLogger sets the logger for the generator
-func (g *PythonTestGenerator) SetLogger(logger *zap.Logger) {
-	g.logger = logger
-}
-
-// SetPythonCmd sets the Python command to use for AST extraction
-func (g *PythonTestGenerator) SetPythonCmd(cmd string) {
-	g.pythonCmd = cmd
-}
-
-// abs returns the absolute value of an integer
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
