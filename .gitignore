@@ -1,5 +1,6 @@
 bin/
 *.exe
+/cerberus
 
 # IDE / tool directories
 .claude/
