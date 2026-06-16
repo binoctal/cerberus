@@ -1,6 +1,11 @@
+# Build artifacts
+build/
 bin/
 *.exe
 /cerberus
+
+# Runtime files (data, logs, cache)
+runtime/
 
 # IDE / tool directories
 .claude/
@@ -9,20 +14,17 @@ bin/
 .idea/
 .codegraph/
 
-# Project docs and learning
-docs/                      # Legacy docs location - ignored, use cerberus-docs/
+# Legacy documentation locations
+docs/
 learning/
 
-# Cerberus runtime
-.cerberus/
+# Cerberus configuration (sensitive files only)
+.cerberus/credentials.yaml
 
-# Test / coverage artifacts
+# Test coverage (global, not in runtime/)
 cover.out
 cover.html
 *.test
-*.db
-*.db-shm
-*.db-wal
 
 # OS files
 .DS_Store
