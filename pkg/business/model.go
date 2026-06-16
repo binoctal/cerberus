@@ -127,21 +127,28 @@ func (m *BusinessModel) Validate() error {
 
 // CalculateOverallConfidence computes overall confidence from components
 func (m *BusinessModel) CalculateOverallConfidence() float64 {
-	if len(m.Concepts) == 0 && len(m.Rules) == 0 {
+	var avgConceptConf, avgRuleConf float64
+
+	if len(m.Concepts) > 0 {
+		conceptSum := 0.0
+		for _, c := range m.Concepts {
+			conceptSum += c.Confidence
+		}
+		avgConceptConf = conceptSum / float64(len(m.Concepts))
+	}
+
+	if len(m.Rules) > 0 {
+		ruleSum := 0.0
+		for _, r := range m.Rules {
+			ruleSum += r.Confidence
+		}
+		avgRuleConf = ruleSum / float64(len(m.Rules))
+	}
+
+	// If both empty, return 0
+	if avgConceptConf == 0 && avgRuleConf == 0 {
 		return 0.0
 	}
-
-	conceptSum := 0.0
-	for _, c := range m.Concepts {
-		conceptSum += c.Confidence
-	}
-	avgConceptConf := conceptSum / float64(len(m.Concepts))
-
-	ruleSum := 0.0
-	for _, r := range m.Rules {
-		ruleSum += r.Confidence
-	}
-	avgRuleConf := ruleSum / float64(len(m.Rules))
 
 	// Weight: rules 60%, concepts 40%
 	return (avgRuleConf * 0.6) + (avgConceptConf * 0.4)

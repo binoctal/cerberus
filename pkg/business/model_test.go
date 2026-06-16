@@ -1,6 +1,9 @@
 package business
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestBusinessModel_Validation(t *testing.T) {
 	model := &BusinessModel{
@@ -48,6 +51,44 @@ func TestBusinessModel_CalculateOverallConfidence(t *testing.T) {
 	// 0.7 (rules)
 	// 0.85*0.4 + 0.7*0.6 = 0.76
 	expected := 0.76
+	if confidence != expected {
+		t.Errorf("Expected confidence %f, got %f", expected, confidence)
+	}
+}
+
+func TestBusinessModel_CalculateOverallConfidence_EmptyConcepts(t *testing.T) {
+	model := &BusinessModel{
+		Rules: []BusinessRule{
+			{Confidence: 0.8},
+		},
+	}
+
+	confidence := model.CalculateOverallConfidence()
+	expected := 0.48 // 0.8 * 0.6
+	if confidence != expected {
+		t.Errorf("Expected confidence %f, got %f", expected, confidence)
+	}
+}
+
+func TestBusinessModel_CalculateOverallConfidence_EmptyRules(t *testing.T) {
+	model := &BusinessModel{
+		Concepts: []BusinessConcept{
+			{Confidence: 0.9},
+		},
+	}
+
+	confidence := model.CalculateOverallConfidence()
+	expected := 0.36 // 0.9 * 0.4
+	if math.Abs(confidence-expected) > 0.0001 {
+		t.Errorf("Expected confidence %f, got %f", expected, confidence)
+	}
+}
+
+func TestBusinessModel_CalculateOverallConfidence_BothEmpty(t *testing.T) {
+	model := &BusinessModel{}
+
+	confidence := model.CalculateOverallConfidence()
+	expected := 0.0
 	if confidence != expected {
 		t.Errorf("Expected confidence %f, got %f", expected, confidence)
 	}
