@@ -8,7 +8,8 @@ bin/
 runtime/
 
 # IDE / tool directories
-.claude/
+.claude/*
+!.claude/CLAUDE.md
 .opencraft/
 .vscode/
 .idea/
