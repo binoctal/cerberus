@@ -134,7 +134,7 @@ func isInDocker() bool {
 func (p *Paths) Ensure() error {
 	dirs := []string{
 		p.ConfigDir,
-		filepath.Join(p.DataDir, "data"), // Note: data/data/ structure for DB
+		p.DataDir, // Database will be in DataDir directly
 		p.LogsDir,
 		p.CacheDir,
 	}

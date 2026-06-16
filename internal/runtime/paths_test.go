@@ -188,9 +188,9 @@ func TestEnsure(t *testing.T) {
 	// Check that directories exist
 	dirs := []string{
 		paths.ConfigDir,
-		filepath.Join(paths.DataDir, "data"),
-	paths.LogsDir,
-	paths.CacheDir,
+		paths.DataDir, // Database directory directly
+		paths.LogsDir,
+		paths.CacheDir,
 	}
 
 	for _, dir := range dirs {

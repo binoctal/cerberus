@@ -127,7 +127,9 @@ actors:
 			fmt.Println("✓ Updated .gitignore")
 
 			// Seed default L3 strategies into the store.
-			dbPath := ".cerberus/cerberus.db"
+			// Try to load config first, fallback to default path
+			cfg := config.Load()
+			dbPath := cfg.DBPath
 			seedDB, seedErr := store.New(dbPath)
 			if seedErr == nil {
 				seedCtx := context.Background()
