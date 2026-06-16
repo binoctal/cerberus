@@ -52,7 +52,7 @@ func main() {
 		Short: "Cerberus — Universal AI Testing Framework",
 	}
 
-	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd(), versionCmd())
+	rootCmd.AddCommand(initCmd(), runCmd(), verifyCmd(), serveCmd(), mcpCmd(), reportCmd(), dashboardCmd(), architectureCmd(), versionCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
