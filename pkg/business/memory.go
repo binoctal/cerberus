@@ -48,5 +48,10 @@ func LoadBusinessModel(path string) (*BusinessModel, error) {
 		return nil, fmt.Errorf("failed to unmarshal model: %w", err)
 	}
 
+	// Validate loaded model
+	if err := model.Validate(); err != nil {
+		return nil, fmt.Errorf("loaded model validation failed: %w", err)
+	}
+
 	return &model, nil
 }

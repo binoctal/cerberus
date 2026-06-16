@@ -62,3 +62,31 @@ func TestMemory_LoadNonExistent(t *testing.T) {
 		t.Error("Expected error for non-existent file, got nil")
 	}
 }
+
+func TestMemory_LoadInvalidJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	modelPath := filepath.Join(tmpDir, "invalid.json")
+
+	// Write invalid JSON
+	os.WriteFile(modelPath, []byte("{invalid json}"), 0644)
+
+	_, err := LoadBusinessModel(modelPath)
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestMemory_SaveInvalidModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	modelPath := filepath.Join(tmpDir, "invalid.json")
+
+	invalidModel := &BusinessModel{
+		ID: "", // Invalid: empty ID
+		Confidence: 1.5, // Invalid: > 1.0
+	}
+
+	err := SaveBusinessModel(invalidModel, modelPath)
+	if err == nil {
+		t.Error("Expected error for invalid model, got nil")
+	}
+}
