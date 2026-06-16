@@ -3,69 +3,7 @@ package ai
 import (
 	"fmt"
 	"time"
-
-	"github.com/binoctal/cerberus/internal/llm"
-	"github.com/binoctal/cerberus/pkg/business"
 )
-
-// CoverageOptimizer iteratively improves test coverage
-type CoverageOptimizer struct {
-	llmClient        llm.Client
-	businessModel    *business.BusinessModel
-	testRunner       *TestRunner
-	coverageAnalyzer *CoverageAnalyzer
-	gapAnalyzer      *GapAnalyzer
-	testGenerator    *AITestGenerator
-	maxIterations    int
-	targetCoverage   float64
-}
-
-// TestRunner executes test suites
-type TestRunner struct {
-	// Will be implemented with actual test execution logic
-}
-
-// CoverageAnalyzer analyzes test coverage results
-type CoverageAnalyzer struct {
-	// Will be implemented with actual coverage analysis logic
-}
-
-// TestResult represents test execution results
-type TestResult struct {
-	Passed    bool
-	Name      string
-	Duration  time.Duration
-	Coverage  float64
-	Output    string
-	Error     string
-}
-
-// CoverageAnalysisResult represents detailed coverage analysis
-type CoverageAnalysisResult struct {
-	TotalCoverage    float64
-	LineCoverage     float64
-	BranchCoverage   float64
-	FunctionCoverage float64
-	CoveredFiles     []string
-	UncoveredFiles   []string
-	CoveredLines     int
-	TotalLines       int
-	Report           *CoverageReport
-}
-
-// NewCoverageOptimizer creates a new coverage optimizer
-func NewCoverageOptimizer(llmClient llm.Client, businessModel *business.BusinessModel) *CoverageOptimizer {
-	return &CoverageOptimizer{
-		llmClient:        llmClient,
-		businessModel:    businessModel,
-		testRunner:       NewTestRunner(),
-		coverageAnalyzer: NewCoverageAnalyzer(),
-		gapAnalyzer:      NewGapAnalyzer(llmClient, businessModel),
-		testGenerator:    NewAITestGenerator(businessModel, llmClient),
-		maxIterations:    5,
-		targetCoverage:   0.90, // Target 90%
-	}
-}
 
 // OptimizeCoverage iteratively improves test coverage
 func (o *CoverageOptimizer) OptimizeCoverage(suite *TestSuite) (*TestSuite, error) {
@@ -148,9 +86,10 @@ func (o *CoverageOptimizer) generateTestsForGaps(gaps []CoverageGap, originalSui
 		// Generate test for this gap
 		// Use gap type as function name for test generation
 		gapFuncName := fmt.Sprintf("%s_gap_%s", originalSuite.Function, gap.Type)
+
 		suite, err := o.testGenerator.GenerateTestSuite(gapFuncName)
 		if err != nil {
-			fmt.Printf("   ⚠️  Failed to generate test for gap %s: %v\n", gap.Type, err)
+			fmt.Printf("   ✗ Failed to generate tests for %s gap: %v\n", gap.Type, err)
 			continue
 		}
 
@@ -195,59 +134,4 @@ func (o *CoverageOptimizer) SetTargetCoverage(target float64) {
 		target = 1.0
 	}
 	o.targetCoverage = target
-}
-
-// NewTestRunner creates a new test runner
-func NewTestRunner() *TestRunner {
-	return &TestRunner{}
-}
-
-// RunTestSuite executes a test suite and returns results
-func (r *TestRunner) RunTestSuite(suite *TestSuite) ([]TestResult, error) {
-	// Stub implementation - will be implemented with actual test execution
-	results := make([]TestResult, len(suite.Tests))
-
-	for i := range suite.Tests {
-		results[i] = TestResult{
-			Passed:   true, // Stub: assume all tests pass
-			Name:     fmt.Sprintf("test_%d", i),
-			Duration: 0,
-			Coverage: 0.75, // Stub: assume 75% coverage per test
-		}
-	}
-
-	return results, nil
-}
-
-// NewCoverageAnalyzer creates a new coverage analyzer
-func NewCoverageAnalyzer() *CoverageAnalyzer {
-	return &CoverageAnalyzer{}
-}
-
-// Analyze performs detailed coverage analysis
-func (a *CoverageAnalyzer) Analyze(suite *TestSuite, results []TestResult) (*CoverageAnalysisResult, error) {
-	// Stub implementation - will be implemented with actual coverage analysis
-	totalCoverage := 0.0
-	if len(results) > 0 {
-		for _, result := range results {
-			totalCoverage += result.Coverage
-		}
-		totalCoverage = totalCoverage / float64(len(results))
-	}
-
-	return &CoverageAnalysisResult{
-		TotalCoverage:  totalCoverage,
-		LineCoverage:   totalCoverage * 0.95,
-		BranchCoverage: totalCoverage * 0.85,
-		CoveredLines:   100,
-		TotalLines:     150,
-		Report: &CoverageReport{
-			TotalCoverage:    totalCoverage,
-			CoveredLines:     100,
-			TotalLines:       150,
-			FunctionCoverage: make(map[string]float64),
-			LineCoverage:     make(map[string]float64),
-			BranchCoverage:   make(map[string]float64),
-		},
-	}, nil
 }
