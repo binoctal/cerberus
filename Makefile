@@ -5,7 +5,8 @@
 export PATH := $(PATH):$(shell go env GOPATH)/bin
 
 build:
-	go build -o bin/cerberus ./cmd/cerberus
+	@mkdir -p build
+	go build -o build/cerberus ./cmd/cerberus
 
 test:
 	go test -v -race -count=1 ./...
@@ -20,15 +21,17 @@ fmt:
 check: fmt lint test
 
 clean:
-	rm -rf bin/
+	rm -rf build/
+	rm -rf runtime/
 
 run: build
-	./bin/cerberus
+	./build/cerberus
 
 coverage:
-	go test -race -coverprofile=cover.out -count=1 ./...
-	go tool cover -func=cover.out | tail -1
-	@echo "HTML report: go tool cover -html=cover.out -o cover.html"
+	@mkdir -p runtime
+	go test -race -coverprofile=runtime/cover.out -count=1 ./...
+	go tool cover -func=runtime/cover.out | tail -1
+	@echo "HTML report: go tool cover -html=runtime/cover.out -o runtime/cover.html"
 
 e2e:
 	go test -v -race -tags=e2e ./internal/smoke/ -timeout 5m
