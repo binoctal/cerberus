@@ -57,13 +57,13 @@ make clean       # remove build/ and runtime/
   - Technical docs: `cerberus-docs/technical/<category>/YYYY-MM-DD-<topic>.md`
 - This constraint is enforced via `.gitignore` (cerberus-docs is NOT ignored, docs/ may be)
 
-## Runtime Files <!-- added: 2026-06-16 -->
-- **Development**: `runtime/` in project root (gitignored)
-  - `runtime/data/` — SQLite database
-  - `runtime/logs/` — Log files
-  - `runtime/cache/` — Temporary cache
-- **Production** (user installation):
-  - Linux/macOS: `~/.local/share/cerberus/` (data), `~/.config/cerberus/` (config), `~/.cache/cerberus/` (cache)
-  - Windows: `%LOCALAPPDATA%\Cerberus\`
-  - Docker: `/app/data/`, `/app/logs/`, `/app/cache/`
-- Auto-detection: `internal/runtime/` package detects development vs production automatically
+## Runtime Files <!-- added: 2026-06-16, updated: 2026-06-16 -->
+- **All environments**: `.cerberus/runtime/` in project directory (gitignored)
+  - `.cerberus/runtime/data/` — SQLite database (`cerberus.db`)
+  - `.cerberus/runtime/logs/` — Log files
+  - `.cerberus/runtime/cache/` — Temporary cache
+- **Configuration**: `.cerberus/` directory
+  - `project.yaml` — Project definition (version control)
+  - `credentials.yaml` — API credentials (gitignored)
+- Each project has its own isolated runtime environment
+- No system-wide installation paths (simpler cross-platform support)
