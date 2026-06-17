@@ -1,8 +1,6 @@
 package agent
 
 import (
-	"go.uber.org/zap"
-
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -23,11 +21,4 @@ type RulePlugin interface {
 	// Match attempts to produce a deterministic TypedAction for the given TestCase.
 	// Returns the action and true if matched, nil and false otherwise.
 	Match(tc TestCase) (types.TypedAction, bool)
-}
-
-// PluginRegistry manages ExecutorPlugin and RulePlugin registrations.
-type PluginRegistry struct {
-	executors []ExecutorPlugin
-	rules     []RulePlugin
-	logger    *zap.Logger
 }

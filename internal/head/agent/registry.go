@@ -4,6 +4,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// PluginRegistry manages ExecutorPlugin and RulePlugin registrations.
+type PluginRegistry struct {
+	executors []ExecutorPlugin
+	rules     []RulePlugin
+	logger    *zap.Logger
+}
+
 // NewPluginRegistry creates an empty plugin registry.
 func NewPluginRegistry(logger *zap.Logger) *PluginRegistry {
 	return &PluginRegistry{logger: logger}

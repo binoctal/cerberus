@@ -1,0 +1,144 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/store"
+)
+
+// initCmd returns the project initialization command
+func initCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialize project configuration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := ".cerberus"
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("create .cerberus dir: %w", err)
+			}
+
+			projectYAML := `project:
+  name: ""
+
+services:
+  - name: web
+    url: "http://localhost:3000"
+    health: "/"
+
+actors:
+  - name: admin
+    credentials:
+      email: "${ADMIN_EMAIL}"
+      password: "${ADMIN_PASS}"
+    entry: "/admin"
+
+databases: []
+
+invariants: []
+
+settings:
+  max_duration: 30m
+  confidence_threshold: 0.7
+  auto_fix: low_only
+  ai_budget:
+    session_total_tokens: 200000
+    per_call_limit: 10000
+    model: "claude-sonnet-4-6"
+`
+			if err := os.WriteFile(dir+"/project.yaml", []byte(projectYAML), 0644); err != nil {
+				return err
+			}
+
+			credYAML := `# Credentials — DO NOT commit this file
+# Add to .gitignore
+actors:
+  admin:
+    email: admin@example.com
+    password: changeme
+`
+			if err := os.WriteFile(dir+"/credentials.yaml", []byte(credYAML), 0644); err != nil {
+				return err
+			}
+
+			gitignoreEntry := ".cerberus/credentials.yaml\n"
+			existing, _ := os.ReadFile(".gitignore")
+			if !containsLine(string(existing), ".cerberus/credentials.yaml") {
+				f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err == nil {
+					_, _ = f.WriteString(gitignoreEntry)
+					_ = f.Close()
+				}
+			}
+
+			fmt.Println("✓ Created .cerberus/project.yaml")
+			fmt.Println("✓ Created .cerberus/credentials.yaml")
+			fmt.Println("✓ Updated .gitignore")
+
+			// Seed default L3 strategies into the store
+			// Try to load config first, fallback to default path
+			cfg := config.Load()
+			dbPath := cfg.DBPath
+			seedDB, seedErr := store.New(dbPath)
+			if seedErr == nil {
+				seedCtx := context.Background()
+				_ = store.RunMigrations(seedCtx, seedDB.DB(), "migrations")
+				seedLogger, _ := zap.NewProduction()
+				count, _ := store.SeedStrategies(seedCtx, seedDB, "", seedLogger)
+				_ = seedDB.Close()
+				if count > 0 {
+					fmt.Printf("✓ Seeded %d default test strategies\n", count)
+				}
+			}
+
+			// Configure MCP server in .claude/settings.json
+			claudeDir := ".claude"
+			if mkdirErr := os.MkdirAll(claudeDir, 0755); mkdirErr == nil {
+				settingsPath := claudeDir + "/settings.json"
+				mcpEntry := map[string]any{
+					"command": "cerberus",
+					"args":    []string{"mcp"},
+				}
+
+				var settings map[string]any
+				existing, readErr := os.ReadFile(settingsPath)
+				if readErr == nil {
+					_ = json.Unmarshal(existing, &settings)
+				}
+				if settings == nil {
+					settings = make(map[string]any)
+				}
+
+				// Ensure mcpServers.cerberus exists (idempotent)
+				ms, ok := settings["mcpServers"].(map[string]any)
+				if !ok {
+					ms = make(map[string]any)
+					settings["mcpServers"] = ms
+				}
+				if _, exists := ms["cerberus"]; !exists {
+					ms["cerberus"] = mcpEntry
+					data, _ := json.MarshalIndent(settings, "", "  ")
+					if writeErr := os.WriteFile(settingsPath, data, 0644); writeErr == nil {
+						fmt.Println("✓ Configured .claude/settings.json for MCP integration")
+					}
+				}
+			}
+
+			fmt.Println()
+			fmt.Println("Next steps:")
+			fmt.Println("  1. Edit .cerberus/project.yaml with your project details")
+			fmt.Println("  2. Set credentials in .cerberus/credentials.yaml or env vars")
+			fmt.Println("  3. Run: cerberus run --goal \"test all APIs\"")
+			fmt.Println("     (or: cerberus run --dir . --goal \"test my code\" for local-only testing)")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL")
+	return cmd
+}
