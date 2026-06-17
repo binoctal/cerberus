@@ -1,9 +1,7 @@
 package architecture
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -19,49 +17,19 @@ func (a *Analyzer) analyzeFileComplexity(filePath string, report *ArchitectureRe
 	}
 
 	lines := strings.Split(string(content), "\n")
-	metrics.Lines = len(lines)
 
-	// Count code lines (excluding comments and blank lines)
-	codeLines := 0
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" && !strings.HasPrefix(trimmed, "//") && !strings.HasPrefix(trimmed, "/*") {
-			codeLines++
-		}
-	}
-
-	// Check: File too long
-	if codeLines > 150 {
-		relPath, _ := filepath.Rel(a.projectPath, filePath)
-		issues = append(issues, ArchitectureIssue{
-			ID:          fmt.Sprintf("file-too-long-%s", strings.ReplaceAll(relPath, "/", "-")),
-			Type:        OverEngineering,
-			Severity:    SeverityWarning,
-			File:        relPath,
-			Line:        0,
-			Description: fmt.Sprintf("文件有 %d 行代码，超过阈值 150 行", codeLines),
-			Rationale:   "长文件通常包含过多职责，难以维护和测试",
-			Suggestion:  "考虑拆分为多个文件，每个文件单一职责",
-			Confidence:  1.0,
-			Evidence:    []string{fmt.Sprintf("实际行数: %d", codeLines)},
-		})
-
-		// Track max
-		if codeLines > report.Metrics.MaxLinesPerFile {
-			report.Metrics.MaxLinesPerFile = codeLines
-			a.maxLinesFile = relPath
-		}
-	}
-
-	// Count functions
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "func ") {
-			metrics.Functions++
-		}
-	}
-
+	// Phase 1: Count code lines
+	codeLines := countCodeLines(lines)
 	metrics.Lines = codeLines
+
+	// Phase 2: Check if file too long
+	if codeLines > 150 {
+		issue := reportLongFile(filePath, a.projectPath, codeLines, report)
+		issues = append(issues, issue)
+	}
+
+	// Phase 3: Count functions
+	metrics.Functions = countFunctions(lines)
 
 	return issues, metrics, nil
 }

@@ -1,7 +1,6 @@
 package architecture
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,19 +12,29 @@ func (a *Analyzer) analyzeDependencies(report *ArchitectureReport) error {
 		Nodes: make(map[string][]string),
 	}
 
-	// Walk through Go files to build dependency graph
-	err := filepath.Walk(a.projectPath, func(path string, info os.FileInfo, err error) error {
+	// Phase 1: Build dependency graph
+	err := a.buildDependencyGraph(graph)
+	if err != nil {
+		return err
+	}
+
+	// Phase 2: Detect and report circular dependencies
+	a.detectAndReportCycles(graph, report)
+
+	// Phase 3: Count total dependencies
+	report.Metrics.TotalDependencies = countTotalDependencies(graph)
+
+	return nil
+}
+
+// buildDependencyGraph walks through Go files to build dependency graph
+func (a *Analyzer) buildDependencyGraph(graph *DependencyGraph) error {
+	return filepath.Walk(a.projectPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip directories and non-Go files
-		if info.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-
-		// Skip test files and vendor
-		if strings.Contains(path, "_test.go") || strings.Contains(path, "vendor/") {
+		if !a.shouldAnalyzeFileForDeps(path, info) {
 			return nil
 		}
 
@@ -37,34 +46,30 @@ func (a *Analyzer) analyzeDependencies(report *ArchitectureReport) error {
 
 		return nil
 	})
+}
 
-	if err != nil {
-		return err
+// shouldAnalyzeFileForDeps checks if file should be analyzed for dependencies
+func (a *Analyzer) shouldAnalyzeFileForDeps(path string, info os.FileInfo) bool {
+	// Skip directories and non-Go files
+	if info.IsDir() || !strings.HasSuffix(path, ".go") {
+		return false
 	}
 
-	// Detect circular dependencies
+	// Skip test files and vendor
+	if strings.Contains(path, "_test.go") || strings.Contains(path, "vendor/") {
+		return false
+	}
+
+	return true
+}
+
+// detectAndReportCycles detects circular dependencies and reports them
+func (a *Analyzer) detectAndReportCycles(graph *DependencyGraph, report *ArchitectureReport) {
 	cycles := a.detectCircularDependencies(graph)
 	report.Metrics.CircularDependencies = len(cycles)
 
-	for _, cycle := range cycles {
-		report.Issues = append(report.Issues, ArchitectureIssue{
-			ID:          fmt.Sprintf("circular-dep-%d", len(report.Issues)),
-			Type:        CircularDependency,
-			Severity:    SeverityError,
-			Description: "检测到循环依赖",
-			Rationale:   "循环依赖导致代码难以理解和测试",
-			Suggestion:  "引入依赖倒置或提取共同依赖到独立包",
-			Confidence:  1.0,
-			Evidence:    cycle,
-		})
+	for i, cycle := range cycles {
+		issue := reportCircularDependency(cycle, i)
+		report.Issues = append(report.Issues, issue)
 	}
-
-	// Count total dependencies
-	totalDeps := 0
-	for _, deps := range graph.Nodes {
-		totalDeps += len(deps)
-	}
-	report.Metrics.TotalDependencies = totalDeps
-
-	return nil
 }
