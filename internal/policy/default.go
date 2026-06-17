@@ -1,9 +1,7 @@
 package policy
 
 import (
-	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -47,68 +45,18 @@ func NewDefaultActionPolicy(projectRoot string) *DefaultActionPolicy {
 func (p *DefaultActionPolicy) Validate(action types.TypedAction) error {
 	switch a := action.(type) {
 	case types.ProcessExecAction:
-		if !p.allowedCmds[a.Command] {
-			return fmt.Errorf("command not allowed: %s", a.Command)
-		}
-		if a.WorkDir != "" {
-			abs, _ := filepath.Abs(a.WorkDir)
-			rel, err := filepath.Rel(p.projectRoot, abs)
-			if err != nil || strings.HasPrefix(rel, "..") {
-				return fmt.Errorf("workdir escapes project: %s", a.WorkDir)
-			}
-		}
-		for k := range a.Env {
-			for _, denied := range p.deniedEnvKeys {
-				if strings.EqualFold(k, denied) {
-					return fmt.Errorf("env key denied: %s", k)
-				}
-			}
-		}
-		for _, arg := range a.Args {
-			if strings.ContainsAny(arg, "|&;`$()") {
-				return fmt.Errorf("arg contains shell metacharacters: %s", arg)
-			}
-		}
-
+		return p.validateProcessExecAction(a)
 	case types.FileWriteAction:
-		abs, _ := filepath.Abs(a.Path)
-		for _, denied := range p.deniedPaths {
-			if abs == denied {
-				return fmt.Errorf("path denied: %s", a.Path)
-			}
-		}
-		rel, err := filepath.Rel(p.projectRoot, abs)
-		if err != nil || strings.HasPrefix(rel, "..") {
-			return fmt.Errorf("path escapes project: %s", a.Path)
-		}
-
+		return p.validateFileWriteAction(a)
 	case types.FileReadAction:
-		abs, _ := filepath.Abs(a.Path)
-		for _, denied := range p.deniedPaths {
-			if abs == denied {
-				return fmt.Errorf("path denied: %s", a.Path)
-			}
-		}
-
+		return p.validateFileReadAction(a)
 	case types.FileExistsAction:
-		abs, _ := filepath.Abs(a.Path)
-		for _, denied := range p.deniedPaths {
-			if abs == denied {
-				return fmt.Errorf("path denied: %s", a.Path)
-			}
-		}
-
+		return p.validateFileExistsAction(a)
 	case types.MCPCallAction:
-		if !p.allowedMCP[a.Method] {
-			return fmt.Errorf("MCP method not allowed: %s", a.Method)
-		}
-
+		return p.validateMCPCallAction(a)
 	case types.CodeAnalyzeAction, types.CodeLintAction, types.CodeSymbolsAction:
-		abs, _ := filepath.Abs(a.Target())
-		rel, err := filepath.Rel(p.projectRoot, abs)
-		if err != nil || strings.HasPrefix(rel, "..") {
-			return fmt.Errorf("target path escapes project: %s", a.Target())
-		}
+		return p.validateCodeActions(action)
+	default:
+		return nil
 	}
-	return nil
 }
