@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-	"encoding/json"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -25,35 +24,14 @@ func (m Model) refresh() tea.Cmd {
 	storeRef := m.store
 
 	return func() tea.Msg {
-		sel := prev
-		if sel >= len(sessions) {
-			sel = len(sessions) - 1
-		}
-		if sel < 0 {
-			sel = 0
-		}
+		sel := normalizeSelection(prev, len(sessions))
 
 		var verdicts []store.Verdict
 		var traces []store.Trace
 		var summary *session.SessionSummary
 
-		if len(sessions) > 0 {
-			id := sessions[sel].ID
-			verdicts, _ = storeRef.GetVerdicts(ctx, id)
-			traces, _ = storeRef.GetTraces(ctx, id)
-			if sessions[sel].Stats != "" && sessions[sel].Stats != "{}" {
-				var s session.SessionSummary
-				if err := json.Unmarshal([]byte(sessions[sel].Stats), &s); err == nil {
-					summary = &s
-				}
-			}
-		}
-
-		if verdicts == nil {
-			verdicts = []store.Verdict{}
-		}
-		if traces == nil {
-			traces = []store.Trace{}
+		if len(sessions) > 0 && sel < len(sessions) {
+			verdicts, traces, summary = loadSessionData(*storeRef, sessions[sel])
 		}
 
 		return refreshMsg{
@@ -76,23 +54,8 @@ func (m Model) loadSelected() tea.Cmd {
 	storeRef := m.store
 
 	return func() tea.Msg {
-		ctx := context.Background()
-		id := sessions[sel].ID
-		verdicts, _ := storeRef.GetVerdicts(ctx, id)
-		traces, _ := storeRef.GetTraces(ctx, id)
-		var summary *session.SessionSummary
-		if sessions[sel].Stats != "" && sessions[sel].Stats != "{}" {
-			var s session.SessionSummary
-			if err := json.Unmarshal([]byte(sessions[sel].Stats), &s); err == nil {
-				summary = &s
-			}
-		}
-		if verdicts == nil {
-			verdicts = []store.Verdict{}
-		}
-		if traces == nil {
-			traces = []store.Trace{}
-		}
+		verdicts, traces, summary := loadSessionData(*storeRef, sessions[sel])
+
 		return refreshMsg{
 			sessions: sessions,
 			selected: sel,

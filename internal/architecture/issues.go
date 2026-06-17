@@ -103,35 +103,36 @@ func (r *ArchitectureReport) CalculateCategoryScores() {
 	if r.Summary.CategoryScores == nil {
 		r.Summary.CategoryScores = make(map[string]int)
 	}
-	
-	// Complexity score (inverted from issues)
-	complexityIssues := 0
-	for _, issue := range r.Issues {
-		if issue.Type == OverEngineering {
-			complexityIssues++
-		}
-	}
+
+	// Calculate all scores in a single pass
+	complexityIssues, simplicityIssues, maintainabilityIssues := r.countIssueTypes()
+
 	r.Summary.CategoryScores["complexity"] = max(0, 100-complexityIssues*10)
-	
-	// Simplicity score
-	simplicityIssues := 0
-	for _, issue := range r.Issues {
-		if issue.Type == PrematureAbstraction || issue.Type == OverEngineering {
-			simplicityIssues++
-		}
-	}
 	r.Summary.CategoryScores["simplicity"] = max(0, 100-simplicityIssues*15)
-	
-	// Maintainability score
-	maintainabilityIssues := 0
+	r.Summary.CategoryScores["maintainability"] = max(0, 100-maintainabilityIssues*5)
+}
+
+// countIssueTypes counts issues by type and severity in a single pass
+func (r *ArchitectureReport) countIssueTypes() (complexity, simplicity, maintainability int) {
 	for _, issue := range r.Issues {
+		// Complexity: count over-engineering issues
+		if issue.Type == OverEngineering {
+			complexity++
+		}
+
+		// Simplicity: count premature abstractions and over-engineering
+		if issue.Type == PrematureAbstraction || issue.Type == OverEngineering {
+			simplicity++
+		}
+
+		// Maintainability: weighted by severity
 		if issue.Severity == SeverityError {
-			maintainabilityIssues += 2
+			maintainability += 2
 		} else if issue.Severity == SeverityWarning {
-			maintainabilityIssues++
+			maintainability++
 		}
 	}
-	r.Summary.CategoryScores["maintainability"] = max(0, 100-maintainabilityIssues*5)
+	return
 }
 
 // CalculateHealthScore computes overall health score (0-100)
