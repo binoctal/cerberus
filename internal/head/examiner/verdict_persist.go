@@ -2,7 +2,6 @@ package examiner
 
 import (
 	"context"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -12,56 +11,38 @@ import (
 
 // ClassifyFailureReason determines the root cause of a failure based on the error and result.
 func ClassifyFailureReason(status string, stepResult agent.StepResult, reasoning string) store.FailureReason {
-	// Pass cases
-	if status == "pass" || status == "passed" {
-		return store.FailureReasonNone
+	// Phase 1: Check pass/skip cases
+	if isPass, reason := checkPassOrSkip(status); isPass {
+		return reason
 	}
 
-	// Skip cases
-	if status == "skip" || status == "skipped" {
-		return store.FailureReasonNone
+	// Phase 2: Check for policy rejection
+	if isRejected, reason := checkPolicyRejection(stepResult); isRejected {
+		return reason
 	}
 
-	// Check for policy rejection first
-	if stepResult.Error != nil && strings.Contains(stepResult.Error.Error(), "policy") {
-		if strings.Contains(stepResult.Error.Error(), "rejected") || strings.Contains(stepResult.Error.Error(), "denied") {
-			return store.FailureReasonPolicyRejected
-		}
+	// Phase 3: Check for dependency/build issues
+	if hasDepIssue, reason := checkDependencyIssues(stepResult); hasDepIssue {
+		return reason
 	}
 
-	// Check for dependency/build issues
-	if stepResult.Error != nil {
-		errMsg := stepResult.Error.Error()
-		if strings.Contains(errMsg, "build") || strings.Contains(errMsg, "compile") ||
-		   strings.Contains(errMsg, "dependency") || strings.Contains(errMsg, "missing") {
-			return store.FailureReasonDependencyMissing
-		}
+	// Phase 4: Check for LLM quality issues in reasoning
+	if hasLLMIssue, reason := checkLLMQualityIssues(reasoning); hasLLMIssue {
+		return reason
 	}
 
-	// Check for LLM quality issues in reasoning
-	if strings.Contains(reasoning, "steer failed") || strings.Contains(reasoning, "unmarshal") ||
-	   strings.Contains(reasoning, "JSON") || strings.Contains(reasoning, "parse") {
-		return store.FailureReasonLLMQuality
+	// Phase 5: Check for timeout
+	if isTimeout, reason := checkTimeout(stepResult); isTimeout {
+		return reason
 	}
 
-	// Check for timeout
-	if stepResult.Error != nil && strings.Contains(stepResult.Error.Error(), "timeout") {
-		return store.FailureReasonTimeout
+	// Phase 6: Check for system errors
+	if isSystemError, reason := checkSystemError(stepResult); isSystemError {
+		return reason
 	}
 
-	// Check for system errors (crashes, panics)
-	if stepResult.Error != nil && (strings.Contains(stepResult.Error.Error(), "panic") ||
-	   strings.Contains(stepResult.Error.Error(), "crash") || strings.Contains(stepResult.Error.Error(), "fatal")) {
-		return store.FailureReasonSystemError
-	}
-
-	// Default failed verdicts to assertion failed (real functional failure)
-	if status == "fail" || status == "failed" {
-		return store.FailureReasonAssertionFailed
-	}
-
-	// Default uncertain cases
-	return store.FailureReasonNone
+	// Phase 7: Default failure classification
+	return getDefaultFailureReason(status)
 }
 
 // PersistFinalVerdicts converts and stores FinalVerdict results to persistent Verdict records.

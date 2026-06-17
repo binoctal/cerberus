@@ -63,49 +63,25 @@ func MarshalAction(action TypedAction) (ActionEnvelope, error) {
 // This is used after unmarshaling to convert pointer types to value types
 // for consistent handling.
 func derefAction(a TypedAction) TypedAction {
-	switch v := a.(type) {
-	case *HTTPAction:
-		return *v
-	case *NavigateAction:
-		return *v
-	case *WaitAction:
-		return *v
-	case *ProcessExecAction:
-		return *v
-	case *FileReadAction:
-		return *v
-	case *FileWriteAction:
-		return *v
-	case *FileExistsAction:
-		return *v
-	case *FileGlobAction:
-		return *v
-	case *MCPCallAction:
-		return *v
-	case *CodeAnalyzeAction:
-		return *v
-	case *CodeLintAction:
-		return *v
-	case *CodeSymbolsAction:
-		return *v
-	case *BrowserGotoAction:
-		return *v
-	case *BrowserClickAction:
-		return *v
-	case *BrowserFillAction:
-		return *v
-	case *BrowserEvalAction:
-		return *v
-	case *DBQueryAction:
-		return *v
-	case *DBAssertAction:
-		return *v
-	case *GraphQLQueryAction:
-		return *v
-	case *WSConnectAction:
-		return *v
-	case *WSSendAction:
-		return *v
+	// Try each action group
+	if action, ok := derefHTTPActions(a); ok {
+		return action
 	}
+	if action, ok := derefFileActions(a); ok {
+		return action
+	}
+	if action, ok := derefCodeActions(a); ok {
+		return action
+	}
+	if action, ok := derefBrowserActions(a); ok {
+		return action
+	}
+	if action, ok := derefProcessDBActions(a); ok {
+		return action
+	}
+	if action, ok := derefOtherActions(a); ok {
+		return action
+	}
+	// Not a pointer type, return as-is
 	return a
 }
