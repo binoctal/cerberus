@@ -87,37 +87,6 @@ func (m *MultiExecutor) Execute(ctx context.Context, action types.TypedAction) t
 	return result
 }
 
-func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Policy {
-	switch action.GetActionType() {
-	case types.ActionProcessExec, types.ActionProcessBuild:
-		// BuildAction embeds ProcessExecAction but is a distinct concrete type,
-		// so a shared assertion to ProcessExecAction panics on build actions.
-		switch a := action.(type) {
-		case types.BuildAction:
-			return sandbox.DefaultProcessPolicy(a.WorkDir)
-		case types.ProcessExecAction:
-			return sandbox.DefaultProcessPolicy(a.WorkDir)
-		}
-		return sandbox.DefaultProcessPolicy(".")
-	case types.ActionFileRead, types.ActionFileWrite, types.ActionFileExists, types.ActionFileGlob:
-		return sandbox.DefaultFilePolicy(".")
-	case types.ActionMCPCall:
-		return sandbox.DefaultMCPPolicy()
-	case types.ActionCodeAnalyze, types.ActionCodeLint, types.ActionCodeSymbols:
-		return sandbox.DefaultCodePolicy(".")
-	case types.ActionBrowserGoto, types.ActionBrowserClick, types.ActionBrowserFill, types.ActionBrowserEval:
-		return sandbox.DefaultBrowserPolicy()
-	case types.ActionDBQuery, types.ActionDBAssert:
-		return sandbox.DefaultDBPolicy()
-	case types.ActionGraphQLQuery:
-		return sandbox.DefaultGraphQLPolicy()
-	case types.ActionWSConnect, types.ActionWSSend:
-		return sandbox.DefaultWSPolicy()
-	default:
-		return sandbox.DefaultHTTPPolicy()
-	}
-}
-
 // BuildMultiExecutor assembles the standard executor with all built-in executor plugins.
 // Attempts to use Linux sandbox isolation; falls back to NoOpSandbox if unavailable.
 // Loads optional policy overrides from .cerberus/policy.yaml.
