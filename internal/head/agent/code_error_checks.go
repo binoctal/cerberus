@@ -3,6 +3,7 @@ package agent
 import (
 	"go/ast"
 	"go/token"
+	"strings"
 )
 
 // errAssign represents an error variable assignment.
@@ -49,17 +50,7 @@ func hasFunctionCall(exprs []ast.Expr) bool {
 
 // isErrorVariableName checks if a name is an error variable.
 func isErrorVariableName(name string) bool {
-	return name == "err" || (len(name) > 3 && startsWithIgnoreCase(name, "err"))
-}
-
-// startsWithIgnoreCase checks if a string starts with a prefix, case-insensitive.
-func startsWithIgnoreCase(s, prefix string) bool {
-	if len(s) < len(prefix) {
-		return false
-	}
-	// Simple case-insensitive check for common error variable patterns
-	return s == prefix ||
-		(s[0] == prefix[0] && len(s) > len(prefix) && s[len(prefix)] >= 'A' && s[len(prefix)] <= 'Z')
+	return name == "err" || (strings.HasPrefix(strings.ToLower(name), "err") && len(name) > 3)
 }
 
 // isErrorReferenced checks if an error variable is referenced after its assignment.
