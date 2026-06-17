@@ -13,19 +13,22 @@ func isParseError(err error) bool {
 		return false
 	}
 	msg := err.Error()
+
 	// Check for structured output parsing errors from AI driver
-	if contains(msg, "parse output") {
+	if checkParseOutputError(msg) {
 		return true
 	}
-	// Check for JSON unmarshaling errors (these are wrapped in "parse output" errors,
-	// but we check directly as a safety measure)
-	if contains(msg, "unmarshal") || contains(msg, "invalid character") || contains(msg, "unexpected end") {
+
+	// Check for JSON unmarshaling errors
+	if checkJSONUnmarshalError(msg) {
 		return true
 	}
-	// Check for JSON syntax/format errors (standalone or with error)
-	if contains(msg, "json") && (contains(msg, "syntax") || contains(msg, "error") || contains(msg, "format") || contains(msg, "invalid")) {
+
+	// Check for JSON syntax/format errors
+	if checkJSONSyntaxError(msg) {
 		return true
 	}
+
 	return false
 }
 

@@ -30,49 +30,15 @@ var fallbackKeywords = map[string]fallbackKeyword{
 // when JSON parsing fails. It scans for action-type keywords and constructs a
 // minimal action to prevent the ReAct loop from stalling.
 func FallbackParseAction(raw string, defaultTarget string) types.TypedAction {
-	// Clean up the raw input by extracting only the relevant error message
-	// Error format from driver: "parse output: <error>\nraw: <full response>"
-	cleaned := raw
-	if idx := strings.Index(raw, "\nraw:"); idx != -1 {
-		// Only use the error message part before the raw response dump
-		cleaned = raw[:idx]
-	}
+	// Phase 1: Extract first meaningful line from error output
+	firstLine := extractFirstLine(raw)
 
-	// Take the first non-empty line from the cleaned error message.
-	var firstLine string
-	for _, line := range strings.Split(cleaned, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" && !strings.HasPrefix(trimmed, "parse output:") {
-			firstLine = trimmed
-			break
-		}
-	}
-	// If no useful line found, try a different approach: extract meaningful content
-	if firstLine == "" || firstLine == "parse output:" {
-		// Look for action intent in the error message
-		lines := strings.Split(cleaned, "\n")
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			// Skip empty lines and error prefixes
-			if trimmed != "" && !strings.HasPrefix(trimmed, "parse output:") && !strings.HasPrefix(trimmed, "unmarshal") {
-				firstLine = trimmed
-				break
-			}
-		}
-	}
-
+	// Phase 2: If no useful content found, return safe default
 	if firstLine == "" {
-		// Still no useful content - safe default
 		return types.WaitAction{Duration: "1s"}
 	}
 
+	// Phase 3: Match keyword and construct action
 	lower := strings.ToLower(firstLine)
-	for keyword, fb := range fallbackKeywords {
-		if strings.Contains(lower, keyword) {
-			return fb.makeAction(defaultTarget)
-		}
-	}
-
-	// No keyword found — safe default: wait 1 second to give LLM time to recover.
-	return types.WaitAction{Duration: "1s"}
+	return matchKeyword(lower, defaultTarget)
 }

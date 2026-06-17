@@ -2,8 +2,6 @@ package llm
 
 import (
 	_ "embed"
-	"encoding/json"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -51,46 +49,16 @@ func loadRegistry() *modelRegistry {
 		return regV
 	}
 
-	r := &modelRegistry{
-		Defaults: ModelCaps{Input: defaultContextWindow, Output: defaultMaxOutput},
-		Models:   map[string]ModelCaps{},
-	}
+	// Phase 1: Create new registry with defaults
+	r := newModelRegistry()
 
-	// Embedded default table (ships with the binary).
-	if len(embeddedModels) > 0 {
-		var tmp modelRegistry
-		if json.Unmarshal(embeddedModels, &tmp) == nil {
-			if tmp.Defaults.Input > 0 {
-				r.Defaults.Input = tmp.Defaults.Input
-			}
-			if tmp.Defaults.Output > 0 {
-				r.Defaults.Output = tmp.Defaults.Output
-			}
-			for k, v := range tmp.Models {
-				r.Models[strings.ToLower(k)] = v
-			}
-		}
-	}
+	// Phase 2: Load embedded models
+	loadEmbeddedModels(r)
 
-	// External override: CERBERUS_MODELS_JSON points at a JSON file whose
-	// "models" entries are merged on top of (and override) the embedded set.
-	if path := os.Getenv("CERBERUS_MODELS_JSON"); path != "" {
-		if data, err := os.ReadFile(path); err == nil {
-			var ext modelRegistry
-			if json.Unmarshal(data, &ext) == nil {
-				if ext.Defaults.Input > 0 {
-					r.Defaults.Input = ext.Defaults.Input
-				}
-				if ext.Defaults.Output > 0 {
-					r.Defaults.Output = ext.Defaults.Output
-				}
-				for k, v := range ext.Models {
-					r.Models[strings.ToLower(k)] = v
-				}
-			}
-		}
-	}
+	// Phase 3: Load external override models
+	loadExternalModels(r)
 
+	// Phase 4: Sort prefixes for longest-prefix matching
 	r.prefixes = sortedPrefixes(r.Models)
 	regV = r
 	return r

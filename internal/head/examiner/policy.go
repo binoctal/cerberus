@@ -1,10 +1,7 @@
 package examiner
 
 import (
-	"fmt"
-
 	"github.com/binoctal/cerberus/internal/head/agent"
-	"github.com/binoctal/cerberus/internal/types"
 )
 
 // VerdictPolicy applies the Uncertain 3-level degradation chain:
@@ -12,51 +9,26 @@ import (
 // Level 2: Checker-only (deterministic fallback)
 // Level 3: Mark as pending_review
 func VerdictPolicy(judgeResult *JudgeResult, stepResult agent.StepResult, confThreshold float64) FinalVerdict {
-	v := FinalVerdict{
-		Status:                judgeResult.Status,
-		ExistenceConfidence:   judgeResult.ExistenceConfidence,
-		CorrectnessConfidence: judgeResult.CorrectnessConfidence,
-		Reasoning:             judgeResult.Reasoning,
-		SelfCritique:          judgeResult.SelfCritique,
-		CritiqueTriggered:     judgeResult.CritiqueTriggered,
-		StepResult:            stepResult,
+	// Phase 1: Create initial verdict
+	v := newFinalVerdict(judgeResult, stepResult)
+
+	// Phase 2: Threshold filtering (Level 1 degradation)
+	if judgeResult.Status == StatusPass && confThreshold > 0 && judgeResult.CorrectnessConfidence < confThreshold {
+		return applyThresholdDowngrade(v, judgeResult, confThreshold)
 	}
 
-	// Threshold filtering: downgrade low-confidence passes to uncertain.
-	if judgeResult.Status == StatusPass && confThreshold > 0 {
-		if judgeResult.CorrectnessConfidence < confThreshold {
-			v.Status = StatusUncertain
-			v.Reasoning = fmt.Sprintf("Degraded from pass: correctness confidence %.2f below threshold %.2f. %s",
-				judgeResult.CorrectnessConfidence, confThreshold, judgeResult.Reasoning)
-			v.DegradedLevel = 1
-			return v
-		}
-	}
-
-	// If not uncertain (and not downgraded), accept the judge result as-is.
+	// Phase 3: If not uncertain, accept judge result as-is
 	if judgeResult.Status != StatusUncertain {
 		return v
 	}
 
-	// Level 2: Checker-only — deterministic fallback.
-	// If the step passed at HTTP level (2xx) but judge is uncertain,
-	// downgrade to "pass" with low confidence.
-	if stepResult.Status == agent.StepPassed && stepResult.Result != nil {
-		if httpRes, ok := stepResult.Result.(types.HTTPResult); ok && httpRes.StatusCode >= 200 && httpRes.StatusCode < 300 {
-			v.Status = StatusPass
-			v.CorrectnessConfidence = 0.5 // Low — passed HTTP but uncertain correctness
-			v.Reasoning = "Degraded from uncertain: HTTP 2xx confirmed, correctness uncertain"
-			v.DegradedLevel = 2
-			return v
-		}
+	// Phase 4: Level 2 degradation (checker-only fallback)
+	if isHTTP2xx(stepResult) {
+		return applyCheckerOnlyDowngrade(v)
 	}
 
-	// Level 3: Pending review.
-	v.Status = StatusUncertain
-	v.PendingReview = true
-	v.DegradedLevel = 3
-	v.Reasoning = "Degraded to Level 3 (pending review): unable to determine verdict"
-	return v
+	// Phase 5: Level 3 degradation (pending review)
+	return applyPendingReviewDowngrade(v)
 }
 
 // FinalVerdict is the final assessment after all degradation levels.

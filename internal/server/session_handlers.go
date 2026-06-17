@@ -7,10 +7,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"go.uber.org/zap"
-
-	"github.com/binoctal/cerberus/internal/llm"
-	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -31,100 +27,35 @@ func (srv *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		req.Mode = "run"
 	}
 
-	// Load project config.
-	projCfg := project.DefaultConfig()
-	configPath := ".cerberus/project.yaml"
-	if loaded, err := project.LoadFromFile(configPath); err == nil {
-		projCfg = *loaded
-	}
-	projCfgPtr := project.ResolveCredentials(&projCfg)
-
-	// Override URL if provided.
-	if req.URL != "" && len(projCfgPtr.Services) > 0 {
-		services := make([]project.Service, len(projCfgPtr.Services))
-		copy(services, projCfgPtr.Services)
-		services[0].URL = req.URL
-		projCfgPtr.Services = services
-	} else if req.URL != "" {
-		projCfgPtr.Services = []project.Service{{Name: "target", URL: req.URL, Health: "/"}}
+	// Phase 1: Load and resolve project config
+	projCfg, err := loadAndResolveConfig(&req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "config: %v", err)
+		return
 	}
 
-	// Override model if provided.
-	if req.Model != "" {
-		projCfgPtr.Settings.AIBudget.Model = req.Model
-	}
-
-	// Create LLM client.
-	model := projCfgPtr.Settings.AIBudget.Model
-	if model == "" {
-		model = srv.cfg.LLMModel
-	}
-	apiKey := srv.cfg.LLMAPIKey
-	baseURL := projCfgPtr.Settings.AIBudget.BaseURL
-	if baseURL == "" {
-		baseURL = srv.cfg.LLMBaseURL
-	}
-
-	client, err := srv.clientFactory(llm.ClientConfig{
-		Model:    model,
-		APIKey:   apiKey,
-		BaseURL:  baseURL,
-		Provider: srv.cfg.LLMProvider,
-	})
+	// Phase 2: Create LLM client
+	client, err := srv.createLLMClient(projCfg, req.Model)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "LLM client: %v", err)
 		return
 	}
 
-	// Create session.
-	mode := session.Mode(req.Mode)
+	// Phase 3: Create session
 	ctx, cancel := context.WithCancel(context.Background())
-
-	sess, err := session.NewSession(ctx, session.SessionConfig{
-		Mode:       mode,
-		Goal:       req.Goal,
-		Config:     projCfgPtr,
-		Store:      srv.store,
-		Client:     client,
-		Logger:     srv.logger,
-		Gate:       nil,
-		ProjectDir: ".",
-	})
+	sess, err := srv.createSessionWithConfig(ctx, cancel, &req, projCfg, client)
 	if err != nil {
-		cancel()
 		writeError(w, http.StatusInternalServerError, "create session: %v", err)
 		return
 	}
 
-	// Inject clientFactory so SetupHeadDrivers uses mocked clients in tests
-	sess.SetClientFactory(srv.clientFactory)
-	sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL, srv.cfg.TierModels)
-
-	// Track for cancellation.
-	srv.mu.Lock()
-	srv.runs[sess.ID] = cancel
-	srv.mu.Unlock()
-
-	// Run async.
-	go func() {
-		defer func() {
-			srv.mu.Lock()
-			delete(srv.runs, sess.ID)
-			srv.mu.Unlock()
-			cancel()
-		}()
-		if runErr := sess.Run(ctx); runErr != nil {
-			srv.logger.Error("session run failed",
-				zap.String("session_id", sess.ID),
-				zap.Error(runErr))
-		}
-		sess.Close()
-	}()
+	// Phase 4: Track and run session
+	srv.trackAndRunSession(sess, cancel, ctx)
 
 	writeJSON(w, http.StatusCreated, map[string]string{
 		"id":     sess.ID,
 		"status": "running",
-		"mode":   string(mode),
+		"mode":   string(session.Mode(req.Mode)),
 	})
 }
 

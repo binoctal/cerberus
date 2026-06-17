@@ -3,9 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -41,42 +39,25 @@ func (e *HTTPExecutor) Execute(ctx context.Context, action types.TypedAction) ty
 }
 
 func (e *HTTPExecutor) doHTTP(ctx context.Context, a types.HTTPAction, start time.Time) types.ExecutorResult {
-	var body io.Reader
-	if a.Body != "" {
-		body = strings.NewReader(a.Body)
-	}
-	req, err := http.NewRequestWithContext(ctx, a.Method, a.URL, body)
+	// Phase 1: Prepare HTTP request
+	req, err := prepareHTTPRequest(ctx, a)
 	if err != nil {
-		return types.HTTPResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
-	}
-	for k, v := range a.Headers {
-		req.Header.Set(k, v)
-	}
-	if body != nil && req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "application/json")
+		return buildHTTPErrorResult(err, a.URL, start)
 	}
 
-	resp, err := e.client.Do(req)
+	// Phase 2: Execute request
+	resp, err := executeHTTPRequest(e.client, req)
 	if err != nil {
-		return types.HTTPResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
+		return buildHTTPErrorResult(err, a.URL, start)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	// Phase 3: Read response body
+	respBody, err := readResponseBody(resp)
 	if err != nil {
-		return types.HTTPResult{OK: false, StatusCode: resp.StatusCode, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
+		return buildHTTPErrorWithStatusCode(err, resp.StatusCode, a.URL, start)
 	}
 
-	headers := make(map[string]string)
-	for k, v := range resp.Header {
-		if len(v) > 0 {
-			headers[k] = v[0]
-		}
-	}
-
-	ok := resp.StatusCode >= 200 && resp.StatusCode < 400
-	return types.HTTPResult{
-		OK: ok, StatusCode: resp.StatusCode, Body: string(respBody),
-		Headers: headers, URL: a.URL, Latency: time.Since(start),
-	}
+	// Phase 4: Build success result
+	return buildHTTPSuccessResult(resp, respBody, a.URL, start)
 }

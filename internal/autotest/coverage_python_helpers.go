@@ -3,33 +3,20 @@ package autotest
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"go.uber.org/zap"
 )
 
 // shouldSkipPythonFile determines if a Python file should be excluded from coverage
 func shouldSkipPythonFile(path string) bool {
-	base := filepath.Base(path)
-
-	// Skip __pycache__, .pyc files
-	if strings.HasSuffix(base, ".pyc") ||
-		base == "__init__.py" ||
-		strings.Contains(path, "__pycache__") {
+	// Check for Python cache artifacts
+	if isPythonCacheArtifact(path) {
 		return true
 	}
 
-	// Skip common exclusion directories
-	for _, seg := range strings.Split(path, string(filepath.Separator)) {
-		if seg == ".git" ||
-			seg == "venv" ||
-			seg == ".venv" ||
-			seg == "env" ||
-			seg == "dist" ||
-			seg == "build" ||
-			seg == ".pytest_cache" {
-			return true
-		}
+	// Check for excluded directories
+	if isInExcludedDir(path) {
+		return true
 	}
 
 	return false

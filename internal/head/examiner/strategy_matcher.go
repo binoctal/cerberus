@@ -72,40 +72,28 @@ func globMatchRecursive(pattern, target string, pi, ti int) bool {
 	for pi < len(pattern) && ti < len(target) {
 		switch pattern[pi] {
 		case '*':
-			// Skip consecutive *s.
-			for pi < len(pattern) && pattern[pi] == '*' {
-				pi++
-			}
-			if pi >= len(pattern) {
-				return true // Trailing * matches everything.
-			}
-			// Try matching * with 0..N characters.
-			for ti <= len(target) {
-				if globMatchRecursive(pattern, target, pi, ti) {
-					return true
-				}
-				ti++
+			// Handle * wildcard: match 0..N characters
+			if matchWildcard(pattern, target, pi, ti) {
+				return true
 			}
 			return false
 		case '?':
-			// Match exactly one character.
-			pi++
-			ti++
+			// Match exactly one character
+			pi, ti = matchQuestion(pattern, target, pi, ti)
 		default:
-			if pattern[pi] != target[ti] {
+			// Match literal character
+			matched, newPi, newTi := matchLiteral(pattern, target, pi, ti)
+			if !matched {
 				return false
 			}
-			pi++
-			ti++
+			pi, ti = newPi, newTi
 		}
 	}
 
-	// Skip trailing *s in pattern.
-	for pi < len(pattern) && pattern[pi] == '*' {
-		pi++
-	}
+	// Skip trailing *s in pattern
+	pi = skipTrailingWildcards(pattern, pi)
 
-	return pi == len(pattern) && ti == len(target)
+	return isCompleteMatch(pattern, target, pi, ti)
 }
 
 // FormatStrategiesForPrompt formats matched strategies for injection into prompts.

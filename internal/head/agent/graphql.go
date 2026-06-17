@@ -1,11 +1,8 @@
 package agent
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -40,62 +37,28 @@ func (e *GraphQLExecutor) Execute(ctx context.Context, action types.TypedAction)
 }
 
 func (e *GraphQLExecutor) doQuery(ctx context.Context, a types.GraphQLQueryAction, start time.Time) types.ExecutorResult {
-	body := map[string]any{
-		"query": a.Query,
+	// Phase 1: Build HTTP request
+	req, err := buildGraphQLRequest(a)
+	if err != nil {
+		return types.GraphQLResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
 	}
-	if len(a.Variables) > 0 {
-		body["variables"] = a.Variables
-	}
-	if a.OperationName != "" {
-		body["operationName"] = a.OperationName
-	}
+	req = req.WithContext(ctx)
 
-	b, err := json.Marshal(body)
+	// Phase 2: Execute request
+	resp, err := executeGraphQLRequest(e.client, req, a.URL, start)
 	if err != nil {
 		return types.GraphQLResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", a.URL, bytes.NewReader(b))
-	if err != nil {
-		return types.GraphQLResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
-	}
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range a.Headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return types.GraphQLResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	// Phase 3: Read response
+	respBody, err := readGraphQLResponse(resp, a.URL, start)
 	if err != nil {
 		return types.GraphQLResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
 	}
 
-	if resp.StatusCode != 200 {
-		return types.GraphQLResult{
-			OK: false, URL: a.URL,
-			Err:     fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(respBody)),
-			Latency: time.Since(start),
-		}
-	}
+	// Phase 4: Parse response
+	parsed, parseErr := parseGraphQLResponse(respBody)
 
-	var result struct {
-		Data   map[string]any `json:"data"`
-		Errors []any          `json:"errors"`
-	}
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return types.GraphQLResult{OK: false, URL: a.URL, Err: fmt.Sprintf("parse response: %v", err), Latency: time.Since(start)}
-	}
-
-	ok := len(result.Errors) == 0
-	return types.GraphQLResult{
-		OK: ok, URL: a.URL,
-		Data:    result.Data,
-		Errors:  result.Errors,
-		Latency: time.Since(start),
-	}
+	// Phase 5: Build result
+	return buildGraphQLResult(parsed, a.URL, start, parseErr)
 }

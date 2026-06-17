@@ -79,63 +79,103 @@ func (r *Registry) loadDefaults() {
 		return
 	}
 
-	// Simple YAML key: value parsing (no yaml dependency).
 	lines := strings.Split(string(data), "\n")
-	var currentKey string
-	var currentValue strings.Builder
-	inBlock := false
+	parser := &yamlBlockParser{
+		prompts: r.prompts,
+	}
 
+	// Process all lines
 	for _, line := range lines {
-		trimmed := strings.TrimRight(line, " \t")
-
-		// Detect key line: "key:" at start (not indented).
-		if !inBlock && !strings.HasPrefix(trimmed, " ") && !strings.HasPrefix(trimmed, "\t") && strings.Contains(trimmed, ": |") {
-			// Save previous.
-			if currentKey != "" {
-				r.prompts[currentKey] = strings.TrimSpace(currentValue.String())
-			}
-			currentKey = strings.TrimSpace(strings.Split(trimmed, ":")[0])
-			currentValue.Reset()
-			inBlock = true
-			continue
-		}
-
-		if inBlock {
-			// Empty line or non-indented line ends the block.
-			if trimmed == "" && currentValue.Len() > 0 {
-				// Keep empty lines within the block.
-				currentValue.WriteString("\n")
-				continue
-			}
-			if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") && trimmed != "" {
-				// New key detected — save previous.
-				r.prompts[currentKey] = strings.TrimSpace(currentValue.String())
-				currentKey = ""
-				currentValue.Reset()
-				inBlock = false
-
-				// Re-process this line as potential new key.
-				if strings.Contains(trimmed, ": |") {
-					currentKey = strings.TrimSpace(strings.Split(trimmed, ":")[0])
-					inBlock = true
-				}
-				continue
-			}
-			// Strip leading 2-space indent from YAML block scalar.
-			content := strings.TrimPrefix(line, "  ")
-			if currentValue.Len() > 0 {
-				currentValue.WriteString("\n")
-			}
-			currentValue.WriteString(content)
-		}
+		parser.processLine(line)
 	}
 
-	// Save last block.
-	if currentKey != "" {
-		r.prompts[currentKey] = strings.TrimSpace(currentValue.String())
-	}
+	// Save final block
+	parser.saveCurrentBlock()
 
 	r.logger.Info("loaded default prompts", zap.Int("count", len(r.prompts)))
+}
+
+// yamlBlockParser maintains state during YAML parsing
+type yamlBlockParser struct {
+	prompts      map[string]string
+	currentKey  string
+	currentValue strings.Builder
+	inBlock      bool
+}
+
+// processLine processes a single line of YAML
+func (p *yamlBlockParser) processLine(line string) {
+	trimmed := strings.TrimRight(line, " \t")
+
+	// Not in block - check for new key
+	if !p.inBlock && isKeyLine(line, trimmed) {
+		p.saveCurrentBlock()
+		p.startNewBlock(trimmed)
+		return
+	}
+
+	// In block - process content
+	if p.inBlock {
+		p.processInBlock(line, trimmed)
+	}
+}
+
+// processInBlock handles lines when inside a YAML block
+func (p *yamlBlockParser) processInBlock(line, trimmed string) {
+	if p.handleEmptyInBlock(trimmed) {
+		return
+	}
+
+	if p.handleBlockEnd(line, trimmed) {
+		return
+	}
+
+	processBlockContent(line, &p.currentValue)
+}
+
+// handleEmptyInBlock handles empty lines within blocks
+func (p *yamlBlockParser) handleEmptyInBlock(trimmed string) bool {
+	if trimmed == "" && p.currentValue.Len() > 0 {
+		p.currentValue.WriteString("\n")
+		return true
+	}
+	return false
+}
+
+// handleBlockEnd handles block termination logic
+func (p *yamlBlockParser) handleBlockEnd(line, trimmed string) bool {
+	if shouldEndBlock(line, trimmed, p.currentValue.Len()) {
+		p.saveCurrentBlock()
+		p.resetBlock()
+
+		// Re-process this line as potential new key
+		if isKeyLine(line, trimmed) {
+			p.startNewBlock(trimmed)
+		}
+		return true
+	}
+	return false
+}
+
+// startNewBlock starts a new YAML block with the given key line
+func (p *yamlBlockParser) startNewBlock(trimmed string) {
+	p.currentKey = extractKey(trimmed)
+	p.currentValue.Reset()
+	p.inBlock = true
+}
+
+// saveCurrentBlock saves the current block to prompts map
+func (p *yamlBlockParser) saveCurrentBlock() {
+	if p.currentKey != "" {
+		p.prompts[p.currentKey] = strings.TrimSpace(p.currentValue.String())
+	}
+}
+
+// resetBlock resets the parser state
+func (p *yamlBlockParser) resetBlock() {
+	p.currentKey = ""
+	p.currentValue.Reset()
+	p.inBlock = false
 }
 
 // loadOverrides loads project-level prompt overrides from .cerberus/prompts/.
