@@ -2,6 +2,8 @@ package session
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 
@@ -16,12 +18,46 @@ func (rp *runPhase) executeAutoTestPhase() {
 
 	mode := autotest.SafetyMode(rp.session.AutoTestSafety)
 
-	// Detect project type and create appropriate coverage provider and generator
+	// Detect project language and route to appropriate provider directly
 	driver := rp.session.driverFor(&rp.session.scoutDriver)
-	cov, gen, err := autotest.DetectAndCreateProvider(rp.session.ProjectDir, driver)
-	if err != nil {
-		// Fall back to Go provider if detection fails (backward compatibility)
-		rp.session.Logger.Warn("autotest project detection failed, falling back to Go provider", zap.Error(err))
+
+	// Detect language from project directory
+	markers := make(map[string]bool)
+	if _, err := os.Stat(filepath.Join(rp.session.ProjectDir, "package.json")); err == nil {
+		markers["package.json"] = true
+	}
+	if _, err := os.Stat(filepath.Join(rp.session.ProjectDir, "requirements.txt")); err == nil {
+		markers["requirements.txt"] = true
+	}
+	if _, err := os.Stat(filepath.Join(rp.session.ProjectDir, "pyproject.toml")); err == nil {
+		markers["pyproject.toml"] = true
+	}
+
+	// Find a source file to detect extension
+	var sourceFile string
+	if matches, _ := filepath.Glob(filepath.Join(rp.session.ProjectDir, "*.go")); len(matches) > 0 {
+		sourceFile = matches[0]
+	} else if matches, _ := filepath.Glob(filepath.Join(rp.session.ProjectDir, "*.js")); len(matches) > 0 {
+		sourceFile = matches[0]
+	} else if matches, _ := filepath.Glob(filepath.Join(rp.session.ProjectDir, "*.ts")); len(matches) > 0 {
+		sourceFile = matches[0]
+	} else if matches, _ := filepath.Glob(filepath.Join(rp.session.ProjectDir, "*.py")); len(matches) > 0 {
+		sourceFile = matches[0]
+	}
+
+	// Detect language and create appropriate provider
+	var cov autotest.CoverageProvider
+	var gen autotest.TestGenerator
+
+	lang := autotest.DetectLanguage(sourceFile, markers)
+	switch lang {
+	case "node":
+		cov = autotest.NewNodeCoverageProvider(autotest.DefaultNodeCoverageConfig())
+		gen = autotest.NewNodeTestGenerator(driver)
+	case "python":
+		cov = autotest.NewPythonCoverageProvider(autotest.DefaultPythonCoverageConfig())
+		gen = autotest.NewPythonTestGenerator(driver)
+	default: // "go" or fallback
 		cov = autotest.NewGoCoverageProvider(autotest.DefaultGoCoverageRunner, rp.session.Logger)
 		gen = autotest.NewGoTestGenerator(driver, rp.session.Logger)
 	}

@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 )
 
-// detectLanguage infers the project language from source file extensions
+// DetectLanguage infers the project language from source file extensions
 // and marker files (package.json for Node, requirements.txt for Python).
-func detectLanguage(sourceFile string, markers map[string]bool) string {
+func DetectLanguage(sourceFile string, markers map[string]bool) string {
 	ext := filepath.Ext(sourceFile)
 	switch ext {
 	case ".go":
@@ -25,8 +25,8 @@ func detectLanguage(sourceFile string, markers map[string]bool) string {
 	return "go" // default
 }
 
-// providerForLanguage returns the coverage provider name for a language.
-func providerForLanguage(lang string) string {
+// ProviderForLanguage returns the coverage provider name for a language.
+func ProviderForLanguage(lang string) string {
 	switch lang {
 	case "node":
 		return "node"
