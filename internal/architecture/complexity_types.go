@@ -11,10 +11,10 @@ type FunctionMetrics struct {
 
 // complexityVisitor visits AST nodes to calculate complexity
 type complexityVisitor struct {
-	depth           int
-	maxDepth        int
-	complexity      int
-	inControlFlow   bool // Track if we're inside a control flow structure
+	depth         int
+	maxDepth      int
+	complexity    int
+	inControlFlow bool // Track if we're inside a control flow structure
 }
 
 // controlFlowVisitor handles visiting children of control flow structures

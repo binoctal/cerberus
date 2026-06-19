@@ -10,9 +10,9 @@ func TestGoProjectDetector_Detect(t *testing.T) {
 	detector := &GoProjectDetector{}
 
 	tests := []struct {
-		name     string
-		setup    func() (string, func())
-		wantSupported bool
+		name           string
+		setup          func() (string, func())
+		wantSupported  bool
 		wantConfidence float64
 	}{
 		{
@@ -25,7 +25,7 @@ func TestGoProjectDetector_Detect(t *testing.T) {
 				}
 				return tmpDir, func() {}
 			},
-			wantSupported: true,
+			wantSupported:  true,
 			wantConfidence: 1.0,
 		},
 		{
@@ -34,7 +34,7 @@ func TestGoProjectDetector_Detect(t *testing.T) {
 				tmpDir := t.TempDir()
 				return tmpDir, func() {}
 			},
-			wantSupported: false,
+			wantSupported:  false,
 			wantConfidence: 0,
 		},
 	}
@@ -63,9 +63,9 @@ func TestNodeProjectDetector_Detect(t *testing.T) {
 	detector := &NodeProjectDetector{}
 
 	tests := []struct {
-		name          string
-		setup         func() (string, func())
-		wantSupported bool
+		name           string
+		setup          func() (string, func())
+		wantSupported  bool
 		wantConfidence float64
 	}{
 		{
@@ -92,7 +92,7 @@ func TestNodeProjectDetector_Detect(t *testing.T) {
 
 				return tmpDir, func() {}
 			},
-			wantSupported: true,
+			wantSupported:  true,
 			wantConfidence: 1.0,
 		},
 		{
@@ -113,7 +113,7 @@ func TestNodeProjectDetector_Detect(t *testing.T) {
 
 				return tmpDir, func() {}
 			},
-			wantSupported: false,
+			wantSupported:  false,
 			wantConfidence: 0,
 		},
 		{
@@ -122,7 +122,7 @@ func TestNodeProjectDetector_Detect(t *testing.T) {
 				tmpDir := t.TempDir()
 				return tmpDir, func() {}
 			},
-			wantSupported: false,
+			wantSupported:  false,
 			wantConfidence: 0,
 		},
 	}
@@ -148,9 +148,9 @@ func TestPythonProjectDetector_Detect(t *testing.T) {
 	detector := &PythonProjectDetector{}
 
 	tests := []struct {
-		name          string
-		setup         func() (string, func())
-		wantSupported bool
+		name           string
+		setup          func() (string, func())
+		wantSupported  bool
 		wantConfidence float64
 	}{
 		{
@@ -177,7 +177,7 @@ func TestPythonProjectDetector_Detect(t *testing.T) {
 
 				return tmpDir, func() {}
 			},
-			wantSupported: true,
+			wantSupported:  true,
 			wantConfidence: 1.0,
 		},
 		{
@@ -190,7 +190,7 @@ func TestPythonProjectDetector_Detect(t *testing.T) {
 				}
 				return tmpDir, func() {}
 			},
-			wantSupported: false,
+			wantSupported:  false,
 			wantConfidence: 0.7,
 		},
 		{
@@ -199,7 +199,7 @@ func TestPythonProjectDetector_Detect(t *testing.T) {
 				tmpDir := t.TempDir()
 				return tmpDir, func() {}
 			},
-			wantSupported: false,
+			wantSupported:  false,
 			wantConfidence: 0,
 		},
 	}
@@ -223,11 +223,11 @@ func TestPythonProjectDetector_Detect(t *testing.T) {
 
 func TestDetectProjectType(t *testing.T) {
 	tests := []struct {
-		name          string
-		setup         func() (string, func())
-		wantType      ProjectType
+		name           string
+		setup          func() (string, func())
+		wantType       ProjectType
 		wantConfidence float64
-		wantErr       bool
+		wantErr        bool
 	}{
 		{
 			name: "Go project",
@@ -239,9 +239,9 @@ func TestDetectProjectType(t *testing.T) {
 				}
 				return tmpDir, func() {}
 			},
-			wantType: ProjectTypeGo,
+			wantType:       ProjectTypeGo,
 			wantConfidence: 1.0,
-			wantErr: false,
+			wantErr:        false,
 		},
 		{
 			name: "no recognized project",
@@ -249,9 +249,9 @@ func TestDetectProjectType(t *testing.T) {
 				tmpDir := t.TempDir()
 				return tmpDir, func() {}
 			},
-			wantType: "",
+			wantType:       "",
 			wantConfidence: 0,
-			wantErr: true,
+			wantErr:        true,
 		},
 	}
 

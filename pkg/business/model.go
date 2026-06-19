@@ -8,18 +8,18 @@ import (
 // BusinessModel represents AI's understanding of project business logic
 type BusinessModel struct {
 	// Metadata
-	ID              string
-	ProjectPath     string
-	GeneratedAt     time.Time
-	Version         int
+	ID          string
+	ProjectPath string
+	GeneratedAt time.Time
+	Version     int
 
 	// AI inference confidence
-	Confidence      float64  // 0.0-1.0, overall confidence
+	Confidence      float64 // 0.0-1.0, overall confidence
 	InferenceSource string  // "ai_autonomous" | "ai_assisted" | "manual"
 
 	// Business domain identification
 	Domain           string  // "e-commerce", "finance", "social-network"
-	DomainConfidence float64  // Domain identification confidence
+	DomainConfidence float64 // Domain identification confidence
 
 	// Core business concepts
 	Concepts []BusinessConcept
@@ -43,7 +43,7 @@ type BusinessModel struct {
 // BusinessConcept represents a business entity or concept
 type BusinessConcept struct {
 	Name        string
-	Type        string  // "entity", "value_object", "service"
+	Type        string // "entity", "value_object", "service"
 	Description string
 	RelatedTo   []string
 	Inferred    bool    // AI inferred or user-provided
@@ -57,7 +57,7 @@ type BusinessRule struct {
 	Description string
 	Condition   string
 	Effect      string
-	Priority    string  // "critical", "high", "medium", "low"
+	Priority    string // "critical", "high", "medium", "low"
 	Examples    []string
 	Source      string  // "comment" | "code_pattern" | "inferred"
 	Confidence  float64 // Rule inference confidence
@@ -83,7 +83,7 @@ type Invariant struct {
 	Description string
 	Expression  string
 	Scope       string
-	Source      string  // "execution_observed" | "inferred"
+	Source      string // "execution_observed" | "inferred"
 }
 
 // EdgeCase represents a boundary scenario

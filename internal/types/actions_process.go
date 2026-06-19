@@ -37,7 +37,7 @@ type BuildAction struct {
 
 func (a BuildAction) GetActionType() ActionType { return ActionProcessBuild }
 func (a BuildAction) Unwrap() ProcessExecAction { return a.ProcessExecAction }
-func (a BuildAction) Target() string            { return a.ProcessExecAction.Command }
+func (a BuildAction) Target() string            { return a.Command }
 func (a BuildAction) Validate() error {
 	return a.ProcessExecAction.Validate()
 }

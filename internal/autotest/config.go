@@ -7,7 +7,7 @@ import (
 // CoverageConfig holds configuration for running coverage tests
 type CoverageConfig struct {
 	// Test command and arguments
-	TestCommand []string
+	TestCommand  []string
 	CoverageArgs []string
 
 	// Output configuration

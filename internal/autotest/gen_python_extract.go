@@ -27,11 +27,6 @@ func parseFuncName(funcName string) funcNameParser {
 	return parser
 }
 
-// extractionStrategy defines the strategy for extracting code
-type extractionStrategy interface {
-	extract() (string, string)
-}
-
 // astExtraction uses Python AST to extract structured info
 type astExtraction struct {
 	pythonCmd string
@@ -50,9 +45,9 @@ func (e *astExtraction) extract() (string, string) {
 
 // lineBasedExtraction uses line number context
 type lineBasedExtraction struct {
-	source   string
-	parser   funcNameParser
-	context  int
+	source  string
+	parser  funcNameParser
+	context int
 }
 
 func (e *lineBasedExtraction) extract() (string, string) {

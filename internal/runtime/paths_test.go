@@ -70,7 +70,7 @@ func TestEnsure(t *testing.T) {
 
 func TestGetPaths(t *testing.T) {
 	origWd, _ := os.Getwd()
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	tmpDir := t.TempDir()
 	if err := os.Chdir(tmpDir); err != nil {
@@ -96,7 +96,7 @@ func TestGetPaths(t *testing.T) {
 
 func TestIsDevelopment(t *testing.T) {
 	origWd, _ := os.Getwd()
-	defer os.Chdir(origWd)
+	defer func() { _ = os.Chdir(origWd) }()
 
 	cerberusDir := t.TempDir()
 	goModContent := `module github.com/binoctal/cerberus

@@ -24,19 +24,19 @@ func (bue *BusinessUnderstandingEngine) refineWithAnswers(result *BusinessUnders
 
 	// Create refined model based on answers
 	refinedModel := &BusinessModel{
-		Domain:         result.BusinessModel.Domain,
-		Entities:       result.BusinessModel.Entities,
-		Workflows:      result.BusinessModel.Workflows,
-		BusinessRules:  result.BusinessModel.BusinessRules,
-		Constraints:    result.BusinessModel.Constraints,
+		Domain:        result.BusinessModel.Domain,
+		Entities:      result.BusinessModel.Entities,
+		Workflows:     result.BusinessModel.Workflows,
+		BusinessRules: result.BusinessModel.BusinessRules,
+		Constraints:   result.BusinessModel.Constraints,
 		StateMachines: result.BusinessModel.StateMachines,
-		EdgeCases:      result.BusinessModel.EdgeCases,
-		APICount:       result.BusinessModel.APICount,
-		LayerCount:     result.BusinessModel.LayerCount,
-		CouplingScore:  result.BusinessModel.CouplingScore,
-		Confidence:     result.BusinessModel.Confidence + 0.1, // Increase confidence with user input
-		Assumptions:    []string{},
-		Gaps:           []string{},
+		EdgeCases:     result.BusinessModel.EdgeCases,
+		APICount:      result.BusinessModel.APICount,
+		LayerCount:    result.BusinessModel.LayerCount,
+		CouplingScore: result.BusinessModel.CouplingScore,
+		Confidence:    result.BusinessModel.Confidence + 0.1, // Increase confidence with user input
+		Assumptions:   []string{},
+		Gaps:          []string{},
 	}
 
 	// Update assumptions and gaps based on answers

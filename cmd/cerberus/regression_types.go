@@ -13,8 +13,8 @@ import (
 
 var (
 	regressionCategoryFlag string
-	regressionVerboseFlag   bool
-	accuracyLimitFlag       int
+	regressionVerboseFlag  bool
+	accuracyLimitFlag      int
 )
 
 func regressionCmd() *cobra.Command {

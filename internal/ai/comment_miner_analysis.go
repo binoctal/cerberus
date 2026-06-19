@@ -20,12 +20,6 @@ func (m *CommentMiner) isBusinessComment(text string) bool {
 	return false
 }
 
-// extractBusinessTerms extracts business domain terms from comment text
-func (m *CommentMiner) extractBusinessTerms(text string) []string {
-	// Stub implementation - will extract domain-specific terms
-	return []string{}
-}
-
 // inferPurpose infers the purpose of a comment based on its content
 func (m *CommentMiner) inferPurpose(text string) string {
 	lowerText := strings.ToLower(text)

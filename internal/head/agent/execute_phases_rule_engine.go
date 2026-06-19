@@ -31,23 +31,23 @@ func (se *stepExecution) tryRuleEngine() *StepResult {
 			}
 			if err := r.processMgr.Start(se.ctx, mp); err != nil {
 				result := StepResult{
-					TestCase:  se.tc,
-					Status:    StepFailed,
-					TraceID:   se.traceID,
-					Attempts:  1,
-					Duration:  time.Since(se.start),
-					Error:     err,
+					TestCase: se.tc,
+					Status:   StepFailed,
+					TraceID:  se.traceID,
+					Attempts: 1,
+					Duration: time.Since(se.start),
+					Error:    err,
 				}
 				return &result
 			}
 			result := StepResult{
-				TestCase:  se.tc,
-				Status:    StepPassed,
-				TraceID:   se.traceID,
-				Attempts:  1,
-				Duration:  time.Since(se.start),
-				Action:    action,
-				Evidence:  []Evidence{{Type: "background_process", Content: fmt.Sprintf("started %s", procAct.Command)}},
+				TestCase: se.tc,
+				Status:   StepPassed,
+				TraceID:  se.traceID,
+				Attempts: 1,
+				Duration: time.Since(se.start),
+				Action:   action,
+				Evidence: []Evidence{{Type: "background_process", Content: fmt.Sprintf("started %s", procAct.Command)}},
 			}
 			return &result
 		}
@@ -56,12 +56,12 @@ func (se *stepExecution) tryRuleEngine() *StepResult {
 	// Check for destructive action.
 	if r.checkDestructiveRisk(se.ctx, action, se.sessionID) {
 		result := StepResult{
-			TestCase:  se.tc,
-			Status:    StepSkipped,
-			TraceID:   se.traceID,
-			Attempts:  0,
-			Duration:  time.Since(se.start),
-			Error:     fmt.Errorf("skipped destructive action: %s %s", action.GetActionType(), action.Target()),
+			TestCase: se.tc,
+			Status:   StepSkipped,
+			TraceID:  se.traceID,
+			Attempts: 0,
+			Duration: time.Since(se.start),
+			Error:    fmt.Errorf("skipped destructive action: %s %s", action.GetActionType(), action.Target()),
 		}
 		return &result
 	}
@@ -70,14 +70,14 @@ func (se *stepExecution) tryRuleEngine() *StepResult {
 	r.recordEvidence(se.ctx, se.traceID, "rule_engine", action, result)
 	if result.Success() {
 		stepResult := StepResult{
-			TestCase:  se.tc,
-			Status:    StepPassed,
-			TraceID:   se.traceID,
-			Attempts:  1,
-			Duration:  time.Since(se.start),
-			Action:    action,
-			Result:    result,
-			Evidence:  []Evidence{{Type: evidenceType(result), Content: result.Evidence().Content}},
+			TestCase: se.tc,
+			Status:   StepPassed,
+			TraceID:  se.traceID,
+			Attempts: 1,
+			Duration: time.Since(se.start),
+			Action:   action,
+			Result:   result,
+			Evidence: []Evidence{{Type: evidenceType(result), Content: result.Evidence().Content}},
 		}
 		return &stepResult
 	}

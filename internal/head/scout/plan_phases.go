@@ -10,16 +10,6 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
-// PlanningScope holds the state for test plan generation.
-type planningScope struct {
-	ctx           context.Context
-	goal          string
-	model         *project.ProjectModel
-	memoryContext  string
-	plan          *agent.TestPlan
-	err           error
-}
-
 // selectPlanningDriver chooses the appropriate driver (ToT vs direct).
 func (s *Scout) selectPlanningDriver() (propose, evaluate *ai.Driver) {
 	propose = s.proposeDriver

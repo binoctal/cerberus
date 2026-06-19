@@ -39,7 +39,7 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Candidates []struct {

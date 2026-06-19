@@ -18,7 +18,7 @@ func architectureCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath := "."
-			
+
 			// Run architecture check
 			if err := runArchitectureCheck(projectPath); err != nil {
 				return err

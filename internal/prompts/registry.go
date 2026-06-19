@@ -98,7 +98,7 @@ func (r *Registry) loadDefaults() {
 // yamlBlockParser maintains state during YAML parsing
 type yamlBlockParser struct {
 	prompts      map[string]string
-	currentKey  string
+	currentKey   string
 	currentValue strings.Builder
 	inBlock      bool
 }

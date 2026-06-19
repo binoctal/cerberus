@@ -11,14 +11,14 @@ type PythonCoverageProvider struct {
 // CoverageJSON represents the coverage.py JSON output format
 type CoverageJSON struct {
 	Files map[string]*PythonFileCoverage `json:"files"`
-	Meta  *PythonCoverageMeta           `json:"meta"`
+	Meta  *PythonCoverageMeta            `json:"meta"`
 }
 
 // PythonFileCoverage represents coverage data for a single Python file
 type PythonFileCoverage struct {
-	Summary   *PythonCoverageSummary           `json:"summary"`
-	Lines     map[string]int                   `json:"lines"`
-	Functions map[string]*PythonFuncCoverage   `json:"functions"`
+	Summary   *PythonCoverageSummary         `json:"summary"`
+	Lines     map[string]int                 `json:"lines"`
+	Functions map[string]*PythonFuncCoverage `json:"functions"`
 }
 
 // PythonCoverageSummary contains summary statistics

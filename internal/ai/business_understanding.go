@@ -10,21 +10,21 @@ import (
 // BusinessUnderstandingEngine orchestrates the AI quality framework.
 // This is the main orchestrator that coordinates all components.
 type BusinessUnderstandingEngine struct {
-	codeAnalyzer         *CodeAnalyzer
-	commentMiner         *CommentMiner
-	patternRecognizer    *PatternRecognizer
+	codeAnalyzer          *CodeAnalyzer
+	commentMiner          *CommentMiner
+	patternRecognizer     *PatternRecognizer
 	interactionController *MinimalInteraction
-	llmClient            llm.Client
+	llmClient             llm.Client
 }
 
 // NewBusinessUnderstandingEngine creates a new business understanding engine.
 func NewBusinessUnderstandingEngine(llmClient llm.Client) *BusinessUnderstandingEngine {
 	return &BusinessUnderstandingEngine{
-		codeAnalyzer: NewCodeAnalyzer(llmClient),
-		commentMiner: NewCommentMiner(),
+		codeAnalyzer:      NewCodeAnalyzer(llmClient),
+		commentMiner:      NewCommentMiner(),
 		patternRecognizer: NewPatternRecognizer(),
 		interactionController: NewMinimalInteraction(InteractionConfig{
-			ConfidenceThreshold: 0.7,
+			ConfidenceThreshold:  0.7,
 			MaxQuestions:         5,
 			BusinessCriticalOnly: true,
 		}),

@@ -29,7 +29,7 @@ func (p *PythonCoverageProvider) RunCoverage(ctx context.Context, projectDir str
 	}
 
 	// Phase 4: Execute test command
-	_, err := cmdCtx.executeTestCommand()
+	_, _ = cmdCtx.executeTestCommand()
 
 	// Phase 5: Generate coverage report
 	_ = cmdCtx.generateCoverageReport()

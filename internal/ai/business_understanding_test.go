@@ -110,9 +110,9 @@ func TestBusinessUnderstandingEngine_InferBusinessModel(t *testing.T) {
 
 	patterns := []*Pattern{
 		{
-			ID:     "pattern-1",
-			Name:   "Order Workflow",
-			Type:   WorkflowPattern,
+			ID:         "pattern-1",
+			Name:       "Order Workflow",
+			Type:       WorkflowPattern,
 			Confidence: 0.75,
 		},
 	}
@@ -182,7 +182,7 @@ func TestBusinessUnderstandingEngine_RefineWithAnswers(t *testing.T) {
 
 	result := &BusinessUnderstandingResult{
 		BusinessModel: &BusinessModel{
-			Domain:    "ecommerce",
+			Domain:     "ecommerce",
 			Confidence: 0.7,
 		},
 		Questions: []*Question{
@@ -225,8 +225,8 @@ func TestBusinessUnderstandingEngine_SaveAndDisplay(t *testing.T) {
 	engine := NewBusinessUnderstandingEngine(mockClient)
 
 	result := &BusinessUnderstandingResult{
-		ProjectPath: "/tmp/test",
-		CodeInsights: &CodeInsights{},
+		ProjectPath:   "/tmp/test",
+		CodeInsights:  &CodeInsights{},
 		BusinessModel: &BusinessModel{},
 	}
 
@@ -337,14 +337,14 @@ func TestBusinessUnderstandingEngine_Getters(t *testing.T) {
 
 func TestBusinessModel_String(t *testing.T) {
 	model := &BusinessModel{
-		Domain:         "ecommerce",
-		Entities:       []Entity{{Name: "Order"}},
-		Workflows:      []Workflow{{Name: "Checkout"}},
-		BusinessRules:  []BusinessRule{{Name: "MaxQuantity"}},
-		Constraints:    []Constraint{{Name: "PositiveQty"}},
-		StateMachines:  []StateMachine{{Name: "OrderState"}},
-		EdgeCases:      []EdgeCase{{Name: "ZeroQuantity"}},
-		Confidence:     0.85,
+		Domain:        "ecommerce",
+		Entities:      []Entity{{Name: "Order"}},
+		Workflows:     []Workflow{{Name: "Checkout"}},
+		BusinessRules: []BusinessRule{{Name: "MaxQuantity"}},
+		Constraints:   []Constraint{{Name: "PositiveQty"}},
+		StateMachines: []StateMachine{{Name: "OrderState"}},
+		EdgeCases:     []EdgeCase{{Name: "ZeroQuantity"}},
+		Confidence:    0.85,
 	}
 
 	str := model.String()
@@ -375,11 +375,11 @@ func TestBusinessModel_String(t *testing.T) {
 func TestBusinessUnderstandingResult_Validate(t *testing.T) {
 	// Valid result
 	validResult := &BusinessUnderstandingResult{
-		ProjectPath:    "/tmp/test",
-		CodeInsights:   &CodeInsights{},
-		BusinessModel:  &BusinessModel{},
-		StartTime:      time.Now(),
-		EndTime:        time.Now(),
+		ProjectPath:   "/tmp/test",
+		CodeInsights:  &CodeInsights{},
+		BusinessModel: &BusinessModel{},
+		StartTime:     time.Now(),
+		EndTime:       time.Now(),
 	}
 
 	if err := validResult.Validate(); err != nil {
@@ -430,11 +430,11 @@ func TestCodeInsights_GetFilePaths(t *testing.T) {
 	insights := &CodeInsights{
 		Modules: []Module{
 			{
-				Name: "Module1",
+				Name:      "Module1",
 				FilePaths: []string{"file1.go", "file2.go"},
 			},
 			{
-				Name: "Module2",
+				Name:      "Module2",
 				FilePaths: []string{"file3.go"},
 			},
 		},

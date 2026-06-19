@@ -124,9 +124,9 @@ func ToolDefinitions() []ToolDef {
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"driver":             map[string]any{"type": "string", "description": "Database driver"},
+					"driver":            map[string]any{"type": "string", "description": "Database driver"},
 					"connection_string": map[string]any{"type": "string", "description": "Database connection string"},
-					"query":              map[string]any{"type": "string", "description": "SQL query to execute"},
+					"query":             map[string]any{"type": "string", "description": "SQL query to execute"},
 				},
 				"required": []string{"driver", "query"},
 			},

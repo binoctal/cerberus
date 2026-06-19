@@ -8,9 +8,9 @@ import (
 
 // PythonTestGenerator generates pytest tests for Python projects
 type PythonTestGenerator struct {
-	driver     *ai.Driver
-	logger     *zap.Logger
-	pythonCmd  string
+	driver    *ai.Driver
+	logger    *zap.Logger
+	pythonCmd string
 }
 
 // PythonAstInfo represents extracted function/class info from Python AST

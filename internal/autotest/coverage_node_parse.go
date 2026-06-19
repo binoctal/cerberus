@@ -27,8 +27,8 @@ func (p *NodeCoverageProvider) parseJestCoverage(data []byte) (*CoverageReport, 
 				report.Profile = append(report.Profile, CoverageLine{
 					File:  file,
 					Start: startLine,
-					End:    endLine,
-					Count:  count,
+					End:   endLine,
+					Count: count,
 				})
 
 				report.TotalFuncs++

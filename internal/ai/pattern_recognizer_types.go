@@ -28,10 +28,10 @@ type Pattern struct {
 
 // PatternLocation represents where a pattern appears in code
 type PatternLocation struct {
-	FilePath    string
-	LineNumber  int
-	Context     string
-	Signature   string // Function/struct signature
+	FilePath   string
+	LineNumber int
+	Context    string
+	Signature  string // Function/struct signature
 }
 
 // PatternDatabase stores known patterns and their characteristics
@@ -39,7 +39,7 @@ type PatternDatabase struct {
 	BusinessPatterns      []*Pattern
 	DomainPatterns        []*Pattern
 	WorkflowPatterns      []*Pattern
-	StateMachinePatterns []*Pattern
+	StateMachinePatterns  []*Pattern
 	RulePatterns          []*Pattern
 	EdgeCasePatterns      []*Pattern
 	ErrorHandlingPatterns []*Pattern

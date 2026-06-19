@@ -35,4 +35,3 @@ func countFailuresByReason(data *ReportData) []FailureInfo {
 
 	return result
 }
-

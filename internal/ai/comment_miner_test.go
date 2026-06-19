@@ -83,8 +83,8 @@ func TestCommentMiner_InferPurpose(t *testing.T) {
 	miner := NewCommentMiner()
 
 	testCases := []struct {
-		comment    string
-		expected   string
+		comment  string
+		expected string
 	}{
 		{"User must have valid email", "validation"},
 		{"When order is created, then send notification", "workflow"},
@@ -123,8 +123,8 @@ func TestCommentMiner_CalculateConfidence(t *testing.T) {
 
 func TestCommentSource_String(t *testing.T) {
 	testCases := []struct {
-		source    CommentSource
-		expected  string
+		source   CommentSource
+		expected string
 	}{
 		{SingleLineComments, "SingleLine"},
 		{MultiLineComments, "MultiLine"},

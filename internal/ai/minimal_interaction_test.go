@@ -7,7 +7,7 @@ import (
 
 func TestNewMinimalInteraction(t *testing.T) {
 	config := InteractionConfig{
-		ConfidenceThreshold: 0.8,
+		ConfidenceThreshold:  0.8,
 		MaxQuestions:         3,
 		BusinessCriticalOnly: true,
 	}
@@ -100,7 +100,7 @@ func TestMinimalInteraction_IsConfidenceLow(t *testing.T) {
 
 func TestMinimalInteraction_GenerateCriticalQuestionsOnly(t *testing.T) {
 	mi := NewMinimalInteraction(InteractionConfig{
-		ConfidenceThreshold: 0.7,
+		ConfidenceThreshold:  0.7,
 		MaxQuestions:         5,
 		BusinessCriticalOnly: true,
 	})
@@ -132,9 +132,9 @@ func TestMinimalInteraction_GenerateCriticalQuestionsOnly(t *testing.T) {
 	// Create test patterns
 	patterns := []*Pattern{
 		{
-			ID:     "pattern-1",
-			Name:   "Order Validation",
-			Type:   BusinessPatterns,
+			ID:         "pattern-1",
+			Name:       "Order Validation",
+			Type:       BusinessPatterns,
 			Confidence: 0.6, // Low confidence
 		},
 	}
@@ -158,7 +158,7 @@ func TestMinimalInteraction_GenerateCriticalQuestionsOnly(t *testing.T) {
 
 func TestMinimalInteraction_GenerateCriticalQuestionsOnly_Limit(t *testing.T) {
 	mi := NewMinimalInteraction(InteractionConfig{
-		ConfidenceThreshold: 0.7,
+		ConfidenceThreshold:  0.7,
 		MaxQuestions:         2, // Limit to 2
 		BusinessCriticalOnly: true,
 	})
@@ -225,9 +225,9 @@ func TestMinimalInteraction_IsPatternBusinessCritical(t *testing.T) {
 	mi := NewMinimalInteraction(InteractionConfig{})
 
 	tests := []struct {
-		name     string
+		name        string
 		patternType PatternType
-		expected bool
+		expected    bool
 	}{
 		{"Business pattern", BusinessPatterns, true},
 		{"Rule pattern", RulePattern, true},
@@ -252,8 +252,8 @@ func TestMinimalInteraction_CalculateQuestionPriority(t *testing.T) {
 
 	// Business-critical comment should have higher priority
 	businessComment := &Comment{
-		Text:       "Business rule: validate order",
-		Source:     FIXMEComments,
+		Text:   "Business rule: validate order",
+		Source: FIXMEComments,
 		Semantics: &CommentSemantics{
 			Purpose:    "business_rule",
 			Confidence: 0.3, // Very low confidence
@@ -261,8 +261,8 @@ func TestMinimalInteraction_CalculateQuestionPriority(t *testing.T) {
 	}
 
 	generalComment := &Comment{
-		Text:       "Helper function",
-		Source:     SingleLineComments,
+		Text:   "Helper function",
+		Source: SingleLineComments,
 		Semantics: &CommentSemantics{
 			Purpose:    "general",
 			Confidence: 0.6,
@@ -335,7 +335,7 @@ func TestQuestion_Validate(t *testing.T) {
 func TestMinimalInteraction_GetConfig(t *testing.T) {
 	config := InteractionConfig{
 		ConfidenceThreshold: 0.8,
-		MaxQuestions:         3,
+		MaxQuestions:        3,
 	}
 	mi := NewMinimalInteraction(config)
 
@@ -349,7 +349,7 @@ func TestMinimalInteraction_SetConfig(t *testing.T) {
 	mi := NewMinimalInteraction(InteractionConfig{})
 
 	newConfig := InteractionConfig{
-		ConfidenceThreshold: 0.9,
+		ConfidenceThreshold:  0.9,
 		MaxQuestions:         10,
 		BusinessCriticalOnly: true,
 	}

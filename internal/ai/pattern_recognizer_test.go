@@ -58,9 +58,9 @@ func TestPatternRecognizer_CalculatePatternConfidence(t *testing.T) {
 
 	// Test pattern with minimal information
 	minimalPattern := &Pattern{
-		ID:     "test-1",
-		Name:   "Minimal Pattern",
-		Type:   BusinessPatterns,
+		ID:        "test-1",
+		Name:      "Minimal Pattern",
+		Type:      BusinessPatterns,
 		Locations: []PatternLocation{},
 	}
 
@@ -101,9 +101,9 @@ func TestPatternRecognizer_AddPattern(t *testing.T) {
 	recognizer := NewPatternRecognizer()
 
 	pattern := &Pattern{
-		ID:     "test-1",
-		Name:   "Test Pattern",
-		Type:   BusinessPatterns,
+		ID:   "test-1",
+		Name: "Test Pattern",
+		Type: BusinessPatterns,
 		Locations: []PatternLocation{
 			{FilePath: "test.go", LineNumber: 10},
 		},
@@ -272,11 +272,11 @@ func TestPattern_Validate(t *testing.T) {
 
 func TestPattern_ToJSON(t *testing.T) {
 	pattern := &Pattern{
-		ID:         "test-1",
-		Name:       "Test Pattern",
-		Type:       BusinessPatterns,
+		ID:          "test-1",
+		Name:        "Test Pattern",
+		Type:        BusinessPatterns,
 		Description: "Test description",
-		Confidence: 0.8,
+		Confidence:  0.8,
 	}
 
 	json, err := pattern.ToJSON()

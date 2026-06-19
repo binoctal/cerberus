@@ -105,7 +105,7 @@ func printArchitectureReport(report *architecture.ArchitectureReport) {
 	// Print health score
 	if report.Summary != nil {
 		fmt.Printf("✓ 架构健康度: %d/100\n", report.Summary.HealthScore)
-		
+
 		// Print category scores
 		for category, score := range report.Summary.CategoryScores {
 			emoji := "✓"

@@ -2,9 +2,9 @@ package architecture
 
 // Responsibility represents a code responsibility
 type Responsibility struct {
-	Name        string
-	Keywords    []string
-	Examples    []string
+	Name     string
+	Keywords []string
+	Examples []string
 }
 
 // Common responsibility patterns

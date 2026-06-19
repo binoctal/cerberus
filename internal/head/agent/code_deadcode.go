@@ -5,7 +5,7 @@ import (
 )
 
 // collectDeclaredFunctions collects unexported function declarations.
-func collectDeclaredFunctions(pkg *ast.Package) map[string]string {
+func collectDeclaredFunctions(pkg *ast.Package) map[string]string { //nolint:staticcheck // SA1019 // ast.Package refactor to go/types pending
 	declared := make(map[string]string)
 	for path, f := range pkg.Files {
 		for _, decl := range f.Decls {
@@ -44,7 +44,7 @@ func hasPrefix(s, prefix string) bool {
 }
 
 // collectCalledFunctions collects all function call references.
-func collectCalledFunctions(pkg *ast.Package) map[string]bool {
+func collectCalledFunctions(pkg *ast.Package) map[string]bool { //nolint:staticcheck // SA1019 // ast.Package refactor to go/types pending
 	called := make(map[string]bool)
 	for _, f := range pkg.Files {
 		ast.Inspect(f, func(n ast.Node) bool {

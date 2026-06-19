@@ -5,18 +5,6 @@ import (
 	"strings"
 )
 
-var nodePatterns = []struct {
-	pattern string
-	name    string
-}{
-	{`export\s+(?:async\s+)?function\s+(\w+)`, "function"},
-	{`export\s+class\s+(\w+)`, "class"},
-	{`export\s+(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:function|\([^)]*\)\s*=>)`, "arrow-function"},
-	{`export\s+default\s+(?:async\s+)?function\s+(\w+)`, "default-function"},
-	{`export\s+default\s+class\s+(\w+)`, "default-class"},
-	{`export\s+default\s+(?:async\s+)?(?:function|\([^)]*\)\s*=>)`, "default-arrow"},
-}
-
 func extractNodeFunction(source []byte, funcName string) (string, string) {
 	src := string(source)
 
@@ -51,22 +39,4 @@ func extractNodeFunction(source []byte, funcName string) (string, string) {
 	}
 
 	return pkg, src
-}
-
-func matchNodeFunctions(source string) []FunctionInfo {
-	var functions []FunctionInfo
-
-	lines := strings.Split(source, "\n")
-	for _, line := range lines {
-		for _, pat := range nodePatterns {
-			if strings.Contains(line, "function") || strings.Contains(line, "class") {
-				functions = append(functions, FunctionInfo{
-					Name: "extracted",
-					Type: pat.name,
-				})
-			}
-		}
-	}
-
-	return functions
 }

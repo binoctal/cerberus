@@ -35,8 +35,8 @@ func (p *PythonCoverageProvider) parseJSONCoverage(data []byte) (*CoverageReport
 				report.Profile = append(report.Profile, CoverageLine{
 					File:  file,
 					Start: lineNum,
-					End:    lineNum + 1,
-					Count:  count,
+					End:   lineNum + 1,
+					Count: count,
 				})
 
 				report.TotalFuncs++
@@ -61,7 +61,7 @@ func (p *PythonCoverageProvider) parseSQLiteCoverage(projectDir string) (*Covera
 	if err != nil {
 		return nil, fmt.Errorf("python coverage: open database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	report := &CoverageReport{
 		Profile: make([]CoverageLine, 0),
@@ -81,7 +81,7 @@ func (p *PythonCoverageProvider) parseSQLiteCoverage(projectDir string) (*Covera
 	if err != nil {
 		return nil, fmt.Errorf("python coverage: query database: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var filePath string
@@ -94,8 +94,8 @@ func (p *PythonCoverageProvider) parseSQLiteCoverage(projectDir string) (*Covera
 		report.Profile = append(report.Profile, CoverageLine{
 			File:  filePath,
 			Start: lineNum,
-			End:    lineNum + 1,
-			Count:  count,
+			End:   lineNum + 1,
+			Count: count,
 		})
 
 		report.TotalFuncs++

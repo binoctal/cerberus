@@ -49,7 +49,7 @@ func (r *RegressionStore) ListKnownIssues(ctx context.Context, issueType string,
 	if err != nil {
 		return nil, fmt.Errorf("list known issues: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var issues []*KnownIssue
 	for rows.Next() {

@@ -51,7 +51,7 @@ func (se *stepExecution) runReactLoop() StepResult {
 		}
 
 		// Phase 7: Attempt recovery before next steer
-		if recovered := se.tryRecovery(attempt); recovered {
+		if se.tryRecovery(attempt) {
 			continue
 		}
 	}

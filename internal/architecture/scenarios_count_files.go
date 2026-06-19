@@ -8,7 +8,7 @@ import (
 
 // docFileCount holds counts of different documentation file types
 type docFileCount struct {
-	adrFiles  int
+	adrFiles   int
 	designDocs int
 	planDocs   int
 }

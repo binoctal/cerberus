@@ -191,12 +191,12 @@ class Baz:
 
 func TestFindProjectRoot(t *testing.T) {
 	tests := []struct {
-		name    string
+		name     string
 		startDir string
 		wantDir  string
 	}{
 		{
-			name:    "find root with requirements.txt",
+			name:     "find root with requirements.txt",
 			startDir: "/project/src/module",
 			wantDir:  "/project",
 		},

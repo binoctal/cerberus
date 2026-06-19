@@ -15,14 +15,14 @@ type GapAnalyzer struct {
 
 // CoverageReport represents test coverage results
 type CoverageReport struct {
-	TotalCoverage     float64
-	CoveredFiles      []string
-	UncoveredFiles    []string
-	CoveredLines      int
-	TotalLines        int
-	FunctionCoverage  map[string]float64
-	LineCoverage      map[string]float64
-	BranchCoverage    map[string]float64
+	TotalCoverage    float64
+	CoveredFiles     []string
+	UncoveredFiles   []string
+	CoveredLines     int
+	TotalLines       int
+	FunctionCoverage map[string]float64
+	LineCoverage     map[string]float64
+	BranchCoverage   map[string]float64
 }
 
 // CoverageGap represents a gap in test coverage
@@ -125,11 +125,7 @@ func (a *GapAnalyzer) coversEdgeCases(report *CoverageReport, model *business.Bu
 
 	// Check coverage against edge case count
 	avgLineCoverage := a.calculateAverageCoverage(report.LineCoverage)
-	if avgLineCoverage < 0.85 {
-		return false
-	}
-
-	return true
+	return avgLineCoverage >= 0.85
 }
 
 // coversErrorPaths checks if error handling paths are covered
@@ -142,11 +138,7 @@ func (a *GapAnalyzer) coversErrorPaths(report *CoverageReport, model *business.B
 
 	// Check branch coverage (error paths usually in branches)
 	avgBranchCoverage := a.calculateAverageCoverage(report.BranchCoverage)
-	if avgBranchCoverage < 0.75 {
-		return false
-	}
-
-	return true
+	return avgBranchCoverage >= 0.75
 }
 
 // coversHiddenPaths checks if hidden/complex paths are covered
@@ -162,11 +154,7 @@ func (a *GapAnalyzer) coversHiddenPaths(report *CoverageReport, model *business.
 
 	// Check line coverage (hidden paths often in rarely-executed lines)
 	avgLineCoverage := a.calculateAverageCoverage(report.LineCoverage)
-	if avgLineCoverage < 0.90 {
-		return false
-	}
-
-	return true
+	return avgLineCoverage >= 0.90
 }
 
 // calculateAverageCoverage calculates average coverage from a map

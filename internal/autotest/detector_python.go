@@ -75,13 +75,3 @@ func checkPythonModule(pythonCmd, module string) bool {
 	cmd := exec.Command(pythonCmd, "-c", fmt.Sprintf("import %s", module))
 	return cmd.Run() == nil
 }
-
-// hasPythonConfig checks if a Python project config file exists
-func hasPythonConfig(projectDir string) bool {
-	for _, name := range []string{"requirements.txt", "setup.py", "pyproject.toml"} {
-		if _, err := os.Stat(filepath.Join(projectDir, name)); err == nil {
-			return true
-		}
-	}
-	return false
-}

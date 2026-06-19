@@ -29,8 +29,8 @@ type ProjectType string
 // ProjectType constants for AutoTest providers.
 const (
 	ProjectTypeGo     ProjectType = "go"
-	ProjectTypeNode   ProjectType = "node"   // Jest
-	ProjectTypeMocha  ProjectType = "mocha"  // Mocha + nyc
+	ProjectTypeNode   ProjectType = "node"  // Jest
+	ProjectTypeMocha  ProjectType = "mocha" // Mocha + nyc
 	ProjectTypePython ProjectType = "python"
 )
 
@@ -71,16 +71,16 @@ type AutoTestItem struct {
 
 // AutoTestReport is the phase output.
 type AutoTestReport struct {
-	Gaps              []CoverageGap   `json:"gaps"`
-	Generated         []TestFile      `json:"generated"`
-	Written           []string        `json:"written"`
-	Skipped           []string        `json:"skipped"`
-	Failed            []string        `json:"failed"`
-	Reverted          []string        `json:"reverted"`
-	Items             []AutoTestItem  `json:"items"`             // Per-item aligned records (target + result)
-	BeforeCoveragePct float64         `json:"before_coverage_pct"`
-	AfterCoveragePct  float64         `json:"after_coverage_pct"`
-	Duration          time.Duration   `json:"duration"`
+	Gaps              []CoverageGap  `json:"gaps"`
+	Generated         []TestFile     `json:"generated"`
+	Written           []string       `json:"written"`
+	Skipped           []string       `json:"skipped"`
+	Failed            []string       `json:"failed"`
+	Reverted          []string       `json:"reverted"`
+	Items             []AutoTestItem `json:"items"` // Per-item aligned records (target + result)
+	BeforeCoveragePct float64        `json:"before_coverage_pct"`
+	AfterCoveragePct  float64        `json:"after_coverage_pct"`
+	Duration          time.Duration  `json:"duration"`
 }
 
 // context import retained for interface signatures in provider.go.

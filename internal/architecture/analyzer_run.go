@@ -15,7 +15,7 @@ func (a *Analyzer) Analyze() (*ArchitectureReport, error) {
 		AnalyzedAt:  time.Now(),
 		Issues:      []ArchitectureIssue{},
 		Metrics:     &ArchitectureMetrics{},
-		Summary:     &ReportSummary{
+		Summary: &ReportSummary{
 			CategoryScores: make(map[string]int),
 		},
 	}

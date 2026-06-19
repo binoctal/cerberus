@@ -39,7 +39,7 @@ func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, m
 			c.AIScore = aiScore
 
 			// Combined: AI 70% + coverage 30%.
-			c.Score = (aiScore/10.0*0.7) + (c.Coverage * 0.3)
+			c.Score = (aiScore / 10.0 * 0.7) + (c.Coverage * 0.3)
 
 			results[idx] = c
 		}(i)

@@ -3,10 +3,11 @@ package agent
 import (
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/store"
-	"go.uber.org/zap"
 )
 
 // ReActLoopConfig holds configuration for creating a ReAct execution loop.

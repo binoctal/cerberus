@@ -23,7 +23,7 @@ func DefaultPythonCoverageRunner(ctx context.Context, projectDir string) ([]byte
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 
 	out := filepath.Join(tmp, "coverage.json")
 	cmd := exec.CommandContext(ctx, "coverage", "run", "-m", "pytest", "--cov-report=json:"+out)

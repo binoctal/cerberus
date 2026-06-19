@@ -10,13 +10,13 @@ import (
 
 // runPhase holds state for a single run phase
 type runPhase struct {
-	session    *Session
-	ctx        context.Context
-	startTime  time.Time
-	plan       *agent.TestPlan
-	results    []agent.StepResult
-	verdicts   []examiner.FinalVerdict
+	session     *Session
+	ctx         context.Context
+	startTime   time.Time
+	plan        *agent.TestPlan
+	results     []agent.StepResult
+	verdicts    []examiner.FinalVerdict
 	reflections int
-	summary    *SessionSummary
-	err        error
+	summary     *SessionSummary
+	err         error
 }

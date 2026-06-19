@@ -6,7 +6,7 @@ import (
 
 // InteractionConfig controls the minimal interaction behavior
 type InteractionConfig struct {
-	ConfidenceThreshold float64 // Below this, ask questions (default: 0.7)
+	ConfidenceThreshold  float64 // Below this, ask questions (default: 0.7)
 	MaxQuestions         int     // Maximum questions to ask (default: 5)
 	BusinessCriticalOnly bool    // Only ask about business-critical items
 }

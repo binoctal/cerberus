@@ -12,10 +12,10 @@ func TestMemory_SaveAndLoad(t *testing.T) {
 	modelPath := filepath.Join(tmpDir, "business_model.json")
 
 	model := &BusinessModel{
-		ID:          "test-001",
-		ProjectPath: "/test/project",
-		Domain:      "e-commerce",
-		Confidence:  0.85,
+		ID:               "test-001",
+		ProjectPath:      "/test/project",
+		Domain:           "e-commerce",
+		Confidence:       0.85,
 		DomainConfidence: 0.9,
 		Concepts: []BusinessConcept{
 			{Name: "Order", Type: "entity", Confidence: 0.9},
@@ -68,7 +68,7 @@ func TestMemory_LoadInvalidJSON(t *testing.T) {
 	modelPath := filepath.Join(tmpDir, "invalid.json")
 
 	// Write invalid JSON
-	os.WriteFile(modelPath, []byte("{invalid json}"), 0644)
+	_ = os.WriteFile(modelPath, []byte("{invalid json}"), 0644)
 
 	_, err := LoadBusinessModel(modelPath)
 	if err == nil {
@@ -81,7 +81,7 @@ func TestMemory_SaveInvalidModel(t *testing.T) {
 	modelPath := filepath.Join(tmpDir, "invalid.json")
 
 	invalidModel := &BusinessModel{
-		ID: "", // Invalid: empty ID
+		ID:         "",  // Invalid: empty ID
 		Confidence: 1.5, // Invalid: > 1.0
 	}
 

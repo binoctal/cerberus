@@ -37,6 +37,6 @@ func renderFailureSummary(b *strings.Builder, totalSystemBugs, totalFailed int) 
 		b.WriteString("🎉 **Good News:** None of the failures are system bugs! ")
 		b.WriteString("Most failures are due to LLM quality issues or expected policy rejections.\n\n")
 	} else if totalSystemBugs > 0 {
-		b.WriteString(fmt.Sprintf("⚠️ **Attention:** %d failure(s) appear to be genuine system bugs requiring investigation.\n\n", totalSystemBugs))
+		fmt.Fprintf(b, "⚠️ **Attention:** %d failure(s) appear to be genuine system bugs requiring investigation.\n\n", totalSystemBugs)
 	}
 }

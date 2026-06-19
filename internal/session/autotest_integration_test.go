@@ -23,13 +23,13 @@ func TestRun_InvokesAutoTestPhase(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "verify service health",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "verify service health",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: tmpDir,
 	})
 	require.NoError(t, err)

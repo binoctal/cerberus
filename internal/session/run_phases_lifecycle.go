@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/project"
 )
 

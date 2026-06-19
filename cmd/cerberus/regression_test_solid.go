@@ -19,13 +19,12 @@ func runSOLIDTest(ctx context.Context, test *store.RegressionTest, verbose bool)
 	for _, issue := range report.Issues {
 		switch issue.Type {
 		case architecture.ViolatesSRP, architecture.ViolatesOCP,
-			 architecture.ViolatesLSP, architecture.ViolatesISP, architecture.ViolatesDIP:
+			architecture.ViolatesLSP, architecture.ViolatesISP, architecture.ViolatesDIP:
 			if test.TestType == "positive" {
 				expectedViolationFound = true
 				if verbose {
 					fmt.Printf("  检测到SOLID违反: %s (%s)\n", issue.Description, issue.Type)
 				}
-				break
 			}
 		}
 	}

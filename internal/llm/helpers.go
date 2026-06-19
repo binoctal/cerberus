@@ -10,8 +10,9 @@ import "strings"
 // breaks deep-integration (some providers return HTTP 200 with an error body).
 //
 // Examples:
-//   joinBaseURL("https://host/api/anthropic", "/v1/messages") // "https://host/api/anthropic/v1/messages"
-//   joinBaseURL("https://host/api/anthropic/v1/messages", "/v1/messages") // "https://host/api/anthropic/v1/messages"
+//
+//	joinBaseURL("https://host/api/anthropic", "/v1/messages") // "https://host/api/anthropic/v1/messages"
+//	joinBaseURL("https://host/api/anthropic/v1/messages", "/v1/messages") // "https://host/api/anthropic/v1/messages"
 func joinBaseURL(base, path string) string {
 	if base == "" {
 		return ""

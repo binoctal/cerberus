@@ -9,10 +9,10 @@ type ValidationResult struct {
 
 // Validator orchestrates all validation tools
 type Validator struct {
-	compileChecker  *CompileChecker
-	staticAnalyzer  *StaticAnalyzer
-	coverageRunner  *CoverageRunner
-	flakyDetector   *FlakyDetector
+	compileChecker *CompileChecker
+	staticAnalyzer *StaticAnalyzer
+	coverageRunner *CoverageRunner
+	flakyDetector  *FlakyDetector
 }
 
 // AIResults contains AI analysis results
@@ -25,10 +25,10 @@ type AIResults struct {
 // ValidationReport contains validation results
 type ValidationReport struct {
 	CompileErrors []CompileError
-	StaticIssues   []StaticIssue
-	TestResults    []TestResult
-	FlakyTests     []FlakyTest
-	Comparison     *ComparisonResult
+	StaticIssues  []StaticIssue
+	TestResults   []TestResult
+	FlakyTests    []FlakyTest
+	Comparison    *ComparisonResult
 }
 
 // ComparisonResult compares AI findings with tool findings
@@ -142,7 +142,7 @@ func (f *FlakyDetector) Detect(tests []string) []FlakyTest {
 }
 
 type FlakyTest struct {
-	TestName    string
-	Flakiness   float64
+	TestName     string
+	Flakiness    float64
 	LastFailedAt int
 }

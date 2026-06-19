@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+
 	"github.com/binoctal/cerberus/internal/architecture"
 )
 

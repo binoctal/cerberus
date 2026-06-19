@@ -74,13 +74,13 @@ func TestNewSession(t *testing.T) {
 	cfg.Project.Name = "test-project"
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "test goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "test goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -108,13 +108,13 @@ func TestNewSession_StoreError(t *testing.T) {
 	cfg := project.DefaultConfig()
 
 	_, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.Error(t, err)
@@ -130,13 +130,13 @@ func TestNewSession_NilGate(t *testing.T) {
 	cfg := project.DefaultConfig()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -182,15 +182,15 @@ func TestSession_ResolveBaseURL(t *testing.T) {
 			{Name: "api", URL: "http://localhost:3000"},
 		}
 		sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
-		ProjectDir: ".",
-	})
+			Mode:       ModeRun,
+			Goal:       "goal",
+			Config:     &cfg,
+			Store:      s,
+			Client:     mockClient,
+			Logger:     logger,
+			Gate:       nil,
+			ProjectDir: ".",
+		})
 		require.NoError(t, err)
 		assert.Equal(t, "http://localhost:3000", sess.resolveBaseURL())
 	})
@@ -198,15 +198,15 @@ func TestSession_ResolveBaseURL(t *testing.T) {
 	t.Run("without services", func(t *testing.T) {
 		cfg := project.DefaultConfig()
 		sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
-		ProjectDir: ".",
-	})
+			Mode:       ModeRun,
+			Goal:       "goal",
+			Config:     &cfg,
+			Store:      s,
+			Client:     mockClient,
+			Logger:     logger,
+			Gate:       nil,
+			ProjectDir: ".",
+		})
 		require.NoError(t, err)
 		assert.Equal(t, "", sess.resolveBaseURL())
 	})
@@ -221,13 +221,13 @@ func TestSession_Close(t *testing.T) {
 	cfg := project.DefaultConfig()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -247,13 +247,13 @@ func TestSession_Run_FullLifecycle(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "verify service health",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "verify service health",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -312,13 +312,13 @@ func TestSession_Run_ParallelExecution(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "parallel test",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "parallel test",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -357,13 +357,13 @@ func TestSession_Run_ScoutFailure(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "test goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "test goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -396,13 +396,13 @@ func TestSession_Run_AgentFailure(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "test goal",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "test goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -430,13 +430,13 @@ func TestSession_Run_TracksTokenBudget(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "budget tracking",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "budget tracking",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -465,13 +465,13 @@ func TestSession_Run_DeepPlan(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "deep plan test",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "deep plan test",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -494,13 +494,13 @@ func TestSession_Run_CancelledContext(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "cancel test",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "cancel test",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -529,13 +529,13 @@ func TestSession_Run_DefaultWorkers(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "default workers",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "default workers",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -581,13 +581,13 @@ func TestSession_Resume_SkipsCompleted(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "resume test",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "resume test",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -626,13 +626,13 @@ func TestSession_Resume_NoPlan(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "no plan resume",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "no plan resume",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)
@@ -662,13 +662,13 @@ func TestSession_driverFor_PerHeadOverride(t *testing.T) {
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
-		Mode: ModeRun,
-		Goal: "per-head",
-		Config: &cfg,
-		Store: s,
-		Client: mockClient,
-		Logger: logger,
-		Gate: nil,
+		Mode:       ModeRun,
+		Goal:       "per-head",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
 		ProjectDir: ".",
 	})
 	require.NoError(t, err)

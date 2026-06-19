@@ -9,7 +9,7 @@ type AutoTest struct {
 	gate           RequestGate
 	writer         Writer
 	mode           SafetyMode
-	MaxGaps        int  // cap on gaps generated per run (0 = unlimited); defaults to 5
-	MaxConcurrency int  // max parallel workers (0 = serial); defaults to 3
+	MaxGaps        int // cap on gaps generated per run (0 = unlimited); defaults to 5
+	MaxConcurrency int // max parallel workers (0 = serial); defaults to 3
 	logger         *zap.Logger
 }

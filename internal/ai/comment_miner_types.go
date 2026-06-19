@@ -31,7 +31,7 @@ type Comment struct {
 
 // CommentSemantics represents the semantic meaning of a comment
 type CommentSemantics struct {
-	Purpose        string   // "business_rule", "domain_logic", "validation", "workflow", "state_transition"
+	Purpose        string // "business_rule", "domain_logic", "validation", "workflow", "state_transition"
 	BusinessTerm   string
 	Constraints    []string
 	EdgeCases      []string

@@ -23,7 +23,7 @@ func DefaultNodeCoverageRunner(ctx context.Context, projectDir string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 
 	out := filepath.Join(tmp, "coverage-final.json")
 	cmd := exec.CommandContext(ctx, "npm", "test", "--", "--coverage", "--coverageReporters=json", "--outputCoverage="+out)

@@ -34,12 +34,11 @@ func Load() *Config {
 		provider = profile.Provider
 	}
 
-	// Get runtime paths (auto-detects development vs production)
+	// Get runtime paths (auto-detects development vs production).
+	// Ensure() failures are tolerated here; the database open will surface
+	// any real directory problem with a clear error.
 	paths := runtime.GetPaths()
-	if err := paths.Ensure(); err != nil {
-		// If we can't create runtime directories, log a warning but continue
-		// The database open will fail later with a clear error
-	}
+	_ = paths.Ensure()
 
 	cfg := &Config{
 		Port:         getEnv("CERBERUS_PORT", "8090"),

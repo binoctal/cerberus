@@ -19,8 +19,8 @@ type BusinessUnderstandingResult struct {
 	BusinessModel *BusinessModel
 	Questions     []*Question
 	UserAnswers   map[string]string // Question ID -> Answer
-	RefinedModel  *BusinessModel     // After user answers
-	Confidence    float64            // Overall confidence score
+	RefinedModel  *BusinessModel    // After user answers
+	Confidence    float64           // Overall confidence score
 }
 
 // BusinessModel represents the inferred business model.
@@ -65,10 +65,10 @@ type Relationship struct {
 
 // Workflow represents a business workflow.
 type Workflow struct {
-	Name        string
-	Steps       []string
-	Conditions  []string
-	Exceptions  []string
+	Name       string
+	Steps      []string
+	Conditions []string
+	Exceptions []string
 }
 
 // BusinessRule represents a business rule.

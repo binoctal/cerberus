@@ -41,7 +41,7 @@ func (r *RegressionStore) GetAccuracyHistory(ctx context.Context, limit int) ([]
 	if err != nil {
 		return nil, fmt.Errorf("get accuracy history: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var reports []*AccuracyReport
 	for rows.Next() {

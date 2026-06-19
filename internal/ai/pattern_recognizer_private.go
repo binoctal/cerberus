@@ -1,60 +1,24 @@
 package ai
 
-// recognizeStateMachines identifies state machine patterns in code
-func (pr *PatternRecognizer) recognizeStateMachines(code string) ([]*Pattern, error) {
-	// Stub implementation
-	return []*Pattern{}, nil
-}
-
-// recognizeWorkflows identifies workflow patterns in code
-func (pr *PatternRecognizer) recognizeWorkflows(code string) ([]*Pattern, error) {
-	// Stub implementation
-	return []*Pattern{}, nil
-}
-
-// recognizeBusinessRules identifies business rule patterns in code
-func (pr *PatternRecognizer) recognizeBusinessRules(code string, comments []*Comment) ([]*Pattern, error) {
-	// Stub implementation
-	return []*Pattern{}, nil
-}
-
-// recognizeEdgeCases identifies edge case patterns in code
-func (pr *PatternRecognizer) recognizeEdgeCases(code string) ([]*Pattern, error) {
-	// Stub implementation
-	return []*Pattern{}, nil
-}
-
-// recognizeErrorHandling identifies error handling patterns in code
-func (pr *PatternRecognizer) recognizeErrorHandling(code string) ([]*Pattern, error) {
-	// Stub implementation
-	return []*Pattern{}, nil
-}
-
-// recognizeDomainPatterns identifies domain-specific patterns in code
-func (pr *PatternRecognizer) recognizeDomainPatterns(code string, comments []*Comment) ([]*Pattern, error) {
-	// Stub implementation
-	return []*Pattern{}, nil
-}
-
 // calculatePatternConfidence calculates a confidence score for a pattern
 func (pr *PatternRecognizer) calculatePatternConfidence(pattern *Pattern) float64 {
 	confidence := 0.5 // Base confidence
-	
+
 	// Increase confidence if pattern has rich metadata
 	if len(pattern.Metadata) > 0 {
 		confidence += 0.2
 	}
-	
+
 	// Increase confidence if description is detailed
 	if len(pattern.Description) > 20 {
 		confidence += 0.1
 	}
-	
+
 	// Increase confidence if location information is complete
 	if len(pattern.Locations) > 0 && pattern.Locations[0].FilePath != "" {
 		confidence += 0.1
 	}
-	
+
 	// Adjust based on pattern type
 	switch pattern.Type {
 	case BusinessPatterns:
@@ -62,12 +26,12 @@ func (pr *PatternRecognizer) calculatePatternConfidence(pattern *Pattern) float6
 	case EdgeCasePattern:
 		confidence += 0.05 // Edge cases are explicit
 	}
-	
+
 	// Ensure confidence is between 0 and 1
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
-	
+
 	return confidence
 }
 

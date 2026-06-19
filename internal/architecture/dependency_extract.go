@@ -49,9 +49,7 @@ func (a *Analyzer) getPackageFromPath(filePath string) string {
 	dir := filepath.Dir(relPath)
 
 	// Skip leading "./"
-	if strings.HasPrefix(dir, "./") {
-		dir = dir[2:]
-	}
+	dir = strings.TrimPrefix(dir, "./")
 
 	// Convert to package name
 	return strings.ReplaceAll(dir, "/", "/")

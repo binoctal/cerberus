@@ -6,17 +6,17 @@ import "time"
 type IssueType string
 
 const (
-	OverEngineering        IssueType = "over_engineering"
-	MissingScenario        IssueType = "missing_scenario_analysis"
-	PrematureAbstraction   IssueType = "premature_abstraction"
-	CircularDependency     IssueType = "circular_dependency"
-	ViolatesSRP           IssueType = "violates_srp"
-	ViolatesOCP           IssueType = "violates_ocp"
-	ViolatesLSP           IssueType = "violates_lsp"
-	ViolatesISP           IssueType = "violates_isp"
-	ViolatesDIP           IssueType = "violates_dip"
-	HighCoupling          IssueType = "high_coupling"
-	LowCohesion           IssueType = "low_cohesion"
+	OverEngineering      IssueType = "over_engineering"
+	MissingScenario      IssueType = "missing_scenario_analysis"
+	PrematureAbstraction IssueType = "premature_abstraction"
+	CircularDependency   IssueType = "circular_dependency"
+	ViolatesSRP          IssueType = "violates_srp"
+	ViolatesOCP          IssueType = "violates_ocp"
+	ViolatesLSP          IssueType = "violates_lsp"
+	ViolatesISP          IssueType = "violates_isp"
+	ViolatesDIP          IssueType = "violates_dip"
+	HighCoupling         IssueType = "high_coupling"
+	LowCohesion          IssueType = "low_cohesion"
 )
 
 // Severity represents the severity level of an issue
@@ -30,16 +30,16 @@ const (
 
 // ArchitectureIssue represents an architecture problem
 type ArchitectureIssue struct {
-	ID          string   // Unique identifier
+	ID          string    // Unique identifier
 	Type        IssueType // Type of issue
 	Severity    Severity  // error | warning | info
-	File        string   // File with the issue
-	Line        int      // Line number (if applicable)
-	Description string   // Issue description
-	Rationale   string   // Why this is a problem
-	Suggestion  string   // How to fix it
-	Confidence  float64  // AI inference confidence (if applicable)
-	Evidence    []string // Evidence (code snippets, metrics, etc.)
+	File        string    // File with the issue
+	Line        int       // Line number (if applicable)
+	Description string    // Issue description
+	Rationale   string    // Why this is a problem
+	Suggestion  string    // How to fix it
+	Confidence  float64   // AI inference confidence (if applicable)
+	Evidence    []string  // Evidence (code snippets, metrics, etc.)
 }
 
 // ArchitectureReport contains analysis results
@@ -54,12 +54,12 @@ type ArchitectureReport struct {
 
 // ReportSummary provides a high-level summary
 type ReportSummary struct {
-	TotalIssues      int
-	ErrorCount       int
-	WarningCount     int
-	InfoCount        int
-	HealthScore      int // 0-100
-	CategoryScores   map[string]int
+	TotalIssues    int
+	ErrorCount     int
+	WarningCount   int
+	InfoCount      int
+	HealthScore    int // 0-100
+	CategoryScores map[string]int
 }
 
 // ArchitectureMetrics represents code quality metrics
@@ -69,22 +69,22 @@ type ArchitectureMetrics struct {
 	TotalLines      int
 	AvgLinesPerFile int
 	MaxLinesPerFile int
-	
+
 	// Function metrics
-	TotalFunctions     int
+	TotalFunctions      int
 	AvgFunctionsPerFile int
-	MaxParameters      int
-	MaxNestingDepth    int
-	
+	MaxParameters       int
+	MaxNestingDepth     int
+
 	// Dependency metrics
-	TotalDependencies     int
-	CircularDependencies  int
-	
+	TotalDependencies    int
+	CircularDependencies int
+
 	// Abstraction metrics
-	TotalInterfaces     int
-	UnusedAbstractions  int
+	TotalInterfaces      int
+	UnusedAbstractions   int
 	SingleImplInterfaces int
-	
+
 	// SOLID violations
 	SRPViolations int // Single Responsibility Principle
 	OCPViolations int // Open/Closed Principle
@@ -93,9 +93,9 @@ type ArchitectureMetrics struct {
 	DIPViolations int // Dependency Inversion Principle
 
 	// Documentation metrics
-	ADRFiles    int // Architecture Decision Records
-	DesignDocs  int // Design specification documents
-	PlanDocs    int // Implementation plan documents
+	ADRFiles   int // Architecture Decision Records
+	DesignDocs int // Design specification documents
+	PlanDocs   int // Implementation plan documents
 }
 
 // CategoryScores provides scores by category
@@ -126,9 +126,10 @@ func (r *ArchitectureReport) countIssueTypes() (complexity, simplicity, maintain
 		}
 
 		// Maintainability: weighted by severity
-		if issue.Severity == SeverityError {
+		switch issue.Severity {
+		case SeverityError:
 			maintainability += 2
-		} else if issue.Severity == SeverityWarning {
+		case SeverityWarning:
 			maintainability++
 		}
 	}
@@ -140,13 +141,13 @@ func (r *ArchitectureReport) CalculateHealthScore() int {
 	if r.Summary == nil {
 		r.Summary = &ReportSummary{}
 	}
-	
+
 	r.CalculateCategoryScores()
-	
+
 	// Weighted average of category scores
 	total := 0
 	weight := 0
-	
+
 	for category, score := range r.Summary.CategoryScores {
 		var w int
 		switch category {
@@ -162,11 +163,11 @@ func (r *ArchitectureReport) CalculateHealthScore() int {
 		total += score * w
 		weight += w
 	}
-	
+
 	if weight == 0 {
 		return 100
 	}
-	
+
 	r.Summary.HealthScore = total / weight
 	return r.Summary.HealthScore
 }

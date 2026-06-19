@@ -44,5 +44,5 @@ const (
 
 	// WebSocket
 	ActionWSConnect ActionType = "ws_connect"
-	ActionWSSend     ActionType = "ws_send"
+	ActionWSSend    ActionType = "ws_send"
 )

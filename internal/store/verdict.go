@@ -6,17 +6,17 @@ import (
 )
 
 type Verdict struct {
-	ID            int64        `json:"id"`
-	SessionID     string       `json:"session_id"`
-	TraceID       int64        `json:"trace_id"`
-	Target        string       `json:"target"`
-	Status        string       `json:"status"`
-	Confidence    float64      `json:"confidence"`
-	Source        string       `json:"source"`
-	Reasoning     string       `json:"reasoning,omitempty"`
-	Suggestions   string       `json:"suggestions,omitempty"`
+	ID            int64         `json:"id"`
+	SessionID     string        `json:"session_id"`
+	TraceID       int64         `json:"trace_id"`
+	Target        string        `json:"target"`
+	Status        string        `json:"status"`
+	Confidence    float64       `json:"confidence"`
+	Source        string        `json:"source"`
+	Reasoning     string        `json:"reasoning,omitempty"`
+	Suggestions   string        `json:"suggestions,omitempty"`
 	FailureReason FailureReason `json:"failure_reason,omitempty"` // Root cause of failure
-	CreatedAt     string       `json:"created_at"`
+	CreatedAt     string        `json:"created_at"`
 }
 
 func (s *Store) CreateVerdict(ctx context.Context, sessionID string, traceID int64,

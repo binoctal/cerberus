@@ -36,7 +36,7 @@ func TestValidator_CompleteFlow(t *testing.T) {
 
 	// Verify all validation steps were performed
 	if report == nil {
-		t.Error("Expected report to be returned, got nil")
+		t.Fatal("Expected report to be returned, got nil")
 	}
 
 	// Verify comparison was performed

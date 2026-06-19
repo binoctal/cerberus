@@ -115,31 +115,31 @@ func TestMochaProjectDetector_Detect(t *testing.T) {
 
 func TestMochaTestFilePath(t *testing.T) {
 	tests := []struct {
-		name       string
-		sourceFile string
-		projectDir string
+		name          string
+		sourceFile    string
+		projectDir    string
 		createTestDir bool
-		want       string
+		want          string
 	}{
 		{
-			name:       "same-directory mode",
-			sourceFile: "src/api/users.js",
-			projectDir: "",
+			name:          "same-directory mode",
+			sourceFile:    "src/api/users.js",
+			projectDir:    "",
 			createTestDir: false,
-			want:       "src/api/users.test.js",
+			want:          "src/api/users.test.js",
 		},
 		{
-			name:       "jsx file",
-			sourceFile: "components/Button.jsx",
-			projectDir: "",
+			name:          "jsx file",
+			sourceFile:    "components/Button.jsx",
+			projectDir:    "",
 			createTestDir: false,
-			want:       "components/Button.test.jsx",
+			want:          "components/Button.test.jsx",
 		},
 		{
-			name:       "test directory mode",
-			sourceFile: "src/calculator.js",
+			name:          "test directory mode",
+			sourceFile:    "src/calculator.js",
 			createTestDir: true,
-			want:       "",  // Will be set in test
+			want:          "", // Will be set in test
 		},
 	}
 

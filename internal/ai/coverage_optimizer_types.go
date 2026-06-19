@@ -31,12 +31,12 @@ type CoverageAnalyzer struct {
 
 // TestResult represents test execution results
 type TestResult struct {
-	Passed    bool
-	Name      string
-	Duration  time.Duration
-	Coverage  float64
-	Output    string
-	Error     string
+	Passed   bool
+	Name     string
+	Duration time.Duration
+	Coverage float64
+	Output   string
+	Error    string
 }
 
 // CoverageAnalysisResult represents detailed coverage analysis

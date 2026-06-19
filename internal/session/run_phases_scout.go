@@ -3,11 +3,12 @@ package session
 import (
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
-	"go.uber.org/zap"
 )
 
 // executeScoutPhase runs the Scout analysis and planning phase

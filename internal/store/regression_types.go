@@ -7,22 +7,22 @@ import (
 
 // RegressionTest represents a regression test case
 type RegressionTest struct {
-	ID              int
-	Name            string
-	BugID           sql.NullString // Can be NULL
-	Category        string         // complexity/abstraction/solid
-	TestType        string         // positive/negative
-	Description     sql.NullString // Can be NULL
-	FilePath        sql.NullString // Can be NULL
-	InterfaceName   sql.NullString // Can be NULL
-	ExpectedResult  string
-	ActualResult    sql.NullString // Can be NULL
-	Status          string         // pending/pass/fail/skip
-	LastRun         sql.NullTime   // Can be NULL
-	LastError       sql.NullString // Can be NULL
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Notes           sql.NullString // Can be NULL
+	ID             int
+	Name           string
+	BugID          sql.NullString // Can be NULL
+	Category       string         // complexity/abstraction/solid
+	TestType       string         // positive/negative
+	Description    sql.NullString // Can be NULL
+	FilePath       sql.NullString // Can be NULL
+	InterfaceName  sql.NullString // Can be NULL
+	ExpectedResult string
+	ActualResult   sql.NullString // Can be NULL
+	Status         string         // pending/pass/fail/skip
+	LastRun        sql.NullTime   // Can be NULL
+	LastError      sql.NullString // Can be NULL
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Notes          sql.NullString // Can be NULL
 }
 
 // KnownIssue represents a known issue or false positive

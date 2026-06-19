@@ -9,12 +9,12 @@ import (
 // failureResult creates a failure result with the given error.
 func (se *stepExecution) failureResult(err error, attempts int) StepResult {
 	return StepResult{
-		TestCase:  se.tc,
-		Status:    StepFailed,
-		TraceID:   se.traceID,
-		Attempts:  attempts,
-		Duration:  time.Since(se.start),
-		Error:     err,
+		TestCase: se.tc,
+		Status:   StepFailed,
+		TraceID:  se.traceID,
+		Attempts: attempts,
+		Duration: time.Since(se.start),
+		Error:    err,
 	}
 }
 
@@ -72,13 +72,13 @@ func (se *stepExecution) finalizeResult() StepResult {
 	}
 
 	return StepResult{
-		TestCase:  se.tc,
-		Status:    status,
-		TraceID:   se.traceID,
-		Attempts:  se.loop.config.MaxSteerAttempts,
-		Duration:  time.Since(se.start),
-		Action:    se.lastAction,
-		Result:    se.lastResult,
-		Evidence:  []Evidence{{Type: evidenceType(se.lastResult), Content: evContent}},
+		TestCase: se.tc,
+		Status:   status,
+		TraceID:  se.traceID,
+		Attempts: se.loop.config.MaxSteerAttempts,
+		Duration: time.Since(se.start),
+		Action:   se.lastAction,
+		Result:   se.lastResult,
+		Evidence: []Evidence{{Type: evidenceType(se.lastResult), Content: evContent}},
 	}
 }

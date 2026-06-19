@@ -1,9 +1,5 @@
 package architecture
 
-import (
-	"fmt"
-)
-
 // reportMissingDocsDirectory reports when no documentation directory exists
 func (a *Analyzer) reportMissingDocsDirectory(report *ArchitectureReport) {
 	report.Issues = append(report.Issues, ArchitectureIssue{
@@ -32,7 +28,7 @@ func (a *Analyzer) reportMissingADR(report *ArchitectureReport) {
 		Rationale:   "ADR 记录重要架构决策的理由和权衡",
 		Suggestion:  "在 cerberus-docs/ 中创建 ADR 记录关键决策",
 		Confidence:  0.7,
-		Evidence:    []string{fmt.Sprintf("扫描文件数: >100")},
+		Evidence:    []string{"扫描文件数: >100"},
 	})
 }
 

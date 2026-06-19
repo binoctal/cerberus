@@ -12,19 +12,19 @@ import (
 
 // pythonCmdContext holds context for command execution
 type pythonCmdContext struct {
-	pythonCmd   string
-	projectDir  string
-	args        []string
-	cmd         *exec.Cmd
-	ctx         context.Context
-	config      *CoverageConfig
-	logger      *zap.Logger
+	pythonCmd  string
+	projectDir string
+	args       []string
+	cmd        *exec.Cmd
+	ctx        context.Context
+	config     *CoverageConfig
+	logger     *zap.Logger
 }
 
 // determinePythonCommand finds the Python command to use from config or default
 func determinePythonCommand(config *CoverageConfig) string {
 	pythonCmd := "python3"
-	if config.Env != nil && len(config.Env) > 0 {
+	if len(config.Env) > 0 {
 		for _, env := range config.Env {
 			if strings.HasPrefix(env, "PYTHON_CMD=") {
 				pythonCmd = strings.TrimPrefix(env, "PYTHON_CMD=")
@@ -90,7 +90,7 @@ func (pc *pythonCmdContext) executeTestCommand() ([]byte, error) {
 
 // generateCoverageReport runs the coverage report generation command
 func (pc *pythonCmdContext) generateCoverageReport() error {
-	if pc.config.CoverageArgs == nil || len(pc.config.CoverageArgs) == 0 {
+	if len(pc.config.CoverageArgs) == 0 {
 		return nil
 	}
 

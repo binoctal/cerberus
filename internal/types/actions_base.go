@@ -15,6 +15,6 @@ type TypedAction interface {
 // ActionEnvelope wraps a serialized action with its type metadata.
 // Used for JSON marshaling/unmarshaling of polymorphic action types.
 type ActionEnvelope struct {
-	Type ActionType     `json:"type"`
+	Type ActionType      `json:"type"`
 	Raw  json.RawMessage `json:"action"`
 }

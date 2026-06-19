@@ -23,7 +23,7 @@ func (r *RegressionStore) CreateRegressionTest(ctx context.Context, test *Regres
 		return 0, fmt.Errorf("create regression test: %w", err)
 	}
 
-	id, err := result.LastInsertId()
+	id, _ := result.LastInsertId()
 	return int(id), nil
 }
 
@@ -78,7 +78,7 @@ func (r *RegressionStore) ListRegressionTests(ctx context.Context, category, sta
 	if err != nil {
 		return nil, fmt.Errorf("list regression tests: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tests []*RegressionTest
 	for rows.Next() {

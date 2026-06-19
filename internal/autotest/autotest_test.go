@@ -168,7 +168,7 @@ func TestAutoTest_ParallelExecution(t *testing.T) {
 
 	a := NewAutoTest(multiGapProvider, stubGen{"package p"}, allowGate{}, w, SafetyDryRun, zap.NewNop())
 	a.MaxConcurrency = 2 // Enable parallel execution
-	a.MaxGaps = 0 // Disable gap limiting for this test
+	a.MaxGaps = 0        // Disable gap limiting for this test
 
 	rep, err := a.Run(context.Background(), ".")
 	require.NoError(t, err)

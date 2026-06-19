@@ -11,13 +11,13 @@ import (
 // executeStep runs the ReAct loop for a single TestCase.
 func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID string) StepResult {
 	se := &stepExecution{
-		loop:               r,
-		ctx:                ctx,
-		tc:                 tc,
-		sessionID:          sessionID,
-		start:              time.Now(),
+		loop:                r,
+		ctx:                 ctx,
+		tc:                  tc,
+		sessionID:           sessionID,
+		start:               time.Now(),
 		consecutiveTimeouts: 0,
-		recoverAttempts:    0,
+		recoverAttempts:     0,
 	}
 
 	// Apply per-case timeout.
