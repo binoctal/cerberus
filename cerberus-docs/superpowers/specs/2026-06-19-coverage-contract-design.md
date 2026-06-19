@@ -47,11 +47,12 @@ CoverageContract {
   ErrorScope  []string          // none | 4xx | validation | exception(档位展开)
   Boundaries  []string          // empty | zero | max | invalid | extreme(档位展开)
   Invariants  []InvariantRef    // 从 project.yaml invariants 带入,档位决定校验严度
-  Priorities  map[string]string // 模块/功能 → high|med|low(风险权重)
+  Priorities  map[string]string // 模块/功能 → high|med|low;风险权重,指导 case 生成顺序 + Examiner 缺口排序
   CoverageGate CoverageGate     // 客观门禁(模块 + 阈值)
 }
 
 CoverageGate { Module string; LineThreshold float64; BranchThreshold float64 }
+// 语言无关:各 coverage provider(Go/Node/Python)各自度量,契约只存阈值。
 ```
 
 契约由 Scout 产出,持久化到 session(供 Examiner 对照 + resume)。
@@ -138,6 +139,12 @@ settings:
 ```
 
 未配置时默认 `standard`。向后兼容:现有 project.yaml 无 `coverage` 块也能跑(走 standard 默认)。
+
+## 成本与降级
+
+- 契约 + 自评 = 每 run 多 ~2 次 LLM 调用(产契约 + meta 自评)。
+- smoke 档位可跳过 meta 自评(快速 CI 门,降为 +1 调用)。
+- 契约缓存(同项目+goal+档位复用)为后续优化,**初版 YAGNI 不做**。
 
 ## fixture 验证矩阵
 
