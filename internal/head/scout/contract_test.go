@@ -28,3 +28,14 @@ func TestBuildCoverageContract(t *testing.T) {
 	assert.Contains(t, c.Scope, "internal/llm")
 	assert.Equal(t, 0.65, c.CoverageGate.LineThreshold)
 }
+
+func TestSelfAssessContract(t *testing.T) {
+	mock := llm.NewMockClient(map[string]string{"default": `{"notes":["missing error handling for 5xx","scope omits internal/session"]}`})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(10000, 1000))
+	s := NewScout(driver, setupTestStore(t), &project.Config{}, zap.NewNop())
+
+	c := &contract.Contract{Depth: "standard", Scope: []string{"internal/llm"}}
+	notes, err := s.SelfAssessContract(context.Background(), c)
+	require.NoError(t, err)
+	assert.NotEmpty(t, notes)
+}
