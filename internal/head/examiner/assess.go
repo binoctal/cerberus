@@ -9,6 +9,10 @@ import (
 	"github.com/binoctal/cerberus/internal/head/contract"
 )
 
+// AssessCoverage judges whether a test session met its coverage contract.
+// coveragePct is a test-case pass-ratio proxy for line coverage in v1.
+// TODO(Plan2): wire real line coverage from AutoTest report's Before/AfterCoveragePct.
+// The spec defines LineThreshold as line coverage; the objective gate is therefore nominal until Plan2.
 func (e *Examiner) AssessCoverage(ctx context.Context, c *contract.Contract, results []agent.StepResult, coveragePct float64) (*contract.Assessment, error) {
 	prompt := ai.NewPrompt().
 		System(`You assess a test session against its coverage contract. Judge whether scope, path types, error scopes, boundaries, and invariants are covered. Use the objective coverage %. Report gaps concretely.`).

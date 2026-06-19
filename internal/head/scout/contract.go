@@ -40,6 +40,8 @@ func (s *Scout) BuildCoverageContract(ctx context.Context, goal string, model *p
 // SelfAssessContract critiques a coverage contract for gaps: missing scope,
 // missing path types vs the depth tier, missing invariants. Returns notes
 // the builder can fold into case generation.
+// v1: notes are diagnostic-only (logged). Future versions should feed them into Plan context
+// so they affect case generation.
 func (s *Scout) SelfAssessContract(ctx context.Context, c *contract.Contract) ([]string, error) {
 	prompt := ai.NewPrompt().
 		System(`You critique a coverage contract for gaps: missing scope, missing path types vs the depth tier, missing invariants. Return notes only.`).

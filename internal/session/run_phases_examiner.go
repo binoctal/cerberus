@@ -35,6 +35,8 @@ func (rp *runPhase) executeExaminerPhase() error {
 	// Assess coverage against contract if present
 	if rp.session.Contract != nil {
 		// Compute coverage from results: passed / total * 100
+		// covPct is a test-case pass-ratio proxy for line coverage in v1.
+		// TODO(Plan2): wire real line coverage from AutoTest report's Before/AfterCoveragePct.
 		covPct := 0.0
 		if len(rp.results) > 0 {
 			passed := 0

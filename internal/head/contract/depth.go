@@ -31,6 +31,8 @@ func ExpandDepth(depth string) Dimensions {
 			Concurrency: true,
 		}
 	default: // standard
+		// Standard PathTypes excludes "boundary" per the spec depth table (boundary is thorough-only).
+		// Standard covers boundaries via the separate Boundaries dimension (empty/zero/max/invalid).
 		return Dimensions{
 			PathTypes:  []string{"happy", "alternative"},
 			ErrorScope: []string{"4xx", "validation"},
