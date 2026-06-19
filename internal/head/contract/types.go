@@ -2,28 +2,28 @@ package contract
 
 // Contract is the AI-authored coverage standard for a session.
 type Contract struct {
-	Depth        string            // smoke | standard | thorough
-	Scope        []string          // modules/paths to cover
-	PathTypes    []string          // happy | alternative | boundary | edge
-	ErrorScope   []string          // 4xx | validation | exception
-	Boundaries   []string          // empty | zero | max | invalid | extreme
-	Invariants   []InvariantRef    // pulled from project.yaml invariants
-	Priorities   map[string]string // module → high|med|low
-	CoverageGate Gate              // objective coverage threshold
+	Depth        string            `json:"depth"` // smoke | standard | thorough
+	Scope        []string          `json:"scope"` // modules/paths to cover
+	PathTypes    []string          `json:"path_types"` // happy | alternative | boundary | edge
+	ErrorScope   []string          `json:"error_scope"` // 4xx | validation | exception
+	Boundaries   []string          `json:"boundaries"` // empty | zero | max | invalid | extreme
+	Invariants   []InvariantRef    `json:"invariants"` // pulled from project.yaml invariants
+	Priorities   map[string]string `json:"priorities"` // module → high|med|low
+	CoverageGate Gate              `json:"coverage_gate"` // objective coverage threshold
 }
 
 // InvariantRef references a project invariant the contract must enforce.
 type InvariantRef struct {
-	ID          string
-	Description string
+	ID          string `json:"id"`
+	Description string `json:"description"`
 }
 
 // Gate is an objective coverage threshold (language-agnostic; each coverage
 // provider measures, the contract only stores the threshold).
 type Gate struct {
-	Module          string
-	LineThreshold   float64
-	BranchThreshold float64
+	Module          string  `json:"module"`
+	LineThreshold   float64 `json:"line_threshold"`
+	BranchThreshold float64 `json:"branch_threshold"`
 }
 
 // Assessment is the Examiner's session-level verdict against a Contract.
