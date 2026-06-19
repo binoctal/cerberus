@@ -28,14 +28,14 @@ type Gate struct {
 
 // Assessment is the Examiner's session-level verdict against a Contract.
 type Assessment struct {
-	Reached     bool    `json:"reached"`     // contract satisfied?
-	Gaps        []Gap   `json:"gaps"`        // what's missing
+	Reached     bool    `json:"reached"`      // contract satisfied?
+	Gaps        []Gap   `json:"gaps"`         // what's missing
 	CoveragePct float64 `json:"coverage_pct"` // objective coverage of gated module
 	Reasoning   string  `json:"reasoning"`
 }
 
 // Gap describes a coverage shortfall found during assessment.
 type Gap struct {
-	Kind   string `json:"kind"`   // scope | pathtype | error | boundary | invariant | coverage
+	Kind   string `json:"kind"` // scope | pathtype | error | boundary | invariant | coverage
 	Detail string `json:"detail"`
 }
