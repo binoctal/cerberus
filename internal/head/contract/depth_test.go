@@ -8,8 +8,8 @@ func TestExpandDepth(t *testing.T) {
 		t.Error("smoke must not include boundary paths")
 	}
 	std := ExpandDepth(DepthStandard)
-	if !contains(std.PathTypes, "boundary") || !contains(std.ErrorScope, "4xx") {
-		t.Error("standard must include boundary + 4xx")
+	if !contains(std.PathTypes, "alternative") || contains(std.PathTypes, "boundary") || !contains(std.Boundaries, "empty") {
+		t.Error("standard must include alternative + boundaries, but not boundary path")
 	}
 	thorough := ExpandDepth(DepthThorough)
 	if !contains(thorough.Boundaries, "extreme") {

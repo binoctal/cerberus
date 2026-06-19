@@ -32,7 +32,7 @@ func ExpandDepth(depth string) Dimensions {
 		}
 	default: // standard
 		return Dimensions{
-			PathTypes:  []string{"happy", "alternative", "boundary"},
+			PathTypes:  []string{"happy", "alternative"},
 			ErrorScope: []string{"4xx", "validation"},
 			Boundaries: []string{"empty", "zero", "max", "invalid"},
 		}
