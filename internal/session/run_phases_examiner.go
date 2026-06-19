@@ -31,5 +31,23 @@ func (rp *runPhase) executeExaminerPhase() error {
 		zap.Int("reflections_stored", rp.reflections),
 	)
 
+	// Assess coverage against contract if present
+	if rp.session.Contract != nil {
+		covPct := 0.0
+		if rp.summary != nil {
+			covPct = rp.summary.CoveragePct
+		}
+		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, covPct)
+		if aerr == nil {
+			rp.session.Assessment = assessment
+			rp.session.Logger.Info("coverage assessment",
+				zap.Bool("reached", assessment.Reached),
+				zap.Int("gaps", len(assessment.Gaps)),
+				zap.Float64("coverage_pct", assessment.CoveragePct))
+		} else {
+			rp.session.Logger.Warn("coverage assessment failed", zap.Error(aerr))
+		}
+	}
+
 	return nil
 }

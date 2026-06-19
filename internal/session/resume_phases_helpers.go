@@ -84,4 +84,8 @@ func (rp *resumePhase) buildSummary() {
 		0, // tokens filled in finalize
 		time.Since(rp.startTime),
 	)
+
+	// Include coverage contract and assessment if present
+	rp.summary.Contract = rp.session.Contract
+	rp.summary.Assessment = rp.session.Assessment
 }

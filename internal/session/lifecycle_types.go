@@ -9,6 +9,7 @@ import (
 	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
@@ -53,6 +54,10 @@ type Session struct {
 	// AutoTest phase configuration
 	AutoTestSafety     string // "" | "off" | "approve" | "auto" | "dry-run"
 	LastAutoTestReport *autotest.AutoTestReport
+
+	// Coverage contract (built by Scout, assessed by Examiner)
+	Contract   *contract.Contract
+	Assessment *contract.Assessment
 
 	// Per-head drivers. When nil, the shared Driver is used.
 	scoutDriver    *ai.Driver

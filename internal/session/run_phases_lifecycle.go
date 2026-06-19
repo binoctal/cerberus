@@ -86,4 +86,8 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 	if model != nil {
 		rp.summary.EndpointsFound = len(model.API.Endpoints)
 	}
+
+	// Include coverage contract and assessment if present
+	rp.summary.Contract = rp.session.Contract
+	rp.summary.Assessment = rp.session.Assessment
 }

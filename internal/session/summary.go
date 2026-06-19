@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 )
 
@@ -32,6 +33,10 @@ type SessionSummary struct {
 
 	// Coverage.
 	CoveragePct float64 `json:"coverage_pct"`
+
+	// Coverage contract and assessment (optional, if coverage enabled)
+	Contract   *contract.Contract   `json:"contract,omitempty"`
+	Assessment *contract.Assessment `json:"assessment,omitempty"`
 
 	// Resource usage.
 	TotalTokens int    `json:"total_tokens"`

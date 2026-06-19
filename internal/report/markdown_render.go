@@ -13,7 +13,10 @@ func RenderMarkdown(data *ReportData) string {
 	// Phase 1: Session metadata
 	renderSessionMetadata(&b, data.Session)
 
-	// Phase 2: Summary table
+	// Phase 2: Coverage contract (if present)
+	renderContractSection(&b, data)
+
+	// Phase 3: Summary table
 	if data.Summary != nil && data.Summary.TotalCases > 0 {
 		renderSummaryTable(&b, data.Summary)
 		if data.Summary.Failed > 0 {
@@ -21,16 +24,16 @@ func RenderMarkdown(data *ReportData) string {
 		}
 	}
 
-	// Phase 3: Verdicts table
+	// Phase 4: Verdicts table
 	renderVerdictsTable(&b, data.Verdicts)
 
-	// Phase 4: Evidence section
+	// Phase 5: Evidence section
 	renderEvidenceSection(&b, data)
 
-	// Phase 5: Execution timeline
+	// Phase 6: Execution timeline
 	renderTimelineSection(&b, data.Traces)
 
-	// Phase 6: AutoTest section
+	// Phase 7: AutoTest section
 	b.WriteString(renderAutoTest(data))
 
 	return b.String()
