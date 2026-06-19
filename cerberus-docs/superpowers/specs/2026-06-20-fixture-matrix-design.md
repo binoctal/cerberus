@@ -98,6 +98,10 @@ fixture 间的差异(语言/文件名)通过参数注入。
 - **SaaS**:HTTP executor 真发请求 + server 真响应 + verdicts 产出 + Contract 评估。
 - **通用**:session completed + Contract != nil + verdicts 产出。
 
+### AutoTest 语言路由(关键)
+
+cerberus 的 AutoTest 需按 fixture 语言选 coverage provider(GoCoverageProvider / Node / Python)。**如果 AutoTest 主流程现只路由 Go(语言检测缺失或硬编码),Plan 2 需加语言检测(文件扩展 .go/.js/.py 或项目标志 package.json/requirements.txt)+ provider 路由**。这是 Plan 2 最可能发现并修的——`coverage_node_parse` / `gen_node` / `coverage_python_parse` / `gen_python` 代码存在,但 AutoTest 主流程可能没接 Node/Python。Node fixture 集成测试会首先暴露这一点。
+
 ### bug 处理
 
 Node/Python autotest 暴露的 bug(coverage 解析格式不匹配 / generator 提取失败 / executor 调用错)→ 当场 TDD 修(像 AutoTest source_path/extractFunc 那次)。这是 Plan 2 的核心价值——**发现并修复跨语言 bug**。
