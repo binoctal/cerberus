@@ -16,8 +16,15 @@ func (a *AutoTest) processGap(ctx context.Context, gap CoverageGap, projectDir s
 		Status:     "failed",
 	}
 
-	// Generate test (ignore file read errors, generator may not need source)
-	src, _ := os.ReadFile(gap.File)
+	// Read the target source so the generator can ground the LLM in real code.
+	// go cover emits module-qualified paths (github.com/x/y/...); sourcePath
+	// resolves them to a filesystem path under projectDir.
+	src, readErr := os.ReadFile(sourcePath(gap.File, projectDir))
+	if readErr != nil {
+		a.logger.Warn("autotest: could not read source for gap",
+			zap.String("file", gap.File),
+			zap.Error(readErr))
+	}
 	tf, err := a.gen.Generate(ctx, gap, src)
 	if err != nil {
 		return item

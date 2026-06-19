@@ -18,7 +18,7 @@ func (a *AutoTest) executeSerial(ctx context.Context, projectDir string, before 
 			Status:     "failed", // default until proven otherwise
 		}
 
-		src, _ := os.ReadFile(gap.File)
+		src, _ := os.ReadFile(sourcePath(gap.File, projectDir))
 		tf, err := a.gen.Generate(ctx, gap, src)
 		if err != nil {
 			rep.Failed = append(rep.Failed, gap.File)

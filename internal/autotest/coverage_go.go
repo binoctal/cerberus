@@ -116,7 +116,15 @@ func (p *GoCoverageProvider) NoTestFileGaps(projectDir string) []CoverageGap {
 		}
 		testFile := strings.TrimSuffix(path, ".go") + "_test.go"
 		if _, statErr := os.Stat(testFile); os.IsNotExist(statErr) {
-			gaps = append(gaps, CoverageGap{File: path, Reason: ReasonNoTestFile})
+			// Emit one gap per exported function so the generator targets a
+			// specific function's source, not a whole file.
+			if fns := exportedFuncs(path); len(fns) > 0 {
+				for _, fn := range fns {
+					gaps = append(gaps, CoverageGap{File: path, Func: fn, Reason: ReasonNoTestFile})
+				}
+			} else {
+				gaps = append(gaps, CoverageGap{File: path, Reason: ReasonNoTestFile})
+			}
 		}
 		return nil
 	})
