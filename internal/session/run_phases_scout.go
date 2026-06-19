@@ -42,14 +42,18 @@ func (rp *runPhase) executeScoutPhase() (*project.ProjectModel, error) {
 
 	// Build coverage contract after Analyze, before Plan
 	depth := project.ResolveCoverage(rp.session.Config.Settings.Coverage).Depth
-	rp.session.Contract, err = scoutHead.BuildCoverageContract(rp.ctx, rp.session.Goal, model, depth)
-	if err != nil {
-		rp.session.Logger.Warn("coverage contract build failed; proceeding without", zap.Error(err))
-	}
-	if rp.session.Contract != nil && depth != "smoke" {
-		if notes, nerr := scoutHead.SelfAssessContract(rp.ctx, rp.session.Contract); nerr == nil {
-			rp.session.Logger.Info("contract self-assessment notes", zap.Strings("notes", notes))
+	if depth != "off" {
+		rp.session.Contract, err = scoutHead.BuildCoverageContract(rp.ctx, rp.session.Goal, model, depth)
+		if err != nil {
+			rp.session.Logger.Warn("coverage contract build failed; proceeding without", zap.Error(err))
 		}
+		if rp.session.Contract != nil && depth != "smoke" {
+			if notes, nerr := scoutHead.SelfAssessContract(rp.ctx, rp.session.Contract); nerr == nil {
+				rp.session.Logger.Info("contract self-assessment notes", zap.Strings("notes", notes))
+			}
+		}
+	} else {
+		rp.session.Logger.Info("coverage disabled - skipping contract build")
 	}
 
 	plan, err := scoutHead.Plan(rp.ctx, rp.session.Goal, model)

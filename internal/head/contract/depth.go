@@ -9,9 +9,9 @@ const (
 
 // Dimensions is the per-tier expansion of what the contract should cover.
 type Dimensions struct {
-	PathTypes  []string
-	ErrorScope []string
-	Boundaries []string
+	PathTypes   []string
+	ErrorScope  []string
+	Boundaries  []string
 	Concurrency bool
 }
 
@@ -25,9 +25,9 @@ func ExpandDepth(depth string) Dimensions {
 		}
 	case DepthThorough:
 		return Dimensions{
-			PathTypes:  []string{"happy", "alternative", "boundary", "edge"},
-			ErrorScope: []string{"4xx", "validation", "exception"},
-			Boundaries: []string{"empty", "zero", "max", "invalid", "extreme"},
+			PathTypes:   []string{"happy", "alternative", "boundary", "edge"},
+			ErrorScope:  []string{"4xx", "validation", "exception"},
+			Boundaries:  []string{"empty", "zero", "max", "invalid", "extreme"},
 			Concurrency: true,
 		}
 	default: // standard

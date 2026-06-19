@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 )
 
@@ -33,9 +34,16 @@ func (rp *runPhase) executeExaminerPhase() error {
 
 	// Assess coverage against contract if present
 	if rp.session.Contract != nil {
+		// Compute coverage from results: passed / total * 100
 		covPct := 0.0
-		if rp.summary != nil {
-			covPct = rp.summary.CoveragePct
+		if len(rp.results) > 0 {
+			passed := 0
+			for _, r := range rp.results {
+				if r.Status == agent.StepPassed {
+					passed++
+				}
+			}
+			covPct = float64(passed) / float64(len(rp.results)) * 100
 		}
 		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, covPct)
 		if aerr == nil {
