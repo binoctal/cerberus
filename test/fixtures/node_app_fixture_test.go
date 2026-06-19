@@ -3,6 +3,7 @@ package fixtures
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,10 @@ func TestNodeAppFixture(t *testing.T) {
 	if _, err := exec.LookPath("npm"); err != nil {
 		t.Skip("npm not available, skipping Node fixture test")
 	}
+
+	// Get absolute path to node-app fixture (tests run from fixtures directory)
+	absProjectDir, err := filepath.Abs("node-app")
+	require.NoError(t, err, "Failed to get absolute path to node-app fixture")
 
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
@@ -39,9 +44,12 @@ func TestNodeAppFixture(t *testing.T) {
 		Store:      s,
 		Client:     mockClient,
 		Logger:     zap.NewNop(),
-		ProjectDir: "test/fixtures/node-app",
+		ProjectDir: absProjectDir,
 	})
 	require.NoError(t, err)
+
+	// Enable AutoTest phase so coverage_node_parse and gen_node_extract are actually called
+	sess.AutoTestSafety = "dry-run"
 
 	err = sess.Run(context.Background())
 	// Node fixture tests whether cerberus can process a Node project.
