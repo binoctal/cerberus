@@ -10,16 +10,6 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
-// analysisScope holds the state for project model analysis.
-type analysisScope struct {
-	ctx          context.Context
-	target       TargetInfo
-	configModel  *project.ProjectModel
-	aiPrompt     string
-	aiOutput     AnalyzeOutput
-	shouldSkipAI bool
-}
-
 // buildConfigModel creates the initial model from project configuration.
 func (s *Scout) buildConfigModel() *project.ProjectModel {
 	return s.buildModelFromConfig()
@@ -39,8 +29,12 @@ func (s *Scout) checkModelCoverage(model *project.ProjectModel) bool {
 // buildAIPrompt constructs the full AI prompt for analysis.
 func (s *Scout) buildAIPrompt(target TargetInfo) string {
 	analyzeCtx := s.buildAnalyzeContext(target)
+	system := promptAnalyzeSystem
+	if target.URL == "" {
+		system = promptAnalyzeSystemLocal
+	}
 	return ai.NewPrompt().
-		System(promptAnalyzeSystem).
+		System(system).
 		Context(analyzeCtx).
 		Task(s.buildAnalyzeTask(target)).
 		Output(promptAnalyzeOutput).

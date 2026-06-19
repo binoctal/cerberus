@@ -40,5 +40,21 @@ func FallbackParseAction(raw string, defaultTarget string) types.TypedAction {
 
 	// Phase 3: Match keyword and construct action
 	lower := strings.ToLower(firstLine)
-	return matchKeyword(lower, defaultTarget)
+	action := matchKeyword(lower, defaultTarget)
+	// A target that is not a URL (e.g. a local path or command in local-only
+	// mode) cannot be reached by an HTTP action; degrade to a file read so the
+	// case at least inspects the target instead of failing on connection.
+	if _, ok := action.(types.HTTPAction); ok && !looksLikeURLTarget(defaultTarget) {
+		return types.FileReadAction{Path: defaultTarget}
+	}
+	return action
+}
+
+// looksLikeURLTarget reports whether a target looks like an HTTP target:
+// an absolute URL (http/https) or a server-relative path ("/api/...").
+// Anything else is treated as a local path/command.
+func looksLikeURLTarget(target string) bool {
+	return strings.HasPrefix(target, "http://") ||
+		strings.HasPrefix(target, "https://") ||
+		strings.HasPrefix(target, "/")
 }

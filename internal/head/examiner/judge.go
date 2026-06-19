@@ -135,7 +135,10 @@ func (j *Judge) buildEvidenceContext(r agent.StepResult) string {
 		b = append(b, fmt.Sprintf("Last Action: %s\n", string(actionJSON))...)
 	}
 	if r.Error != nil {
-		b = append(b, fmt.Sprintf("Step Error: %s\n", r.Error)...)
+		// A step-level error means the test harness itself failed (steer parse,
+		// executor crash, etc.) — the target was never exercised. Flag it so the
+		// judge does not mistake it for the system-under-test returning an error.
+		b = append(b, fmt.Sprintf("Step Error (FRAMEWORK — the test harness failed to execute the target; this is NOT the system-under-test responding): %s\n", r.Error)...)
 	}
 
 	return string(b)

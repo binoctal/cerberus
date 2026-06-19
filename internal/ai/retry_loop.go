@@ -3,6 +3,8 @@ package ai
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -22,8 +24,9 @@ func executeWithRetry(
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Compute backoff delay
-			delay := computeBackoff(attempt, baseDelay, maxDelay)
+			// Compute backoff delay with jitter to avoid retry thundering
+			// herds under rate limiting.
+			delay := jitteredDelay(computeBackoff(attempt, baseDelay, maxDelay))
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
@@ -59,4 +62,35 @@ func computeBackoff(attempt int, baseDelay, maxDelay time.Duration) time.Duratio
 		delay = maxDelay
 	}
 	return delay
+}
+
+// withJitter applies "equal jitter" to a backoff delay: at least half the
+// delay, plus a random fraction of the remaining half. This spreads
+// concurrent retries so they don't all wake at the same instant and re-trip
+// the rate limit (thundering herd). A nil rand or non-positive delay returns
+// the delay untouched.
+func withJitter(d time.Duration, r *rand.Rand) time.Duration {
+	if r == nil || d <= 0 {
+		return d
+	}
+	half := int64(d) / 2
+	if half <= 0 {
+		return d
+	}
+	return time.Duration(half + r.Int63n(half))
+}
+
+// jitterR is guarded by jitterMu because *rand.Rand is not safe for
+// concurrent use — executeWithRetry runs in parallel across heads and the
+// examiner judge loop.
+var (
+	jitterMu sync.Mutex
+	jitterR  = rand.New(rand.NewSource(time.Now().UnixNano()))
+)
+
+// jitteredDelay applies withJitter via the package-level concurrent-safe rand.
+func jitteredDelay(d time.Duration) time.Duration {
+	jitterMu.Lock()
+	defer jitterMu.Unlock()
+	return withJitter(d, jitterR)
 }

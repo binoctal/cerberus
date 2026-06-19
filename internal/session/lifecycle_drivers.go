@@ -57,10 +57,20 @@ func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierMode
 				zap.String("model", m), zap.Error(err))
 			continue
 		}
-		budget := ai.NewTokenBudget(
-			s.Config.Settings.AIBudget.SessionTotalTokens,
-			s.Config.Settings.AIBudget.PerCallLimit,
-		)
+		// Heads share the session's single budget so token consumption is
+		// accounted globally (ai_budget.session_total_tokens covers the whole
+		// session, not per-head). Fall back to an isolated budget only when no
+		// shared driver exists (e.g. a unit test constructing Session directly).
+		var budget *ai.TokenBudget
+		if s.Driver != nil {
+			budget = s.Driver.Budget()
+		}
+		if budget == nil {
+			budget = ai.NewTokenBudget(
+				s.Config.Settings.AIBudget.SessionTotalTokens,
+				s.Config.Settings.AIBudget.PerCallLimit,
+			)
+		}
 		*h.field = ai.NewDriver(client, budget)
 		s.Logger.Info("head driver configured",
 			zap.String("head", string(h.head)),

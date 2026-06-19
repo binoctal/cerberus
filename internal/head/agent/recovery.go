@@ -46,6 +46,13 @@ func (rc *Recovery) Recover(ctx context.Context, tc TestCase, result types.Execu
 
 	action, err := types.UnmarshalAction(out.Envelope)
 	if err != nil {
+		// Mirrors steer: a malformed action payload is an LLM output defect,
+		// not a reason to abandon the case. Fall back to a safe default action
+		// so the target gets exercised (skip means it is never tested).
+		if isParseError(err) {
+			rc.logger.Warn("recover action parse failed, using fallback", zap.Error(err))
+			return RecoverDecision{Action: FallbackParseAction(err.Error(), tc.Target)}, nil
+		}
 		rc.logger.Warn("recover unmarshal failed, skipping", zap.Error(err))
 		return RecoverDecision{Skip: true}, nil
 	}

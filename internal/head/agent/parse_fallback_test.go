@@ -92,3 +92,30 @@ func TestFallbackParseAction_ErrorMessageCleanup(t *testing.T) {
 	assert.True(t, ok, "expected WaitAction when no clear intent in error message")
 	assert.Equal(t, "1s", waitAct.Duration)
 }
+
+// TestFallbackParseAction_LocalTargetUsesFileRead verifies that a fallback
+// against a local target (a path/command, not a URL) degrades to a file read
+// instead of an HTTP action — an HTTP action against a non-URL target always
+// fails to connect.
+func TestFallbackParseAction_LocalTargetUsesFileRead(t *testing.T) {
+	a := FallbackParseAction("error: get request failed", "internal/llm")
+	_, isHTTP := a.(types.HTTPAction)
+	assert.False(t, isHTTP, "local target must not fall back to HTTP")
+	fr, ok := a.(types.FileReadAction)
+	assert.True(t, ok, "local target should fall back to file_read")
+	assert.Equal(t, "internal/llm", fr.Path)
+}
+
+func TestFallbackParseAction_AbsoluteURLTargetKeepsHTTP(t *testing.T) {
+	a := FallbackParseAction("error: get request failed", "http://x.test/api")
+	http, ok := a.(types.HTTPAction)
+	assert.True(t, ok)
+	assert.Equal(t, "http://x.test/api", http.URL)
+}
+
+func TestFallbackParseAction_RelativePathTargetKeepsHTTP(t *testing.T) {
+	// SaaS relative paths ("/api/users") must stay HTTP.
+	a := FallbackParseAction("error: get request failed", "/api/users")
+	_, ok := a.(types.HTTPAction)
+	assert.True(t, ok, "SaaS relative path should stay HTTP")
+}

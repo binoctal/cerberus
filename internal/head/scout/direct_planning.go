@@ -27,8 +27,12 @@ func (s *Scout) buildPlanningContext(model *project.ProjectModel, memory string)
 func (s *Scout) buildPlanningPrompt(ctx context.Context, goal string, model *project.ProjectModel, memory string) string {
 	planCtx := s.buildPlanningContext(model, memory)
 
+	system := promptPlanSystem
+	if s.isLocalOnly() {
+		system = promptPlanSystemLocal
+	}
 	return ai.NewPrompt().
-		System(promptPlanSystem).
+		System(system).
 		Context(planCtx).
 		Task(fmt.Sprintf("Generate test cases for this project.\nTest Goal: %s", goal)).
 		Output(promptPlanOutput).

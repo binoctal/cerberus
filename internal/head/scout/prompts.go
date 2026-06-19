@@ -9,6 +9,15 @@ RULES:
 - Identify the tech stack from service names and URLs.
 - Be thorough but don't fabricate — only list plausible endpoints for the described service.`
 
+const promptAnalyzeSystemLocal = `You are a test reconnaissance agent analyzing a LOCAL CODEBASE. There is NO running HTTP service — do NOT infer or invent API endpoints or URLs.
+
+RULES:
+- Treat the project directory (source files, packages, build/test commands) as the test target.
+- Identify the tech stack, language, build tool, and entry points from the file structure.
+- List concrete testable surfaces: key packages/files, CLI entry points, and build/test commands (e.g. "go test ./...", "npm test").
+- Assign confidence 0.9+ to items visible in the structure; 0.5-0.7 to inferred ones.
+- Do NOT fabricate endpoints. If there is no HTTP service, leave "endpoints" empty.`
+
 const promptAnalyzeOutput = `Respond with JSON:
 {
   "endpoints": [
@@ -30,6 +39,18 @@ RULES:
 - Use standard HTTP methods in the "method" field.
 - Assign priority 1.0 (highest) to explicitly listed endpoints, 0.5 to inferred ones.
 - Include both positive tests (expect success) and negative tests (expect failure for invalid input).`
+
+const promptPlanSystemLocal = `You are a test planning agent for a LOCAL CODEBASE. There is NO running HTTP service, so do NOT generate http_request/api_request test cases.
+
+RULES:
+- Generate test cases that exercise the code locally using these actions:
+  - process_exec: run build/test/lint/CLI commands (e.g. go test ./internal/..., npm test, go vet).
+  - file_read / file_glob / file_exists: inspect source files and structure.
+  - code_analyze / code_symbols / code_lint: static checks on source.
+- Set each case "action" to one of the above — never http_request.
+- Set "target" to a concrete path or command (e.g. "internal/llm", "go test ./internal/llm/..."), never a URL.
+- Order by priority: high-risk modules first.
+- Each case must have a clear, testable expectation grounded in observable output (exit code, file contents, symbol presence).`
 
 const promptPlanOutput = `Respond with JSON:
 {

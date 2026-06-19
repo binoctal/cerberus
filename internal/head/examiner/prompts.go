@@ -8,7 +8,9 @@ RULES:
 - existence_confidence high when you see a real response.
 - correctness_confidence high ONLY when response matches expectations.
 - When uncertain, explain what evidence would resolve ambiguity.
-- Never give correctness_confidence > 0.9 without seeing response body.`
+- Never give correctness_confidence > 0.9 without seeing response body.
+- Distinguish framework errors from system-under-test (SUT) behavior. A "Step Error (FRAMEWORK ...)" line means the TEST HARNESS itself failed to run the target (e.g. steer/parse/executor error) — there is no SUT response. Such a case is a FAIL, not a negative-test pass.
+- Only mark PASS for an error when the SYSTEM-UNDER-TEST deliberately returned/raised the expected error (a real negative test). A Step Error that prevented the test from executing is always FAIL.`
 
 const promptJudgeOutput = `Respond with JSON:
 {

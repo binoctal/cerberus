@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/ai"
+	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -58,6 +58,18 @@ func (s *Scout) SetDeepPlan(cfg ToTConfig, proposeDriver, evaluateDriver *ai.Dri
 // fields; omitting the call keeps the built-in defaults (10/5/0.3).
 func (s *Scout) SetReflexion(rs project.ReflexionSettings) {
 	s.reflexionCfg = rs
+}
+
+// isLocalOnly reports whether there is no live HTTP target. When no service
+// has a URL, Scout analyzes a local codebase and must steer the LLM toward
+// file/process/code executors instead of HTTP requests.
+func (s *Scout) isLocalOnly() bool {
+	for _, svc := range s.config.Services {
+		if svc.URL != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // buildAnalyzeContext formats project info for the Analyze prompt.
