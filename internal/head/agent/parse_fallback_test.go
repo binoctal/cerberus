@@ -93,17 +93,33 @@ func TestFallbackParseAction_ErrorMessageCleanup(t *testing.T) {
 	assert.Equal(t, "1s", waitAct.Duration)
 }
 
-// TestFallbackParseAction_LocalTargetUsesFileRead verifies that a fallback
-// against a local target (a path/command, not a URL) degrades to a file read
-// instead of an HTTP action — an HTTP action against a non-URL target always
-// fails to connect.
-func TestFallbackParseAction_LocalTargetUsesFileRead(t *testing.T) {
+// TestFallbackParseAction_CommandTargetUsesProcessExec verifies that a
+// command-like target (e.g. "go test ./...") falls back to process execution
+// instead of being read as a file path (which always fails "no such file").
+func TestFallbackParseAction_CommandTargetUsesProcessExec(t *testing.T) {
+	a := FallbackParseAction("error: get request failed", "go test ./internal/llm/...")
+	pe, ok := a.(types.ProcessExecAction)
+	assert.True(t, ok, "command target should fall back to process_exec")
+	assert.Equal(t, "go", pe.Command)
+	assert.Equal(t, []string{"test", "./internal/llm/..."}, pe.Args)
+}
+
+// TestFallbackParseAction_DirectoryTargetUsesFileGlob verifies that a
+// directory-like target (no file extension) falls back to a glob so its
+// contents are listed, instead of file_read which errors "is a directory".
+func TestFallbackParseAction_DirectoryTargetUsesFileGlob(t *testing.T) {
 	a := FallbackParseAction("error: get request failed", "internal/llm")
-	_, isHTTP := a.(types.HTTPAction)
-	assert.False(t, isHTTP, "local target must not fall back to HTTP")
+	_, ok := a.(types.FileGlobAction)
+	assert.True(t, ok, "directory target should fall back to file_glob")
+}
+
+// TestFallbackParseAction_FileTargetUsesFileRead verifies that a file path
+// target (with extension) still falls back to file_read.
+func TestFallbackParseAction_FileTargetUsesFileRead(t *testing.T) {
+	a := FallbackParseAction("error: get request failed", "internal/llm/client.go")
 	fr, ok := a.(types.FileReadAction)
-	assert.True(t, ok, "local target should fall back to file_read")
-	assert.Equal(t, "internal/llm", fr.Path)
+	assert.True(t, ok, "file target should fall back to file_read")
+	assert.Equal(t, "internal/llm/client.go", fr.Path)
 }
 
 func TestFallbackParseAction_AbsoluteURLTargetKeepsHTTP(t *testing.T) {

@@ -41,20 +41,51 @@ func FallbackParseAction(raw string, defaultTarget string) types.TypedAction {
 	// Phase 3: Match keyword and construct action
 	lower := strings.ToLower(firstLine)
 	action := matchKeyword(lower, defaultTarget)
-	// A target that is not a URL (e.g. a local path or command in local-only
-	// mode) cannot be reached by an HTTP action; degrade to a file read so the
-	// case at least inspects the target instead of failing on connection.
-	if _, ok := action.(types.HTTPAction); ok && !looksLikeURLTarget(defaultTarget) {
-		return types.FileReadAction{Path: defaultTarget}
+	// An HTTP action only makes sense against a URL target. For non-URL
+	// targets, pick a local executor matching the target's shape so the case
+	// proceeds (file_read for files, file_glob for dirs, process_exec for
+	// commands) instead of failing to connect.
+	if _, ok := action.(types.HTTPAction); ok {
+		if alt := localActionFor(defaultTarget); alt != nil {
+			return alt
+		}
 	}
 	return action
 }
 
 // looksLikeURLTarget reports whether a target looks like an HTTP target:
 // an absolute URL (http/https) or a server-relative path ("/api/...").
-// Anything else is treated as a local path/command.
 func looksLikeURLTarget(target string) bool {
 	return strings.HasPrefix(target, "http://") ||
 		strings.HasPrefix(target, "https://") ||
 		strings.HasPrefix(target, "/")
+}
+
+// localActionFor returns a local-execution action matching the target's shape,
+// or nil if the target is a URL (the caller keeps the HTTP action). Shapes:
+//   - command (contains spaces, e.g. "go test ./..."): ProcessExecAction
+//   - file path (has a file extension, e.g. "pkg/file.go"): FileReadAction
+//   - directory (no extension, e.g. "internal/llm"): FileGlobAction
+func localActionFor(target string) types.TypedAction {
+	if looksLikeURLTarget(target) {
+		return nil
+	}
+	if strings.Contains(target, " ") {
+		parts := strings.Fields(target)
+		return types.ProcessExecAction{Command: parts[0], Args: parts[1:]}
+	}
+	if hasFileExtension(target) {
+		return types.FileReadAction{Path: target}
+	}
+	return types.FileGlobAction{Pattern: strings.TrimRight(target, "/") + "/**", Path: "."}
+}
+
+// hasFileExtension reports whether the final path segment looks like a file
+// (contains a dot that is not a leading dot, e.g. "client.go" but not "llm").
+func hasFileExtension(target string) bool {
+	base := target
+	if i := strings.LastIndexAny(base, `/\`); i >= 0 {
+		base = base[i+1:]
+	}
+	return strings.IndexByte(base, '.') > 0
 }
