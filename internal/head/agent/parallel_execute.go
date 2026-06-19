@@ -25,6 +25,10 @@ func (p *ParallelExecutor) ExecutePlan(ctx context.Context, plan *TestPlan, sess
 	var wg sync.WaitGroup
 	for i := range plan.Cases {
 		tc := &plan.Cases[i]
+		if isDeprioritized(tc) {
+			p.skipAndStore(tc, state)
+			continue
+		}
 		wg.Add(1)
 
 		go func(tc *TestCase) {

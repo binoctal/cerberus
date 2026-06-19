@@ -117,6 +117,21 @@ func (p *ParallelExecutor) executeAndStore(ctx context.Context, tc *TestCase, se
 	)
 }
 
+// skipAndStore records a skipped result for a deprioritized case and marks it
+// complete so dependent cases cascade-skip, without executing or consuming a
+// worker slot.
+func (p *ParallelExecutor) skipAndStore(tc *TestCase, state *parallelExecState) {
+	state.mu.Lock()
+	state.results[tc.ID] = StepResult{TestCase: tc, Status: StepSkipped}
+	close(state.completed[tc.ID])
+	state.mu.Unlock()
+
+	p.logger.Info("parallel case skipped (deprioritized)",
+		zap.String("case_id", tc.ID),
+		zap.Float64("priority", tc.Priority),
+	)
+}
+
 // collectResults collects results in the original order
 func collectResults(cases []TestCase, results map[string]StepResult) []StepResult {
 	ordered := make([]StepResult, 0, len(cases))

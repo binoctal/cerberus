@@ -20,8 +20,8 @@ func TestInvalidReason(t *testing.T) {
 	assert.NotEmpty(t, invalidReason(".", dir), "too broad")
 	assert.NotEmpty(t, invalidReason("", dir), "empty")
 	assert.Empty(t, invalidReason("http://x.test/api", dir), "URL not validated")
-	assert.Empty(t, invalidReason("go test ./...", dir), "go is in PATH")
-	assert.NotEmpty(t, invalidReason("nonexistent-cmd-xyz-123 arg", dir), "bad command")
+	assert.Empty(t, invalidReason("go test ./...", dir), "command-like (spaces) not statically validated")
+	assert.Empty(t, invalidReason("nonexistent-cmd-xyz-123 arg", dir), "command-like not statically validated")
 	assert.Empty(t, invalidReason("real.go", dir), "existing file")
 	assert.NotEmpty(t, invalidReason("missing.go", dir), "missing file")
 }
@@ -40,6 +40,6 @@ func TestValidateTargets_DeprioritizesInvalid(t *testing.T) {
 
 	assert.Equal(t, 2, flagged)
 	assert.Equal(t, 0.9, plan.Cases[0].Priority, "valid target kept")
-	assert.Equal(t, 0.0, plan.Cases[1].Priority, "missing path deprioritized")
-	assert.Equal(t, 0.0, plan.Cases[2].Priority, "too-broad target deprioritized")
+	assert.Equal(t, -1.0, plan.Cases[1].Priority, "missing path deprioritized")
+	assert.Equal(t, -1.0, plan.Cases[2].Priority, "too-broad target deprioritized")
 }

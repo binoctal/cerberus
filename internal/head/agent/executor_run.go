@@ -7,6 +7,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// isDeprioritized reports whether a case was deprioritized by Scout validation
+// (priority < 0) and should be skipped rather than executed. A zero priority
+// is the struct zero value (an unset but legitimate case), not a signal.
+func isDeprioritized(tc *TestCase) bool {
+	return tc.Priority < 0
+}
+
 // ExecutePlan runs all TestCases in the plan sequentially and returns results.
 func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
 	defer r.processMgr.StopAll()
@@ -17,6 +24,16 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 	for i := range plan.Cases {
 		tc := &plan.Cases[i]
 		remainingCases = len(plan.Cases) - i
+		if isDeprioritized(tc) {
+			r.logger.Info("skipping deprioritized case",
+				zap.String("case_id", tc.ID),
+				zap.Float64("priority", tc.Priority),
+			)
+			r.emitProgress(ProgressEvent{Type: "case_start", CaseID: tc.ID})
+			results = append(results, StepResult{TestCase: tc, Status: StepSkipped})
+			r.emitProgress(ProgressEvent{Type: "case_complete", CaseID: tc.ID, Status: StepSkipped})
+			continue
+		}
 		r.logger.Info("executing test case",
 			zap.String("case_id", tc.ID),
 			zap.String("target", tc.Target),

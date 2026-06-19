@@ -3,7 +3,6 @@ package scout
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -30,11 +29,11 @@ func invalidReason(target, projectDir string) string {
 	if isURLTarget(t) {
 		return "" // URL: live service may be down; don't fail planning
 	}
+	// Command-like targets (contain spaces) are not statically validated: they
+	// may be shell commands OR natural-language descriptions (e.g. invariant
+	// descriptions like "Users endpoint works"), and LookPath can't tell them
+	// apart reliably. Only paths and the too-broad "." are checked.
 	if strings.Contains(t, " ") {
-		parts := strings.Fields(t)
-		if _, err := exec.LookPath(parts[0]); err != nil {
-			return fmt.Sprintf("command %q not found in PATH", parts[0])
-		}
 		return ""
 	}
 	path := t
@@ -57,7 +56,7 @@ func (s *Scout) ValidateTargets(plan *agent.TestPlan, projectDir string) int {
 	flagged := 0
 	for i := range plan.Cases {
 		if reason := invalidReason(plan.Cases[i].Target, projectDir); reason != "" {
-			plan.Cases[i].Priority = 0
+			plan.Cases[i].Priority = -1
 			flagged++
 			s.logger.Warn("case target invalid, deprioritized",
 				zap.String("case", plan.Cases[i].ID),
