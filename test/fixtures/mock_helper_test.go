@@ -15,7 +15,14 @@ func MockResponses(targetFile string) map[string]string {
 		"priorities": {},
 		"coverage_gate": {"module":"` + targetFile + `","line_threshold":0.5}
 	}`
+	// Mock test generation response - should return a simple test template
+	testGeneration := `describe('generated test', () => {
+  test('placeholder', () => {
+    expect(true).toBe(true);
+  });
+})`
 	return map[string]string{
 		"default": planAndContract,
+		"test":    testGeneration,
 	}
 }

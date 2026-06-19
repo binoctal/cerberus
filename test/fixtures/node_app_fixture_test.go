@@ -58,4 +58,9 @@ func TestNodeAppFixture(t *testing.T) {
 	require.NoError(t, err, "Node session should complete")
 
 	assert.NotNil(t, sess.Contract)
+
+	// Verify AutoTest ran and found gaps (mul function is uncovered)
+	assert.NotNil(t, sess.LastAutoTestReport, "AutoTest report should exist in dry-run mode")
+	assert.Greater(t, len(sess.LastAutoTestReport.Gaps), 0, "Should find coverage gaps (mul function)")
+	assert.Greater(t, len(sess.LastAutoTestReport.Generated), 0, "Should generate tests for gaps")
 }
