@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"fmt"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -88,4 +91,20 @@ func hasFileExtension(target string) bool {
 		base = base[i+1:]
 	}
 	return strings.IndexByte(base, '.') > 0
+}
+
+// actionFromEnvelope parses an LLM action envelope into a concrete action,
+// falling back to a safe default on parse errors (malformed/empty payloads
+// are common with non-Claude models) instead of hard-failing. Centralizes the
+// parse-and-fallback logic shared by steer and recovery so the two cannot drift.
+func actionFromEnvelope(envelope types.ActionEnvelope, target string, logger *zap.Logger) (types.TypedAction, error) {
+	action, err := types.UnmarshalAction(envelope)
+	if err != nil {
+		if isParseError(err) {
+			logger.Warn("action parse failed, using fallback", zap.Error(err))
+			return FallbackParseAction(err.Error(), target), nil
+		}
+		return nil, fmt.Errorf("unmarshal action: %w", err)
+	}
+	return action, nil
 }

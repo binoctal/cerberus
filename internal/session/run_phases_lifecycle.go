@@ -1,12 +1,23 @@
 package session
 
 import (
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/project"
 )
+
+// healthWarning returns a non-empty warning when the session shows signs of a
+// broken accounting pipeline (activity but zero tokens recorded) — a
+// regression guard for the per-head-budget-sharing fix.
+func healthWarning(tokensUsed int, elapsed time.Duration) string {
+	if tokensUsed == 0 && elapsed > 5*time.Second {
+		return "no token usage recorded despite session activity — possible budget accounting issue (per-head drivers must share the session budget)"
+	}
+	return ""
+}
 
 // initialize prepares the session for running
 func (rp *runPhase) initialize() error {
@@ -18,6 +29,9 @@ func (rp *runPhase) initialize() error {
 func (rp *runPhase) finalize() {
 	elapsed := time.Since(rp.startTime)
 	tokensUsed := rp.session.Driver.Budget().SessionTotal - rp.session.Driver.Budget().Remaining()
+	if w := healthWarning(tokensUsed, elapsed); w != "" {
+		rp.session.Logger.Warn(w)
+	}
 
 	// Build summary if not yet built (e.g. on early error).
 	if rp.summary == nil {
@@ -40,6 +54,7 @@ func (rp *runPhase) finalize() {
 
 	// Print human-readable summary.
 	rp.session.Logger.Info("session summary", zap.String("summary", rp.summary.String()))
+	fmt.Println(rp.summary.String())
 
 	// Update status (terminal).
 	status := "completed"

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -134,4 +136,24 @@ func TestFallbackParseAction_RelativePathTargetKeepsHTTP(t *testing.T) {
 	a := FallbackParseAction("error: get request failed", "/api/users")
 	_, ok := a.(types.HTTPAction)
 	assert.True(t, ok, "SaaS relative path should stay HTTP")
+}
+
+// TestActionFromEnvelope verifies the centralized parse-and-fallback used by
+// both steer and recovery: valid payloads parse; malformed payloads fall back
+// instead of erroring.
+func TestActionFromEnvelope(t *testing.T) {
+	t.Run("valid payload parses", func(t *testing.T) {
+		env := types.ActionEnvelope{Type: types.ActionAPIRequest, Raw: mustJSON(types.HTTPAction{Method: "GET", URL: "/x"})}
+		action, err := actionFromEnvelope(env, "/x", zap.NewNop())
+		require.NoError(t, err)
+		_, ok := action.(types.HTTPAction)
+		assert.True(t, ok)
+	})
+
+	t.Run("malformed payload falls back", func(t *testing.T) {
+		env := types.ActionEnvelope{Type: types.ActionAPIRequest, Raw: nil} // empty payload
+		action, err := actionFromEnvelope(env, "/x", zap.NewNop())
+		require.NoError(t, err, "parse error must fall back, not hard-fail")
+		assert.NotNil(t, action)
+	})
 }

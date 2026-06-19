@@ -73,3 +73,19 @@ func TestIsLocalOnly(t *testing.T) {
 	sSvc := NewScout(nil, setupTestStore(t), &svcCfg, zap.NewNop())
 	assert.False(t, sSvc.isLocalOnly())
 }
+
+// TestIsLocalOnly_ModeTakesPrecedence verifies explicit mode overrides the
+// services-based inference, so users can force local vs SaaS without ambiguity.
+func TestIsLocalOnly_ModeTakesPrecedence(t *testing.T) {
+	localForced := project.DefaultConfig()
+	localForced.Settings.Mode = project.ModeLocal
+	localForced.Services = []project.Service{{Name: "web", URL: "http://x.test"}} // would infer SaaS
+	s := NewScout(nil, setupTestStore(t), &localForced, zap.NewNop())
+	assert.True(t, s.isLocalOnly(), "mode=local forces local-only even with services")
+
+	saasForced := project.DefaultConfig()
+	saasForced.Settings.Mode = project.ModeSaaS
+	saasForced.Services = nil // would infer local
+	s2 := NewScout(nil, setupTestStore(t), &saasForced, zap.NewNop())
+	assert.False(t, s2.isLocalOnly(), "mode=saas forces SaaS even without services")
+}

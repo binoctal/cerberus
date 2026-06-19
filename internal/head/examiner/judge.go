@@ -30,6 +30,12 @@ func NewJudge(judgeDriver, criticDriver *ai.Driver, config ExaminerConfig) *Judg
 
 // Judge evaluates a step result against its expectation and returns a verdict.
 func (j *Judge) Judge(ctx context.Context, result agent.StepResult) (*JudgeResult, error) {
+	// Fast path: results with an objective success signal (process exit code,
+	// HTTP status, positive expectation) are judged deterministically,
+	// skipping the LLM for speed, cost, and reliability.
+	if v, ok := objectiveVerdict(result, result.TestCase.Expectation); ok {
+		return v, nil
+	}
 	evidence := j.buildEvidenceContext(result)
 	expectation := result.TestCase.Expectation
 	task := fmt.Sprintf("Evaluate this test evidence against expectations.\nExpectation: %s", expectation)

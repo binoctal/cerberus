@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -44,6 +45,7 @@ databases: []
 invariants: []
 
 settings:
+  # mode: "" (auto: infer from services), "local" (local codebase only), or "saas" (live HTTP)
   max_duration: 30m
   confidence_threshold: 0.7
   auto_fix: low_only
@@ -130,6 +132,10 @@ actors:
 				}
 			}
 
+			if hint := proxyHint(); hint != "" {
+				fmt.Println(hint)
+				fmt.Println()
+			}
 			fmt.Println()
 			fmt.Println("Next steps:")
 			fmt.Println("  1. Edit .cerberus/project.yaml with your project details")
@@ -141,4 +147,17 @@ actors:
 	}
 	cmd.Flags().StringVar(&urlFlag, "url", "", "Target URL")
 	return cmd
+}
+
+// proxyHint returns guidance when a non-official Anthropic endpoint is set via
+// ANTHROPIC_BASE_URL — a hardcoded ai_budget.model may not be valid there.
+// Empty when no guidance is needed (no endpoint or official api.anthropic.com).
+func proxyHint() string {
+	base := os.Getenv("ANTHROPIC_BASE_URL")
+	if base == "" || strings.Contains(base, "api.anthropic.com") {
+		return ""
+	}
+	return fmt.Sprintf("Note: custom LLM endpoint detected (%s).\n"+
+		"  If tests fail on an unknown model, set settings.ai_budget.model to \"\" in\n"+
+		"  .cerberus/project.yaml to follow the environment's default model.", base)
 }

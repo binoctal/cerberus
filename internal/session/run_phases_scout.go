@@ -13,6 +13,7 @@ import (
 
 // executeScoutPhase runs the Scout analysis and planning phase
 func (rp *runPhase) executeScoutPhase() (*project.ProjectModel, error) {
+	fmt.Println("• Scout: analyzing & planning...")
 	scoutHead := scout.NewScout(rp.session.driverFor(&rp.session.scoutDriver), rp.session.Store, rp.session.Config, rp.session.Logger)
 
 	// Scale ToT/Reflexion depth to the Scout model's context window
@@ -42,6 +43,9 @@ func (rp *runPhase) executeScoutPhase() (*project.ProjectModel, error) {
 	plan, err := scoutHead.Plan(rp.ctx, rp.session.Goal, model)
 	if err != nil {
 		return nil, fmt.Errorf("scout plan: %w", err)
+	}
+	if flagged := scoutHead.ValidateTargets(plan, rp.session.ProjectDir); flagged > 0 {
+		rp.session.Logger.Info("scout deprioritized invalid targets", zap.Int("flagged", flagged))
 	}
 	rp.plan = plan
 

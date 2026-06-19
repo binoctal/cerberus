@@ -60,16 +60,23 @@ func (s *Scout) SetReflexion(rs project.ReflexionSettings) {
 	s.reflexionCfg = rs
 }
 
-// isLocalOnly reports whether there is no live HTTP target. When no service
-// has a URL, Scout analyzes a local codebase and must steer the LLM toward
-// file/process/code executors instead of HTTP requests.
+// isLocalOnly reports whether there is no live HTTP target. Explicit Mode
+// (local|saas) takes precedence; otherwise it infers from services (no
+// service URL → local codebase), which is backward compatible.
 func (s *Scout) isLocalOnly() bool {
-	for _, svc := range s.config.Services {
-		if svc.URL != "" {
-			return false
+	switch s.config.Settings.Mode {
+	case project.ModeLocal:
+		return true
+	case project.ModeSaaS:
+		return false
+	default:
+		for _, svc := range s.config.Services {
+			if svc.URL != "" {
+				return false
+			}
 		}
+		return true
 	}
-	return true
 }
 
 // buildAnalyzeContext formats project info for the Analyze prompt.

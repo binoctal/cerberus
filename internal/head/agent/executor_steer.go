@@ -31,18 +31,9 @@ func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevResult types.Ex
 		return nil, fmt.Errorf("steer attempt %d: %w", attempt, err)
 	}
 
-	action, err := types.UnmarshalAction(out.Envelope)
+	action, err := actionFromEnvelope(out.Envelope, tc.Target, r.logger)
 	if err != nil {
-		// A malformed/empty action payload is an LLM output defect, not a
-		// terminal failure. Fall back to a safe default action so the case
-		// proceeds (mirrors the driver-layer parse fallback above). Without
-		// this, a schema mismatch with non-Claude models wastes every
-		// MaxSteerAttempts retry and fails the whole case.
-		if isParseError(err) {
-			r.logger.Warn("steer action parse failed, using fallback", zap.Error(err))
-			return FallbackParseAction(err.Error(), tc.Target), nil
-		}
-		return nil, fmt.Errorf("unmarshal steer action: %w", err)
+		return nil, fmt.Errorf("steer: %w", err)
 	}
 	return action, nil
 }

@@ -13,6 +13,7 @@ func (rp *runPhase) executeAgentPhase() error {
 	if rp.plan == nil {
 		return fmt.Errorf("no plan to execute")
 	}
+	fmt.Printf("• Agent: executing %d test cases...\n", len(rp.plan.Cases))
 
 	baseURL := rp.session.resolveBaseURL()
 	projectDir := rp.session.ProjectDir

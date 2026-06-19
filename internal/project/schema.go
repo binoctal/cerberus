@@ -49,7 +49,15 @@ type Invariant struct {
 	Assertion   string `yaml:"assertion,omitempty"`
 }
 
+// Mode values for Settings.Mode. Empty infers from services (backward
+// compatible): no service URL → local codebase, else SaaS.
+const (
+	ModeLocal = "local"
+	ModeSaaS  = "saas"
+)
+
 type Settings struct {
+	Mode                string            `yaml:"mode,omitempty"`
 	MaxDuration         string            `yaml:"max_duration,omitempty"`
 	ConfidenceThreshold float64           `yaml:"confidence_threshold,omitempty"`
 	AutoFix             string            `yaml:"auto_fix,omitempty"`

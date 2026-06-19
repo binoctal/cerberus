@@ -25,6 +25,7 @@ func main() {
 		accuracyCmd(),
 		knownIssueCmd(),
 		versionCmd(),
+		selftestCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

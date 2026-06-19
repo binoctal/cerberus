@@ -10,6 +10,7 @@ import (
 
 // executeExaminerPhase runs the Examiner judgment and learning phase
 func (rp *runPhase) executeExaminerPhase() error {
+	fmt.Printf("• Examiner: judging %d results...\n", len(rp.results))
 	examinerCfg := examiner.DefaultExaminerConfig()
 	if rp.session.Config.Settings.ConfidenceThreshold > 0 {
 		examinerCfg.ConfThreshold = rp.session.Config.Settings.ConfidenceThreshold
