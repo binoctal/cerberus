@@ -28,6 +28,12 @@ jobs:
       - name: Test
         run: go test -race -count=1 ./...
 
+      - name: Build binary
+        run: go build -o build/cerberus ./cmd/cerberus
+
+      - name: Self-test (binary health check)
+        run: ./build/cerberus selftest
+
   lint:
     runs-on: ubuntu-latest
     steps:
