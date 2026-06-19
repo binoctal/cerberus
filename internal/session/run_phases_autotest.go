@@ -15,8 +15,17 @@ func (rp *runPhase) executeAutoTestPhase() {
 	}
 
 	mode := autotest.SafetyMode(rp.session.AutoTestSafety)
-	cov := autotest.NewGoCoverageProvider(autotest.DefaultGoCoverageRunner, rp.session.Logger)
-	gen := autotest.NewGoTestGenerator(rp.session.driverFor(&rp.session.scoutDriver), rp.session.Logger)
+
+	// Detect project type and create appropriate coverage provider and generator
+	driver := rp.session.driverFor(&rp.session.scoutDriver)
+	cov, gen, err := autotest.DetectAndCreateProvider(rp.session.ProjectDir, driver)
+	if err != nil {
+		// Fall back to Go provider if detection fails (backward compatibility)
+		rp.session.Logger.Warn("autotest project detection failed, falling back to Go provider", zap.Error(err))
+		cov = autotest.NewGoCoverageProvider(autotest.DefaultGoCoverageRunner, rp.session.Logger)
+		gen = autotest.NewGoTestGenerator(driver, rp.session.Logger)
+	}
+
 	at := autotest.NewAutoTest(cov, gen, autotest.NewEscalationGateAdapter(rp.session.Gate), nil, mode, rp.session.Logger)
 
 	report, atErr := at.Run(rp.ctx, rp.session.ProjectDir)
