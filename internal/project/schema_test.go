@@ -178,3 +178,54 @@ func makeEndpoints(n int, conf float64) []EndpointDef {
 	}
 	return endpoints
 }
+
+func TestCoverageSettingsParse(t *testing.T) {
+	var s Settings
+	require.NoError(t, yaml.Unmarshal([]byte("coverage:\n  depth: thorough\n  line_threshold: 0.85\n"), &s))
+	if s.Coverage.Depth != "thorough" || s.Coverage.LineThreshold != 0.85 {
+		t.Fatalf("parsed = %+v", s.Coverage)
+	}
+}
+
+func TestCoverageSettingsDefaults(t *testing.T) {
+	cfg := DefaultConfig()
+	assert.Equal(t, "standard", cfg.Settings.Coverage.Depth)
+	assert.Equal(t, 0.65, cfg.Settings.Coverage.LineThreshold)
+	assert.Equal(t, 0.50, cfg.Settings.Coverage.BranchThreshold)
+}
+
+func TestResolveCoverage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    CoverageSettings
+		expected CoverageSettings
+	}{
+		{
+			name:     "all empty",
+			input:    CoverageSettings{},
+			expected: CoverageSettings{Depth: "standard", LineThreshold: 0.65, BranchThreshold: 0.50},
+		},
+		{
+			name:     "depth only",
+			input:    CoverageSettings{Depth: "thorough"},
+			expected: CoverageSettings{Depth: "thorough", LineThreshold: 0.65, BranchThreshold: 0.50},
+		},
+		{
+			name:     "thresholds only",
+			input:    CoverageSettings{LineThreshold: 0.80, BranchThreshold: 0.70},
+			expected: CoverageSettings{Depth: "standard", LineThreshold: 0.80, BranchThreshold: 0.70},
+		},
+		{
+			name:     "all set",
+			input:    CoverageSettings{Depth: "smoke", LineThreshold: 0.90, BranchThreshold: 0.85},
+			expected: CoverageSettings{Depth: "smoke", LineThreshold: 0.90, BranchThreshold: 0.85},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ResolveCoverage(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

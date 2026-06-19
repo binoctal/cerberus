@@ -1,7 +1,7 @@
 package project
 
 func DefaultConfig() Config {
-	return Config{
+	cfg := Config{
 		Settings: Settings{
 			MaxDuration:         "30m",
 			ConfidenceThreshold: 0.7,
@@ -17,4 +17,6 @@ func DefaultConfig() Config {
 			},
 		},
 	}
+	cfg.Settings.Coverage = ResolveCoverage(cfg.Settings.Coverage)
+	return cfg
 }

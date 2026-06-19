@@ -66,6 +66,7 @@ type Settings struct {
 	Models              Models            `yaml:"models,omitempty"`
 	ToT                 ToTSettings       `yaml:"tot,omitempty"`
 	Reflexion           ReflexionSettings `yaml:"reflexion,omitempty"`
+	Coverage            CoverageSettings  `yaml:"coverage,omitempty"`
 }
 
 type AIBudget struct {
@@ -106,4 +107,26 @@ type ReflexionSettings struct {
 	EpisodicLimit     int     `yaml:"episodic_limit,omitempty"`
 	SemanticTopK      int     `yaml:"semantic_topk,omitempty"`
 	SemanticThreshold float64 `yaml:"semantic_threshold,omitempty"`
+}
+
+// CoverageSettings configures the coverage contract tier and thresholds.
+type CoverageSettings struct {
+	Depth           string  `yaml:"depth,omitempty"`            // default "standard"
+	LineThreshold   float64 `yaml:"line_threshold,omitempty"`   // default 0.65
+	BranchThreshold float64 `yaml:"branch_threshold,omitempty"` // default 0.50
+}
+
+// ResolveCoverage fills defaults (called by DefaultConfig + config loaders).
+func ResolveCoverage(c CoverageSettings) CoverageSettings {
+	if c.Depth == "" {
+		// Use literal string to avoid import cycle: project must not import contract package
+		c.Depth = "standard" // contract.DepthStandard
+	}
+	if c.LineThreshold == 0 {
+		c.LineThreshold = 0.65
+	}
+	if c.BranchThreshold == 0 {
+		c.BranchThreshold = 0.50
+	}
+	return c
 }
