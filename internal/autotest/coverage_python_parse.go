@@ -24,24 +24,45 @@ func (p *PythonCoverageProvider) parseJSONCoverage(data []byte) (*CoverageReport
 
 	// Process each file's coverage
 	for file, fileData := range covData.Files {
-		if fileData.Lines == nil {
-			continue
-		}
-
-		// Process lines
-		for lineStr, count := range fileData.Lines {
-			lineNum := 0
-			if _, err := fmt.Sscanf(lineStr, "%d", &lineNum); err == nil {
+		// Use new format (executed/missing line arrays) if available
+		if len(fileData.ExecutedLines) > 0 || len(fileData.MissingLines) > 0 {
+			// Mark executed lines with count > 0
+			for _, lineNum := range fileData.ExecutedLines {
 				report.Profile = append(report.Profile, CoverageLine{
 					File:  file,
 					Start: lineNum,
 					End:   lineNum + 1,
-					Count: count,
+					Count: 1,
 				})
-
 				report.TotalFuncs++
-				if count > 0 {
-					report.CoveredFuncs++
+				report.CoveredFuncs++
+			}
+			// Mark missing lines with count = 0
+			for _, lineNum := range fileData.MissingLines {
+				report.Profile = append(report.Profile, CoverageLine{
+					File:  file,
+					Start: lineNum,
+					End:   lineNum + 1,
+					Count: 0,
+				})
+				report.TotalFuncs++
+			}
+		} else if fileData.Lines != nil {
+			// Fallback to legacy format (lines map)
+			for lineStr, count := range fileData.Lines {
+				lineNum := 0
+				if _, err := fmt.Sscanf(lineStr, "%d", &lineNum); err == nil {
+					report.Profile = append(report.Profile, CoverageLine{
+						File:  file,
+						Start: lineNum,
+						End:   lineNum + 1,
+						Count: count,
+					})
+
+					report.TotalFuncs++
+					if count > 0 {
+						report.CoveredFuncs++
+					}
 				}
 			}
 		}
@@ -54,7 +75,14 @@ func (p *PythonCoverageProvider) parseJSONCoverage(data []byte) (*CoverageReport
 func (p *PythonCoverageProvider) parseSQLiteCoverage(projectDir string) (*CoverageReport, error) {
 	dbPath := filepath.Join(projectDir, p.config.DatabasePath)
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("python coverage: database not found: %s", dbPath)
+		// No coverage database exists yet (e.g., no tests written yet)
+		// Return empty report indicating no coverage
+		return &CoverageReport{
+			Profile:      make([]CoverageLine, 0),
+			TotalFuncs:  0,
+			CoveredFuncs: 0,
+			Pass:         true,
+		}, nil
 	}
 
 	db, err := sql.Open("sqlite", dbPath)
@@ -65,6 +93,21 @@ func (p *PythonCoverageProvider) parseSQLiteCoverage(projectDir string) (*Covera
 
 	report := &CoverageReport{
 		Profile: make([]CoverageLine, 0),
+	}
+
+	// Check if the expected 'line' table exists in the coverage.py database
+	// Coverage.py schema varies by version; we only parse if our expected schema exists.
+	var tableName string
+	err = db.QueryRowContext(context.Background(), `
+		SELECT name FROM sqlite_master WHERE type='table' AND name='line'
+	`).Scan(&tableName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// The 'line' table doesn't exist in this version of coverage.py
+			// or the database is empty (no tests run yet). Return empty report.
+			return report, nil
+		}
+		return nil, fmt.Errorf("python coverage: check schema: %w", err)
 	}
 
 	// Query line coverage

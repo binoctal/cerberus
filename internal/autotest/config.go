@@ -49,8 +49,8 @@ func DefaultMochaCoverageConfig() *CoverageConfig {
 // DefaultPythonCoverageConfig returns default configuration for Python pytest projects
 func DefaultPythonCoverageConfig() *CoverageConfig {
 	return &CoverageConfig{
-		TestCommand:  []string{"pytest", "--cov", "--cov-report=term"},
-		CoverageArgs: []string{"--cov-report=json"},
+		TestCommand:  []string{"pytest", "--cov", "--cov-report=term", "--cov-report=json:coverage.json"},
+		CoverageArgs: []string{},
 		OutputPath:   "coverage.json",
 		DatabasePath: ".coverage",
 		Timeout:      5 * time.Minute,
