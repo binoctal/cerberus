@@ -46,13 +46,16 @@ func (a *Analyzer) registerInterface(spec *interfaceSpec, filePath string, inter
 	interfaces[spec.name].Implementations += implCount
 }
 
-// processTypeSpec processes a single type specification for interfaces
-func (a *Analyzer) processTypeSpec(filePath string, spec *ast.TypeSpec, fset *token.FileSet, interfaces map[string]*InterfaceInfo) {
+// processTypeSpec processes a single type specification for interfaces.
+// fileNode is the parsed file containing the interface; it is forwarded to
+// countImplementations so in-file implementations are counted instead of
+// triggering a nil dereference.
+func (a *Analyzer) processTypeSpec(filePath string, spec *ast.TypeSpec, fset *token.FileSet, fileNode *ast.File, interfaces map[string]*InterfaceInfo) {
 	ifaceSpec := extractInterfaceSpec(spec, fset)
 	if ifaceSpec == nil {
 		return
 	}
 
-	implCount := a.countImplementations(filePath, ifaceSpec.name, nil)
+	implCount := a.countImplementations(filePath, ifaceSpec.name, fileNode)
 	a.registerInterface(ifaceSpec, filePath, interfaces, implCount)
 }

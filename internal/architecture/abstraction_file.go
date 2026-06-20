@@ -27,7 +27,7 @@ func (a *Analyzer) analyzeFileInterfaces(filePath string, interfaces map[string]
 				continue
 			}
 
-			a.processTypeSpec(filePath, typeSpec, fset, interfaces)
+			a.processTypeSpec(filePath, typeSpec, fset, node, interfaces)
 		}
 	}
 

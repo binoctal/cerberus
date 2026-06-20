@@ -7,6 +7,14 @@ import (
 
 // countImplementations counts concrete implementations of an interface
 func (a *Analyzer) countImplementations(filePath string, ifaceName string, fileNode *ast.File) int {
+	if fileNode == nil {
+		// Defense in depth: a nil node means there is nothing to scan, so the
+		// interface has zero in-file implementations. Returning here keeps the
+		// analyzer from dereferencing nil (which previously panicked any project
+		// that declared an interface).
+		return 0
+	}
+
 	count := 0
 
 	// Look for struct types that embed the interface
