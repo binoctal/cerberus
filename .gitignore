@@ -3,6 +3,7 @@ build/
 bin/
 *.exe
 /cerberus
+/slowtest
 
 # Project runtime files (now in .cerberus/runtime/)
 .cerberus/runtime/
