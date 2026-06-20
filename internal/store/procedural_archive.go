@@ -30,7 +30,8 @@ func (s *Store) MarkStaleProcedural(ctx context.Context, expiryDays int, minEffe
 
 // AutoArchiveLowEffectiveness archives procedural memories by governance policy.
 // Archive L3 when: (effectiveness < 0.3 AND usage_count >= 5 AND age > 30d)
-//                OR (usage_count < 2 AND age > 90d) [rare-useless clause].
+//
+//	OR (usage_count < 2 AND age > 90d) [rare-useless clause].
 func (s *Store) AutoArchiveLowEffectiveness(ctx context.Context, project string) (int, error) {
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE memory_procedural SET archived = 1

@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func TestV008_AppliesAndDedups(t *testing.T) {
@@ -17,7 +18,7 @@ func TestV008_AppliesAndDedups(t *testing.T) {
 	// Create a temporary directory for migrations without V008
 	tmpDir, err := os.MkdirTemp("", "migrations_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Copy V001-V007 migration files to temp directory
 	migrationsDir := "../../migrations"

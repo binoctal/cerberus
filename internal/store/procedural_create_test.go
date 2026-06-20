@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func TestStoreProceduralWithType_UpsertPreserves(t *testing.T) {

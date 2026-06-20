@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 // newTestRunPhase creates a minimal runPhase with in-memory store for testing.
@@ -46,8 +47,8 @@ func newTestRunPhase(t *testing.T) (rp *runPhase, cleanup func()) {
 
 	// Create runPhase with necessary fields
 	rp = &runPhase{
-		session: sess,
-		ctx:     context.Background(),
+		session:  sess,
+		ctx:      context.Background(),
 		verdicts: []examiner.FinalVerdict{}, // Will be set by test
 	}
 

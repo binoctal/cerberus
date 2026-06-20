@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
-	"github.com/stretchr/testify/require"
 )
 
 func TestConsolidate_EffectivenessGroupedByProcedural(t *testing.T) {

@@ -16,12 +16,12 @@ import (
 // Recovery handles failed actions by consulting the LLM with failure context
 // and injecting relevant L3 procedural memory.
 type Recovery struct {
-	driver     *ai.Driver
-	store      *store.Store
-	config     ReActConfig
-	logger     *zap.Logger
-	embedder   embed.Provider
-	sessionID  string
+	driver      *ai.Driver
+	store       *store.Store
+	config      ReActConfig
+	logger      *zap.Logger
+	embedder    embed.Provider
+	sessionID   string
 	projectName string
 }
 

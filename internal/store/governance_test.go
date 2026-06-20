@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func TestGovernance_ArchivesByPolicy(t *testing.T) {

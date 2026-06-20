@@ -32,7 +32,7 @@ func TestMemoryCmd_List(t *testing.T) {
 	// Set environment variable to override the DB path
 	origDB := os.Getenv("CERBERUS_DB_PATH")
 	t.Setenv("CERBERUS_DB_PATH", tmpFile)
-	t.Cleanup(func() { os.Setenv("CERBERUS_DB_PATH", origDB) })
+	t.Cleanup(func() { _ = os.Setenv("CERBERUS_DB_PATH", origDB) })
 
 	// Test list command
 	cmd := memoryListCmd()
@@ -65,7 +65,7 @@ func TestMemoryCmd_Show(t *testing.T) {
 	// Set environment variable to override the DB path
 	origDB := os.Getenv("CERBERUS_DB_PATH")
 	t.Setenv("CERBERUS_DB_PATH", tmpFile)
-	t.Cleanup(func() { os.Setenv("CERBERUS_DB_PATH", origDB) })
+	t.Cleanup(func() { _ = os.Setenv("CERBERUS_DB_PATH", origDB) })
 
 	// Test show command
 	cmd := memoryShowCmd()
@@ -101,7 +101,7 @@ func TestMemoryCmd_Prune(t *testing.T) {
 	// Set environment variable to override the DB path
 	origDB := os.Getenv("CERBERUS_DB_PATH")
 	t.Setenv("CERBERUS_DB_PATH", tmpFile)
-	t.Cleanup(func() { os.Setenv("CERBERUS_DB_PATH", origDB) })
+	t.Cleanup(func() { _ = os.Setenv("CERBERUS_DB_PATH", origDB) })
 
 	// Test prune command (soft archive by default)
 	cmd := memoryPruneCmd()
@@ -135,7 +135,7 @@ func TestMemoryCmd_Reembed(t *testing.T) {
 	// Set environment variable to override the DB path
 	origDB := os.Getenv("CERBERUS_DB_PATH")
 	t.Setenv("CERBERUS_DB_PATH", tmpFile)
-	t.Cleanup(func() { os.Setenv("CERBERUS_DB_PATH", origDB) })
+	t.Cleanup(func() { _ = os.Setenv("CERBERUS_DB_PATH", origDB) })
 
 	// Test reembed command
 	cmd := memoryReembedCmd()

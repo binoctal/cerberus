@@ -3,8 +3,9 @@ package memory_test
 import (
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/memory"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/binoctal/cerberus/internal/memory"
 )
 
 func TestNormalizeTarget(t *testing.T) {

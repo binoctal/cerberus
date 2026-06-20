@@ -3,11 +3,12 @@ package session
 import (
 	"fmt"
 
+	"go.uber.org/zap"
+
 	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/memory"
-	"go.uber.org/zap"
 )
 
 // executeRemainingCases runs the agent execution phase for remaining cases

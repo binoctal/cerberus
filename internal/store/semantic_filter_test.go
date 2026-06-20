@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/store"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 func TestSearchSemantic_FiltersByModel(t *testing.T) {

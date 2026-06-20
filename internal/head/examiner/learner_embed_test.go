@@ -4,6 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -11,8 +14,6 @@ import (
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func makeStepResult(id, name, target, expectation string, status agent.StepStatus, statusCode int, body string) agent.StepResult {

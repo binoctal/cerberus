@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/stretchr/testify/require"
 )
 
 func TestApplyProceduralEMA_AtomicOnce(t *testing.T) {

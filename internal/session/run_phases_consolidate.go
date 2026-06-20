@@ -1,9 +1,10 @@
 package session
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/memory"
-	"go.uber.org/zap"
 )
 
 // executeConsolidatePhase runs after verdicts are committed. It is idempotent
@@ -47,7 +48,11 @@ func (rp *runPhase) applyEffectiveness() error {
 	// Group by procedural_id; gather each group's case verdicts (skip excluded).
 	verdictByTarget := rp.verdictByNormalizedTarget()
 
-	type group struct{ procID int64; passes, fails, count int; ids []int64 }
+	type group struct {
+		procID               int64
+		passes, fails, count int
+		ids                  []int64
+	}
 	groups := map[int64]*group{}
 	var order []int64
 	for _, u := range rows {
@@ -64,9 +69,11 @@ func (rp *runPhase) applyEffectiveness() error {
 		}
 		switch st {
 		case examiner.StatusPass:
-			g.passes++; g.count++
+			g.passes++
+			g.count++
 		case examiner.StatusFail:
-			g.fails++; g.count++
+			g.fails++
+			g.count++
 		default: // skip/uncertain excluded
 		}
 	}

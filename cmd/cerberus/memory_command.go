@@ -179,17 +179,17 @@ func memoryShowCmd() *cobra.Command {
 				  FROM memory_procedural WHERE id = ?`, id)
 
 			var m struct {
-				ID            int64
-				Name          string
-				Condition     string
-				Action        string
-				Effectiveness float64
-				UsageCount    int
-				ProjectName   string
-				Category      string
-				Type          string
-				Archived      int
-				CreatedAt     string
+				ID             int64
+				Name           string
+				Condition      string
+				Action         string
+				Effectiveness  float64
+				UsageCount     int
+				ProjectName    string
+				Category       string
+				Type           string
+				Archived       int
+				CreatedAt      string
 				EmbeddingModel string
 			}
 
@@ -235,7 +235,7 @@ func memoryShowCmd() *cobra.Command {
 		},
 	}
 	c.Flags().Int64Var(&id, "id", 0, "memory ID")
-	c.MarkFlagRequired("id")
+	_ = c.MarkFlagRequired("id")
 	return c
 }
 
