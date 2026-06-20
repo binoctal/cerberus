@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"fmt"
 	"strings"
 
 	"go.uber.org/zap"
@@ -94,17 +93,21 @@ func hasFileExtension(target string) bool {
 }
 
 // actionFromEnvelope parses an LLM action envelope into a concrete action,
-// falling back to a safe default on parse errors (malformed/empty payloads
-// are common with non-Claude models) instead of hard-failing. Centralizes the
-// parse-and-fallback logic shared by steer and recovery so the two cannot drift.
+// falling back to a safe default whenever the envelope cannot be turned into a
+// valid action instead of hard-failing. Centralizes the parse-and-fallback
+// logic shared by steer and recovery so the two cannot drift.
+//
+// The envelope is always LLM-sourced here, so any UnmarshalAction failure is
+// treated as fallback-eligible: malformed/empty payloads (parse errors) AND
+// payloads that parse but fail the action's Validate (e.g. a known type with
+// missing required fields, common with non-Claude models). Aborting the case
+// on either would skip the target outright, which is worse than retrying with
+// a safe default.
 func actionFromEnvelope(envelope types.ActionEnvelope, target string, logger *zap.Logger) (types.TypedAction, error) {
 	action, err := types.UnmarshalAction(envelope)
 	if err != nil {
-		if isParseError(err) {
-			logger.Warn("action parse failed, using fallback", zap.Error(err))
-			return FallbackParseAction(err.Error(), target), nil
-		}
-		return nil, fmt.Errorf("unmarshal action: %w", err)
+		logger.Warn("action unusable, using fallback", zap.Error(err))
+		return FallbackParseAction(err.Error(), target), nil
 	}
 	return action, nil
 }

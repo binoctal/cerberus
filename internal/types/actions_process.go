@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // ProcessExecAction represents executing a system command.
 type ProcessExecAction struct {
@@ -18,6 +21,29 @@ type ProcessExecAction struct {
 
 func (a ProcessExecAction) GetActionType() ActionType { return ActionProcessExec }
 func (a ProcessExecAction) Target() string            { return a.Command }
+
+// UnmarshalJSON tolerates Timeout as either a string ("30s") or a number
+// (seconds), matching WaitAction.Duration. Non-Claude models often emit a bare
+// numeric timeout. Also covers BuildAction, which embeds ProcessExecAction.
+// Other fields decode through an alias to avoid recursion.
+func (a *ProcessExecAction) UnmarshalJSON(data []byte) error {
+	type alias ProcessExecAction
+	var tmp struct {
+		alias
+		Timeout json.RawMessage `json:"timeout,omitempty"`
+	}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*a = ProcessExecAction(tmp.alias)
+	t, err := coerceDurationRaw(tmp.Timeout)
+	if err != nil {
+		return fmt.Errorf("process timeout: %w", err)
+	}
+	a.Timeout = t
+	return nil
+}
+
 func (a ProcessExecAction) Validate() error {
 	if a.Command == "" {
 		return fmt.Errorf("command is required")

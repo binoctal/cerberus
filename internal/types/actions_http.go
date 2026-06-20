@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+)
 
 // HTTPAction represents an HTTP API request.
 type HTTPAction struct {
@@ -18,6 +22,52 @@ type HTTPAction struct {
 
 func (a HTTPAction) GetActionType() ActionType { return ActionAPIRequest }
 func (a HTTPAction) Target() string            { return a.URL }
+
+// UnmarshalJSON tolerates Body as either a string (used verbatim as the raw
+// request body) or any JSON value (object/array/number), which is re-serialized
+// to a compact JSON string. Non-Claude models often send body as an object;
+// without this the whole api_request fails to unmarshal. Other fields decode
+// through an alias to avoid recursion.
+func (a *HTTPAction) UnmarshalJSON(data []byte) error {
+	type alias HTTPAction
+	var tmp struct {
+		alias
+		Body json.RawMessage `json:"body,omitempty"`
+	}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*a = HTTPAction(tmp.alias)
+	b, err := coerceBodyRaw(tmp.Body)
+	if err != nil {
+		return fmt.Errorf("http body: %w", err)
+	}
+	a.Body = b
+	return nil
+}
+
+// coerceBodyRaw accepts Body as a JSON string (returned verbatim) or any other
+// JSON value (compacted to preserve key order and stored as the body text).
+// Empty/null input is allowed (body is optional).
+func coerceBodyRaw(raw json.RawMessage) (string, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || string(trimmed) == "null" {
+		return "", nil
+	}
+	if trimmed[0] == '"' {
+		var s string
+		if err := json.Unmarshal(trimmed, &s); err != nil {
+			return "", err
+		}
+		return s, nil
+	}
+	buf := &bytes.Buffer{}
+	if err := json.Compact(buf, trimmed); err != nil {
+		return "", fmt.Errorf("body must be string or JSON value")
+	}
+	return buf.String(), nil
+}
+
 func (a HTTPAction) Validate() error {
 	if a.URL == "" {
 		return fmt.Errorf("url is required")
@@ -59,6 +109,51 @@ type WaitAction struct {
 
 func (a WaitAction) GetActionType() ActionType { return ActionWait }
 func (a WaitAction) Target() string            { return "" }
+
+// UnmarshalJSON tolerates Duration as either a string ("2s", "500ms") or a
+// number. Non-Claude models sometimes emit a bare numeric duration; treat it
+// as seconds ("2" -> "2s"). Other fields decode through an alias to avoid
+// recursion and to keep this tolerant of future field additions.
+func (a *WaitAction) UnmarshalJSON(data []byte) error {
+	type alias WaitAction
+	var tmp struct {
+		alias
+		Duration json.RawMessage `json:"duration,omitempty"`
+	}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*a = WaitAction(tmp.alias)
+	d, err := coerceDurationRaw(tmp.Duration)
+	if err != nil {
+		return fmt.Errorf("wait duration: %w", err)
+	}
+	a.Duration = d
+	return nil
+}
+
+// coerceDurationRaw accepts a JSON string duration or a numeric duration
+// (interpreted as seconds) and returns a Go duration string. Empty input is
+// allowed (duration is optional).
+func coerceDurationRaw(raw json.RawMessage) (string, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || string(trimmed) == "null" {
+		return "", nil
+	}
+	if trimmed[0] == '"' {
+		var s string
+		if err := json.Unmarshal(trimmed, &s); err != nil {
+			return "", err
+		}
+		return s, nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(trimmed, &n); err != nil {
+		return "", fmt.Errorf("duration must be string or number")
+	}
+	return n.String() + "s", nil
+}
+
 func (a WaitAction) Validate() error {
 	// Validate duration format if provided
 	if a.Duration != "" && a.Selector == "" {
