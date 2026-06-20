@@ -31,24 +31,33 @@ func scanProcedural(row *sql.Row) (*ProceduralMemory, error) {
 func scanProceduralRows(rows *sql.Rows) ([]ProceduralMemory, error) {
 	var all []ProceduralMemory
 	for rows.Next() {
-		var m ProceduralMemory
-		var archived int
-		var embStr, embModel string
-		if err := rows.Scan(&m.ID, &m.Name, &m.Condition, &m.Action,
-			&m.Effectiveness, &m.UsageCount, &m.ProjectName, &m.Category,
-			&m.Type, &archived, &m.CreatedAt, &embStr, &embModel); err != nil {
+		m, err := scanProceduralFromRows(rows)
+		if err != nil {
 			return nil, err
 		}
-		m.Archived = archived == 1
-		var err error
-		m.Embedding, err = ParseEmbedding(embStr)
-		if err != nil {
-			m.Embedding = nil
-		}
-		m.EmbeddingModel = embModel
-		all = append(all, m)
+		all = append(all, *m)
 	}
 	return all, nil
+}
+
+// scanProceduralFromRows scans a single row from sql.Rows.
+func scanProceduralFromRows(rows *sql.Rows) (*ProceduralMemory, error) {
+	var m ProceduralMemory
+	var archived int
+	var embStr, embModel string
+	if err := rows.Scan(&m.ID, &m.Name, &m.Condition, &m.Action,
+		&m.Effectiveness, &m.UsageCount, &m.ProjectName, &m.Category,
+		&m.Type, &archived, &m.CreatedAt, &embStr, &embModel); err != nil {
+		return nil, err
+	}
+	m.Archived = archived == 1
+	var err error
+	m.Embedding, err = ParseEmbedding(embStr)
+	if err != nil {
+		m.Embedding = nil
+	}
+	m.EmbeddingModel = embModel
+	return &m, nil
 }
 
 // GetProceduralByMatch finds L3 memories relevant to a target using substring matching.
