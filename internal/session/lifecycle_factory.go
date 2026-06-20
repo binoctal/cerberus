@@ -32,6 +32,7 @@ func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 		StartedAt:  time.Now(),
 		ProjectDir: cfg.ProjectDir,
 		Gate:       cfg.Gate,
+		coverageFn: cfg.CoverageFn,
 	}
 
 	dbSess, err := sess.Store.CreateSession(ctx, string(cfg.Mode), cfg.Goal, cfg.Config.Project.Name)

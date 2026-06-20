@@ -8,6 +8,16 @@ import (
 	"github.com/binoctal/cerberus/internal/autotest"
 )
 
+// lineCoverage returns the Examiner-phase line coverage percentage, using an
+// injected override when present (tests); otherwise the default
+// coverageForSession (reuses the AutoTest report, else runs a coverage provider).
+func (s *Session) lineCoverage(ctx context.Context) float64 {
+	if s.coverageFn != nil {
+		return s.coverageFn(ctx, s)
+	}
+	return coverageForSession(ctx, s)
+}
+
 // coverageForSession returns the real line coverage percentage for the session's
 // project. If AutoTest ran (has a report with coverage), reuse it; otherwise
 // independently run the language-specific coverage provider.

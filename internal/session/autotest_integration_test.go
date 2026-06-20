@@ -61,6 +61,7 @@ func TestRun_SkipsAutoTestPhaseWhenOff(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -91,6 +92,7 @@ func TestRun_SkipsAutoTestPhaseWhenEmpty(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 

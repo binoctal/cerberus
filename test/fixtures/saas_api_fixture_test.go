@@ -16,6 +16,15 @@ import (
 	"github.com/binoctal/cerberus/internal/store"
 )
 
+// stubCoverageFn returns a stub CoverageFn for fixture tests, avoiding real
+// go test/jest/pytest subprocesses when ProjectDir is a non-module directory
+// under the cerberus repo (e.g. test/fixtures itself), which would recurse up
+// to the cerberus module and re-run the whole test suite. See
+// internal/session/coverage.go.
+func stubCoverageFn() func(context.Context, *session.Session) float64 {
+	return func(context.Context, *session.Session) float64 { return 100.0 }
+}
+
 func TestSaaSAPIFixture(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -49,6 +58,7 @@ func TestSaaSAPIFixture(t *testing.T) {
 		Client:     mockClient,
 		Logger:     zap.NewNop(),
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 

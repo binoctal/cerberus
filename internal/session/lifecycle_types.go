@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"time"
 
 	"go.uber.org/zap"
@@ -34,6 +35,13 @@ type SessionConfig struct {
 	Logger     *zap.Logger
 	Gate       escalation.Gate
 	ProjectDir string
+
+	// CoverageFn optionally overrides how the Examiner phase obtains real line
+	// coverage. If nil, the default behavior reuses the AutoTest report when
+	// available, else independently runs the language-specific coverage provider
+	// (go test/jest/pytest). Tests inject a stub to avoid recursively running
+	// those subprocesses when ProjectDir is itself a module under test.
+	CoverageFn func(ctx context.Context, sess *Session) float64
 }
 
 type Session struct {
@@ -69,4 +77,9 @@ type Session struct {
 	// clientFactory creates LLM clients for per-head drivers. If nil, uses llm.NewClientWithConfig.
 	// Injected by tests to provide mock clients.
 	clientFactory func(llm.ClientConfig) (llm.Client, error)
+
+	// coverageFn overrides Examiner-phase coverage retrieval. If nil, the
+	// package-level coverageForSession is used. Mirrors clientFactory: injected
+	// by tests via SessionConfig.CoverageFn to avoid real coverage subprocesses.
+	coverageFn func(ctx context.Context, sess *Session) float64
 }

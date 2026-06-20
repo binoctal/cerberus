@@ -41,6 +41,7 @@ func TestDogfood_LocalProjectMode(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: "../..",
+		CoverageFn: smokeCoverageFn(),
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)

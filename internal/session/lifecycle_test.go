@@ -40,6 +40,18 @@ func testConfig() project.Config {
 	return cfg
 }
 
+// stubCoverageFn returns a CoverageFn that reports a fixed coverage percentage
+// without executing any subprocess. Injected into test sessions to avoid
+// recursively running go test/jest/pytest when ProjectDir is the cerberus repo
+// itself (a module under test). See internal/session/coverage.go.
+func stubCoverageFn(pcts ...float64) func(context.Context, *Session) float64 {
+	pct := 100.0
+	if len(pcts) > 0 {
+		pct = pcts[0]
+	}
+	return func(context.Context, *Session) float64 { return pct }
+}
+
 // planJSON returns a mock PlanOutput JSON that the LLM mock client
 // will respond with during Scout.Plan.
 func planJSON() string {
@@ -82,6 +94,7 @@ func TestNewSession(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)
@@ -116,6 +129,7 @@ func TestNewSession_StoreError(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create session")
@@ -138,6 +152,7 @@ func TestNewSession_NilGate(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -164,6 +179,7 @@ func TestNewSession_WithExplicitGate(t *testing.T) {
 		Logger:     logger,
 		Gate:       gate,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, gate, sess.Gate)
@@ -190,6 +206,7 @@ func TestSession_ResolveBaseURL(t *testing.T) {
 			Logger:     logger,
 			Gate:       nil,
 			ProjectDir: ".",
+			CoverageFn: stubCoverageFn(),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "http://localhost:3000", sess.resolveBaseURL())
@@ -206,6 +223,7 @@ func TestSession_ResolveBaseURL(t *testing.T) {
 			Logger:     logger,
 			Gate:       nil,
 			ProjectDir: ".",
+			CoverageFn: stubCoverageFn(),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "", sess.resolveBaseURL())
@@ -229,6 +247,7 @@ func TestSession_Close(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -255,6 +274,7 @@ func TestSession_Run_FullLifecycle(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -289,6 +309,7 @@ func TestSession_Run_VerifyMode(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, ModeVerify, sess.Mode)
@@ -320,6 +341,7 @@ func TestSession_Run_ParallelExecution(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 	sess.Parallel = true
@@ -365,6 +387,7 @@ func TestSession_Run_ScoutFailure(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -404,6 +427,7 @@ func TestSession_Run_AgentFailure(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -438,6 +462,7 @@ func TestSession_Run_TracksTokenBudget(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -473,6 +498,7 @@ func TestSession_Run_DeepPlan(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 	sess.DeepPlan = true
@@ -502,6 +528,7 @@ func TestSession_Run_CancelledContext(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -537,6 +564,7 @@ func TestSession_Run_DefaultWorkers(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 	sess.Parallel = true
@@ -589,6 +617,7 @@ func TestSession_Resume_SkipsCompleted(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -634,6 +663,7 @@ func TestSession_Resume_NoPlan(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -670,6 +700,7 @@ func TestSession_driverFor_PerHeadOverride(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 

@@ -20,6 +20,13 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 )
 
+// smokeCoverageFn is a stub CoverageFn for smoke tests, avoiding real go
+// test/jest/pytest subprocesses when ProjectDir is the cerberus repo under
+// test (which would recurse). See internal/session/coverage.go.
+func smokeCoverageFn() func(context.Context, *session.Session) float64 {
+	return func(context.Context, *session.Session) float64 { return 100.0 }
+}
+
 func TestSessionSmokeTest(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
@@ -46,6 +53,7 @@ func TestSessionSmokeTest(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: smokeCoverageFn(),
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, sess.ID)
@@ -177,6 +185,7 @@ func TestAgentSmokeTest(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: smokeCoverageFn(),
 	})
 	require.NoError(t, err)
 

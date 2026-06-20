@@ -94,6 +94,7 @@ func TestRun_WithCoverageContract(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".", // Use current directory to allow actual execution
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -145,6 +146,7 @@ func TestRun_ContractIntegration_SmokeDepth(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
@@ -178,6 +180,7 @@ func TestRun_ContractIntegration_NoContractWhenNoCoverage(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
 	})
 	require.NoError(t, err)
 
