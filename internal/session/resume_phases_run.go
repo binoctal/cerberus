@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 
+	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 )
@@ -22,7 +23,17 @@ func (rp *resumePhase) executeRemainingCases() error {
 	engine := agent.NewRuleEngine(baseURL, rp.session.Config.Actors, projectDir)
 	multiExec := agent.BuildMultiExecutor(projectDir, rp.session.Gate, rp.session.Logger)
 	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoopWithGate(rp.session.driverFor(&rp.session.agentDriver), rp.session.Store, engine, multiExec, config, rp.session.Gate, rp.session.Logger)
+	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
+	loop := agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{
+		Driver:   rp.session.driverFor(&rp.session.agentDriver),
+		Store:    rp.session.Store,
+		Engine:   engine,
+		Executor: multiExec,
+		Config:   config,
+		Gate:     rp.session.Gate,
+		Logger:   rp.session.Logger,
+		Embedder: emb,
+	})
 
 	var err error
 	if rp.session.Parallel {

@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
@@ -244,7 +245,16 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	engine := agent.NewRuleEngine(server.URL, nil, ".")
 	exec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
-	loop := agent.NewReActLoop(driver, s, engine, exec, agent.DefaultReActConfig(), zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{
+		Driver:   driver,
+		Store:    s,
+		Engine:   engine,
+		Executor: exec,
+		Config:   agent.DefaultReActConfig(),
+		Logger:   zap.NewNop(),
+		Embedder: emb,
+	})
 
 	sess, err := s.CreateSession(ctx, "run", "react smoke", "")
 	require.NoError(t, err)

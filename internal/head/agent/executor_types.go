@@ -14,6 +14,7 @@ import (
 // recoverer is the interface for the Recover decision point.
 type recoverer interface {
 	Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error)
+	SetSessionID(string)
 }
 
 // RecoverDecision holds the recovery decision output.

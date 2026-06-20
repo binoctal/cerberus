@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -20,6 +21,7 @@ type ReActLoopConfig struct {
 	Config   ReActConfig
 	Gate     escalation.Gate
 	Logger   *zap.Logger
+	Embedder embed.Provider
 }
 
 // NewReActLoopWithGateWithConfig creates a ReAct execution loop with an explicit escalation gate using config.
@@ -33,7 +35,7 @@ func NewReActLoopWithGateWithConfig(cfg ReActLoopConfig) *ReActLoop {
 		store:      cfg.Store,
 		engine:     cfg.Engine,
 		executor:   cfg.Executor,
-		recovery:   NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger),
+		recovery:   NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger, cfg.Embedder),
 		config:     cfg.Config,
 		gate:       cfg.Gate,
 		logger:     cfg.Logger,

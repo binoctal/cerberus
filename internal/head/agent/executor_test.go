@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
@@ -40,7 +41,16 @@ func testLoop(t *testing.T, responses map[string]string, server *httptest.Server
 	}
 
 	executor := BuildMultiExecutor(".", nil, zap.NewNop())
-	loop := NewReActLoop(driver, s, engine, executor, DefaultReActConfig(), zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := NewReActLoopWithConfig(ReActLoopConfig{
+		Driver:   driver,
+		Store:    s,
+		Engine:   engine,
+		Executor: executor,
+		Config:   DefaultReActConfig(),
+		Logger:   zap.NewNop(),
+		Embedder: emb,
+	})
 
 	return loop, s
 }
@@ -235,4 +245,8 @@ type fixedRecovery struct {
 
 func (f *fixedRecovery) Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error) {
 	return RecoverDecision{Skip: f.skip}, nil
+}
+
+func (f *fixedRecovery) SetSessionID(id string) {
+	// No-op for test double
 }

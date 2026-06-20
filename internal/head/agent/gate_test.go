@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -40,7 +41,17 @@ func setupGateTest(t *testing.T) (*ReActLoop, *recordingGate, *store.Store) {
 	gate := &recordingGate{}
 	engine := NewRuleEngine("http://localhost:9999", nil, ".")
 	exec := BuildMultiExecutor(".", gate, zap.NewNop())
-	loop := NewReActLoopWithGate(nil, s, engine, exec, DefaultReActConfig(), gate, zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := NewReActLoopWithGateWithConfig(ReActLoopConfig{
+		Driver:   nil,
+		Store:    s,
+		Engine:   engine,
+		Executor: exec,
+		Config:   DefaultReActConfig(),
+		Gate:     gate,
+		Logger:   zap.NewNop(),
+		Embedder: emb,
+	})
 	return loop, gate, s
 }
 

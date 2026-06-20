@@ -34,7 +34,7 @@ func TestRecover_FallsBackOnActionUnmarshalError(t *testing.T) {
 	driver := ai.NewDriver(llm.NewMockClient(map[string]string{
 		"default": `{"diagnosis":"x","action":{"type":"file_read"}}`,
 	}), ai.NewTokenBudget(100000, 10000))
-	rc := NewRecovery(driver, s, DefaultReActConfig(), zap.NewNop())
+	rc := NewRecovery(driver, s, DefaultReActConfig(), zap.NewNop(), nil)
 
 	tc := TestCase{ID: "tc", Target: "internal/llm", Expectation: "e"}
 	dec, err := rc.Recover(context.Background(), tc, fakeExecutorResult{}, 1)

@@ -18,6 +18,11 @@ func isDeprioritized(tc *TestCase) bool {
 func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID string) ([]StepResult, error) {
 	defer r.processMgr.StopAll()
 
+	// Set sessionID on recovery for memory_usage attribution
+	if r.recovery != nil {
+		r.recovery.SetSessionID(sessionID)
+	}
+
 	var results []StepResult
 	consecutiveFailures := 0
 	remainingCases := 0

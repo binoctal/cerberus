@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 )
 
@@ -24,7 +25,17 @@ func (rp *runPhase) executeAgentPhase() error {
 	engine := agent.NewRuleEngine(baseURL, rp.session.Config.Actors, projectDir)
 	multiExec := agent.BuildMultiExecutor(projectDir, rp.session.Gate, rp.session.Logger)
 	config := agent.DefaultReActConfig()
-	loop := agent.NewReActLoopWithGate(rp.session.driverFor(&rp.session.agentDriver), rp.session.Store, engine, multiExec, config, rp.session.Gate, rp.session.Logger)
+	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
+	loop := agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{
+		Driver:   rp.session.driverFor(&rp.session.agentDriver),
+		Store:    rp.session.Store,
+		Engine:   engine,
+		Executor: multiExec,
+		Config:   config,
+		Gate:     rp.session.Gate,
+		Logger:   rp.session.Logger,
+		Embedder: emb,
+	})
 
 	rp.session.Logger.Info("executing test plan",
 		zap.String("session_id", rp.session.ID),

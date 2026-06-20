@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -14,15 +15,26 @@ import (
 // Recovery handles failed actions by consulting the LLM with failure context
 // and injecting relevant L3 procedural memory.
 type Recovery struct {
-	driver *ai.Driver
-	store  *store.Store
-	config ReActConfig
-	logger *zap.Logger
+	driver    *ai.Driver
+	store     *store.Store
+	config    ReActConfig
+	logger    *zap.Logger
+	embedder  embed.Provider
+	sessionID string
 }
 
 // NewRecovery creates a Recovery decision point handler.
-func NewRecovery(driver *ai.Driver, store *store.Store, config ReActConfig, logger *zap.Logger) *Recovery {
-	return &Recovery{driver: driver, store: store, config: config, logger: logger}
+func NewRecovery(driver *ai.Driver, store *store.Store, config ReActConfig, logger *zap.Logger, embedder embed.Provider) *Recovery {
+	if embedder == nil {
+		embedder = embed.NewTrigramProvider(embed.DefaultDimension)
+	}
+	return &Recovery{driver: driver, store: store, config: config, logger: logger, embedder: embedder}
+}
+
+// SetSessionID is called by the loop at the start of ExecutePlan so recovery can
+// attribute memory_usage to the right session.
+func (rc *Recovery) SetSessionID(id string) {
+	rc.sessionID = id
 }
 
 // Recover decides what to do after a failed action.

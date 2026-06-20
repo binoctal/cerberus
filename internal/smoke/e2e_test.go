@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/head/scout"
@@ -134,7 +135,16 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 	engine := agent.NewRuleEngine(srv.URL, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
 	reactCfg := agent.DefaultReActConfig()
-	loop := agent.NewReActLoop(planDriver, s, engine, multiExec, reactCfg, zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{
+		Driver:   planDriver,
+		Store:    s,
+		Engine:   engine,
+		Executor: multiExec,
+		Config:   reactCfg,
+		Logger:   zap.NewNop(),
+		Embedder: emb,
+	})
 
 	results, err := loop.ExecutePlan(ctx, plan, sess.ID)
 	require.NoError(t, err)
@@ -204,7 +214,8 @@ func TestEndToEnd_ProgressEvents(t *testing.T) {
 
 	engine := agent.NewRuleEngine(srv.URL, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
-	loop := agent.NewReActLoop(driver, s, engine, multiExec, agent.DefaultReActConfig(), zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
 
 	// Collect progress events.
 	progressCh := make(chan agent.ProgressEvent, 32)
@@ -260,7 +271,8 @@ func TestEndToEnd_RuleEngineStats(t *testing.T) {
 
 	engine := agent.NewRuleEngine(srv.URL, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
-	loop := agent.NewReActLoop(driver, s, engine, multiExec, agent.DefaultReActConfig(), zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
 
 	plan := &agent.TestPlan{
 		Goal:       "stats test",
