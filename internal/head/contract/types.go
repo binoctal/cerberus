@@ -2,14 +2,14 @@ package contract
 
 // Contract is the AI-authored coverage standard for a session.
 type Contract struct {
-	Depth        string            `json:"depth"`         // smoke | standard | thorough
-	Scope        []string          `json:"scope"`         // modules/paths to cover
-	PathTypes    []string          `json:"path_types"`    // happy | alternative | boundary | edge
-	ErrorScope   []string          `json:"error_scope"`   // 4xx | validation | exception
-	Boundaries   []string          `json:"boundaries"`    // empty | zero | max | invalid | extreme
-	Invariants   []InvariantRef    `json:"invariants"`    // pulled from project.yaml invariants
-	Priorities   map[string]string `json:"priorities"`    // module → high|med|low
-	CoverageGate Gate              `json:"coverage_gate"` // objective coverage threshold
+	Depth        string              `json:"depth"`         // smoke | standard | thorough
+	Scope        []string            `json:"scope"`         // modules/paths to cover
+	PathTypes    []string            `json:"path_types"`    // happy | alternative | boundary | edge
+	ErrorScope   []string            `json:"error_scope"`   // 4xx | validation | exception
+	Boundaries   []string            `json:"boundaries"`    // empty | zero | max | invalid | extreme
+	Invariants   []InvariantRef      `json:"invariants"`    // pulled from project.yaml invariants
+	Priorities   map[string][]string `json:"priorities"`    // priority bucket → modules (e.g. {"high":["go/build"]})
+	CoverageGate Gate                `json:"coverage_gate"` // objective coverage threshold
 }
 
 // InvariantRef references a project invariant the contract must enforce.

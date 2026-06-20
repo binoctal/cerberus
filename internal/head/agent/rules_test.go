@@ -129,7 +129,10 @@ func TestRuleEngineMatch_ProcessExec(t *testing.T) {
 	assert.True(t, ok)
 	procAct, isProc := action.(types.ProcessExecAction)
 	assert.True(t, isProc)
-	assert.Equal(t, "go test ./...", procAct.Command)
+	// Command is split from the target so the policy allowlist (keyed on the
+	// executable) can match: "go test ./..." -> Command="go", Args=["test","./..."].
+	assert.Equal(t, "go", procAct.Command)
+	assert.Equal(t, []string{"test", "./..."}, procAct.Args)
 	assert.Equal(t, "/project", procAct.WorkDir)
 }
 
@@ -141,7 +144,8 @@ func TestRuleEngineMatch_ProcessBuild(t *testing.T) {
 	buildAct, isBuild := action.(types.BuildAction)
 	assert.True(t, isBuild)
 	assert.Equal(t, types.ActionProcessBuild, buildAct.GetActionType())
-	assert.Equal(t, "go build ./...", buildAct.Command)
+	assert.Equal(t, "go", buildAct.Command)
+	assert.Equal(t, []string{"build", "./..."}, buildAct.Args)
 }
 
 func TestRuleEngineMatch_CodeAnalyze(t *testing.T) {

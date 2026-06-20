@@ -65,6 +65,17 @@ func PersistFinalVerdicts(ctx context.Context, s *store.Store, logger *zap.Logge
 			target = "unknown"
 		}
 
+		// Skip verdicts for cases that never executed (deprioritized/skipped):
+		// they have no trace row, so persisting would violate the trace foreign
+		// key (FOREIGN KEY constraint failed). Verdicts without a trace carry no
+		// executable evidence anyway.
+		if v.StepResult.TraceID == 0 {
+			logger.Debug("skipping verdict persist: case did not execute (no trace)",
+				zap.String("target", target),
+				zap.String("status", status))
+			continue
+		}
+
 		// Create the verdict record
 		_, err := s.CreateVerdict(
 			ctx,

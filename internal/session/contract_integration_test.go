@@ -56,8 +56,8 @@ func contractJSON() string {
 			},
 		},
 		"priorities": map[string]any{
-			"health": "high",
-			"api":    "medium",
+			"high":   []string{"health"},
+			"medium": []string{"api"},
 		},
 		"coverage_gate": map[string]any{
 			"module":           "api",

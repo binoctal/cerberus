@@ -31,7 +31,10 @@ Example for api_request:
 {"reasoning": "...", "action": {"type": "api_request", "payload": {"method": "GET", "url": "http://localhost:8080/api/health"}}}
 
 Example for wait:
-{"reasoning": "...", "action": {"type": "wait", "payload": {"duration": "2s"}}}`
+{"reasoning": "...", "action": {"type": "wait", "payload": {"duration": "2s"}}}
+
+Example for process_exec:
+{"reasoning": "...", "action": {"type": "process_exec", "payload": {"command": "go", "args": ["build", "./..."]}}}`
 
 // Recover prompt: AI diagnoses failure and decides next step.
 const promptRecoverSystem = `You are a test recovery agent. A test action failed. Analyze the failure and decide the next action.
