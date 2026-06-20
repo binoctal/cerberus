@@ -27,10 +27,10 @@ func TestMatchStrategies_Basic(t *testing.T) {
 
 	// Store some strategies.
 	_, err := s.StoreProceduralWithType(ctx, "auth_failure", "* returned 401",
-		"Refresh token", "test", "auth_failure", "failure")
+		"Refresh token", "test", "auth_failure", "failure", nil, "")
 	require.NoError(t, err)
 	_, err = s.StoreProceduralWithType(ctx, "success_pattern", "GET /api/v1/users",
-		"Always paginate", "test", "general_failure", "success")
+		"Always paginate", "test", "general_failure", "success", nil, "")
 	require.NoError(t, err)
 
 	// Match against a 401 scenario.
@@ -56,12 +56,12 @@ func TestMatchStrategies_LimitsEnforced(t *testing.T) {
 	// Store 3 failure strategies + 2 success strategies.
 	for i := 0; i < 3; i++ {
 		_, err := s.StoreProceduralWithType(ctx, "failure", "* returned 500",
-			"Retry with backoff", "test", "server_error", "failure")
+			"Retry with backoff", "test", "server_error", "failure", nil, "")
 		require.NoError(t, err)
 	}
 	for i := 0; i < 2; i++ {
 		_, err := s.StoreProceduralWithType(ctx, "success", "GET /api/v1/users",
-			"Paginate results", "test", "general_failure", "success")
+			"Paginate results", "test", "general_failure", "success", nil, "")
 		require.NoError(t, err)
 	}
 
@@ -86,7 +86,7 @@ func TestMatchStrategies_NoMatch(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.StoreProceduralWithType(ctx, "auth", "* returned 401",
-		"Refresh token", "test", "auth_failure", "failure")
+		"Refresh token", "test", "auth_failure", "failure", nil, "")
 	require.NoError(t, err)
 
 	strategies, err := MatchStrategies(ctx, s, "GET /api/v1/users returned 200")

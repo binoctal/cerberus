@@ -49,6 +49,7 @@ func (l *Learner) Learn(ctx context.Context, input LearnInput) (int, error) {
 			input.Project,
 			r.Category,
 			r.Type,
+			nil, "", // TODO: Task 5 will replace with real embedding
 		)
 		if err != nil {
 			l.logger.Warn("store reflection", zap.Error(err))

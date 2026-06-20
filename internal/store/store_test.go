@@ -190,7 +190,7 @@ func TestProceduralWithType(t *testing.T) {
 	ctx := context.Background()
 
 	pm, err := s.StoreProceduralWithType(ctx, "auth_failure", "* returned 401",
-		"Refresh auth token before retry", "test-project", "auth_failure", "failure")
+		"Refresh auth token before retry", "test-project", "auth_failure", "failure", nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, "auth_failure", pm.Category)
 	assert.Equal(t, "failure", pm.Type)
