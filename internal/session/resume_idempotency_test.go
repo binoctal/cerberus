@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -287,4 +288,112 @@ func TestResumeIdempotency_EpisodicUniqueness(t *testing.T) {
 		sess.ID, memory.NormalizeTarget("/api/new")).Scan(&exists)
 	require.NoError(t, err)
 	require.Equal(t, 1, exists, "new case should be recorded")
+}
+
+// TestResumePhase_ConsolidateAppliesEffectiveness tests that resumePhase.executeConsolidatePhase
+// applies effectiveness EMA and governance, matching runPhase behavior.
+// This is a regression test for the merge-blocker where resume only wrote episodic rows.
+func TestResumePhase_ConsolidateAppliesEffectiveness(t *testing.T) {
+	ctx := context.Background()
+
+	s, err := store.New(":memory:")
+	require.NoError(t, err)
+	err = store.RunMigrations(context.Background(), s.DB(), "../../migrations")
+	require.NoError(t, err)
+	defer func() { _ = s.Close() }()
+
+	cfg := project.DefaultConfig()
+	cfg.Project.Name = "test-project"
+
+	mockClient := llm.NewMockClient(map[string]string{"default": `{"status":"pass"}`})
+	logger := zap.NewNop()
+
+	sess, err := NewSession(context.Background(), SessionConfig{
+		Mode:       ModeRun,
+		Goal:       "test goal",
+		Config:     &cfg,
+		Store:      s,
+		Client:     mockClient,
+		Logger:     logger,
+		Gate:       nil,
+		ProjectDir: ".",
+		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+	})
+	require.NoError(t, err)
+	sess.ID = "sess-resume-consolidate"
+
+	// Insert session record
+	_, err = sess.Store.DB().ExecContext(ctx,
+		`INSERT INTO sessions (id, mode, status, goal, project_name, coverage_pct, stats, started_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+		sess.ID, "run", "running", "test goal", "test-project", 0.0, "{}")
+	require.NoError(t, err)
+
+	// Create a procedural memory with default effectiveness 0.5
+	procID, err := sess.Store.StoreProceduralWithType(ctx,
+		"resume-strategy", "/api/widgets", "validate widgets",
+		"test-project", "test", "failure", []float64{0.1, 0.2}, "test-model")
+	require.NoError(t, err)
+	require.NotZero(t, procID)
+
+	// Verify initial effectiveness is 0.5
+	var initialEffectiveness float64
+	err = sess.Store.DB().QueryRowContext(ctx,
+		`SELECT effectiveness FROM memory_procedural WHERE id=?`, procID.ID).Scan(&initialEffectiveness)
+	require.NoError(t, err)
+	require.Equal(t, 0.5, initialEffectiveness, "new procedural memory starts at 0.5")
+
+	// Record memory usage for a passing case
+	err = sess.Store.RecordMemoryUsage(ctx, procID.ID, sess.ID, "tc-widget-1", memory.NormalizeTarget("/api/widgets/999"), 1)
+	require.NoError(t, err)
+
+	// Verify usage row exists and is unconsolidated
+	var consolidatedAt sql.NullString
+	err = sess.Store.DB().QueryRowContext(ctx,
+		`SELECT consolidated_at FROM memory_usage WHERE procedural_id=? AND session_id=?`,
+		procID.ID, sess.ID).Scan(&consolidatedAt)
+	require.NoError(t, err)
+	require.False(t, consolidatedAt.Valid, "usage should be unconsolidated before consolidate")
+
+	// Create resumePhase with verdicts (mimics what examiner produces)
+	resume := &resumePhase{
+		session: sess,
+		ctx:     ctx,
+		verdicts: []examiner.FinalVerdict{
+			{Status: examiner.StatusPass, StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "tc-widget-1", Target: "/api/widgets/999"}}},
+		},
+	}
+
+	// Execute consolidate phase — should write episodic, apply EMA, run governance
+	err = resume.executeConsolidatePhase()
+	require.NoError(t, err)
+
+	// Assert episodic row created
+	var episodicCount int
+	err = sess.Store.DB().QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM memory_episodic WHERE session_id=? AND target=?`,
+		sess.ID, memory.NormalizeTarget("/api/widgets/999")).Scan(&episodicCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, episodicCount, "episodic row should be created")
+
+	// Assert usage row got consolidated_at stamped
+	err = sess.Store.DB().QueryRowContext(ctx,
+		`SELECT consolidated_at FROM memory_usage WHERE procedural_id=? AND session_id=?`,
+		procID.ID, sess.ID).Scan(&consolidatedAt)
+	require.NoError(t, err)
+	require.True(t, consolidatedAt.Valid, "usage should be consolidated after consolidate")
+	require.NotEmpty(t, consolidatedAt.String, "consolidated_at should have timestamp")
+
+	// Assert effectiveness EMA updated from 0.5 (pass signal = 1.0)
+	var newEffectiveness float64
+	err = sess.Store.DB().QueryRowContext(ctx,
+		`SELECT effectiveness FROM memory_procedural WHERE id=?`, procID.ID).Scan(&newEffectiveness)
+	require.NoError(t, err)
+	require.NotEqual(t, 0.5, newEffectiveness, "effectiveness should update from default")
+	require.Greater(t, newEffectiveness, 0.5, "pass signal should increase effectiveness above 0.5")
+
+	// Assert no unconsolidated rows remain
+	rows, err := sess.Store.UnconsolidatedUsage(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Empty(t, rows, "all usage should be consolidated")
 }
