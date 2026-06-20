@@ -1,9 +1,11 @@
 name: Dogfood - Real LLM Tests
 
 on:
-  schedule:
-    # Weekly on Mondays at 00:00 UTC
-    - cron: '0 0 * * 1'
+  # schedule disabled — dogfood needs ANTHROPIC_* secrets configured first.
+  # Re-enable by uncommenting when secrets are set (see cerberus-docs/ci/dogfood-secrets.md).
+  # schedule:
+  #   # Weekly on Mondays at 00:00 UTC
+  #   - cron: '0 0 * * 1'
   workflow_dispatch:
     # Allow manual trigger
 
