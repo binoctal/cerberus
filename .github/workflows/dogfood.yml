@@ -1,0 +1,56 @@
+name: Dogfood - Real LLM Tests
+
+on:
+  schedule:
+    # Weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+    # Allow manual trigger
+
+jobs:
+  dogfood:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fixture:
+          - go-lib
+          - node-app
+          - python-pkg
+      fail-fast: false
+
+    steps:
+      - name: Checkout cerberus
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Build cerberus
+        run: make build
+
+      - name: Checkout test fixtures
+        uses: actions/checkout@v4
+        with:
+          repository: binoctal/cerberus-fixtures
+          path: test/fixtures
+
+      - name: Run cerberus on ${{ matrix.fixture }}
+        run: |
+          ./build/cerberus -p test/fixtures/${{ matrix.fixture }} -v
+        env:
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ secrets.ANTHROPIC_DEFAULT_SONNET_MODEL }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dogfood-${{ matrix.fixture }}
+          path: |
+            .cerberus/runtime/logs/
+            .cerberus/runtime/data/
+          retention-days: 30
