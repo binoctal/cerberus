@@ -24,6 +24,7 @@ func main() {
 		regressionCmd(),
 		accuracyCmd(),
 		knownIssueCmd(),
+		memoryCmd(),
 		versionCmd(),
 		selftestCmd(),
 	)

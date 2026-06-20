@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 )
 
@@ -59,4 +60,28 @@ func (s *Store) GetProceduralByEmbedding(ctx context.Context, queryEmbedding []f
 		out[i] = h.m
 	}
 	return out, nil
+}
+
+// UpdateProceduralEmbedding updates the embedding and model for a procedural memory by ID.
+func (s *Store) UpdateProceduralEmbedding(ctx context.Context, id int64, embedding []float64, model string) error {
+	embJSON, err := json.Marshal(embedding)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE memory_procedural SET embedding = ?, embedding_model = ? WHERE id = ?`,
+		string(embJSON), model, id)
+	return err
+}
+
+// UpdateSemanticEmbedding updates the embedding and model for a semantic memory by ID.
+func (s *Store) UpdateSemanticEmbedding(ctx context.Context, id int64, embedding []float64, model string) error {
+	embJSON, err := json.Marshal(embedding)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE memory_semantic SET embedding = ?, embedding_model = ? WHERE id = ?`,
+		string(embJSON), model, id)
+	return err
 }
