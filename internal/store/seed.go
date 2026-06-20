@@ -13,12 +13,17 @@ func SeedStrategies(ctx context.Context, s *Store, projectName string, logger *z
 	count := 0
 
 	for _, st := range strategies {
-		// Skip if a strategy with same name already exists.
-		existing, _ := s.GetProceduralByMatch(ctx, st.condition, 1)
+		// Skip if a strategy with the same name already exists for this project.
+		dup := false
+		existing, _ := s.GetProceduralByMatch(ctx, st.condition, 100)
 		for _, e := range existing {
-			if e.Name == st.name {
-				continue
+			if e.Name == st.name && e.ProjectName == projectName {
+				dup = true
+				break
 			}
+		}
+		if dup {
+			continue
 		}
 
 		_, err := s.StoreProceduralWithType(ctx, st.name, st.condition, st.action, projectName, st.category, st.refType)

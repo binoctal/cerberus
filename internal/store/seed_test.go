@@ -45,13 +45,31 @@ func TestSeedStrategies_Idempotent(t *testing.T) {
 
 	count1, err := SeedStrategies(ctx, s, "test-project", zap.NewNop())
 	require.NoError(t, err)
+	assert.Greater(t, count1, 0, "first seed should add strategies")
 
 	// Seed again — should not duplicate (condition match skips).
 	count2, err := SeedStrategies(ctx, s, "test-project", zap.NewNop())
 	require.NoError(t, err)
-
-	assert.Equal(t, count1, count1)       // First seed added strategies.
 	assert.LessOrEqual(t, count2, count1) // Second seed should add ≤ first (may skip duplicates).
+}
+
+func TestSeedStrategies_IsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	s, err := New(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = s.Close() })
+	require.NoError(t, RunMigrations(ctx, s.DB(), "../../migrations"))
+
+	n1, err := SeedStrategies(ctx, s, "proj", zap.NewNop())
+	require.NoError(t, err)
+	require.Greater(t, n1, 0)
+	n2, err := SeedStrategies(ctx, s, "proj", zap.NewNop())
+	require.NoError(t, err)
+	require.Equal(t, 0, n2, "second seed must not duplicate strategies")
+
+	var total int
+	require.NoError(t, s.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM memory_procedural WHERE project_name='proj'`).Scan(&total))
+	require.Equal(t, n1, total, "row count must equal first seed count")
 }
 
 func TestDefaultStrategies_Contents(t *testing.T) {
