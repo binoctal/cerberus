@@ -34,3 +34,4 @@ cover.html
 .DS_Store
 .serena/
 coverage.out
+node_modules/
