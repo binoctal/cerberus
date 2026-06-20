@@ -173,7 +173,7 @@ func TestSearchSemanticForProject_ScopeFiltering(t *testing.T) {
 	query := []float64{1.0, 0.0, 0.0}
 
 	// Search for proj-a: should return proj-a + global, but NOT proj-b.
-	results, err := s.SearchSemanticForProject(ctx, query, "proj-a", 10, 0.0)
+	results, err := s.SearchSemanticForProject(ctx, query, "proj-a", 10, 0.0, "")
 	require.NoError(t, err)
 	assert.Len(t, results, 2, "should return proj-a and global entries")
 	for _, r := range results {
@@ -182,7 +182,7 @@ func TestSearchSemanticForProject_ScopeFiltering(t *testing.T) {
 	}
 
 	// Search for proj-b: should return proj-b + global, but NOT proj-a.
-	results, err = s.SearchSemanticForProject(ctx, query, "proj-b", 10, 0.0)
+	results, err = s.SearchSemanticForProject(ctx, query, "proj-b", 10, 0.0, "")
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
 	for _, r := range results {

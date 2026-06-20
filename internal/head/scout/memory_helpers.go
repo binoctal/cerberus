@@ -72,7 +72,7 @@ func (s *Scout) querySemanticMemories(ctx context.Context, goal string, topK int
 		return nil, err
 	}
 
-	results, err := s.store.SearchSemanticForProject(ctx, queryEmb, s.config.Project.Name, topK, threshold)
+	results, err := s.store.SearchSemanticForProject(ctx, queryEmb, s.config.Project.Name, topK, threshold, s.embedder.ModelName())
 	if err != nil {
 		return nil, err
 	}

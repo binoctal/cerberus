@@ -113,13 +113,14 @@ func (s *Store) SearchSemantic(ctx context.Context, queryEmbedding []float64,
 // SearchSemanticForProject performs cosine similarity search scoped to a specific project
 // (or global entries with empty project_name). Returns results sorted by descending similarity.
 func (s *Store) SearchSemanticForProject(ctx context.Context, queryEmbedding []float64,
-	project string, limit int, threshold float64) ([]SemanticSearchResult, error) {
+	project string, limit int, threshold float64, model string) ([]SemanticSearchResult, error) {
 
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, content, source, tags, confidence, COALESCE(project_name, ''),
 		        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
 		 FROM memory_semantic
-		 WHERE project_name = ? OR project_name = ''`, project)
+		 WHERE (project_name = ? OR project_name = '')
+		   AND COALESCE(embedding_model, '') = ?`, project, model)
 	if err != nil {
 		return nil, err
 	}
