@@ -50,15 +50,15 @@ func (rp *runPhase) executeAutoTestPhase() {
 	var gen autotest.TestGenerator
 
 	lang := autotest.DetectLanguage(sourceFile, markers)
+	cov = autotest.NewCoverageProviderForLanguage(lang, autotest.DefaultGoCoverageRunner, rp.session.Logger)
+
+	// Create test generator (still language-specific)
 	switch lang {
 	case "node":
-		cov = autotest.NewNodeCoverageProvider(autotest.DefaultNodeCoverageConfig())
 		gen = autotest.NewNodeTestGenerator(driver)
 	case "python":
-		cov = autotest.NewPythonCoverageProvider(autotest.DefaultPythonCoverageConfig())
 		gen = autotest.NewPythonTestGenerator(driver)
 	default: // "go" or fallback
-		cov = autotest.NewGoCoverageProvider(autotest.DefaultGoCoverageRunner, rp.session.Logger)
 		gen = autotest.NewGoTestGenerator(driver, rp.session.Logger)
 	}
 
