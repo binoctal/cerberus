@@ -18,6 +18,9 @@ func (NoOpSandbox) Apply(ctx context.Context, _ Policy) (context.Context, func()
 // ExecCommand runs a command without sandbox isolation (direct os/exec).
 func (NoOpSandbox) ExecCommand(ctx context.Context, cmd string, args []string, env []string, dir string, _ Policy) (string, string, int, error) {
 	c := exec.CommandContext(ctx, cmd, args...)
+	// Put the child in its own process group so a timeout kills the whole
+	// tree (command + any grandchildren it forks), not just the direct child.
+	configureProcessGroup(c)
 	if dir != "" {
 		c.Dir = dir
 	}

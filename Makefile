@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt check clean run coverage e2e
+.PHONY: build test slowtest lint fmt check clean run coverage e2e
 
 # Put GOPATH/bin (where `go install` places tools like goimports) on PATH so
 # fmt/lint work without per-user shell configuration.
@@ -9,7 +9,16 @@ build:
 	go build -o build/cerberus ./cmd/cerberus
 
 test:
-	go test -v -race -count=1 ./...
+	# -timeout caps any single package so a deadlocked/hung test can't run
+	# unbounded (default go test timeout is 10m per package — too long to
+	# notice a deadlock). Use `make slowtest` to also flag slow-but-passing tests.
+	go test -v -race -count=1 -timeout 5m ./...
+
+# slowtest runs the suite with JSON output and flags tests exceeding
+# SLOW_TEST_THRESHOLD seconds (default 60), so a slow/recursive/deadlocked
+# case surfaces explicitly instead of silently dragging. CI uses this.
+slowtest:
+	go test -race -count=1 -json -timeout 5m ./... | go run ./tools/slowtest
 
 lint:
 	golangci-lint run ./...

@@ -20,6 +20,20 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		recoverAttempts:     0,
 	}
 
+	// Surface per-case timeouts as analyzable diagnostics rather than a silent
+	// cancellation. A DeadlineExceeded here usually means a deadlock, a hang, or
+	// a missing internal timeout in the executor — logging target + elapsed +
+	// how far the ReAct loop got makes it findable instead of a mystery.
+	defer func() {
+		if se.ctx.Err() == context.DeadlineExceeded {
+			r.logger.Warn("case exceeded per-case timeout (possible deadlock/hang)",
+				zap.String("target", tc.Target),
+				zap.Duration("elapsed", time.Since(se.start)),
+				zap.Int("consecutive_timeouts", se.consecutiveTimeouts),
+				zap.Int("recover_attempts", se.recoverAttempts))
+		}
+	}()
+
 	// Apply per-case timeout.
 	if r.config.PerCaseTimeout > 0 {
 		var cancel context.CancelFunc
