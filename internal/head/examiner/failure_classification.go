@@ -63,6 +63,26 @@ func checkSystemError(stepResult agent.StepResult) (bool, store.FailureReason) {
 	return false, store.FailureReasonNone
 }
 
+// checkUnreachable detects target-unreachable failures: the service was down,
+// DNS failed, or the connection was refused. Such failures are environmental —
+// a recalled strategy cannot help an unreachable target, so they must be
+// excluded from effectiveness attribution (not penalized).
+func checkUnreachable(stepResult agent.StepResult) (bool, store.FailureReason) {
+	if stepResult.Error == nil {
+		return false, store.FailureReasonNone
+	}
+	msg := strings.ToLower(stepResult.Error.Error())
+	for _, sig := range []string{
+		"unreachable", "connection refused", "connection reset",
+		"no such host", "dial tcp", "server unreachable",
+	} {
+		if strings.Contains(msg, sig) {
+			return true, store.FailureReasonUnreachable
+		}
+	}
+	return false, store.FailureReasonNone
+}
+
 // getDefaultFailureReason returns the default failure reason based on status
 func getDefaultFailureReason(status string) store.FailureReason {
 	if status == "fail" || status == "failed" {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/memory"
+	"github.com/binoctal/cerberus/internal/store"
 )
 
 // executeConsolidatePhase runs after verdicts are committed. It is idempotent
@@ -69,17 +70,23 @@ func applyEffectiveness(ctx context.Context, session *Session, verdicts []examin
 			order = append(order, u.ProceduralID)
 		}
 		g.ids = append(g.ids, u.ID)
-		st, found := verdictByTarget[memory.NormalizeTarget(u.Target)]
+		vi, found := verdictByTarget[memory.NormalizeTarget(u.Target)]
 		if !found {
 			continue // verdict not committed/in-memory for this target
 		}
-		switch st {
+		switch vi.status {
 		case examiner.StatusPass:
 			g.passes++
 			g.count++
 		case examiner.StatusFail:
-			g.fails++
-			g.count++
+			// Only count failures that are genuine evidence the recalled strategy
+			// did not help (assertion/policy). Environmental failures (unreachable,
+			// timeout, dependency), LLM-quality issues, and cerberus system errors
+			// are not the strategy's fault and must not penalize effectiveness.
+			if vi.reason.CountsAsStrategyEvidence() {
+				g.fails++
+				g.count++
+			}
 		default: // skip/uncertain excluded
 		}
 	}
@@ -103,29 +110,50 @@ func applyEffectiveness(ctx context.Context, session *Session, verdicts []examin
 	return nil
 }
 
-// verdictByNormalizedTarget maps normalized target -> verdict status, drawing
-// from committed verdicts (GetVerdicts) so resume sees only what persisted.
+// verdictInfo pairs a verdict status with its classified failure reason.
+type verdictInfo struct {
+	status examiner.JudgeStatus
+	reason store.FailureReason
+}
+
+// verdictByNormalizedTarget maps normalized target -> verdict info, drawing
+// from committed verdicts (GetVerdicts, which carry FailureReason) so resume
+// sees only what persisted. In-memory verdicts cover skip cases that were never
+// committed (TraceID==0); they have no classified reason (treated as non-evidence).
 // Shared by both runPhase and resumePhase consolidate logic.
-func verdictByNormalizedTarget(ctx context.Context, session *Session, verdicts []examiner.FinalVerdict) map[string]examiner.JudgeStatus {
-	out := map[string]examiner.JudgeStatus{}
+func verdictByNormalizedTarget(ctx context.Context, session *Session, verdicts []examiner.FinalVerdict) map[string]verdictInfo {
+	out := map[string]verdictInfo{}
 	committed, err := session.Store.GetVerdicts(ctx, session.ID)
 	if err != nil {
 		session.Logger.Warn("get verdicts failed", zap.Error(err))
 	}
-	add := func(target, status string) {
-		if target == "" {
-			return
-		}
-		out[memory.NormalizeTarget(target)] = examiner.JudgeStatus(status)
-	}
 	for _, v := range committed {
-		add(v.Target, v.Status)
-	}
-	// In-memory covers skip cases that were never committed (TraceID==0).
-	for _, v := range verdicts {
-		if v.StepResult.TestCase != nil {
-			add(v.StepResult.TestCase.Target, string(v.Status))
+		if v.Target == "" {
+			continue
 		}
+		out[memory.NormalizeTarget(v.Target)] = verdictInfo{
+			status: examiner.JudgeStatus(v.Status),
+			reason: v.FailureReason,
+		}
+	}
+	// In-memory covers skip cases that were never committed (TraceID==0). These
+	// have no classified reason. A fail without a classified reason is treated as
+	// assertion-level evidence (conservative: don't let a strategy off the hook
+	// when we lack a reason); a committed fail carries its real reason and may be
+	// excluded as environmental.
+	for _, v := range verdicts {
+		if v.StepResult.TestCase == nil || v.StepResult.TestCase.Target == "" {
+			continue
+		}
+		key := memory.NormalizeTarget(v.StepResult.TestCase.Target)
+		if _, exists := out[key]; exists {
+			continue
+		}
+		reason := store.FailureReasonNone
+		if v.Status == examiner.StatusFail {
+			reason = store.FailureReasonAssertionFailed
+		}
+		out[key] = verdictInfo{status: v.Status, reason: reason}
 	}
 	return out
 }

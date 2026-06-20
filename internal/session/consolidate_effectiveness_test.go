@@ -82,3 +82,59 @@ func TestConsolidate_EffectivenessGroupedByProcedural(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, count, "no unconsolidated rows should remain")
 }
+
+// TestConsolidate_EnvironmentalFailureDoesNotPenalize verifies that a recalled
+// strategy is NOT penalized when the recalling case failed for an environmental
+// reason (target unreachable). The failure carries FailureReasonUnreachable on
+// the committed verdict; consolidate must exclude it from the EMA signal, so
+// effectiveness stays at its prior value and the row is merely consolidated.
+func TestConsolidate_EnvironmentalFailureDoesNotPenalize(t *testing.T) {
+	ctx := context.Background()
+	rp, cleanup := newTestRunPhase(t)
+	defer cleanup()
+
+	const sessID = "sess-env"
+	rp.session.ID = sessID
+	db := rp.session.Store.DB()
+
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO sessions (id, mode, status, goal, project_name, coverage_pct, stats, started_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+		sessID, "run", "running", "test", "proj", 0.0, "{}")
+	require.NoError(t, err)
+
+	proc, err := rp.session.Store.StoreProceduralWithType(
+		ctx, "n", "cond", "act", "proj", "cat", "failure", nil,
+		embed.NewTrigramProvider(embed.DefaultDimension).ModelName())
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `UPDATE memory_procedural SET effectiveness=0.5, usage_count=0 WHERE id=?`, proc.ID)
+	require.NoError(t, err)
+
+	const target = "/api/auth/login"
+	require.NoError(t, rp.session.Store.RecordMemoryUsage(ctx, proc.ID, sessID, "tc-env", target, 1))
+
+	// Insert a committed verdict whose failure reason is "unreachable" (environmental).
+	res, err := db.ExecContext(ctx,
+		`INSERT INTO traces (session_id, category, target, status) VALUES (?, 'api', ?, 'fail')`, sessID, target)
+	require.NoError(t, err)
+	traceID, _ := res.LastInsertId()
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO verdicts (session_id, trace_id, target, status, confidence, source, failure_reason)
+		 VALUES (?, ?, ?, 'fail', 0.9, 'judge', 'unreachable')`, sessID, traceID, target)
+	require.NoError(t, err)
+
+	rp.verdicts = nil // rely on the committed verdict
+	require.NoError(t, rp.executeConsolidatePhase())
+
+	var eff float64
+	var usage int
+	require.NoError(t, db.QueryRowContext(ctx,
+		`SELECT effectiveness, usage_count FROM memory_procedural WHERE id=?`, proc.ID).Scan(&eff, &usage))
+	require.InDelta(t, 0.5, eff, 0.001, "environmental failure must not penalize effectiveness")
+	require.Equal(t, 0, usage, "no strategy-relevant evidence → usage_count unchanged")
+
+	var consolidated int
+	require.NoError(t, db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM memory_usage WHERE procedural_id=? AND consolidated_at IS NOT NULL`, proc.ID).Scan(&consolidated))
+	require.Equal(t, 1, consolidated, "the memory_usage row must still be consolidated (idempotency)")
+}

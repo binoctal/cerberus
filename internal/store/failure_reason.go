@@ -35,6 +35,11 @@ const (
 	// Examples: crashes, panics, internal errors
 	// This IS a system bug that needs attention
 	FailureReasonSystemError FailureReason = "system_error"
+
+	// FailureReasonUnreachable indicates the test target could not be reached
+	// (service down, connection refused, DNS failure). This is an environment
+	// issue: the recalled strategy is not at fault, so it must not be penalized.
+	FailureReasonUnreachable FailureReason = "unreachable"
 )
 
 // DisplayName returns a human-readable name for the failure reason
@@ -54,6 +59,8 @@ func (r FailureReason) DisplayName() string {
 		return "Timeout"
 	case FailureReasonSystemError:
 		return "System Error"
+	case FailureReasonUnreachable:
+		return "Target Unreachable"
 	default:
 		return "Unknown"
 	}
@@ -73,7 +80,21 @@ func (r FailureReason) IsSystemBug() bool {
 // IsEnvironmentIssue returns true if this failure is due to environment/setup
 func (r FailureReason) IsEnvironmentIssue() bool {
 	switch r {
-	case FailureReasonDependencyMissing, FailureReasonTimeout:
+	case FailureReasonDependencyMissing, FailureReasonTimeout, FailureReasonUnreachable:
+		return true
+	default:
+		return false
+	}
+}
+
+// CountsAsStrategyEvidence returns true when a failure with this reason is
+// genuine evidence that a recalled procedural strategy did not help — i.e. the
+// failure reflects on the strategy's quality, not on the environment, the LLM,
+// or cerberus itself. Used by effectiveness consolidation to avoid penalizing
+// strategies for failures they could not have prevented.
+func (r FailureReason) CountsAsStrategyEvidence() bool {
+	switch r {
+	case FailureReasonAssertionFailed, FailureReasonPolicyRejected:
 		return true
 	default:
 		return false

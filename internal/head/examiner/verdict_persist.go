@@ -41,6 +41,11 @@ func ClassifyFailureReason(status string, stepResult agent.StepResult, reasoning
 		return reason
 	}
 
+	// Phase 6.5: Check for unreachable targets (environmental — do not penalize strategies)
+	if isUnreachable, reason := checkUnreachable(stepResult); isUnreachable {
+		return reason
+	}
+
 	// Phase 7: Default failure classification
 	return getDefaultFailureReason(status)
 }
