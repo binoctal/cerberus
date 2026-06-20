@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Run executes the full three-head workflow: Scout → Agent → Examiner → AutoTest.
@@ -43,6 +45,11 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	if err := rp.executeExaminerPhase(); err != nil {
 		rp.err = fmt.Errorf("examiner: %w", err)
 		return rp.err
+	}
+
+	// Phase 3.5: Consolidate — Write episodic memory (idempotent)
+	if err := rp.executeConsolidatePhase(); err != nil {
+		rp.session.Logger.Warn("consolidate phase failed", zap.Error(err))
 	}
 
 	// Phase 4: AutoTest — Coverage-driven test generation (optional)

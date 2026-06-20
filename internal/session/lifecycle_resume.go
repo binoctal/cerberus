@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Resume loads a saved plan and continues from the first uncompleted test case.
@@ -51,6 +53,11 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 	if err := rp.examineResults(); err != nil {
 		rp.err = fmt.Errorf("examiner (resume): %w", err)
 		return rp.err
+	}
+
+	// Consolidate phase — Write episodic memory (idempotent)
+	if err := rp.executeConsolidatePhase(); err != nil {
+		rp.session.Logger.Warn("consolidate phase failed (resume)", zap.Error(err))
 	}
 
 	// Build summary

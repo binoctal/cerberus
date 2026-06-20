@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/memory"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -30,7 +31,7 @@ func (s *Scout) queryEpisodicMemories(ctx context.Context, targets []string, lim
 	var memories []store.EpisodicMemory
 
 	for _, target := range targets {
-		targetMemories, err := s.store.GetEpisodicByTarget(ctx, target, limit)
+		targetMemories, err := s.store.GetEpisodicByTarget(ctx, memory.NormalizeTarget(target), limit)
 		if err != nil {
 			s.logger.Debug("episodic lookup failed", zap.String("target", target), zap.Error(err))
 			continue

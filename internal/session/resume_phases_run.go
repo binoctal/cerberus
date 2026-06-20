@@ -6,6 +6,8 @@ import (
 	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
+	"github.com/binoctal/cerberus/internal/memory"
+	"go.uber.org/zap"
 )
 
 // executeRemainingCases runs the agent execution phase for remaining cases
@@ -67,5 +69,23 @@ func (rp *resumePhase) examineResults() error {
 		return fmt.Errorf("examiner (resume): %w", err)
 	}
 
+	return nil
+}
+
+// executeConsolidatePhase runs after verdicts are committed during resume.
+// It is idempotent (safe on resume): episodic writes key on session+target+verdict.
+func (rp *resumePhase) executeConsolidatePhase() error {
+	for _, v := range rp.verdicts {
+		tc := v.StepResult.TestCase
+		if tc == nil || tc.Target == "" {
+			continue
+		}
+		target := memory.NormalizeTarget(tc.Target)
+		if err := rp.session.Store.RecordEpisodic(
+			rp.ctx, rp.session.ID, target, string(v.Status), string(v.Status), v.StepResult.Duration); err != nil {
+			rp.session.Logger.Warn("record episodic failed (resume)",
+				zap.String("target", target), zap.Error(err))
+		}
+	}
 	return nil
 }
