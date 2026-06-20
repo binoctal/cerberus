@@ -250,3 +250,7 @@ func (f *fixedRecovery) Recover(ctx context.Context, tc TestCase, result types.E
 func (f *fixedRecovery) SetSessionID(id string) {
 	// No-op for test double
 }
+
+func (f *fixedRecovery) SetProject(name string) {
+	// No-op for test double
+}

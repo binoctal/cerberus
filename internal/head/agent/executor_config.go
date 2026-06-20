@@ -22,6 +22,7 @@ type ReActLoopConfig struct {
 	Gate     escalation.Gate
 	Logger   *zap.Logger
 	Embedder embed.Provider
+	Project  string
 }
 
 // NewReActLoopWithGateWithConfig creates a ReAct execution loop with an explicit escalation gate using config.
@@ -30,17 +31,25 @@ func NewReActLoopWithGateWithConfig(cfg ReActLoopConfig) *ReActLoop {
 		cfg.Gate = escalation.NoOpGate{}
 	}
 
-	return &ReActLoop{
-		driver:     cfg.Driver,
-		store:      cfg.Store,
-		engine:     cfg.Engine,
-		executor:   cfg.Executor,
-		recovery:   NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger, cfg.Embedder),
-		config:     cfg.Config,
-		gate:       cfg.Gate,
-		logger:     cfg.Logger,
-		processMgr: NewProcessManager(cfg.Logger),
+	loop := &ReActLoop{
+		driver:      cfg.Driver,
+		store:       cfg.Store,
+		engine:      cfg.Engine,
+		executor:    cfg.Executor,
+		recovery:    NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger, cfg.Embedder),
+		config:      cfg.Config,
+		gate:        cfg.Gate,
+		logger:      cfg.Logger,
+		processMgr:  NewProcessManager(cfg.Logger),
+		projectName: cfg.Project,
 	}
+
+	// Set project name on recovery if it implements the interface
+	if cfg.Project != "" {
+		loop.recovery.SetProject(cfg.Project)
+	}
+
+	return loop
 }
 
 // NewReActLoopWithConfig creates a ReAct execution loop with a no-op escalation gate using config.

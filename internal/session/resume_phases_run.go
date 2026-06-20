@@ -35,6 +35,7 @@ func (rp *resumePhase) executeRemainingCases() error {
 		Gate:     rp.session.Gate,
 		Logger:   rp.session.Logger,
 		Embedder: emb,
+		Project:  rp.session.Config.Project.Name,
 	})
 
 	var err error

@@ -15,6 +15,7 @@ import (
 type recoverer interface {
 	Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error)
 	SetSessionID(string)
+	SetProject(string)
 }
 
 // RecoverDecision holds the recovery decision output.
@@ -25,14 +26,15 @@ type RecoverDecision struct {
 
 // ReActLoop executes test steps using a Reason-Act-Observe cycle.
 type ReActLoop struct {
-	driver     *ai.Driver
-	store      *store.Store
-	engine     *RuleEngine
-	executor   TypedExecutor
-	recovery   recoverer
-	config     ReActConfig
-	logger     *zap.Logger
-	gate       escalation.Gate
-	processMgr *ProcessManager
-	progressCh chan<- ProgressEvent
+	driver      *ai.Driver
+	store       *store.Store
+	engine      *RuleEngine
+	executor    TypedExecutor
+	recovery    recoverer
+	config      ReActConfig
+	logger      *zap.Logger
+	gate        escalation.Gate
+	processMgr  *ProcessManager
+	progressCh  chan<- ProgressEvent
+	projectName string
 }

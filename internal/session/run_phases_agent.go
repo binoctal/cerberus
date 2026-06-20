@@ -35,6 +35,7 @@ func (rp *runPhase) executeAgentPhase() error {
 		Gate:     rp.session.Gate,
 		Logger:   rp.session.Logger,
 		Embedder: emb,
+		Project:  rp.session.Config.Project.Name,
 	})
 
 	rp.session.Logger.Info("executing test plan",
