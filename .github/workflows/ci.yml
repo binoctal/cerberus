@@ -16,6 +16,19 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install fixture deps
+        run: |
+          cd test/fixtures/node-app && npm install --silent
+          cd ../python-pkg && pip install -q -r requirements.txt
+
       - name: Verify dependencies
         run: go mod verify
 
