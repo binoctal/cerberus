@@ -36,12 +36,12 @@
 **Interfaces:**
 - Produces: CI test job with Node 20 + Python 3.11 + fixture deps installed.
 
-- [ ] **Step 1: Read current ci.yml**
+- [x] **Step 1: Read current ci.yml**
 
 Run: `cat .github/workflows/ci.yml`
 Note the test job structure (checkout → setup-go → build → vet → test → selftest).
 
-- [ ] **Step 2: Add toolchain steps after setup-go**
+- [x] **Step 2: Add toolchain steps after setup-go**
 
 In the `test` job, after `setup-go` and before `Build binary`, add:
 
@@ -58,12 +58,12 @@ In the `test` job, after `setup-go` and before `Build binary`, add:
           cd ../python-pkg && pip install -q -r requirements.txt
 ```
 
-- [ ] **Step 3: Verify locally (mock CI)**
+- [x] **Step 3: Verify locally (mock CI)**
 
 Run: `go test ./test/fixtures/ -v`
 Expected: Node/Python fixture tests either PASS (if local toolchain) or SKIP (if absent). No FAIL from toolchain.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -83,7 +83,7 @@ git commit -m "ci: add Node/Python toolchain for fixture tests"
 **Interfaces:**
 - Produces: `(rp *runPhase) realCoveragePct(ctx) float64` — returns real line coverage (AutoTest report if available, else independent coverage run).
 
-- [ ] **Step 1: Extract NewCoverageProviderForLanguage**
+- [x] **Step 1: Extract NewCoverageProviderForLanguage**
 
 Read `internal/session/run_phases_autotest.go` — find the language routing switch (Task 3 of Plan 2: `switch lang { case "node": NewNodeCoverageProvider... }`). Extract this into `internal/autotest/provider_factory.go`:
 
@@ -107,7 +107,7 @@ func NewCoverageProviderForLanguage(lang string, runner CoverageRunner, logger *
 
 Then update `run_phases_autotest.go` to call `NewCoverageProviderForLanguage` instead of inline switch (DRY).
 
-- [ ] **Step 2: Write the failing test for coverageForSession**
+- [x] **Step 2: Write the failing test for coverageForSession**
 
 `internal/session/coverage_test.go`:
 ```go
@@ -145,12 +145,12 @@ func TestCoverageForSession_NoAutoTest_GoProject(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run test — expect FAIL**
+- [x] **Step 3: Run test — expect FAIL**
 
 Run: `go test ./internal/session/ -run TestCoverageForSession -v`
 Expected: FAIL (undefined coverageForSession).
 
-- [ ] **Step 4: Implement coverageForSession**
+- [x] **Step 4: Implement coverageForSession**
 
 `internal/session/coverage.go`:
 ```go
@@ -187,12 +187,12 @@ func coverageForSession(ctx context.Context, sess *Session) float64 {
 
 Also: `DefaultGoCoverageRunner` is a `func(ctx, projectDir) ([]byte, error)` — for Node/Python, the provider may need a different runner. Read `coverage_node_factory.go` / `coverage_python_factory.go` for what runner they expect. If different, pass the correct one per language (the provider factory may need to handle runner selection internally).
 
-- [ ] **Step 5: Run test — expect PASS**
+- [x] **Step 5: Run test — expect PASS**
 
 Run: `go test ./internal/session/ -run TestCoverageForSession -v`
 Expected: PASS.
 
-- [ ] **Step 6: Wire into run_phases_examiner**
+- [x] **Step 6: Wire into run_phases_examiner**
 
 In `internal/session/run_phases_examiner.go`, replace the current covPct computation (pass-ratio) with:
 ```go
@@ -205,13 +205,13 @@ In `internal/session/run_phases_examiner.go`, replace the current covPct computa
 
 Remove the old `passed/total` computation.
 
-- [ ] **Step 7: Run full session tests + make check**
+- [x] **Step 7: Run full session tests + make check**
 
 Run: `go test ./internal/session/ ./internal/autotest/`
 Then: `make check`
 Expected: all green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/session/coverage.go internal/session/coverage_test.go internal/session/run_phases_examiner.go internal/autotest/
@@ -228,7 +228,7 @@ git commit -m "feat(session): real line coverage for AssessCoverage (not pass-ra
 **Interfaces:**
 - Produces: weekly CI workflow that runs cerberus against fixtures with real LLM (env vars from secrets).
 
-- [ ] **Step 1: Create dogfood workflow**
+- [x] **Step 1: Create dogfood workflow**
 
 `.github/workflows/dogfood.yml`:
 ```yaml
@@ -290,7 +290,7 @@ jobs:
 
 **Note**: SaaS dogfood needs a live HTTP server. For simplicity, this step may fail if no server is running on :9999. The `|| echo` ensures it doesn't block. A future improvement: start a fixture server in the workflow. For now, the 3 local fixtures (go/node/python) are the primary dogfood targets.
 
-- [ ] **Step 2: Document secrets needed**
+- [x] **Step 2: Document secrets needed**
 
 Add to the workflow a comment or create `cerberus-docs/ci/dogfood-secrets.md`:
 ```markdown
@@ -306,12 +306,12 @@ These match cerberus config resolution (ANTHROPIC_* env vars).
 Changing model/endpoint = update secret, not code.
 ```
 
-- [ ] **Step 3: Verify workflow syntax**
+- [x] **Step 3: Verify workflow syntax**
 
 Run: `actionlint .github/workflows/dogfood.yml` (if available) or review YAML manually.
 Expected: valid syntax.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/dogfood.yml cerberus-docs/ci/dogfood-secrets.md
@@ -326,3 +326,24 @@ git commit -m "ci: add weekly real-LLM dogfood workflow (ANTHROPIC_* env vars)"
 - **Placeholders**: none; every step has code. Task 2 has a NOTE about verifying DetectLanguage signature + runner selection (read factory files) — flagged for implementer.
 - **Type consistency**: `coverageForSession(ctx, *Session) float64` defined T2, used in run_phases_examiner T2. `NewCoverageProviderForLanguage(lang, runner, logger)` defined in autotest, used by session.
 - **One caveat**: Task 2's `DetectLanguage` signature + coverage runner per language may need adjustment based on existing code — implementer must read `language.go` + factory files. Flagged in Step 4 NOTE.
+
+---
+
+## Post-Implementation Fix (2026-06-20)
+
+Task 2 shipped a latent defect: `coverageForSession`'s B-path runs
+`go test -coverprofile ./...` in `ProjectDir`. Most tests set `ProjectDir` to
+`.` or `../..` (the cerberus repo itself), so the Examiner phase re-ran the
+entire test suite from inside the test process — recursing until the 10m
+timeout. `make check` was RED; the SaaS fixture alone took 139s.
+
+Fix (commit caa1dad): inject an override, mirroring the existing
+`clientFactory` pattern — `SessionConfig.CoverageFn` + `Session.lineCoverage()`.
+The Examiner calls the override when set, else falls back to
+`coverageForSession`. A stub is injected at every Run-to-Examiner test site
+whose `ProjectDir` lands inside the cerberus module (internal/session ×24,
+internal/smoke ×3, the SaaS fixture ×1 = 28 sites). Real coverage is retained
+where it cannot recurse: the go-lib fixture (own go.mod) and the node/python
+fixtures (AutoTest on → A-path reuses the report).
+
+`make check` is now green; the SaaS fixture is ~0.5s.
