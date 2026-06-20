@@ -36,7 +36,7 @@ func (s *Store) StoreSemantic(ctx context.Context, content, source, project stri
 
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO memory_semantic (content, source, tags, confidence, project_name, embedding, embedding_model)
-		 VALUES (?, ?, ?, 0.5, ?, ?, ?)`,
+			 VALUES (?, ?, ?, 0.5, ?, ?, ?)`,
 		content, source, string(tagsJSON), project, embJSON, model)
 	if err != nil {
 		return 0, err
@@ -48,8 +48,8 @@ func (s *Store) StoreSemantic(ctx context.Context, content, source, project stri
 func (s *Store) GetSemanticByID(ctx context.Context, id int64) (*SemanticMemory, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, content, source, tags, confidence, COALESCE(project_name, ''),
-		        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
-		 FROM memory_semantic WHERE id = ?`, id)
+			        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
+			 FROM memory_semantic WHERE id = ?`, id)
 
 	var m SemanticMemory
 	var tagsJSON, embJSON string
@@ -69,8 +69,8 @@ func (s *Store) SearchSemantic(ctx context.Context, queryEmbedding []float64,
 
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, content, source, tags, confidence, COALESCE(project_name, ''),
-		        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
-		 FROM memory_semantic`)
+			        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
+			 FROM memory_semantic`)
 	if err != nil {
 		return nil, err
 	}
@@ -117,10 +117,11 @@ func (s *Store) SearchSemanticForProject(ctx context.Context, queryEmbedding []f
 
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, content, source, tags, confidence, COALESCE(project_name, ''),
-		        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
-		 FROM memory_semantic
-		 WHERE (project_name = ? OR project_name = '')
-		   AND COALESCE(embedding_model, '') = ?`, project, model)
+			        COALESCE(embedding, '[]'), COALESCE(embedding_model, ''), created_at, updated_at
+			 FROM memory_semantic
+			 WHERE (project_name = ? OR project_name = '')
+			   AND COALESCE(embedding_model, '') = ?
+			   AND COALESCE(archived,0) = 0`, project, model)
 	if err != nil {
 		return nil, err
 	}

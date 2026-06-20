@@ -231,18 +231,15 @@ func TestAutoArchiveLowEffectiveness(t *testing.T) {
 	defer func() { _ = s.Close() }()
 	ctx := context.Background()
 
-	pm, err := s.StoreProcedural(ctx, "low", "* test", "action", "project")
+	// Insert a memory with low effectiveness, used 5x, and old (31 days) → should be archived.
+	old := time.Now().Add(-(31 * 24 * time.Hour)).UTC().Format(time.RFC3339)
+	_, err := s.DB().ExecContext(ctx, `INSERT INTO memory_procedural
+		(name,condition,action,effectiveness,usage_count,project_name,category,type,archived,created_at)
+		VALUES ('low','* test','action',0.2,5,'project','cat','failure',0,?)`, old)
 	require.NoError(t, err)
 
-	// Drive effectiveness below 0.2 with repeated failures.
-	// Start at 0.5, apply failures until < 0.2.
-	for i := 0; i < 5; i++ {
-		err := s.UpdateProceduralEffectiveness(ctx, pm.ID, false)
-		require.NoError(t, err)
-	}
-
 	// Auto-archive.
-	archived, err := s.AutoArchiveLowEffectiveness(ctx, 0.2)
+	archived, err := s.AutoArchiveLowEffectiveness(ctx, "project")
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, archived, 1)
 }

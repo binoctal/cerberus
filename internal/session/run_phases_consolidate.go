@@ -16,6 +16,9 @@ func (rp *runPhase) executeConsolidatePhase() error {
 	if err := rp.applyEffectiveness(); err != nil {
 		rp.session.Logger.Warn("effectiveness consolidate failed", zap.Error(err))
 	}
+	if err := rp.archiveStale(); err != nil {
+		rp.session.Logger.Warn("archive stale failed", zap.Error(err))
+	}
 	return nil
 }
 
@@ -111,4 +114,30 @@ func (rp *runPhase) verdictByNormalizedTarget() map[string]examiner.JudgeStatus 
 		}
 	}
 	return out
+}
+
+// archiveStale runs governance archival policies on stale memories.
+func (rp *runPhase) archiveStale() error {
+	store := rp.session.Store
+	project := rp.session.Config.Project.Name
+
+	if n, err := store.AutoArchiveLowEffectiveness(rp.ctx, project); err != nil {
+		rp.session.Logger.Warn("archive procedural failed", zap.Error(err))
+	} else if n > 0 {
+		rp.session.Logger.Info("archived stale procedural memory", zap.Int("count", n))
+	}
+
+	if n, err := store.ArchiveStaleEpisodic(rp.ctx, 30); err != nil {
+		rp.session.Logger.Warn("archive episodic failed", zap.Error(err))
+	} else if n > 0 {
+		rp.session.Logger.Info("archived stale episodic memory", zap.Int("count", n))
+	}
+
+	if n, err := store.ArchiveStaleSemantic(rp.ctx, 90); err != nil {
+		rp.session.Logger.Warn("archive semantic failed", zap.Error(err))
+	} else if n > 0 {
+		rp.session.Logger.Info("archived stale semantic memory", zap.Int("count", n))
+	}
+
+	return nil
 }

@@ -19,7 +19,7 @@ func (s *Store) RecordEpisodic(ctx context.Context, sessionID string,
 	target, status string, verdict any, duration time.Duration) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO memory_episodic (session_id, target, status, verdict, duration_ms)
-		 VALUES (?, ?, ?, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?)`,
 		sessionID, target, status, jsonText(verdict), duration.Milliseconds())
 	return err
 }
@@ -27,7 +27,7 @@ func (s *Store) RecordEpisodic(ctx context.Context, sessionID string,
 func (s *Store) GetEpisodicByTarget(ctx context.Context, target string, limit int) ([]EpisodicMemory, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, session_id, target, status, COALESCE(verdict, ''), COALESCE(duration_ms, 0), created_at
-		 FROM memory_episodic WHERE target = ? ORDER BY created_at DESC LIMIT ?`,
+			 FROM memory_episodic WHERE target = ? AND COALESCE(archived,0) = 0 ORDER BY created_at DESC LIMIT ?`,
 		target, limit)
 	if err != nil {
 		return nil, err
