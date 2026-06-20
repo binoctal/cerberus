@@ -128,7 +128,7 @@ func TestMemoryCmd_Reembed(t *testing.T) {
 	require.NoError(t, err)
 
 	// Seed a semantic memory with empty embedding
-	_, err = s.StoreSemantic(ctx, "legacy semantic", "test-source", "test-project", []string{"tag1"}, nil, "")
+	semID, err := s.StoreSemantic(ctx, "legacy semantic", "test-source", "test-project", []string{"tag1"}, nil, "")
 	require.NoError(t, err)
 	_ = s.Close()
 
@@ -147,6 +147,24 @@ func TestMemoryCmd_Reembed(t *testing.T) {
 	assert.Contains(t, output, "Re-embedded")
 	assert.Contains(t, output, "procedural")
 	assert.Contains(t, output, "semantic")
+
+	// Verify actual behavior: re-open DB and assert embedding_model changed
+	s2, err := store.New(tmpFile)
+	require.NoError(t, err)
+
+	// Check procedural memory was updated with trigram model
+	procMem, err := s2.GetProceduralByExactKey(ctx, "test-project", "old condition", "old action")
+	require.NoError(t, err)
+	assert.Equal(t, "trigram-v1", procMem.EmbeddingModel, "procedural embedding_model should be trigram-v1 after reembed")
+	assert.NotEmpty(t, procMem.Embedding, "procedural embedding should be non-empty after reembed")
+
+	// Check semantic memory was updated with trigram model
+	semMem, err := s2.GetSemanticByID(ctx, semID)
+	require.NoError(t, err)
+	assert.Equal(t, "trigram-v1", semMem.EmbeddingModel, "semantic embedding_model should be trigram-v1 after reembed")
+	assert.NotEmpty(t, semMem.Embedding, "semantic embedding should be non-empty after reembed")
+
+	_ = s2.Close()
 }
 
 func TestStore_UpdateEmbeddingHelpers(t *testing.T) {

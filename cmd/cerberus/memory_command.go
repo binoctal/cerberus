@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -264,7 +265,7 @@ func memoryPruneCmd() *cobra.Command {
 			// Load project config to get project name
 			projectName := "default"
 			if cfg.Paths != nil && cfg.Paths.ConfigDir != "" {
-				configPath := cfg.Paths.ConfigDir + "/project.yaml"
+				configPath := filepath.Join(cfg.Paths.ConfigDir, "project.yaml")
 				projCfg, err := project.LoadFromFile(configPath)
 				if err == nil && projCfg.Project.Name != "" {
 					projectName = projCfg.Project.Name
@@ -391,6 +392,11 @@ func memoryReembedCmd() *cobra.Command {
 			}
 			if err := sems.Err(); err != nil {
 				return err
+			}
+
+			if procCount == 0 && semCount == 0 {
+				fmt.Println("No memories to re-embed")
+				return nil
 			}
 
 			fmt.Printf("Re-embedded %d procedural + %d semantic memories with model %s\n", procCount, semCount, modelName)
