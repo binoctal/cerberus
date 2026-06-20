@@ -1,9 +1,6 @@
 package session
 
 import (
-	"fmt"
-
-	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/memory"
 	"go.uber.org/zap"
 )
@@ -34,7 +31,3 @@ func (rp *runPhase) writeEpisodicMemory() error {
 	}
 	return nil
 }
-
-// ensure unused import guard for examiner stays valid if StatusX referenced.
-var _ = examiner.StatusPass
-var _ = fmt.Stringer(nil)
