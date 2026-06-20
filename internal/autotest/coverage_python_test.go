@@ -14,15 +14,10 @@ func TestParseJSONCoverage(t *testing.T) {
         "num_statements": 10,
         "covered_lines": 8,
         "percent_covered": 80.0,
-        "missing_lines": "2-3"
+        "missing_lines": 2
       },
-      "lines": {
-        "1": 1,
-        "2": 0,
-        "3": 0,
-        "4": 1,
-        "5": 1
-      }
+      "executed_lines": [1, 4, 5],
+      "missing_lines": [2, 3]
     }
   },
   "meta": {

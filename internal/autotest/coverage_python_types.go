@@ -16,12 +16,12 @@ type CoverageJSON struct {
 
 // PythonFileCoverage represents coverage data for a single Python file
 type PythonFileCoverage struct {
-	Summary        *PythonCoverageSummary         `json:"summary"`
-	ExecutedLines  []int                           `json:"executed_lines"`
-	MissingLines   []int                           `json:"missing_lines"`
-	ExcludedLines  []int                           `json:"excluded_lines"`
-	Functions      map[string]*PythonFuncCoverage  `json:"functions"`
-	Lines          map[string]int                 `json:"lines"` // Deprecated: legacy format
+	Summary       *PythonCoverageSummary         `json:"summary"`
+	ExecutedLines []int                          `json:"executed_lines"`
+	MissingLines  []int                          `json:"missing_lines"`
+	ExcludedLines []int                          `json:"excluded_lines"`
+	Functions     map[string]*PythonFuncCoverage `json:"functions"`
+	Lines         map[string]int                 `json:"lines"` // Deprecated: legacy format
 }
 
 // PythonCoverageSummary contains summary statistics
@@ -35,12 +35,12 @@ type PythonCoverageSummary struct {
 
 // PythonFuncCoverage represents function-level coverage
 type PythonFuncCoverage struct {
-	ExecutedCount int      `json:"executed_count"`
-	MissingLines  []int    `json:"missing_lines"`
-	ExcludedLines []int    `json:"excluded_lines"`
-	ExecutedLines []int    `json:"executed_lines"`
+	ExecutedCount int                    `json:"executed_count"`
+	MissingLines  []int                  `json:"missing_lines"`
+	ExcludedLines []int                  `json:"excluded_lines"`
+	ExecutedLines []int                  `json:"executed_lines"`
 	Summary       *PythonCoverageSummary `json:"summary"`
-	StartLine     int      `json:"start_line"`
+	StartLine     int                    `json:"start_line"`
 }
 
 // PythonCoverageMeta contains metadata

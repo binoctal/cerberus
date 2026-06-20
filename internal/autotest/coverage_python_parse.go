@@ -79,7 +79,7 @@ func (p *PythonCoverageProvider) parseSQLiteCoverage(projectDir string) (*Covera
 		// Return empty report indicating no coverage
 		return &CoverageReport{
 			Profile:      make([]CoverageLine, 0),
-			TotalFuncs:  0,
+			TotalFuncs:   0,
 			CoveredFuncs: 0,
 			Pass:         true,
 		}, nil
