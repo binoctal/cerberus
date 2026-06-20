@@ -29,6 +29,13 @@ runtime/
 cover.out
 cover.html
 *.test
+coverage/
+*.coverage
+coverage.json
+coverage-final.json
+__pycache__/
+*.pyc
+package-lock.json
 
 # OS files
 .DS_Store

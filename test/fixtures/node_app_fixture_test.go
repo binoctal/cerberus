@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
@@ -26,6 +26,12 @@ func TestNodeAppFixture(t *testing.T) {
 	absProjectDir, err := filepath.Abs("node-app")
 	require.NoError(t, err, "Failed to get absolute path to node-app fixture")
 
+	// Check if node_modules exists; if not, skip rather than fail in CI
+	nodeModulesDir := filepath.Join(absProjectDir, "node_modules")
+	if _, err := os.Stat(nodeModulesDir); os.IsNotExist(err) {
+		t.Skip("node_modules absent in test/fixtures/node-app, run 'npm install' in that directory to enable fixture test")
+	}
+
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
 	defer func() { _ = s.Close() }()
@@ -34,8 +40,6 @@ func TestNodeAppFixture(t *testing.T) {
 	cfg := project.DefaultConfig()
 	cfg.Settings.Mode = "local"
 	mockClient := llm.NewMockClient(MockResponses("lib.js"))
-	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(50000, 5000))
-	_ = driver
 
 	sess, err := session.NewSession(context.Background(), session.SessionConfig{
 		Mode:       session.ModeRun,

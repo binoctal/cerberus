@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
@@ -41,8 +40,6 @@ func TestSaaSAPIFixture(t *testing.T) {
 	cfg.Settings.Mode = "" // SaaS mode (services has URL)
 	cfg.Services = []project.Service{{Name: "api", URL: srv.URL, Health: "/health"}}
 	mockClient := llm.NewMockClient(MockResponses("/health"))
-	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(50000, 5000))
-	_ = driver // session uses mockClient directly
 
 	sess, err := session.NewSession(context.Background(), session.SessionConfig{
 		Mode:       session.ModeRun,
