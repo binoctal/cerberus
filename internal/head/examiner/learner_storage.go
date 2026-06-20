@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/memory"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -106,7 +107,9 @@ func (l *Learner) storeSemanticFromReflections(ctx context.Context, reflections 
 
 // storeSingleReflection stores a single reflection as semantic memory.
 func (l *Learner) storeSingleReflection(ctx context.Context, r Reflection, project string) error {
-	content := fmt.Sprintf("%s: %s → %s", r.Type, r.Diagnosis, r.Strategy)
+	// Normalize condition for consistent L2 dedup keys and embedding
+	cond := memory.NormalizeCondition(r.ConditionPattern)
+	content := fmt.Sprintf("%s: %s → %s (condition: %s)", r.Type, r.Diagnosis, r.Strategy, cond)
 	embedding, err := l.embedder.Embed(ctx, content)
 	if err != nil {
 		return fmt.Errorf("generate embedding: %w", err)

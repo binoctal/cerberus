@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/memory"
 )
 
 // Learn generates reflections from all step results and stores them as L3 procedural memory.
@@ -42,14 +43,20 @@ func (l *Learner) Learn(ctx context.Context, input LearnInput) (int, error) {
 			continue
 		}
 
+		cond := memory.NormalizeCondition(r.ConditionPattern)
+		emb, embErr := l.embedder.Embed(ctx, cond)
+		if embErr != nil {
+			l.logger.Warn("embed condition failed", zap.Error(embErr))
+			emb = nil
+		}
 		_, err := l.store.StoreProceduralWithType(ctx,
 			r.Category,
-			r.ConditionPattern,
+			cond,
 			r.Strategy,
 			input.Project,
 			r.Category,
 			r.Type,
-			nil, "", // TODO: Task 5 will replace with real embedding
+			emb, l.embedder.ModelName(),
 		)
 		if err != nil {
 			l.logger.Warn("store reflection", zap.Error(err))
