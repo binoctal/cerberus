@@ -32,6 +32,9 @@ func (se *stepExecution) runReactLoop() StepResult {
 		newResult := executeAndRecordAction(r, se.ctx, action, se.traceID)
 		se.lastResult = newResult
 		se.lastAction = action
+		if types.IsEnvironmentalFailure(newResult) {
+			se.environmentalSeen = true
+		}
 
 		// Phase 4: Check for target unreachable
 		se.consecutiveTimeouts = updateConsecutiveTimeouts(newResult, se.consecutiveTimeouts)

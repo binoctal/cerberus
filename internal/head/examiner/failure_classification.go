@@ -5,6 +5,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // checkPassOrSkip determines if the test passed or was skipped
@@ -81,16 +82,11 @@ func checkUnreachable(stepResult agent.StepResult) (bool, store.FailureReason) {
 			}
 		}
 	}
-	// Transport errors surfaced in the executor result summary. The HTTP
-	// executor returns StatusCode 0 (no response) on connection failure, which
-	// serializes as "HTTP 0 <url>"; non-HTTP results never contain "http 0".
-	if stepResult.Result != nil {
-		msg := strings.ToLower(stepResult.Result.Summary())
-		for _, sig := range []string{"http 0", "connection refused", "no such host", "connection reset"} {
-			if strings.Contains(msg, sig) {
-				return true, store.FailureReasonUnreachable
-			}
-		}
+	// Transport errors surfaced in the executor result (HTTP status 0 or a
+	// connection signal in the summary). Shared with the agent react loop so a
+	// case that hit an environmental failure on ANY attempt is recognized.
+	if types.IsEnvironmentalFailure(stepResult.Result) {
+		return true, store.FailureReasonUnreachable
 	}
 	return false, store.FailureReasonNone
 }

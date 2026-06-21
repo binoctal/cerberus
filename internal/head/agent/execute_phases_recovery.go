@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -71,6 +72,15 @@ func (se *stepExecution) finalizeResult() StepResult {
 		evContent = se.lastResult.Evidence().Content
 	}
 
+	// If any attempt hit an environmental failure (target unreachable), surface
+	// it on the final result so the examiner classifies the whole case as
+	// environmental — a recalled strategy cannot be judged against an
+	// unreachable target, so it must not be penalized for this case's failure.
+	var envErr error
+	if se.environmentalSeen && se.tc != nil {
+		envErr = fmt.Errorf("target unreachable: %s", se.tc.Target)
+	}
+
 	return StepResult{
 		TestCase: se.tc,
 		Status:   status,
@@ -79,6 +89,7 @@ func (se *stepExecution) finalizeResult() StepResult {
 		Duration: time.Since(se.start),
 		Action:   se.lastAction,
 		Result:   se.lastResult,
+		Error:    envErr,
 		Evidence: []Evidence{{Type: evidenceType(se.lastResult), Content: evContent}},
 	}
 }

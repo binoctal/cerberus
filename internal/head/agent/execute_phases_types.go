@@ -20,4 +20,9 @@ type stepExecution struct {
 	recoverySkipped     bool
 	consecutiveTimeouts int
 	recoverAttempts     int
+	// environmentalSeen records whether ANY attempt's result was an environmental
+	// failure (target unreachable). finalizeResult uses it so a case that hit an
+	// unreachable target on some attempt is classified environmental even when a
+	// later, non-environmental attempt became the final judged result.
+	environmentalSeen bool
 }
