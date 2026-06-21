@@ -21,7 +21,7 @@ func memoryCmd() *cobra.Command {
 		Short: "Inspect and manage cerberus memory",
 		Long:  "Inspect and manage cerberus memory (procedural, semantic, episodic)",
 	}
-	cmd.AddCommand(memoryListCmd(), memoryShowCmd(), memoryPruneCmd(), memoryReembedCmd())
+	cmd.AddCommand(memoryListCmd(), memoryShowCmd(), memoryPruneCmd(), memoryReembedCmd(), memoryStatsCmd())
 	return cmd
 }
 
