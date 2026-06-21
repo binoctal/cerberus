@@ -47,7 +47,8 @@ RULES:
 - Focus on root causes, not symptoms.
 - Each reflection: specific condition_pattern + concrete strategy + category + type.
 - Maximum 2 sentences per reflection.
-- condition_pattern should describe the scenario using * for wildcards (e.g. "POST /api/v1/* returned 401", "* returned 5??").
+- ONLY reflect on system-under-test (SUT) behavior. Do NOT generate reflections for test-harness/framework errors (parse failures, executor errors, "Step Error (FRAMEWORK ...)") — those are not reusable SUT lessons.
+- Anchor each condition_pattern to the SPECIFIC target where it occurred so future tests on the same endpoint can recall it: start with the HTTP method and endpoint path (use {id} for variable path segments), then the observed status code or failure mode. Examples: "POST /api/v1/auth/login → 401 invalid credentials", "GET /api/v1/users/{id} → 404 not found". For non-HTTP targets, anchor to the target string and the failure mode.
 - Pick the most specific category from: timeout_recovery, auth_failure, endpoint_not_found, server_error, ambiguous_result, general_failure.`
 
 const promptReflectionOutput = `Respond with JSON array:
