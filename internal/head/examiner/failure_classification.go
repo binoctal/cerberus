@@ -68,16 +68,28 @@ func checkSystemError(stepResult agent.StepResult) (bool, store.FailureReason) {
 // a recalled strategy cannot help an unreachable target, so they must be
 // excluded from effectiveness attribution (not penalized).
 func checkUnreachable(stepResult agent.StepResult) (bool, store.FailureReason) {
-	if stepResult.Error == nil {
-		return false, store.FailureReasonNone
+	// Transport errors surfaced as a Go error (e.g. the escalated
+	// "target unreachable" result, or a dial error propagated by an executor).
+	if stepResult.Error != nil {
+		msg := strings.ToLower(stepResult.Error.Error())
+		for _, sig := range []string{
+			"unreachable", "connection refused", "connection reset",
+			"no such host", "dial tcp", "server unreachable",
+		} {
+			if strings.Contains(msg, sig) {
+				return true, store.FailureReasonUnreachable
+			}
+		}
 	}
-	msg := strings.ToLower(stepResult.Error.Error())
-	for _, sig := range []string{
-		"unreachable", "connection refused", "connection reset",
-		"no such host", "dial tcp", "server unreachable",
-	} {
-		if strings.Contains(msg, sig) {
-			return true, store.FailureReasonUnreachable
+	// Transport errors surfaced in the executor result summary. The HTTP
+	// executor returns StatusCode 0 (no response) on connection failure, which
+	// serializes as "HTTP 0 <url>"; non-HTTP results never contain "http 0".
+	if stepResult.Result != nil {
+		msg := strings.ToLower(stepResult.Result.Summary())
+		for _, sig := range []string{"http 0", "connection refused", "no such host", "connection reset"} {
+			if strings.Contains(msg, sig) {
+				return true, store.FailureReasonUnreachable
+			}
 		}
 	}
 	return false, store.FailureReasonNone

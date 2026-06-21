@@ -4,9 +4,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/stretchr/testify/assert"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // TestClassifyFailureReason_Unreachable verifies that target-unreachable
@@ -42,4 +44,17 @@ func TestClassifyFailureReason_AssertionDefault(t *testing.T) {
 	got := ClassifyFailureReason("fail", sr, "")
 	assert.Equal(t, store.FailureReasonAssertionFailed, got)
 	assert.True(t, got.CountsAsStrategyEvidence(), "assertion failure must count as strategy evidence")
+}
+
+// TestClassifyFailureReason_HTTPZeroResult verifies the common connection-refused
+// case: the HTTP executor returns StatusCode 0 (no response), which surfaces in
+// the result summary as "HTTP 0 ...". This must classify as unreachable, not
+// assertion-failed, so strategies are not penalized for a down service.
+func TestClassifyFailureReason_HTTPZeroResult(t *testing.T) {
+	sr := agent.StepResult{
+		Result: types.HTTPResult{StatusCode: 0, URL: "http://localhost:3000/auth/login"},
+	}
+	got := ClassifyFailureReason("fail", sr, "")
+	assert.Equal(t, store.FailureReasonUnreachable, got)
+	assert.True(t, got.IsEnvironmentIssue())
 }
