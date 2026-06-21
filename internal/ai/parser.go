@@ -6,6 +6,11 @@ import (
 )
 
 func ParseStructuredOutput(input string, target any) error {
+	// Phase 0: Some LLMs (notably GLM) emit literal newlines/tabs inside JSON
+	// string values (e.g. multi-line reasoning), producing invalid JSON that no
+	// later phase can parse. Escape in-string control chars first.
+	input = escapeControlInStrings(input)
+
 	// Phase 1: Try direct JSON parsing
 	if tryDirectJSON(input, target) {
 		return nil
