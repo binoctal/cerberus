@@ -110,10 +110,28 @@ func (rc *Recovery) recallProcedural(ctx context.Context, target string) []store
 		rc.logger.Warn("embed target failed", zap.Error(err))
 		return nil
 	}
-	memories, err := rc.store.GetProceduralByEmbedding(ctx, q, rc.projectName, 5, 0.1, rc.embedder.ModelName())
+	memories, err := rc.store.GetProceduralByEmbedding(ctx, q, rc.projectName, rc.recallTopK(), rc.recallThreshold(), rc.embedder.ModelName())
 	if err != nil {
 		rc.logger.Warn("procedural embedding recall failed", zap.Error(err))
 		return nil
 	}
 	return memories
+}
+
+// recallTopK returns the configured L3 recall cap, falling back to the default
+// when unset (e.g. configs constructed before the field existed).
+func (rc *Recovery) recallTopK() int {
+	if rc.config.ProceduralRecallTopK > 0 {
+		return rc.config.ProceduralRecallTopK
+	}
+	return DefaultReActConfig().ProceduralRecallTopK
+}
+
+// recallThreshold returns the configured L3 cosine threshold, falling back to
+// the default when unset.
+func (rc *Recovery) recallThreshold() float64 {
+	if rc.config.ProceduralRecallThreshold > 0 {
+		return rc.config.ProceduralRecallThreshold
+	}
+	return DefaultReActConfig().ProceduralRecallThreshold
 }

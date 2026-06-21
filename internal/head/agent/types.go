@@ -107,14 +107,21 @@ type ReActConfig struct {
 	MaxSteerAttempts   int           `json:"max_steer_attempts"`
 	MaxRecoverAttempts int           `json:"max_recover_attempts"`
 	PerCaseTimeout     time.Duration `json:"per_case_timeout,omitempty"`
+	// ProceduralRecallTopK caps how many L3 memories recovery recalls per case.
+	ProceduralRecallTopK int `json:"procedural_recall_top_k,omitempty"`
+	// ProceduralRecallThreshold is the minimum trigram cosine similarity for an
+	// L3 memory to be recalled during recovery. Lower = broader (noisier) recall.
+	ProceduralRecallThreshold float64 `json:"procedural_recall_threshold,omitempty"`
 }
 
 // DefaultReActConfig returns sensible defaults.
 func DefaultReActConfig() ReActConfig {
 	return ReActConfig{
-		MaxSteerAttempts:   3,
-		MaxRecoverAttempts: 3,
-		PerCaseTimeout:     2 * time.Minute,
+		MaxSteerAttempts:          3,
+		MaxRecoverAttempts:        3,
+		PerCaseTimeout:            2 * time.Minute,
+		ProceduralRecallTopK:      5,
+		ProceduralRecallThreshold: 0.1,
 	}
 }
 
