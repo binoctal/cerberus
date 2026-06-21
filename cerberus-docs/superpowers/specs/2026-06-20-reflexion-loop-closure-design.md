@@ -174,8 +174,10 @@ Memory is enhancement, never a dependency. Failures (embed/recall/write/upsert/c
 - `verdicts.case_id` column for finer resume dedup.
 - Semantic dedup beyond hash/cosine.
 - Auto-`reembed` on model change (currently manual CLI).
+- **Case-level environmental attribution (known limitation, post-implementation dogfood 2026-06-21).** Effectiveness uses each case's *final* verdict `failure_reason`. For cases that enter recovery, the final judged `StepResult.Result` is the *recovery's last action*, not the original failure — so an originally-environmental failure (e.g. HTTP status 0 / service down) is masked when recovery ends on a non-HTTP action (navigate→playwright-missing, wait, etc.) and mis-classified as `assertion_failed`, penalizing the recalled strategy. Observed: single-attempt HTTP-0 cases classify `unreachable` correctly; recovered HTTP-0 cases often do not. Proper fix: classify a case as environmental if **any** attempt hit an environmental failure, which requires the examiner to see attempt history (today it judges the final result only). String-matching more result summaries is a non-general band-aid and was rejected. Re-evaluate against a real running-service scenario (this dogfood combined two environment anomalies — no playwright + service down — which is atypical).
 
 ---
+
 
 ## 11. Implementation order
 1. Migration (§7) + `NormalizeTarget`/`NormalizeCondition` + shared embedder & session_id into `ReActLoopConfig`/`ReActLoop`/`Recovery` (§6.0) + **L2 `embedding_model` filter (§5-G)** + fix `SeedStrategies`.
