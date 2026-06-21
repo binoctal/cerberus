@@ -99,3 +99,12 @@ All features confirmed working: 4 `unreachable` + 1 `llm_quality` excluded from 
 - Design spec: `cerberus-docs/superpowers/specs/2026-06-20-reflexion-loop-closure-design.md` (v4, incl. §10 known limitation)
 - Implementation plan: `cerberus-docs/superpowers/plans/2026-06-20-reflexion-loop-closure-plan.md`
 - Commits: 29 on `main` between `142e7db` and `19d62e8`
+
+---
+
+## Update 2026-06-21 — known limitation resolved
+
+Round 3's design-level limitation (problem #8, "recovered cases mis-attributed") is now **resolved** (`feat/case-level-environmental-attribution`). `stepExecution.environmentalSeen` records whether *any* attempt hit an environmental failure; `finalizeResult` surfaces a "target unreachable" error on the final `StepResult`, so the examiner classifies the whole case environmental and excludes it from the EMA. Shared predicate `types.IsEnvironmentalFailure` (HTTP status-0 + transport-signal summary scan) drives both the per-attempt tracking and `checkUnreachable`.
+
+Dogfood-verified (run 6, same goal): `assertion_failed` 5 → 3, `unreachable` 4 → 5 — the recovered cases that previously slipped through are now correctly classified. This closes short-term recommendation #1; the spec §10 entry is marked resolved.
+
