@@ -45,6 +45,39 @@ func TestMemoryCmd_List(t *testing.T) {
 	assert.Contains(t, output, "test-memory")
 }
 
+func TestMemoryCmd_ListEpisodic(t *testing.T) {
+	t.Setenv("CERBERUS_MIGRATION_DIR", migrationDir(t))
+	tmpFile := t.TempDir() + "/test.db"
+
+	s, err := store.New(tmpFile)
+	require.NoError(t, err)
+	require.NoError(t, store.RunMigrations(context.Background(), s.DB(), migrationDir(t)))
+
+	ctx := context.Background()
+	// Episodic memory has a session FK; seed a session then an episodic row.
+	_, err = s.DB().ExecContext(ctx,
+		`INSERT INTO sessions (id, mode, status, goal, project_name, coverage_pct, stats, started_at)
+		 VALUES ('sess-ep', 'run', 'running', 'g', 'p', 0.0, '{}', datetime('now'))`)
+	require.NoError(t, err)
+	require.NoError(t, s.RecordEpisodic(ctx, "sess-ep", "/api/health", "pass", "pass", 0))
+	_ = s.Close()
+
+	origDB := os.Getenv("CERBERUS_DB_PATH")
+	t.Setenv("CERBERUS_DB_PATH", tmpFile)
+	t.Cleanup(func() { _ = os.Setenv("CERBERUS_DB_PATH", origDB) })
+
+	cmd := memoryListCmd()
+	require.NoError(t, cmd.Flags().Set("type", "episodic"))
+	output := captureStdout(t, func() {
+		err = cmd.RunE(cmd, []string{})
+		require.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Episodic Memories:")
+	assert.Contains(t, output, "/api/health")
+	assert.Contains(t, output, "pass")
+}
+
 func TestMemoryCmd_Show(t *testing.T) {
 	t.Setenv("CERBERUS_MIGRATION_DIR", migrationDir(t))
 	tmpFile := t.TempDir() + "/test.db"

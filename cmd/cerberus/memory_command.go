@@ -59,13 +59,15 @@ func memoryListCmd() *cobra.Command {
 				return listProcedural(ctx, s, all)
 			case "semantic":
 				return listSemantic(ctx, s, all)
+			case "episodic":
+				return listEpisodic(ctx, s, all)
 			default:
-				return fmt.Errorf("unsupported memory type: %s (supported: procedural, semantic)", memoryType)
+				return fmt.Errorf("unsupported memory type: %s (supported: procedural, semantic, episodic)", memoryType)
 			}
 		},
 	}
 	c.Flags().BoolVar(&all, "all", false, "include archived memories")
-	c.Flags().StringVar(&memoryType, "type", "procedural", "memory type: procedural, semantic")
+	c.Flags().StringVar(&memoryType, "type", "procedural", "memory type: procedural, semantic, episodic")
 	return c
 }
 
@@ -139,6 +141,47 @@ func listSemantic(ctx context.Context, s *store.Store, showAll bool) error {
 	}
 	if count == 0 {
 		fmt.Println("No semantic memories found.")
+	}
+	return nil
+}
+
+func listEpisodic(ctx context.Context, s *store.Store, showAll bool) error {
+	rows, err := s.DB().QueryContext(ctx,
+		`SELECT id, session_id, target, status, COALESCE(archived,0)
+		 FROM memory_episodic
+		 ORDER BY id DESC`)
+	if err != nil {
+		return fmt.Errorf("query episodic memories: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	fmt.Println("Episodic Memories:")
+	fmt.Println("=====================================")
+	count := 0
+	for rows.Next() {
+		var id int64
+		var sessionID, target, status string
+		var archived int
+		if err := rows.Scan(&id, &sessionID, &target, &status, &archived); err != nil {
+			return err
+		}
+		if archived == 1 && !showAll {
+			continue
+		}
+		archivedFlag := ""
+		if archived == 1 {
+			archivedFlag = " [archived]"
+		}
+		// Shorten the session id to keep the line readable.
+		sid := sessionID
+		if len(sid) > 8 {
+			sid = sid[:8]
+		}
+		fmt.Printf("[%d] %-8s %-10s %s%s\n", id, sid, status, target, archivedFlag)
+		count++
+	}
+	if count == 0 {
+		fmt.Println("No episodic memories found.")
 	}
 	return nil
 }
