@@ -40,7 +40,7 @@ func testLoop(t *testing.T, responses map[string]string, server *httptest.Server
 		engine = NewRuleEngine("https://example.com", nil, ".")
 	}
 
-	executor := BuildMultiExecutor(".", nil, zap.NewNop())
+	executor := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := NewReActLoopWithConfig(ReActLoopConfig{
 		Driver:   driver,

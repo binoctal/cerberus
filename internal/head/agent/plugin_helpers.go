@@ -9,17 +9,17 @@ import (
 
 // BuiltinExecutorPlugins returns the default set of executor plugins.
 // These are the same plugins that BuildMultiExecutor registers internally.
-func BuiltinExecutorPlugins(projectDir string, logger *zap.Logger) []ExecutorPlugin {
+func BuiltinExecutorPlugins(projectDir string, serviceHeaders map[string]map[string]string, logger *zap.Logger) []ExecutorPlugin {
 	return []ExecutorPlugin{
-		&httpPlugin{executor: NewHTTPExecutor(logger)},
+		&httpPlugin{executor: NewHTTPExecutorWithServiceHeaders(logger, serviceHeaders)},
 		&waitPlugin{executor: NewWaitExecutor()},
 	}
 }
 
 // BuiltinPluginsWithSandbox returns all built-in plugins including those
 // that require sandbox and optional dependencies.
-func BuiltinPluginsWithSandbox(projectDir string, sb sandbox.Sandbox, gate escalation.Gate, logger *zap.Logger) []ExecutorPlugin {
-	plugins := BuiltinExecutorPlugins(projectDir, logger)
+func BuiltinPluginsWithSandbox(projectDir string, serviceHeaders map[string]map[string]string, sb sandbox.Sandbox, gate escalation.Gate, logger *zap.Logger) []ExecutorPlugin {
+	plugins := BuiltinExecutorPlugins(projectDir, serviceHeaders, logger)
 	plugins = append(plugins,
 		&processPlugin{executor: NewProcessExecutor(sb, logger)},
 		&filePlugin{executor: NewFileExecutor(projectDir, logger)},

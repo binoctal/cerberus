@@ -74,6 +74,6 @@ func BenchmarkHTTPExecutor_Execute(b *testing.B) {
 func BenchmarkBuildMultiExecutor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		BuildMultiExecutor(".", nil, zap.NewNop())
+		BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	}
 }

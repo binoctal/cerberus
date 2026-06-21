@@ -101,7 +101,7 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	require.NoError(t, err)
 
 	engine := agent.NewRuleEngine(srv.URL, nil, ".")
-	multiExec := agent.BuildMultiExecutor(".", nil, zap.NewNop())
+	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
 

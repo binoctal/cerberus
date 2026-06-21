@@ -85,18 +85,25 @@ func (r *RuleEngine) matchRules(tc TestCase) (types.TypedAction, bool) {
 	return nil, false
 }
 
-// authHeaders returns basic auth headers from the first configured actor.
+// authHeaders returns auth headers from the first configured actor: the legacy
+// X-Test-User (from email) plus any explicit actor Credentials.Headers (e.g.
+// Authorization: Bearer ...). Returns nil when the actor has neither.
 func (r *RuleEngine) authHeaders() map[string]string {
 	if len(r.actors) == 0 {
 		return nil
 	}
 	actor := r.actors[0]
-	if actor.Credentials.Email == "" {
+	h := map[string]string{}
+	if actor.Credentials.Email != "" {
+		h["X-Test-User"] = actor.Credentials.Email
+	}
+	for k, v := range actor.Credentials.Headers {
+		h[k] = v
+	}
+	if len(h) == 0 {
 		return nil
 	}
-	return map[string]string{
-		"X-Test-User": actor.Credentials.Email,
-	}
+	return h
 }
 
 func isURL(s string) bool {

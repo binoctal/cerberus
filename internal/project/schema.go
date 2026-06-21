@@ -15,9 +15,10 @@ type ProjectMeta struct {
 }
 
 type Service struct {
-	Name   string `yaml:"name"`
-	URL    string `yaml:"url"`
-	Health string `yaml:"health,omitempty"`
+	Name    string            `yaml:"name"`
+	URL     string            `yaml:"url"`
+	Health  string            `yaml:"health,omitempty"`
+	Headers map[string]string `yaml:"headers,omitempty"`
 }
 
 type Actor struct {
@@ -27,8 +28,9 @@ type Actor struct {
 }
 
 type CredentialRef struct {
-	Email    string `yaml:"email"`
-	Password string `yaml:"password"`
+	Email    string            `yaml:"email"`
+	Password string            `yaml:"password"`
+	Headers  map[string]string `yaml:"headers,omitempty"`
 }
 
 type Database struct {

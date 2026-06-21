@@ -22,8 +22,14 @@ func prepareHTTPRequest(ctx context.Context, a types.HTTPAction) (*http.Request,
 		return nil, err
 	}
 
-	// Set user-provided headers
+	// Set user-provided headers. Host is special: net/http ignores a "Host"
+	// entry in the header map, so route it to req.Host (needed for
+	// domain-routed gateways).
 	for k, v := range a.Headers {
+		if strings.EqualFold(k, "Host") {
+			req.Host = v
+			continue
+		}
 		req.Header.Set(k, v)
 	}
 

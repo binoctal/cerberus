@@ -169,7 +169,7 @@ func TestWebSocketExecutor_UnsupportedAction(t *testing.T) {
 // --- Plugin Registration Tests ---
 
 func TestBuiltinPluginsIncludesNewExecutors(t *testing.T) {
-	plugins := BuiltinPluginsWithSandbox(".", nil, nil, zap.NewNop())
+	plugins := BuiltinPluginsWithSandbox(".", nil, nil, nil, zap.NewNop())
 	names := make(map[string]bool)
 	for _, p := range plugins {
 		names[p.Name()] = true

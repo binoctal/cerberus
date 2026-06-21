@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"go.uber.org/zap"
@@ -13,15 +14,25 @@ import (
 
 // HTTPExecutor handles HTTP API and navigation actions.
 type HTTPExecutor struct {
-	client *http.Client
-	logger *zap.Logger
+	client         *http.Client
+	logger         *zap.Logger
+	serviceHeaders map[string]map[string]string
 }
 
-// NewHTTPExecutor creates an HTTP executor.
+// NewHTTPExecutor creates an HTTP executor with no service-level headers.
 func NewHTTPExecutor(logger *zap.Logger) *HTTPExecutor {
+	return NewHTTPExecutorWithServiceHeaders(logger, nil)
+}
+
+// NewHTTPExecutorWithServiceHeaders creates an HTTP executor that injects
+// service-level headers (keyed by request "host:port") into every matching
+// request. Action headers override service headers; an empty action value
+// removes the header.
+func NewHTTPExecutorWithServiceHeaders(logger *zap.Logger, serviceHeaders map[string]map[string]string) *HTTPExecutor {
 	return &HTTPExecutor{
-		client: &http.Client{Timeout: 30 * time.Second},
-		logger: logger,
+		client:         &http.Client{Timeout: 30 * time.Second},
+		logger:         logger,
+		serviceHeaders: serviceHeaders,
 	}
 }
 
@@ -39,6 +50,9 @@ func (e *HTTPExecutor) Execute(ctx context.Context, action types.TypedAction) ty
 }
 
 func (e *HTTPExecutor) doHTTP(ctx context.Context, a types.HTTPAction, start time.Time) types.ExecutorResult {
+	// Phase 0: Merge service-level headers (matched by URL host) under the
+	// action's own headers before preparing the request.
+	a = e.withServiceHeaders(a)
 	// Phase 1: Prepare HTTP request
 	req, err := prepareHTTPRequest(ctx, a)
 	if err != nil {
@@ -60,4 +74,34 @@ func (e *HTTPExecutor) doHTTP(ctx context.Context, a types.HTTPAction, start tim
 
 	// Phase 4: Build success result
 	return buildHTTPSuccessResult(resp, respBody, a.URL, start)
+}
+
+// withServiceHeaders merges service-level headers (matched by the request URL
+// host) underneath the action's own headers. Action headers override service
+// headers; an empty-string action value removes the header entirely.
+func (e *HTTPExecutor) withServiceHeaders(a types.HTTPAction) types.HTTPAction {
+	if len(e.serviceHeaders) == 0 {
+		return a
+	}
+	u, err := url.Parse(a.URL)
+	if err != nil {
+		return a
+	}
+	svc, ok := e.serviceHeaders[u.Host]
+	if !ok || len(svc) == 0 {
+		return a
+	}
+	merged := make(map[string]string, len(svc)+len(a.Headers))
+	for k, v := range svc {
+		merged[k] = v
+	}
+	for k, v := range a.Headers {
+		if v == "" {
+			delete(merged, k)
+			continue
+		}
+		merged[k] = v
+	}
+	a.Headers = merged
+	return a
 }

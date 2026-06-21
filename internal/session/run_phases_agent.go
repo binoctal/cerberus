@@ -23,7 +23,7 @@ func (rp *runPhase) executeAgentPhase() error {
 	}
 
 	engine := agent.NewRuleEngine(baseURL, rp.session.Config.Actors, projectDir)
-	multiExec := agent.BuildMultiExecutor(projectDir, rp.session.Gate, rp.session.Logger)
+	multiExec := agent.BuildMultiExecutor(projectDir, agent.ServiceHeadersMap(rp.session.Config.Services), rp.session.Gate, rp.session.Logger)
 	config := agent.DefaultReActConfig()
 	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
 	loop := agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{

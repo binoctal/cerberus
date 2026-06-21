@@ -12,6 +12,8 @@ services:                      # Target services
   - name: web                  # Required: service name
     url: "http://localhost:3000"  # Required: base URL
     health: "/"                # Optional: health check path
+    headers:                   # Optional: headers injected on every request (matched by host:port)
+      Host: api.example.com
   - name: api
     url: "http://localhost:8080"
 
@@ -20,6 +22,8 @@ actors:                        # User personas
     credentials:
       email: "${ADMIN_EMAIL}"  # Env var interpolation supported
       password: "${ADMIN_PASS}"
+      headers:                 # Optional: per-actor headers (e.g. Authorization: Bearer ...)
+        Authorization: "Bearer ${API_KEY}"
     entry: "/admin"            # Optional: entry page
 
 databases:                     # Database connections
@@ -71,6 +75,40 @@ high-frequency Agent.
 ## Environment Variables
 
 Use `${VAR_NAME}` syntax for env var interpolation in any string field.
+
+## Header Injection
+
+For API gateways that route by `Host` and authenticate by `Authorization:
+Bearer`, declare headers at two levels:
+
+- `services[].headers` — shared across actors, matched by the service URL's
+  `host:port`. Use for `Host` (domain routing), `X-Internal-Auth`, tracing ids.
+- `actors[].credentials.headers` — per-actor (from the first actor). Use for
+  `Authorization: Bearer ...`.
+
+Both are injected at the **execution layer** on every HTTP request, so they
+apply to both the rule-engine fast-path and the ReAct loop. Final priority is
+**service < actor < action**: an action's own header overrides an injected one,
+and setting an action header to an empty string *removes* an injected header
+(needed for negative tests like "no Authorization → 401").
+
+`Host` is routed to the request's `Host` field (not the header map), which
+net/http requires for domain-routed gateways.
+
+```yaml
+services:
+  - name: gateway
+    url: "http://localhost:8081"
+    headers:
+      Host: api.opendune.com
+actors:
+  - name: valid_user
+    credentials:
+      headers:
+        Authorization: "Bearer sk-relay-..."
+  - name: anonymous
+    credentials: {}
+```
 
 ## Validation
 

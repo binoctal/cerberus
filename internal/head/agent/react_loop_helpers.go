@@ -65,11 +65,43 @@ func buildPassedResult(tc *TestCase, traceID int64, attempt int, start time.Time
 	}
 }
 
-// executeAndRecordAction executes the action and records evidence
+// executeAndRecordAction executes the action and records evidence.
 func executeAndRecordAction(r *ReActLoop, ctx context.Context, action types.TypedAction, traceID int64) types.ExecutorResult {
+	action = r.withActorHeaders(action)
 	result := r.executor.Execute(ctx, action)
 	r.recordEvidence(ctx, traceID, "steer_attempt", action, result)
 	return result
+}
+
+// withActorHeaders merges the active actor's Credentials.Headers underneath an
+// HTTP action's own headers (action overrides; empty removes). Non-HTTP
+// actions pass through unchanged. Combined with the executor's service-level
+// headers, final priority is service < actor < action.
+func (r *ReActLoop) withActorHeaders(action types.TypedAction) types.TypedAction {
+	if r.engine == nil || len(r.engine.actors) == 0 {
+		return action
+	}
+	actor := r.engine.actors[0]
+	if len(actor.Credentials.Headers) == 0 {
+		return action
+	}
+	ha, ok := action.(types.HTTPAction)
+	if !ok {
+		return action
+	}
+	merged := make(map[string]string, len(actor.Credentials.Headers)+len(ha.Headers))
+	for k, v := range actor.Credentials.Headers {
+		merged[k] = v
+	}
+	for k, v := range ha.Headers {
+		if v == "" {
+			delete(merged, k)
+			continue
+		}
+		merged[k] = v
+	}
+	ha.Headers = merged
+	return ha
 }
 
 // updateConsecutiveTimeouts updates the consecutive timeout counter
