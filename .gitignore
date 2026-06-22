@@ -24,7 +24,7 @@ docs/
 learning/
 
 # Legacy runtime location (still clean up old files)
-runtime/
+/runtime/
 
 # Test coverage (global, not in .cerberus/runtime/)
 cover.out
