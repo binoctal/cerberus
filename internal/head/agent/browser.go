@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sync"
 	"time"
 
 	pw "github.com/playwright-community/playwright-go"
@@ -18,6 +19,7 @@ type BrowserExecutor struct {
 	browser pw.Browser
 	page    pw.Page
 	logger  *zap.Logger
+	mu      sync.Mutex // serializes all page operations; a Playwright page is not concurrency-safe
 }
 
 // NewBrowserExecutor creates a browser executor by launching a headless Chromium.
@@ -53,6 +55,9 @@ func NewBrowserExecutor(logger *zap.Logger) (*BrowserExecutor, error) {
 
 // Close shuts down the browser and Playwright driver.
 func (e *BrowserExecutor) Close() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	if e.page != nil {
 		_ = e.page.Close()
 	}
@@ -66,6 +71,9 @@ func (e *BrowserExecutor) Close() {
 
 // Execute dispatches browser actions.
 func (e *BrowserExecutor) Execute(ctx context.Context, action types.TypedAction) types.ExecutorResult {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	start := time.Now()
 
 	switch a := action.(type) {

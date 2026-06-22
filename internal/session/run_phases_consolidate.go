@@ -101,7 +101,10 @@ func applyEffectiveness(ctx context.Context, session *Session, verdicts []examin
 		}
 		signal := float64(g.passes) / float64(g.count)
 		if err := session.Store.ApplyProceduralEMA(ctx, pid, signal, g.count); err != nil {
-			session.Logger.Warn("apply EMA failed", zap.Int64("proc", pid), zap.Error(err))
+			// Don't mark consolidated on EMA failure — let the next run retry,
+			// otherwise this group's effectiveness signal is silently lost.
+			session.Logger.Warn("apply EMA failed, skipping consolidation so it retries", zap.Int64("proc", pid), zap.Error(err))
+			continue
 		}
 		if err := session.Store.MarkUsageConsolidated(ctx, g.ids); err != nil {
 			session.Logger.Warn("mark usage consolidated failed", zap.Error(err))
