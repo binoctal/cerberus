@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"os"
+	"strings"
 )
 
 // IsDevelopment detects if running in the cerberus development environment
@@ -39,10 +40,12 @@ func GetPaths() *Paths {
 	return New(wd)
 }
 
-// contains checks if s starts with substr
+// contains reports whether substr appears anywhere in s (not just as a
+// prefix). IsDevelopment uses it to find the module line in a go.mod that may
+// have leading comments or blank lines.
 func contains(s, substr string) bool {
 	if substr == "" {
 		return false
 	}
-	return len(s) >= len(substr) && s[:len(substr)] == substr
+	return strings.Contains(s, substr)
 }

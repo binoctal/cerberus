@@ -33,8 +33,27 @@ func findJSONObjectBounds(input string) *jsonBounds {
 	start := -1
 	end := -1
 	braceDepth := 0
+	inString := false
+	escaped := false
 
 	for i, c := range input {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if inString {
+			if c == '\\' {
+				escaped = true
+			}
+			if c == '"' {
+				inString = false
+			}
+			continue
+		}
+		if c == '"' {
+			inString = true
+			continue
+		}
 		if c == '{' {
 			if start == -1 {
 				start = i

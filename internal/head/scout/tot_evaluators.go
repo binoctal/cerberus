@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 
@@ -20,6 +21,7 @@ func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, m
 	// Score all candidates in parallel.
 	var wg sync.WaitGroup
 	results := make([]PlanCandidate, len(candidates))
+	var failCount int64
 
 	for i := range candidates {
 		wg.Add(1)
@@ -34,6 +36,7 @@ func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, m
 			aiScore, err := t.aiScore(ctx, &c, endpointSummary)
 			if err != nil {
 				t.logger.Warn("tot ai score failed", zap.Error(err))
+				atomic.AddInt64(&failCount, 1)
 				aiScore = 5.0 // Mid-range fallback.
 			}
 			c.AIScore = aiScore
@@ -46,6 +49,12 @@ func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, m
 	}
 	wg.Wait()
 
+	// If every candidate's AI score failed, the ranking rests on coverage alone
+	// (30% signal) — surface it as a systemic failure instead of silently
+	// returning a near-random ordering.
+	if len(candidates) > 0 && int(failCount) == len(candidates) {
+		return results, fmt.Errorf("tot evaluate: all %d candidates failed AI scoring; ranking is coverage-only", failCount)
+	}
 	return results, nil
 }
 

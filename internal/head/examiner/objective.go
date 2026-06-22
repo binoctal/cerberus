@@ -47,8 +47,17 @@ func objectiveVerdict(r agent.StepResult, expectation string) (*JudgeResult, boo
 // expectsFailure reports whether the expectation asks for a failure/error
 // outcome (a negative test). Such cases need the LLM to judge whether the
 // observed failure is the expected one.
+//
+// A keyword like "error"/"500" inside a positive-handling clause ("handles
+// errors gracefully", "handles 500 without crashing") is NOT a negative test,
+// so those clauses are excluded.
 func expectsFailure(expectation string) bool {
 	e := strings.ToLower(expectation)
+	for _, pos := range []string{"handles", "handled", "handling", "gracefully", "without crashing", "recovers", "retries"} {
+		if strings.Contains(e, pos) {
+			return false
+		}
+	}
 	for _, kw := range []string{"fail", "error", "404", "401", "403", "4xx", "5xx", "reject", "denied", "invalid", "unauthorized"} {
 		if strings.Contains(e, kw) {
 			return true
