@@ -18,12 +18,16 @@ func (t *ToTPlanner) bestToPlan(candidates []PlanCandidate, goal, baseURL string
 	cases := make([]agent.TestCase, 0, len(best.Cases))
 	for i, desc := range best.Cases {
 		caseID := fmt.Sprintf("tot-%03d", i+1)
+		priority := 1.0 - float64(i)*0.05
+		if priority < 0 {
+			priority = 0 // never collide with the isDeprioritized (<0) sentinel
+		}
 		cases = append(cases, agent.TestCase{
 			ID:          caseID,
 			Name:        truncateName(desc, 80),
 			Target:      inferTarget(desc),
 			Expectation: desc,
-			Priority:    1.0 - float64(i)*0.05, // Slightly decreasing priority.
+			Priority:    priority, // Slightly decreasing priority, floored at 0.
 		})
 	}
 

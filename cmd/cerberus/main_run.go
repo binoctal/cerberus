@@ -66,7 +66,7 @@ func runCmd() *cobra.Command {
 				return fmt.Errorf("create LLM client: %w", err)
 			}
 
-			sess, err := session.NewSession(ctx, session.SessionConfig{
+			sessCfg := session.SessionConfig{
 				Mode:       session.ModeRun,
 				Goal:       goalFlag,
 				Config:     projCfg,
@@ -75,7 +75,13 @@ func runCmd() *cobra.Command {
 				Logger:     logger,
 				Gate:       nil,
 				ProjectDir: dirFlag,
-			})
+			}
+			var sess *session.Session
+			if resumeFlag != "" {
+				sess, err = session.NewSessionForResume(ctx, sessCfg, resumeFlag)
+			} else {
+				sess, err = session.NewSession(ctx, sessCfg)
+			}
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
 			}
@@ -96,7 +102,6 @@ func runCmd() *cobra.Command {
 			}()
 
 			if resumeFlag != "" {
-				sess.ID = resumeFlag
 				if err := sess.Resume(ctx); err != nil {
 					return fmt.Errorf("session resume: %w", err)
 				}
