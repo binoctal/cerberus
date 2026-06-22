@@ -5,6 +5,7 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -30,4 +31,5 @@ type MCPExecutor struct {
 	stdioProcesses map[string]*stdioConn
 	mu             sync.Mutex
 	logger         *zap.Logger
+	readTimeout    time.Duration // 0 = default 10s stdio read timeout
 }

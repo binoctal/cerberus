@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -16,7 +17,7 @@ type Judge struct {
 	judgeDriver  *ai.Driver
 	criticDriver *ai.Driver // nil means no Self-Refine
 	config       ExaminerConfig
-	critiqueUsed int // session-level critique counter
+	critiqueUsed atomic.Int64 // session-level critique counter (touched by concurrent judges)
 }
 
 // NewJudge creates a Judge with main and optional critic drivers.
@@ -58,7 +59,7 @@ func (j *Judge) Judge(ctx context.Context, result agent.StepResult) (*JudgeResul
 	}
 
 	// Phase 3: Self-Refine critique if critic available.
-	if j.criticDriver != nil && j.critiqueUsed < j.config.MaxCritiques {
+	if j.criticDriver != nil {
 		critiqued := j.critique(ctx, judgeResult, evidence, expectation)
 		if critiqued != nil {
 			return critiqued, nil
@@ -75,6 +76,18 @@ func (j *Judge) isHighConfidence(r *JudgeResult) bool {
 
 // critique runs the critic model to review the initial verdict.
 func (j *Judge) critique(ctx context.Context, initial JudgeResult, evidence, expectation string) *JudgeResult {
+	// Atomically claim one of the MaxCritiques slots (CAS loop) so concurrent
+	// judges can't all pass the budget check and overrun it.
+	for {
+		cur := j.critiqueUsed.Load()
+		if cur >= int64(j.config.MaxCritiques) {
+			return nil
+		}
+		if j.critiqueUsed.CompareAndSwap(cur, cur+1) {
+			break
+		}
+	}
+
 	judgeJSON, _ := json.Marshal(initial)
 	task := fmt.Sprintf("Review this initial verdict for errors.\nInitial verdict: %s\nEvidence: %s\nExpectation: %s",
 		string(judgeJSON), evidence, expectation)
@@ -87,11 +100,10 @@ func (j *Judge) critique(ctx context.Context, initial JudgeResult, evidence, exp
 
 	var critique CritiqueResult
 	if err := j.criticDriver.Decide(ctx, prompt, &critique); err != nil {
-		// Critic failed — return nil to use initial result.
+		// Critic failed — refund the reserved slot and use the initial result.
+		j.critiqueUsed.Add(-1)
 		return nil
 	}
-
-	j.critiqueUsed++
 
 	if !critique.IssuesFound {
 		return nil // No issues found — keep initial result.

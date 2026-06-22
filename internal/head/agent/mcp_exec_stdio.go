@@ -64,12 +64,42 @@ func (e *MCPExecutor) sendStdio(ctx context.Context, ep MCPEndpoint, body []byte
 		ch <- readResult{data: data, err: err}
 	}()
 
+	timeout := e.readTimeout
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
 	select {
-	case <-time.After(10 * time.Second):
+	case <-time.After(timeout):
+		// The reader goroutine is still blocked on conn.stdout. Close the conn
+		// so that goroutine unblocks (pipe close → ReadBytes returns) and evict
+		// it so the next call dials a fresh subprocess instead of racing two
+		// readers on the same bufio.Reader.
+		e.closeStdioLocked(ep.Name)
 		return nil, fmt.Errorf("mcp stdio: read timeout")
 	case r := <-ch:
 		return r.data, r.err
 	}
+}
+
+// closeStdioLocked kills the subprocess behind name, waits for it, and removes
+// the conn from the cache. Caller must hold e.mu. Closing stdin unblocks any
+// goroutine still parked on conn.stdout.ReadBytes.
+func (e *MCPExecutor) closeStdioLocked(name string) {
+	conn, ok := e.stdioProcesses[name]
+	if !ok {
+		return
+	}
+	_ = conn.stdin.Close()
+	if conn.cmd.Process != nil {
+		if err := conn.cmd.Process.Kill(); err != nil {
+			e.logger.Warn("failed to kill MCP stdio process",
+				zap.String("server", name),
+				zap.Error(err),
+			)
+		}
+	}
+	_ = conn.cmd.Wait()
+	delete(e.stdioProcesses, name)
 }
 
 // Close terminates all stdio subprocesses.
@@ -77,15 +107,7 @@ func (e *MCPExecutor) Close() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	for name, conn := range e.stdioProcesses {
-		_ = conn.stdin.Close()
-		if err := conn.cmd.Process.Kill(); err != nil {
-			e.logger.Warn("failed to kill MCP stdio process",
-				zap.String("server", name),
-				zap.Error(err),
-			)
-		}
-		_ = conn.cmd.Wait()
-		delete(e.stdioProcesses, name)
+	for name := range e.stdioProcesses {
+		e.closeStdioLocked(name)
 	}
 }
