@@ -84,7 +84,9 @@ func (c *GeminiClient) Complete(ctx context.Context, req Request) (*Response, er
 			TotalTokenCount      int `json:"totalTokenCount"`
 		} `json:"usageMetadata"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode gemini response: %w", err)
+	}
 
 	var content string
 	var toolCalls []ToolCall

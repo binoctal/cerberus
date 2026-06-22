@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -53,7 +54,9 @@ func (c *GeminiClient) CompleteWithVision(ctx context.Context, prompt string, im
 			TotalTokenCount int `json:"totalTokenCount"`
 		} `json:"usageMetadata"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode gemini vision response: %w", err)
+	}
 
 	content := ""
 	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {

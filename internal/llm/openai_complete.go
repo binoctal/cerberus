@@ -76,7 +76,9 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 			TotalTokens      int `json:"total_tokens"`
 		} `json:"usage"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode openai response: %w", err)
+	}
 
 	var content string
 	var toolCalls []ToolCall

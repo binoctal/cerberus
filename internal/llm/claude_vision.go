@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -55,7 +56,9 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 		} `json:"usage"`
 		StopReason string `json:"stop_reason"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode claude vision response: %w", err)
+	}
 
 	var text string
 	if len(result.Content) > 0 {

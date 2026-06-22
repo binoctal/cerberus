@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -55,7 +56,9 @@ func (c *OpenAIClient) CompleteWithVision(ctx context.Context, prompt string, im
 			TotalTokens int `json:"total_tokens"`
 		} `json:"usage"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode openai vision response: %w", err)
+	}
 
 	content2 := ""
 	if len(result.Choices) > 0 {
