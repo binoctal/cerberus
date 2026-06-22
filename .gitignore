@@ -26,6 +26,9 @@ learning/
 # Legacy runtime location (still clean up old files)
 /runtime/
 
+# Cerberus runtime database (defensive — also covered by the runtime/ dirs above)
+cerberus.db
+
 # Test coverage (global, not in .cerberus/runtime/)
 cover.out
 cover.html
