@@ -65,6 +65,12 @@ type streamResponse struct {
 			OutputTokens int `json:"output_tokens"`
 		} `json:"usage"`
 	} `json:"message"`
+	// Usage is the top-level usage object carried by message_delta events
+	// (output_tokens). message_start/message_stop do not populate this.
+	Usage struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+	} `json:"usage"`
 }
 
 // handleStreamEvent processes a single SSE event and sends to channel if needed.
@@ -93,14 +99,16 @@ func handleStreamEvent(data string, ch chan<- StreamEvent) bool {
 			}}
 		}
 	case "message_delta":
-		// Final usage info.
-	case "message_stop":
-		usage := &TokenUsage{
-			InputTokens:  evt.Message.Usage.InputTokens,
-			OutputTokens: evt.Message.Usage.OutputTokens,
-			TotalTokens:  evt.Message.Usage.InputTokens + evt.Message.Usage.OutputTokens,
+		// Real Claude reports accumulated output_tokens in a top-level "usage"
+		// on this event (message.usage is empty here). Forward it so the
+		// collector accumulates real usage instead of estimating.
+		if evt.Usage.OutputTokens > 0 {
+			ch <- StreamEvent{Type: StreamDelta, Usage: &TokenUsage{OutputTokens: evt.Usage.OutputTokens}}
 		}
-		ch <- StreamEvent{Type: StreamDone, Usage: usage}
+	case "message_stop":
+		// message_stop carries no usage; final usage is assembled by the
+		// collector from message_start (input) + message_delta (output).
+		ch <- StreamEvent{Type: StreamDone}
 		return true
 	}
 

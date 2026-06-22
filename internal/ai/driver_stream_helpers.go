@@ -31,7 +31,16 @@ func collectStreamEvents(ctx context.Context, client llm.Client, prompt string) 
 		case llm.StreamDelta:
 			collector.content.WriteString(evt.Content)
 			if evt.Usage != nil {
-				collector.usage = *evt.Usage
+				// Accumulate (don't overwrite): Claude streams input_tokens on
+				// message_start and output_tokens on message_delta as separate
+				// deltas. Take whichever field is set.
+				if evt.Usage.InputTokens > 0 {
+					collector.usage.InputTokens = evt.Usage.InputTokens
+				}
+				if evt.Usage.OutputTokens > 0 {
+					collector.usage.OutputTokens = evt.Usage.OutputTokens
+				}
+				collector.usage.TotalTokens = collector.usage.InputTokens + collector.usage.OutputTokens
 			}
 		case llm.StreamDone:
 			if evt.Usage != nil {

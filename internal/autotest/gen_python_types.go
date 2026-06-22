@@ -1,6 +1,8 @@
 package autotest
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
@@ -23,11 +25,13 @@ type PythonAstInfo struct {
 	Args      []string `json:"args,omitempty"`
 }
 
-// NewPythonTestGenerator creates a new Python test generator
+// NewPythonTestGenerator creates a new Python test generator. A wrong type or
+// nil driver is a programming error and fails fast (previously it silently left
+// driver=nil and panicked later inside Generate).
 func NewPythonTestGenerator(driver interface{}) *PythonTestGenerator {
-	var d *ai.Driver
-	if v, ok := driver.(*ai.Driver); ok {
-		d = v
+	d, ok := driver.(*ai.Driver)
+	if !ok || d == nil {
+		panic(fmt.Sprintf("NewPythonTestGenerator: requires non-nil *ai.Driver, got %T", driver))
 	}
 	return &PythonTestGenerator{
 		driver:    d,

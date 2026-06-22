@@ -23,7 +23,7 @@ func (c *GeminiClient) streamURL() string {
 	if c.serverURL != "" {
 		return c.serverURL
 	}
-	return fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent", c.model)
+	return fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent?alt=sse", c.model)
 }
 
 // client returns the HTTP client (or default if not set)
