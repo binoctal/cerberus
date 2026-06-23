@@ -86,4 +86,5 @@ type CaseInfo struct {
 	Action      string  `json:"action,omitempty"`
 	Expectation string  `json:"expectation"`
 	Priority    float64 `json:"priority"`
+	Body        string  `json:"body,omitempty"`
 }

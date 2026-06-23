@@ -248,3 +248,15 @@ actors:
 	require.Equal(t, []string{"/v1", "/v1/models"}, cfg.Services[0].PathPrefix)
 	require.Equal(t, "gateway", cfg.Actors[0].Service)
 }
+
+func TestServiceBodyTemplateRoundTrip(t *testing.T) {
+	src := `
+services:
+  - name: gateway
+    url: "http://localhost:8081"
+    body_template: '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"ping"}]}'
+`
+	var cfg Config
+	require.NoError(t, yaml.Unmarshal([]byte(src), &cfg))
+	require.Equal(t, `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"ping"}]}`, cfg.Services[0].BodyTemplate)
+}

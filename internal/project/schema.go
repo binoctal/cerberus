@@ -15,11 +15,12 @@ type ProjectMeta struct {
 }
 
 type Service struct {
-	Name       string            `yaml:"name"`
-	URL        string            `yaml:"url"`
-	Health     string            `yaml:"health,omitempty"`
-	Headers    map[string]string `yaml:"headers,omitempty"`
-	PathPrefix []string          `yaml:"path_prefix,omitempty"`
+	Name         string            `yaml:"name"`
+	URL          string            `yaml:"url"`
+	Health       string            `yaml:"health,omitempty"`
+	Headers      map[string]string `yaml:"headers,omitempty"`
+	PathPrefix   []string          `yaml:"path_prefix,omitempty"`
+	BodyTemplate string            `yaml:"body_template,omitempty"`
 }
 
 type Actor struct {
