@@ -132,7 +132,8 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 	sess, err := s.CreateSession(ctx, "run", "test all CRUD operations", "e2e-crud")
 	require.NoError(t, err)
 
-	engine := agent.NewRuleEngine(srv.URL, nil, ".")
+	services := []project.Service{{Name: "default", URL: srv.URL}}
+	engine := agent.NewRuleEngine(services, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	reactCfg := agent.DefaultReActConfig()
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
@@ -212,7 +213,8 @@ func TestEndToEnd_ProgressEvents(t *testing.T) {
 	mockClient := llm.NewMockClient(map[string]string{"default": string(planJSON)})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
-	engine := agent.NewRuleEngine(srv.URL, nil, ".")
+	services := []project.Service{{Name: "default", URL: srv.URL}}
+	engine := agent.NewRuleEngine(services, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -269,7 +271,8 @@ func TestEndToEnd_RuleEngineStats(t *testing.T) {
 	mockClient := llm.NewMockClient(map[string]string{"default": "{}"})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
-	engine := agent.NewRuleEngine(srv.URL, nil, ".")
+	services := []project.Service{{Name: "default", URL: srv.URL}}
+	engine := agent.NewRuleEngine(services, nil, ".")
 	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})

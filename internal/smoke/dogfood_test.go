@@ -88,7 +88,8 @@ func TestDogfood_GenerateExecutorCases(t *testing.T) {
 }
 
 func TestDogfood_RuleEngineExecCases(t *testing.T) {
-	engine := agent.NewRuleEngine("", nil, "../..")
+	services := []project.Service{{Name: "default", URL: ""}}
+	engine := agent.NewRuleEngine(services, nil, "../..")
 
 	info := scout.DetectProjectType("../..")
 	cases := scout.GenerateExecutorCases(info, "test this project")
