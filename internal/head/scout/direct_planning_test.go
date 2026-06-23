@@ -278,3 +278,36 @@ func TestVerifyServiceAttribution_MalformedJSONReturnsCasesUnchanged(t *testing.
 		})
 	}
 }
+
+// TestConvertPlanOutput_BodyFromCaseInfoOrTemplate verifies that body is filled
+// from CaseInfo.Body or falls back to service body_template when empty.
+func TestConvertPlanOutput_BodyFromCaseInfoOrTemplate(t *testing.T) {
+	services := []project.Service{
+		{Name: "gateway", URL: "http://localhost:8081", PathPrefix: []string{"/v1"},
+			BodyTemplate: `{"model":"default","messages":[]}`},
+	}
+
+	// CaseInfo with its own body → used verbatim
+	// CaseInfo without body → falls back to template
+	out := PlanOutput{Cases: []CaseInfo{
+		{ID: "t1", Target: "/v1/chat/completions", Method: "POST", Body: `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}`, Priority: 1.0},
+		{ID: "t2", Target: "/v1/chat/completions", Method: "POST", Priority: 0.5}, // no body → falls back to template
+	}}
+
+	// Create a scout instance to call convertPlanOutput
+	logger := zap.NewNop()
+	driver := ai.NewDriver(llm.NewMockClient(map[string]string{"default": `{"corrections":[]}`}), ai.NewTokenBudget(200000, 10000))
+	s := &Scout{
+		config: &project.Config{
+			Services: services,
+		},
+		logger: logger,
+		driver: driver,
+	}
+
+	plan := s.convertPlanOutput("test goal", out)
+
+	require.Equal(t, 2, len(plan.Cases))
+	require.Equal(t, `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}`, plan.Cases[0].Body)
+	require.Equal(t, `{"model":"default","messages":[]}`, plan.Cases[1].Body)
+}

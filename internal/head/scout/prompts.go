@@ -38,7 +38,10 @@ RULES:
 - Each test case must have a clear, testable expectation.
 - Use standard HTTP methods in the "method" field.
 - Assign priority 1.0 (highest) to explicitly listed endpoints, 0.5 to inferred ones.
-- Include both positive tests (expect success) and negative tests (expect failure for invalid input).`
+- Include both positive tests (expect success) and negative tests (expect failure for invalid input).
+- For POST/PUT/PATCH methods, include a "body" field with a JSON request body.
+- Omit "body" for GET/DELETE requests.
+- If a service defines a body_template, use it as a base and vary the values for different test cases.`
 
 const promptPlanSystemLocal = `You are a test planning agent for a LOCAL CODEBASE. There is NO running HTTP service, so do NOT generate http_request/api_request test cases.
 
@@ -61,6 +64,15 @@ const promptPlanOutput = `Respond with JSON:
       "target": "/api/v1/users",
       "method": "GET",
       "expectation": "Returns 200 with array of users",
+      "priority": 1.0
+    },
+    {
+      "id": "tc-002",
+      "name": "Create user returns 201",
+      "target": "/api/v1/users",
+      "method": "POST",
+      "body": "{\"name\":\"test\",\"email\":\"test@example.com\"}",
+      "expectation": "Returns 201 with created user",
       "priority": 1.0
     }
   ]

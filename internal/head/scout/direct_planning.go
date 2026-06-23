@@ -16,6 +16,21 @@ import (
 func (s *Scout) buildPlanningContext(model *project.ProjectModel, memory string) string {
 	planCtx := s.buildPlanContext(model)
 
+	// Add service information with body_template hints.
+	if len(s.config.Services) > 0 {
+		planCtx += "\n\n## Services\n"
+		for _, svc := range s.config.Services {
+			planCtx += fmt.Sprintf("- %s: %s", svc.Name, svc.URL)
+			if len(svc.PathPrefix) > 0 {
+				planCtx += fmt.Sprintf(" (prefixes: %v)", svc.PathPrefix)
+			}
+			if svc.BodyTemplate != "" {
+				planCtx += fmt.Sprintf("\n  body_template: %s", svc.BodyTemplate)
+			}
+			planCtx += "\n"
+		}
+	}
+
 	// Inject L1 episodic memory for known targets.
 	if memory != "" {
 		planCtx += "\n\n## Previous Test History\n" + memory
@@ -71,11 +86,15 @@ func (s *Scout) convertPlanOutput(goal string, out PlanOutput) *agent.TestPlan {
 			Expectation: c.Expectation,
 			Priority:    c.Priority,
 			Service:     attributeService(c.Target, s.config.Services),
+			Body:        c.Body,
 		})
 	}
 
 	// Phase 2: LLM verification of service attribution.
 	cases = verifyServiceAttribution(s.logger, s.driver, cases, s.config.Services)
+
+	// Phase 3: Fill body from case info or service template.
+	cases = fillBody(cases, s.config.Services)
 
 	plan := &agent.TestPlan{
 		Goal:       goal,
@@ -176,6 +195,30 @@ func attributeService(path string, services []project.Service) string {
 		}
 	}
 	return ""
+}
+
+// fillBody sets each case's Body from its CaseInfo body, falling back to the
+// attributed service's body_template when the LLM emitted none. GET/DELETE
+// keep empty body.
+func fillBody(cases []agent.TestCase, services []project.Service) []agent.TestCase {
+	byName := make(map[string]project.Service, len(services))
+	for _, s := range services {
+		byName[s.Name] = s
+	}
+	for i := range cases {
+		c := &cases[i]
+		if c.Body != "" {
+			continue
+		}
+		m := strings.ToUpper(c.Method)
+		if m != "POST" && m != "PUT" && m != "PATCH" {
+			continue
+		}
+		if svc, ok := byName[c.Service]; ok && svc.BodyTemplate != "" {
+			c.Body = svc.BodyTemplate
+		}
+	}
+	return cases
 }
 
 // ServiceAttributionCorrection represents a single correction from the LLM.
