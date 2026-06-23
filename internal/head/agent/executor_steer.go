@@ -14,11 +14,21 @@ import (
 func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevResult types.ExecutorResult, attempt int) (types.TypedAction, error) {
 	observationCtx := formatResultContext(tc, prevResult, attempt)
 
+	// Include service base URL in the prompt to guide the LLM to the correct host.
+	base := ""
+	if r.engine != nil {
+		base = r.engine.baseURLFor(*tc)
+	}
+	taskExtra := ""
+	if base != "" {
+		taskExtra = fmt.Sprintf("\nService base URL: %s (use this host for api_request URLs)", base)
+	}
+
 	prompt := ai.NewPrompt().
 		System(promptSteerSystem).
 		Context(observationCtx).
-		Task(fmt.Sprintf("Test case: %s\nTarget: %s\nExpectation: %s\nAttempt: %d/%d",
-			tc.Name, tc.Target, tc.Expectation, attempt, r.config.MaxSteerAttempts)).
+		Task(fmt.Sprintf("Test case: %s\nTarget: %s\nExpectation: %s\nAttempt: %d/%d%s",
+			tc.Name, tc.Target, tc.Expectation, attempt, r.config.MaxSteerAttempts, taskExtra)).
 		Output(promptSteerOutput).
 		Build()
 
