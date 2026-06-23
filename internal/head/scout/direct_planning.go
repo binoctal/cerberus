@@ -3,6 +3,7 @@ package scout
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -69,6 +70,7 @@ func (s *Scout) convertPlanOutput(goal string, out PlanOutput) *agent.TestPlan {
 			Action:      c.Action,
 			Expectation: c.Expectation,
 			Priority:    c.Priority,
+			Service:     attributeService(c.Target, s.config.Services),
 		})
 	}
 
@@ -118,6 +120,7 @@ func (s *Scout) fallbackPlan(goal string, model *project.ProjectModel) *agent.Te
 			Method:      ep.Method,
 			Expectation: "Returns 2xx status code",
 			Priority:    ep.Confidence,
+			Service:     attributeService(ep.Path, s.config.Services),
 		})
 	}
 
@@ -155,6 +158,19 @@ func (s *Scout) fallbackPlan(goal string, model *project.ProjectModel) *agent.Te
 func (s *Scout) resolveBaseURL() string {
 	if len(s.config.Services) > 0 {
 		return s.config.Services[0].URL
+	}
+	return ""
+}
+
+// attributeService returns the service whose PathPrefix contains the given
+// endpoint path, or "" if none match (caller falls back to Services[0]).
+func attributeService(path string, services []project.Service) string {
+	for _, s := range services {
+		for _, p := range s.PathPrefix {
+			if strings.HasPrefix(path, p) {
+				return s.Name
+			}
+		}
 	}
 	return ""
 }

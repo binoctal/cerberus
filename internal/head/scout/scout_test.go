@@ -453,7 +453,7 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	dbSess, err := s.CreateSession(context.Background(), "run", "e2e scout test", "e2e-test")
 	require.NoError(t, err)
 
-	engine := agent.NewRuleEngine(server.URL, nil, ".")
+	engine := agent.NewRuleEngine(cfg.Services, nil, ".")
 	exec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{
