@@ -27,7 +27,10 @@ func (r *RuleEngine) matchHTTPRules(tc TestCase) (types.TypedAction, bool) {
 				action.Headers[k] = v
 			}
 		}
-		action.Body = tc.Body
+		// Set body only for methods that typically carry payloads.
+		if m := strings.ToUpper(tc.Method); m == "POST" || m == "PUT" || m == "PATCH" {
+			action.Body = tc.Body
+		}
 		return action, true
 	}
 
@@ -39,10 +42,15 @@ func (r *RuleEngine) matchHTTPRules(tc TestCase) (types.TypedAction, bool) {
 	// Rule 3: Target is a full URL.
 	if isURL(tc.Target) {
 		if tc.Method != "" {
-			return types.HTTPAction{
+			action := types.HTTPAction{
 				Method: strings.ToUpper(tc.Method),
 				URL:    tc.Target,
-			}, true
+			}
+			// Set body only for methods that typically carry payloads.
+			if m := strings.ToUpper(tc.Method); m == "POST" || m == "PUT" || m == "PATCH" {
+				action.Body = tc.Body
+			}
+			return action, true
 		}
 		return types.NavigateAction{URL: tc.Target}, true
 	}

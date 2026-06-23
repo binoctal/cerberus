@@ -170,6 +170,9 @@ func (s *Scout) fallbackPlan(goal string, model *project.ProjectModel) *agent.Te
 		})
 	}
 
+	// Fill body from service templates (mirrors convertPlanOutput).
+	cases = fillBody(cases, s.config.Services)
+
 	return &agent.TestPlan{
 		Goal:       goal,
 		Cases:      cases,
