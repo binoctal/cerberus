@@ -262,3 +262,14 @@ func TestRuleEngine_FallsBackToFirstService(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "http://gw:8081/v1/chat", action.(types.HTTPAction).URL)
 }
+
+func TestRuleEngine_PostCarriesBody(t *testing.T) {
+	engine := NewRuleEngine([]project.Service{{Name: "gateway", URL: "http://localhost:8081"}}, nil, ".")
+	action, ok := engine.Match(TestCase{
+		Target: "/v1/chat/completions", Method: "POST",
+		Body: `{"model":"gpt-4o-mini","messages":[]}`,
+	})
+	require.True(t, ok)
+	httpAct := action.(types.HTTPAction)
+	assert.Equal(t, `{"model":"gpt-4o-mini","messages":[]}`, httpAct.Body)
+}

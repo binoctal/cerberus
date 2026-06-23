@@ -27,6 +27,7 @@ func (r *RuleEngine) matchHTTPRules(tc TestCase) (types.TypedAction, bool) {
 				action.Headers[k] = v
 			}
 		}
+		action.Body = tc.Body
 		return action, true
 	}
 
