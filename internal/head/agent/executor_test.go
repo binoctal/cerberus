@@ -254,3 +254,21 @@ func (f *fixedRecovery) SetSessionID(id string) {
 func (f *fixedRecovery) SetProject(name string) {
 	// No-op for test double
 }
+
+func TestReActLoop_SingleServiceBackwardCompat(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer server.Close()
+
+	// testLoop builds a single-service engine via Services[0]; Service fields empty.
+	loop, s := testLoop(t, nil, server)
+	sessionID := createTestSession(t, s)
+	plan := &TestPlan{Goal: "g", Cases: []TestCase{
+		{ID: "t1", Target: "/api/users", Method: "GET", Expectation: "ok"},
+	}}
+	results, err := loop.ExecutePlan(context.Background(), plan, sessionID)
+	require.NoError(t, err)
+	require.Equal(t, StepPassed, results[0].Status)
+}
