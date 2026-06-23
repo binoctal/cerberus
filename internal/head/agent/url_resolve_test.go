@@ -130,7 +130,7 @@ func TestWithBaseURL_ResolvesByService(t *testing.T) {
 	loop, s := testLoopWithServices(t, map[string]string{"default": string(steerJSON)},
 		[]project.Service{
 			{Name: "secondary", URL: secondaryServer.URL}, // First service (fallback)
-			{Name: "primary", URL: primaryServer.URL},    // tc.Service should pick this
+			{Name: "primary", URL: primaryServer.URL},     // tc.Service should pick this
 		}, nil)
 	sessionID := createTestSession(t, s)
 

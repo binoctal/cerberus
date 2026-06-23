@@ -153,7 +153,6 @@ func (r *RuleEngine) serviceHeaders(tc TestCase) map[string]string {
 	return nil
 }
 
-
 func isURL(s string) bool {
 	return strings.Contains(s, "://")
 }

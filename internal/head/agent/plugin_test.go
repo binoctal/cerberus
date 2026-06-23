@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/escalation"
-	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/policy"
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
 )

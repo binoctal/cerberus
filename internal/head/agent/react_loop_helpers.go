@@ -127,7 +127,7 @@ func isNoopWait(action types.TypedAction) bool {
 // withActorHeaders merges the active actor's Credentials.Headers underneath an
 // HTTP action's own headers (action overrides; empty removes). Non-HTTP
 // actions pass through unchanged. Combined with the executor's service-level
-	// TODO: per-service actor for ReAct path (currently uses actors[0]).
+// TODO: per-service actor for ReAct path (currently uses actors[0]).
 // headers, final priority is service < actor < action.
 func (r *ReActLoop) withActorHeaders(tc TestCase, action types.TypedAction) types.TypedAction {
 	if r.engine == nil || len(r.engine.actors) == 0 {

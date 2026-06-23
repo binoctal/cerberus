@@ -8,11 +8,12 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
-	"github.com/stretchr/testify/require"
 )
 
 // planWithPrefix is a test helper that runs planning with configured services
@@ -247,8 +248,8 @@ func TestVerifyServiceAttribution_MalformedJSONReturnsCasesUnchanged(t *testing.
 
 	// Various malformed JSON responses
 	malformedCases := []struct {
-		name  string
-		json  string
+		name string
+		json string
 	}{
 		{"missing corrections key", `{}`},
 		{"empty array", `{"corrections":[]}`},
