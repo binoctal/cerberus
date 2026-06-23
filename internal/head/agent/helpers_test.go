@@ -1,11 +1,19 @@
 package agent
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/embed"
+	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -91,4 +99,33 @@ func TestSandboxPolicyFor_AllActionTypes(t *testing.T) {
 			assert.NotNil(t, policy)
 		})
 	}
+}
+
+// testLoopWithServices creates a ReActLoop with custom services, mirroring testLoop.
+func testLoopWithServices(t *testing.T, responses map[string]string, services []project.Service, actors []project.Actor) (*ReActLoop, *store.Store) {
+	t.Helper()
+
+	s, err := store.New(":memory:")
+	require.NoError(t, err)
+	err = store.RunMigrations(context.Background(), s.DB(), "../../../migrations")
+	require.NoError(t, err)
+
+	mockClient := llm.NewMockClient(responses)
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+
+	engine := NewRuleEngine(services, actors, ".")
+
+	executor := BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	emb := embed.NewTrigramProvider(embed.DefaultDimension)
+	loop := NewReActLoopWithConfig(ReActLoopConfig{
+		Driver:   driver,
+		Store:    s,
+		Engine:   engine,
+		Executor: executor,
+		Config:   DefaultReActConfig(),
+		Logger:   zap.NewNop(),
+		Embedder: emb,
+	})
+
+	return loop, s
 }

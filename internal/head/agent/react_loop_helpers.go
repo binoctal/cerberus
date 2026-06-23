@@ -67,31 +67,35 @@ func buildPassedResult(tc *TestCase, traceID int64, attempt int, start time.Time
 }
 
 // executeAndRecordAction executes the action and records evidence.
-func executeAndRecordAction(r *ReActLoop, ctx context.Context, action types.TypedAction, traceID int64) types.ExecutorResult {
-	action = r.withActorHeaders(action)
-	action = r.withBaseURL(action)
+func executeAndRecordAction(r *ReActLoop, ctx context.Context, tc TestCase, action types.TypedAction, traceID int64) types.ExecutorResult {
+	action = r.withActorHeaders(tc, action)
+	action = r.withBaseURL(tc, action)
 	result := r.executor.Execute(ctx, action)
 	r.recordEvidence(ctx, traceID, "steer_attempt", action, result)
 	return result
 }
 
 // withBaseURL resolves a server-relative URL on HTTP and Navigate actions
-// against the engine's configured base URL, mirroring what the rule engine
-// already does (rules_http.go). LLM- and fallback-sourced actions frequently
-// copy the test case's path-only target (e.g. "/v1/chat/completions"); without
-// resolution the request cannot connect and the service-level headers — which
-// are matched by URL host — never get injected. Actions with an absolute URL
-// and non-HTTP actions pass through unchanged.
-func (r *ReActLoop) withBaseURL(action types.TypedAction) types.TypedAction {
-	if r.engine == nil || r.engine.BaseURL() == "" {
+// against tc.Service's URL via the engine's baseURLFor helper, mirroring what
+// the rule engine already does (rules_http.go). LLM- and fallback-sourced
+// actions frequently copy the test case's path-only target (e.g.
+// "/v1/chat/completions"); without resolution the request cannot connect and
+// the service-level headers — which are matched by URL host — never get injected.
+// Actions with an absolute URL and non-HTTP actions pass through unchanged.
+func (r *ReActLoop) withBaseURL(tc TestCase, action types.TypedAction) types.TypedAction {
+	base := ""
+	if r.engine != nil {
+		base = r.engine.baseURLFor(tc)
+	}
+	if base == "" {
 		return action
 	}
 	switch a := action.(type) {
 	case types.HTTPAction:
-		a.URL = resolveActionURL(r.engine.BaseURL(), a.URL)
+		a.URL = resolveActionURL(base, a.URL)
 		return a
 	case types.NavigateAction:
-		a.URL = resolveActionURL(r.engine.BaseURL(), a.URL)
+		a.URL = resolveActionURL(base, a.URL)
 		return a
 	}
 	return action
@@ -123,8 +127,9 @@ func isNoopWait(action types.TypedAction) bool {
 // withActorHeaders merges the active actor's Credentials.Headers underneath an
 // HTTP action's own headers (action overrides; empty removes). Non-HTTP
 // actions pass through unchanged. Combined with the executor's service-level
+	// TODO: per-service actor for ReAct path (currently uses actors[0]).
 // headers, final priority is service < actor < action.
-func (r *ReActLoop) withActorHeaders(action types.TypedAction) types.TypedAction {
+func (r *ReActLoop) withActorHeaders(tc TestCase, action types.TypedAction) types.TypedAction {
 	if r.engine == nil || len(r.engine.actors) == 0 {
 		return action
 	}

@@ -153,14 +153,6 @@ func (r *RuleEngine) serviceHeaders(tc TestCase) map[string]string {
 	return nil
 }
 
-// BaseURL returns the first service's URL for backward compatibility.
-// DEPRECATED: Use baseURLFor(tc) with the test case instead.
-func (r *RuleEngine) BaseURL() string {
-	if len(r.services) > 0 {
-		return strings.TrimRight(r.services[0].URL, "/")
-	}
-	return ""
-}
 
 func isURL(s string) bool {
 	return strings.Contains(s, "://")

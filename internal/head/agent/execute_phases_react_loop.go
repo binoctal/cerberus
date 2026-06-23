@@ -29,7 +29,7 @@ func (se *stepExecution) runReactLoop() StepResult {
 		}
 
 		// Phase 3: Execute action and record
-		newResult := executeAndRecordAction(r, se.ctx, action, se.traceID)
+		newResult := executeAndRecordAction(r, se.ctx, *se.tc, action, se.traceID)
 		se.lastResult = newResult
 		se.lastAction = action
 		if types.IsEnvironmentalFailure(newResult) {

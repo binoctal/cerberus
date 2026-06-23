@@ -40,7 +40,7 @@ func (se *stepExecution) tryRecovery(attempt int) bool {
 	}
 
 	if recResult.Action != nil {
-		action := r.withBaseURL(recResult.Action)
+		action := r.withBaseURL(*se.tc, recResult.Action)
 		recExecResult := r.executor.Execute(se.ctx, action)
 		r.recordEvidence(se.ctx, se.traceID, "recovery", action, recExecResult)
 		se.lastResult = recExecResult

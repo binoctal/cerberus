@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -106,4 +107,38 @@ func TestReActLoop_RecoveryRelativeURLResolvedAgainstBaseURL(t *testing.T) {
 
 	require.GreaterOrEqual(t, recoveredHits.Load(), int32(1),
 		"recovery's relative URL must be resolved against base URL and reach the server")
+}
+
+// TestWithBaseURL_ResolvesByService verifies that withBaseURL resolves relative
+// URLs against tc.Service's URL via the engine's baseURLFor helper.
+func TestWithBaseURL_ResolvesByService(t *testing.T) {
+	// Two services: primary (correct) and secondary (wrong).
+	var primaryHits atomic.Int32
+	primaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		primaryHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer primaryServer.Close()
+
+	secondaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError) // Wrong service
+	}))
+	defer secondaryServer.Close()
+
+	// LLM steers to a relative URL - must resolve against tc.Service="primary", not secondary.
+	steerJSON, _ := json.Marshal(makeSteerEnvelope("hit", "GET", "/api/data"))
+	loop, s := testLoopWithServices(t, map[string]string{"default": string(steerJSON)},
+		[]project.Service{
+			{Name: "secondary", URL: secondaryServer.URL}, // First service (fallback)
+			{Name: "primary", URL: primaryServer.URL},    // tc.Service should pick this
+		}, nil)
+	sessionID := createTestSession(t, s)
+
+	plan := &TestPlan{Goal: "g", Cases: []TestCase{
+		{ID: "t1", Target: "verify", Service: "primary", Expectation: "ok"},
+	}}
+	results, err := loop.ExecutePlan(context.Background(), plan, sessionID)
+	require.NoError(t, err)
+	require.Equal(t, StepPassed, results[0].Status)
+	require.Equal(t, int32(1), primaryHits.Load(), "must hit primary service, not fallback to secondary")
 }

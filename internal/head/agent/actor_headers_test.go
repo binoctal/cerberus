@@ -53,12 +53,14 @@ func TestReActLoop_WithActorHeadersMerged(t *testing.T) {
 	}}, "")
 	loop := &ReActLoop{engine: engine}
 
+	tc := TestCase{ID: "t1"}
+
 	// No action header → gets the actor's.
-	out := loop.withActorHeaders(types.HTTPAction{Method: "GET", URL: "http://x/y"})
+	out := loop.withActorHeaders(tc, types.HTTPAction{Method: "GET", URL: "http://x/y"})
 	assert.Equal(t, "Bearer sk-actor", out.(types.HTTPAction).Headers["Authorization"])
 
 	// Action's own value overrides.
-	out2 := loop.withActorHeaders(types.HTTPAction{
+	out2 := loop.withActorHeaders(tc, types.HTTPAction{
 		Method:  "GET",
 		URL:     "http://x/y",
 		Headers: map[string]string{"Authorization": "Bearer override"},
@@ -66,7 +68,7 @@ func TestReActLoop_WithActorHeadersMerged(t *testing.T) {
 	assert.Equal(t, "Bearer override", out2.(types.HTTPAction).Headers["Authorization"])
 
 	// Empty action value removes the actor header (negative "no auth" case).
-	out3 := loop.withActorHeaders(types.HTTPAction{
+	out3 := loop.withActorHeaders(tc, types.HTTPAction{
 		Method:  "GET",
 		URL:     "http://x/y",
 		Headers: map[string]string{"Authorization": ""},
@@ -85,7 +87,8 @@ func TestReActLoop_WithActorHeadersNonHTTP(t *testing.T) {
 	}}, "")
 	loop := &ReActLoop{engine: engine}
 
+	tc := TestCase{ID: "t1"}
 	in := types.NavigateAction{URL: "http://x/y"}
-	out := loop.withActorHeaders(in)
+	out := loop.withActorHeaders(tc, in)
 	assert.Equal(t, in, out)
 }
