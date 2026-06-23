@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -256,13 +257,17 @@ func (f *fixedRecovery) SetProject(name string) {
 }
 
 func TestReActLoop_SingleServiceBackwardCompat(t *testing.T) {
+	requestReceived := &atomic.Bool{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestReceived.Store(true)
+		require.Equal(t, "/api/users", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	}))
 	defer server.Close()
 
-	// testLoop builds a single-service engine via Services[0]; Service fields empty.
+	// testLoop builds a single-service engine via Services[0]; configures a single Service
+	// with no Service attribution set on the TestCase.
 	loop, s := testLoop(t, nil, server)
 	sessionID := createTestSession(t, s)
 	plan := &TestPlan{Goal: "g", Cases: []TestCase{
@@ -271,4 +276,5 @@ func TestReActLoop_SingleServiceBackwardCompat(t *testing.T) {
 	results, err := loop.ExecutePlan(context.Background(), plan, sessionID)
 	require.NoError(t, err)
 	require.Equal(t, StepPassed, results[0].Status)
+	require.True(t, requestReceived.Load(), "request should have hit Services[0] server")
 }
