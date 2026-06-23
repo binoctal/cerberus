@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -33,7 +32,7 @@ func runCmd() *cobra.Command {
 			projCfg = project.ResolveCredentials(projCfg)
 
 			// Hint to run discover if services look unconfigured
-			if composePath, _ := filepath.Abs("docker-compose.yml"); fileExists(composePath) {
+			if fileExists("docker-compose.yml") {
 				if discover.ShouldHintDiscover(projCfg.Services, true) {
 					fmt.Println(discover.HintMessage)
 				}

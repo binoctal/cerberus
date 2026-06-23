@@ -1,11 +1,21 @@
 package discover
 
-import "strings"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // NamedComposeService pairs a service name with its definition.
 type NamedComposeService struct {
 	Name    string
 	Service ComposeService
+}
+
+// DropReason describes why a service was filtered out.
+type DropReason struct {
+	Name   string
+	Reason string
 }
 
 // infraImageSubstrings identifies infra images by substring. Conservative:
@@ -37,10 +47,13 @@ func contains(list []string, s string) bool {
 
 // FilterServices drops infra images and portless services, then applies
 // explicit --include (force keep) and --exclude (force drop) overrides.
-func FilterServices(services map[string]ComposeService, include, exclude []string) []NamedComposeService {
+// Returns the kept services and a list of dropped services with reasons.
+func FilterServices(services map[string]ComposeService, include, exclude []string) ([]NamedComposeService, []DropReason) {
 	var out []NamedComposeService
+	var dropped []DropReason
 	for name, svc := range services {
 		if contains(exclude, name) {
+			dropped = append(dropped, DropReason{Name: name, Reason: "excluded via --exclude"})
 			continue
 		}
 		if contains(include, name) {
@@ -48,12 +61,34 @@ func FilterServices(services map[string]ComposeService, include, exclude []strin
 			continue
 		}
 		if len(svc.Ports) == 0 {
+			dropped = append(dropped, DropReason{Name: name, Reason: "no ports exposed"})
 			continue
 		}
 		if isInfraImage(svc.Image) {
+			dropped = append(dropped, DropReason{Name: name, Reason: "infrastructure image"})
 			continue
 		}
 		out = append(out, NamedComposeService{Name: name, Service: svc})
 	}
-	return out
+	// Sort by name for deterministic output
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	sort.Slice(dropped, func(i, j int) bool {
+		return dropped[i].Name < dropped[j].Name
+	})
+	return out, dropped
+}
+
+// FormatDroppedServices formats a list of dropped service reasons for display.
+func FormatDroppedServices(dropped []DropReason) string {
+	if len(dropped) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("Filtered services:\n")
+	for _, d := range dropped {
+		sb.WriteString(fmt.Sprintf("  - %s (%s)\n", d.Name, d.Reason))
+	}
+	return sb.String()
 }

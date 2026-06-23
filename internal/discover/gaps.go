@@ -9,8 +9,8 @@ import (
 
 // ServiceGaps records which required-by-test fields a discovered service lacks.
 type ServiceGaps struct {
-	Name             string
-	MissingHost      bool // domain routing (Host header)
+	Name              string
+	MissingHost       bool // domain routing (Host header)
 	MissingPathPrefix bool // for block ① service attribution
 }
 

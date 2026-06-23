@@ -9,8 +9,8 @@ type ComposeFile struct {
 
 // ComposeService is a single entry under services:.
 type ComposeService struct {
-	Image       string            `yaml:"image"`
-	Ports       []string          `yaml:"ports"`
+	Image       string             `yaml:"image"`
+	Ports       []string           `yaml:"ports"`
 	Healthcheck ComposeHealthcheck `yaml:"healthcheck"`
 }
 

@@ -15,9 +15,9 @@ func hostPort(entry string) string {
 	parts := strings.Split(entry, ":")
 	switch len(parts) {
 	case 1:
-		return parts[0]            // "8085"
+		return parts[0] // "8085"
 	case 2:
-		return parts[0]            // "8081:8080"
+		return parts[0] // "8081:8080"
 	default:
 		return parts[len(parts)-2] // "127.0.0.1:8081:8080"
 	}
@@ -49,9 +49,13 @@ func ToProjectServices(in []NamedComposeService) []project.Service {
 		if len(n.Service.Ports) > 0 {
 			port = hostPort(n.Service.Ports[0])
 		}
+		url := ""
+		if port != "" {
+			url = "http://localhost:" + port
+		}
 		out = append(out, project.Service{
 			Name:   n.Name,
-			URL:    "http://localhost:" + port,
+			URL:    url,
 			Health: healthPath(n.Service.Healthcheck.Test),
 		})
 	}

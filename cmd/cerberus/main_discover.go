@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,7 +44,7 @@ func runDiscover(workDir, composePath string, include, exclude []string, dryRun 
 	if err != nil {
 		return fmt.Errorf("parse compose: %w", err)
 	}
-	filtered := discover.FilterServices(parsed.Services, include, exclude)
+	filtered, dropped := discover.FilterServices(parsed.Services, include, exclude)
 	if len(filtered) == 0 {
 		return fmt.Errorf("no discoverable services (all filtered as infra or portless; use --include to force)")
 	}
@@ -51,13 +52,22 @@ func runDiscover(workDir, composePath string, include, exclude []string, dryRun 
 
 	cfg := &project.Config{}
 	cfgPath := filepath.Join(workDir, ".cerberus", "project.yaml")
-	if existing, err := project.LoadFromFile(cfgPath); err == nil {
+	existing, err := project.LoadFromFile(cfgPath)
+	switch {
+	case err == nil:
 		cfg = existing
+	case errors.Is(err, os.ErrNotExist):
+		// genuine first run; empty cfg is correct
+	default:
+		return fmt.Errorf("load existing project.yaml (fix it first, or run with --dry-run): %w", err)
 	}
 	added := discover.MergeIntoConfig(cfg, services)
 	hasActorKey := len(cfg.Actors) > 0
 
 	fmt.Printf("discovered %d service(s); added %d new: %v\n", len(filtered), len(added), added)
+	if len(dropped) > 0 {
+		fmt.Print(discover.FormatDroppedServices(dropped))
+	}
 	fmt.Print(discover.FormatGaps(discover.Gaps(cfg.Services), hasActorKey))
 
 	if dryRun {

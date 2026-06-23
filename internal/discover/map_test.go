@@ -11,7 +11,7 @@ import (
 func TestToProjectServices_PortAndHealth(t *testing.T) {
 	in := []NamedComposeService{
 		{Name: "gateway", Service: ComposeService{
-			Ports: []string{"8081:8080"},
+			Ports:       []string{"8081:8080"},
 			Healthcheck: ComposeHealthcheck{Test: []string{"CMD", "wget", "--spider", "-q", "http://localhost:8080/health"}},
 		}},
 		{Name: "router", Service: ComposeService{
@@ -27,10 +27,10 @@ func TestToProjectServices_PortAndHealth(t *testing.T) {
 
 func TestHostPort(t *testing.T) {
 	cases := map[string]string{
-		"8081:8080":          "8081",
+		"8081:8080":           "8081",
 		"127.0.0.1:8081:8080": "8081",
-		"8085":               "8085",
-		"":                   "",
+		"8085":                "8085",
+		"":                    "",
 	}
 	for in, want := range cases {
 		assert.Equal(t, want, hostPort(in), "input %q", in)
