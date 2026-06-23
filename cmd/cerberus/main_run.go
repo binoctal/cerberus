@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/discover"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
@@ -29,6 +31,13 @@ func runCmd() *cobra.Command {
 
 			projCfg := loadProjectConfig(configFlag, urlFlag, goalFlag, logger)
 			projCfg = project.ResolveCredentials(projCfg)
+
+			// Hint to run discover if services look unconfigured
+			if composePath, _ := filepath.Abs("docker-compose.yml"); fileExists(composePath) {
+				if discover.ShouldHintDiscover(projCfg.Services, true) {
+					fmt.Println(discover.HintMessage)
+				}
+			}
 
 			dbPath := cfg.DBPath
 			if dbFlag != "" {
@@ -127,4 +136,10 @@ func runCmd() *cobra.Command {
 	cmd.Flags().StringVar(&resumeFlag, "resume", "", "Resume a previous session by ID")
 	cmd.Flags().StringVar(&autoTestSafetyFlag, "auto-test-safety", "off", "AutoTest phase: off|approve|auto|dry-run")
 	return cmd
+}
+
+// fileExists checks if a file exists at the given path.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
