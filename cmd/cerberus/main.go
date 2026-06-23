@@ -27,6 +27,7 @@ func main() {
 		memoryCmd(),
 		versionCmd(),
 		selftestCmd(),
+		discoverCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
