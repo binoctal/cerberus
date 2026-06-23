@@ -25,7 +25,7 @@ func TestExecutePlan_SkipsDeprioritizedCases(t *testing.T) {
 	plan := &TestPlan{
 		Goal: "t",
 		Cases: []TestCase{
-			{ID: "keep", Target: "/api/users", Priority: 0.9, Expectation: "200"},
+			{ID: "keep", Target: "/api/users", Method: "GET", Priority: 0.9, Expectation: "200"},
 			{ID: "skip", Target: "badpath", Priority: -1, Expectation: "x"},
 		},
 		ProjectURL: server.URL,

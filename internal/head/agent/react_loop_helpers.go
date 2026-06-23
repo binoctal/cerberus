@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -68,9 +69,55 @@ func buildPassedResult(tc *TestCase, traceID int64, attempt int, start time.Time
 // executeAndRecordAction executes the action and records evidence.
 func executeAndRecordAction(r *ReActLoop, ctx context.Context, action types.TypedAction, traceID int64) types.ExecutorResult {
 	action = r.withActorHeaders(action)
+	action = r.withBaseURL(action)
 	result := r.executor.Execute(ctx, action)
 	r.recordEvidence(ctx, traceID, "steer_attempt", action, result)
 	return result
+}
+
+// withBaseURL resolves a server-relative URL on HTTP and Navigate actions
+// against the engine's configured base URL, mirroring what the rule engine
+// already does (rules_http.go). LLM- and fallback-sourced actions frequently
+// copy the test case's path-only target (e.g. "/v1/chat/completions"); without
+// resolution the request cannot connect and the service-level headers — which
+// are matched by URL host — never get injected. Actions with an absolute URL
+// and non-HTTP actions pass through unchanged.
+func (r *ReActLoop) withBaseURL(action types.TypedAction) types.TypedAction {
+	if r.engine == nil || r.engine.baseURL == "" {
+		return action
+	}
+	switch a := action.(type) {
+	case types.HTTPAction:
+		a.URL = resolveActionURL(r.engine.baseURL, a.URL)
+		return a
+	case types.NavigateAction:
+		a.URL = resolveActionURL(r.engine.baseURL, a.URL)
+		return a
+	}
+	return action
+}
+
+// resolveActionURL returns target unchanged when it is already absolute;
+// otherwise it joins the (relative) target onto base.
+func resolveActionURL(base, target string) string {
+	if target == "" || isAbsoluteURL(target) {
+		return target
+	}
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(target, "/")
+}
+
+// isAbsoluteURL reports whether s has an http/https scheme.
+func isAbsoluteURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
+// isNoopWait reports whether action is a duration-only wait with no selector or
+// state — i.e. it merely delays and asserts nothing about the system under
+// test. Such an action succeeding must not be judged as a passing step. A wait
+// that targets a selector or state is a real UI probe, not a noop.
+func isNoopWait(action types.TypedAction) bool {
+	w, ok := action.(types.WaitAction)
+	return ok && w.Selector == "" && w.WaitForState == ""
 }
 
 // withActorHeaders merges the active actor's Credentials.Headers underneath an

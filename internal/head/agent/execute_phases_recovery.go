@@ -40,10 +40,11 @@ func (se *stepExecution) tryRecovery(attempt int) bool {
 	}
 
 	if recResult.Action != nil {
-		recExecResult := r.executor.Execute(se.ctx, recResult.Action)
-		r.recordEvidence(se.ctx, se.traceID, "recovery", recResult.Action, recExecResult)
+		action := r.withBaseURL(recResult.Action)
+		recExecResult := r.executor.Execute(se.ctx, action)
+		r.recordEvidence(se.ctx, se.traceID, "recovery", action, recExecResult)
 		se.lastResult = recExecResult
-		se.lastAction = recResult.Action
+		se.lastAction = action
 		if recExecResult.Success() {
 			if err := r.store.FinishTrace(se.ctx, se.traceID, string(StepPassed)); err != nil {
 				r.logger.Error("finish trace", zap.Error(err))

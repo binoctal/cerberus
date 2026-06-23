@@ -45,8 +45,10 @@ func (se *stepExecution) runReactLoop() StepResult {
 		// Phase 5: Log attempt
 		logSteerAttempt(r.logger, attempt, action, newResult)
 
-		// Phase 6: Check for success
-		if newResult.Success() {
+		// Phase 6: Check for success. A pure duration wait only delays — it
+		// verifies nothing about the target — so its success must not be judged
+		// as a passing step; fall through to recovery / the next attempt.
+		if newResult.Success() && !isNoopWait(action) {
 			if err := r.store.FinishTrace(se.ctx, se.traceID, string(StepPassed)); err != nil {
 				r.logger.Error("finish trace", zap.Error(err))
 			}
