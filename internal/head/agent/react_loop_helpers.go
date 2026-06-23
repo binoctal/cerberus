@@ -83,15 +83,15 @@ func executeAndRecordAction(r *ReActLoop, ctx context.Context, action types.Type
 // are matched by URL host — never get injected. Actions with an absolute URL
 // and non-HTTP actions pass through unchanged.
 func (r *ReActLoop) withBaseURL(action types.TypedAction) types.TypedAction {
-	if r.engine == nil || r.engine.baseURL == "" {
+	if r.engine == nil || r.engine.BaseURL() == "" {
 		return action
 	}
 	switch a := action.(type) {
 	case types.HTTPAction:
-		a.URL = resolveActionURL(r.engine.baseURL, a.URL)
+		a.URL = resolveActionURL(r.engine.BaseURL(), a.URL)
 		return a
 	case types.NavigateAction:
-		a.URL = resolveActionURL(r.engine.baseURL, a.URL)
+		a.URL = resolveActionURL(r.engine.BaseURL(), a.URL)
 		return a
 	}
 	return action

@@ -11,7 +11,7 @@ func (r *RuleEngine) matchBrowserRules(tc TestCase) (types.TypedAction, bool) {
 	case "browser_goto":
 		url := tc.Target
 		if !isURL(url) {
-			url = r.baseURL + url
+			url = r.baseURLFor(tc) + url
 		}
 		return types.BrowserGotoAction{URL: url}, true
 

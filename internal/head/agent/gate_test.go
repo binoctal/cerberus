@@ -11,6 +11,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/escalation"
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
 )
 
@@ -39,7 +40,7 @@ func setupGateTest(t *testing.T) (*ReActLoop, *recordingGate, *store.Store) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
 	gate := &recordingGate{}
-	engine := NewRuleEngine("http://localhost:9999", nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:9999"}}, nil, ".")
 	exec := BuildMultiExecutor(".", nil, gate, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := NewReActLoopWithGateWithConfig(ReActLoopConfig{

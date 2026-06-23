@@ -10,21 +10,22 @@ import (
 
 // RuleEngine matches test cases to deterministic actions (zero tokens).
 type RuleEngine struct {
-	baseURL string
-	actors  []project.Actor
-	workDir string
-	hits    atomic.Int64
-	misses  atomic.Int64
+	services []project.Service
+	byName   map[string]project.Service
+	actors   []project.Actor
+	workDir  string
+	hits     atomic.Int64
+	misses   atomic.Int64
 }
 
-// NewRuleEngine creates a rule engine for the given base URL, actors, and workDir.
+// NewRuleEngine creates a rule engine for the given services, actors, and workDir.
 // workDir is used as the working directory for process and code actions.
-func NewRuleEngine(baseURL string, actors []project.Actor, workDir string) *RuleEngine {
-	return &RuleEngine{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		actors:  actors,
-		workDir: workDir,
+func NewRuleEngine(services []project.Service, actors []project.Actor, workDir string) *RuleEngine {
+	byName := make(map[string]project.Service, len(services))
+	for _, s := range services {
+		byName[s.Name] = s
 	}
+	return &RuleEngine{services: services, byName: byName, actors: actors, workDir: workDir}
 }
 
 // Match attempts to produce a deterministic TypedAction for the given TestCase.
@@ -85,14 +86,33 @@ func (r *RuleEngine) matchRules(tc TestCase) (types.TypedAction, bool) {
 	return nil, false
 }
 
-// authHeaders returns auth headers from the first configured actor: the legacy
-// X-Test-User (from email) plus any explicit actor Credentials.Headers (e.g.
-// Authorization: Bearer ...). Returns nil when the actor has neither.
-func (r *RuleEngine) authHeaders() map[string]string {
+// authHeadersFor returns auth headers for tc.Service's actor, falling back to
+// a global actor (Actor.Service == "") then actors[0].
+func (r *RuleEngine) authHeadersFor(tc TestCase) map[string]string {
 	if len(r.actors) == 0 {
 		return nil
 	}
-	actor := r.actors[0]
+	var actor project.Actor
+	found := false
+	if tc.Service != "" {
+		for _, a := range r.actors {
+			if a.Service == tc.Service {
+				actor, found = a, true
+				break
+			}
+		}
+	}
+	if !found {
+		for _, a := range r.actors {
+			if a.Service == "" {
+				actor, found = a, true
+				break
+			}
+		}
+	}
+	if !found {
+		actor = r.actors[0]
+	}
 	h := map[string]string{}
 	if actor.Credentials.Email != "" {
 		h["X-Test-User"] = actor.Credentials.Email
@@ -104,6 +124,42 @@ func (r *RuleEngine) authHeaders() map[string]string {
 		return nil
 	}
 	return h
+}
+
+// baseURLFor returns the URL for tc.Service, falling back to the first
+// configured service (backward compatible with single-service projects).
+func (r *RuleEngine) baseURLFor(tc TestCase) string {
+	if tc.Service != "" {
+		if s, ok := r.byName[tc.Service]; ok {
+			return strings.TrimRight(s.URL, "/")
+		}
+	}
+	if len(r.services) > 0 {
+		return strings.TrimRight(r.services[0].URL, "/")
+	}
+	return ""
+}
+
+// serviceHeaders returns service-level headers for tc.Service (nil if none).
+func (r *RuleEngine) serviceHeaders(tc TestCase) map[string]string {
+	if tc.Service != "" {
+		if s, ok := r.byName[tc.Service]; ok && len(s.Headers) > 0 {
+			return s.Headers
+		}
+	}
+	if len(r.services) > 0 && len(r.services[0].Headers) > 0 {
+		return r.services[0].Headers
+	}
+	return nil
+}
+
+// BaseURL returns the first service's URL for backward compatibility.
+// DEPRECATED: Use baseURLFor(tc) with the test case instead.
+func (r *RuleEngine) BaseURL() string {
+	if len(r.services) > 0 {
+		return strings.TrimRight(r.services[0].URL, "/")
+	}
+	return ""
 }
 
 func isURL(s string) bool {

@@ -8,11 +8,13 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
 func BenchmarkRuleEngine_Match(b *testing.B) {
-	engine := NewRuleEngine("http://localhost:8080", nil, ".")
+	services := []project.Service{{Name: "default", URL: "http://localhost:8080"}}
+	engine := NewRuleEngine(services, nil, ".")
 
 	cases := []TestCase{
 		{ID: "api", Target: "/api/v1/users", Method: "GET"},
@@ -31,7 +33,7 @@ func BenchmarkRuleEngine_Match(b *testing.B) {
 }
 
 func BenchmarkRuleEngine_MatchParallel(b *testing.B) {
-	engine := NewRuleEngine("http://localhost:8080", nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:8080"}}, nil, ".")
 	tc := TestCase{ID: "api", Target: "/api/v1/users", Method: "GET"}
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -42,7 +44,7 @@ func BenchmarkRuleEngine_MatchParallel(b *testing.B) {
 }
 
 func BenchmarkRuleEngine_Stats(b *testing.B) {
-	engine := NewRuleEngine("http://localhost:8080", nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:8080"}}, nil, ".")
 	tc := TestCase{ID: "api", Target: "/api", Method: "GET"}
 	for i := 0; i < 1000; i++ {
 		engine.Match(tc)

@@ -16,6 +16,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -38,7 +39,7 @@ func setupParallelTest(t *testing.T) (*ReActLoop, *store.Store) {
 	})
 	client := llm.NewMockClient(map[string]string{"default": string(steerJSON)})
 	driver := ai.NewDriver(client, ai.NewTokenBudget(500000, 50000))
-	engine := NewRuleEngine("http://localhost", nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost"}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	config := DefaultReActConfig()
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
@@ -66,7 +67,7 @@ func TestParallelExecutor_AllIndependent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -103,7 +104,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	_ = NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -121,7 +122,7 @@ func TestParallelExecutor_WithDependencies(t *testing.T) {
 	}))
 	defer srv2.Close()
 
-	engine2 := NewRuleEngine(srv2.URL, nil, ".")
+	engine2 := NewRuleEngine([]project.Service{{Name: "default", URL: srv2.URL}}, nil, ".")
 	httpExec2 := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	loop3 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine2, Executor: httpExec2, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: embed.NewTrigramProvider(embed.DefaultDimension)})
 
@@ -170,7 +171,7 @@ func TestParallelExecutor_ContextCancellation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -219,7 +220,7 @@ func TestParallelExecutor_ConcurrencyLimit(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -263,7 +264,7 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -313,7 +314,7 @@ func TestParallelExecutor_CascadeSkip_ErrorMessage(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
@@ -406,7 +407,7 @@ func TestParallelExecutor_MultiDependency(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	engine := NewRuleEngine(srv.URL, nil, ".")
+	engine := NewRuleEngine([]project.Service{{Name: "default", URL: srv.URL}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})

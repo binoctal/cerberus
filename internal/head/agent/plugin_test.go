@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/escalation"
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/policy"
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
@@ -71,7 +72,7 @@ func TestApplyToRegistersAllPlugins(t *testing.T) {
 }
 
 func TestExtendedRuleEnginePluginFirst(t *testing.T) {
-	inner := NewRuleEngine("http://localhost:8080", nil, ".")
+	inner := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:8080"}}, nil, ".")
 	registry := NewPluginRegistry(zap.NewNop())
 
 	customPlugin := &testRulePlugin{
@@ -93,7 +94,7 @@ func TestExtendedRuleEnginePluginFirst(t *testing.T) {
 }
 
 func TestExtendedRuleEngineFallback(t *testing.T) {
-	inner := NewRuleEngine("http://localhost:8080", nil, ".")
+	inner := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:8080"}}, nil, ".")
 	registry := NewPluginRegistry(zap.NewNop())
 	registry.RegisterRule(&testRulePlugin{name: "no_match"})
 
@@ -113,7 +114,7 @@ func TestExtendedRuleEngineFallback(t *testing.T) {
 }
 
 func TestExtendedRuleEngineStats(t *testing.T) {
-	inner := NewRuleEngine("http://localhost:8080", nil, ".")
+	inner := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:8080"}}, nil, ".")
 	engine := NewExtendedRuleEngine(inner, nil)
 
 	hits, misses := engine.Stats()

@@ -12,7 +12,8 @@ import (
 // authHeaders includes the actor's Credentials.Headers (e.g. Authorization),
 // alongside the legacy X-Test-User.
 func TestRuleEngine_AuthHeadersIncludesActorHeaders(t *testing.T) {
-	engine := NewRuleEngine("http://localhost", []project.Actor{{
+	services := []project.Service{{Name: "default", URL: "http://localhost"}}
+	engine := NewRuleEngine(services, []project.Actor{{
 		Name: "valid_user",
 		Credentials: project.CredentialRef{
 			Email:   "x@y.z",
@@ -20,7 +21,7 @@ func TestRuleEngine_AuthHeadersIncludesActorHeaders(t *testing.T) {
 		},
 	}}, "")
 
-	h := engine.authHeaders()
+	h := engine.authHeadersFor(TestCase{})
 	assert.Equal(t, "x@y.z", h["X-Test-User"])
 	assert.Equal(t, "Bearer sk-test", h["Authorization"])
 }
@@ -28,14 +29,15 @@ func TestRuleEngine_AuthHeadersIncludesActorHeaders(t *testing.T) {
 // An actor with headers but no email still yields its headers (needed for
 // bearer-only actors that aren't SaaS email/password).
 func TestRuleEngine_AuthHeadersHeadersOnlyNoEmail(t *testing.T) {
-	engine := NewRuleEngine("http://localhost", []project.Actor{{
+	services := []project.Service{{Name: "default", URL: "http://localhost"}}
+	engine := NewRuleEngine(services, []project.Actor{{
 		Name: "valid_user",
 		Credentials: project.CredentialRef{
 			Headers: map[string]string{"Authorization": "Bearer sk-test"},
 		},
 	}}, "")
 
-	h := engine.authHeaders()
+	h := engine.authHeadersFor(TestCase{})
 	assert.Equal(t, "Bearer sk-test", h["Authorization"])
 	assert.Equal(t, "", h["X-Test-User"])
 }
@@ -43,7 +45,8 @@ func TestRuleEngine_AuthHeadersHeadersOnlyNoEmail(t *testing.T) {
 // ReAct path: the active actor's headers are merged under the action's own
 // headers so a header-less steer() output still authenticates.
 func TestReActLoop_WithActorHeadersMerged(t *testing.T) {
-	engine := NewRuleEngine("http://localhost", []project.Actor{{
+	services := []project.Service{{Name: "default", URL: "http://localhost"}}
+	engine := NewRuleEngine(services, []project.Actor{{
 		Credentials: project.CredentialRef{
 			Headers: map[string]string{"Authorization": "Bearer sk-actor"},
 		},
@@ -74,7 +77,8 @@ func TestReActLoop_WithActorHeadersMerged(t *testing.T) {
 
 // Non-HTTP actions pass through untouched.
 func TestReActLoop_WithActorHeadersNonHTTP(t *testing.T) {
-	engine := NewRuleEngine("http://localhost", []project.Actor{{
+	services := []project.Service{{Name: "default", URL: "http://localhost"}}
+	engine := NewRuleEngine(services, []project.Actor{{
 		Credentials: project.CredentialRef{
 			Headers: map[string]string{"Authorization": "Bearer sk-actor"},
 		},

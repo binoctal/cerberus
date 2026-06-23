@@ -16,13 +16,12 @@ func (rp *runPhase) executeAgentPhase() error {
 	}
 	fmt.Printf("• Agent: executing %d test cases...\n", len(rp.plan.Cases))
 
-	baseURL := rp.session.resolveBaseURL()
 	projectDir := rp.session.ProjectDir
 	if projectDir == "" {
 		projectDir = "."
 	}
 
-	engine := agent.NewRuleEngine(baseURL, rp.session.Config.Actors, projectDir)
+	engine := agent.NewRuleEngine(rp.session.Config.Services, rp.session.Config.Actors, projectDir)
 	multiExec := agent.BuildMultiExecutor(projectDir, agent.ServiceHeadersMap(rp.session.Config.Services), rp.session.Gate, rp.session.Logger)
 	config := agent.DefaultReActConfig()
 	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)

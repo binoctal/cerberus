@@ -15,6 +15,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -31,14 +32,13 @@ func testLoop(t *testing.T, responses map[string]string, server *httptest.Server
 	mockClient := llm.NewMockClient(responses)
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
-	baseURL := ""
-	var engine *RuleEngine
+	var services []project.Service
 	if server != nil {
-		baseURL = server.URL
-		engine = NewRuleEngine(baseURL, nil, ".")
+		services = []project.Service{{Name: "default", URL: server.URL}}
 	} else {
-		engine = NewRuleEngine("https://example.com", nil, ".")
+		services = []project.Service{{Name: "default", URL: "https://example.com"}}
 	}
+	engine := NewRuleEngine(services, nil, ".")
 
 	executor := BuildMultiExecutor(".", nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
