@@ -74,6 +74,9 @@ func (s *Scout) convertPlanOutput(goal string, out PlanOutput) *agent.TestPlan {
 		})
 	}
 
+	// Phase 2: LLM verification of service attribution.
+	cases = verifyServiceAttribution(s.driver, cases, s.config.Services)
+
 	plan := &agent.TestPlan{
 		Goal:       goal,
 		Cases:      cases,
@@ -173,4 +176,73 @@ func attributeService(path string, services []project.Service) string {
 		}
 	}
 	return ""
+}
+
+// ServiceAttributionCorrection represents a single correction from the LLM.
+type ServiceAttributionCorrection struct {
+	Path    string `json:"path"`
+	Service string `json:"service"`
+}
+
+// ServiceAttributionCorrections is the envelope format for LLM corrections.
+type ServiceAttributionCorrections struct {
+	Corrections []ServiceAttributionCorrection `json:"corrections"`
+}
+
+// verifyServiceAttribution uses the LLM to verify and correct service attribution
+// for test cases. Returns cases with corrected service values. On any error,
+// returns cases unchanged and logs a warning.
+func verifyServiceAttribution(driver *ai.Driver, cases []agent.TestCase, services []project.Service) []agent.TestCase {
+	// Build a set of valid service names for validation.
+	validServices := make(map[string]bool)
+	for _, svc := range services {
+		validServices[svc.Name] = true
+	}
+
+	// Build the prompt for LLM verification.
+	prompt := ai.NewPrompt().
+		System("You are a service attribution verifier. Correct any misattributed services based on the test case paths and target.").
+		Task(fmt.Sprintf("Verify service attribution for %d test cases. Return corrections ONLY when attribution is wrong.\n\n%s", len(cases), formatCasesForVerification(cases))).
+		Output(`{"corrections":[{"path":"/path/to/case","service":"correct_service_name"}]}`).
+		Build()
+
+	// Call LLM to get corrections.
+	var corrections ServiceAttributionCorrections
+	if err := driver.Decide(context.Background(), prompt, &corrections); err != nil {
+		// On LLM error, return cases unchanged.
+		fmt.Printf("LLM verification failed: %v\n", err)
+		return cases
+	}
+
+	// Apply corrections: build a map of path -> corrected service.
+	correctionMap := make(map[string]string)
+	for _, corr := range corrections.Corrections {
+		// Only apply corrections whose target service exists.
+		if !validServices[corr.Service] {
+			fmt.Printf("Ignoring correction for %s: unknown service '%s'\n", corr.Path, corr.Service)
+			continue
+		}
+		correctionMap[corr.Path] = corr.Service
+	}
+
+	// Apply corrections to cases.
+	result := make([]agent.TestCase, len(cases))
+	for i, tc := range cases {
+		if correctedService, ok := correctionMap[tc.Target]; ok {
+			tc.Service = correctedService
+		}
+		result[i] = tc
+	}
+
+	return result
+}
+
+// formatCasesForVerification formats test cases for LLM verification.
+func formatCasesForVerification(cases []agent.TestCase) string {
+	var sb strings.Builder
+	sb.WriteString("Current test cases:\n")
+	for _, tc := range cases {
+		sb.WriteString(fmt.Sprintf("- Path: %s, Current Service: %s\n", tc.Target, tc.Service))
+	}
+	return sb.String()
 }
