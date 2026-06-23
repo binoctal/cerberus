@@ -75,7 +75,7 @@ func (s *Scout) convertPlanOutput(goal string, out PlanOutput) *agent.TestPlan {
 	}
 
 	// Phase 2: LLM verification of service attribution.
-	cases = verifyServiceAttribution(s.driver, cases, s.config.Services)
+	cases = verifyServiceAttribution(s.logger, s.driver, cases, s.config.Services)
 
 	plan := &agent.TestPlan{
 		Goal:       goal,
@@ -192,17 +192,24 @@ type ServiceAttributionCorrections struct {
 // verifyServiceAttribution uses the LLM to verify and correct service attribution
 // for test cases. Returns cases with corrected service values. On any error,
 // returns cases unchanged and logs a warning.
-func verifyServiceAttribution(driver *ai.Driver, cases []agent.TestCase, services []project.Service) []agent.TestCase {
-	// Build a set of valid service names for validation.
+func verifyServiceAttribution(logger *zap.Logger, driver *ai.Driver, cases []agent.TestCase, services []project.Service) []agent.TestCase {
+	// Build a set of valid service names for validation and for prompt constraints.
 	validServices := make(map[string]bool)
+	serviceList := make([]string, 0, len(services))
 	for _, svc := range services {
 		validServices[svc.Name] = true
+		serviceList = append(serviceList, svc.Name)
 	}
 
-	// Build the prompt for LLM verification.
+	// Build the prompt for LLM verification with strict constraints.
 	prompt := ai.NewPrompt().
-		System("You are a service attribution verifier. Correct any misattributed services based on the test case paths and target.").
-		Task(fmt.Sprintf("Verify service attribution for %d test cases. Return corrections ONLY when attribution is wrong.\n\n%s", len(cases), formatCasesForVerification(cases))).
+		System("You are a service attribution verifier. Your task is to identify and correct ONLY test cases where the Service field is definitively wrong based on the endpoint path.").
+		Task(fmt.Sprintf("Verify service attribution for %d test cases.\n\nAvailable services: %s\n\nRules:\n"+
+			"1. Return corrections ONLY for cases where the Service is WRONG\n"+
+			"2. Omit uncertain cases - if you're not sure, do NOT include a correction\n"+
+			"3. Use ONLY service names from the provided list above\n"+
+			"4. If all attributions appear correct, return an empty corrections array\n\n%s",
+			len(cases), strings.Join(serviceList, ", "), formatCasesForVerification(cases))).
 		Output(`{"corrections":[{"path":"/path/to/case","service":"correct_service_name"}]}`).
 		Build()
 
@@ -210,8 +217,14 @@ func verifyServiceAttribution(driver *ai.Driver, cases []agent.TestCase, service
 	var corrections ServiceAttributionCorrections
 	if err := driver.Decide(context.Background(), prompt, &corrections); err != nil {
 		// On LLM error, return cases unchanged.
-		fmt.Printf("LLM verification failed: %v\n", err)
+		logger.Warn("LLM service attribution verification failed", zap.Error(err))
 		return cases
+	}
+
+	// Guard against nil corrections slice from malformed JSON.
+	if corrections.Corrections == nil {
+		logger.Warn("LLM returned nil corrections slice, treating as no corrections")
+		corrections.Corrections = []ServiceAttributionCorrection{}
 	}
 
 	// Apply corrections: build a map of path -> corrected service.
@@ -219,7 +232,9 @@ func verifyServiceAttribution(driver *ai.Driver, cases []agent.TestCase, service
 	for _, corr := range corrections.Corrections {
 		// Only apply corrections whose target service exists.
 		if !validServices[corr.Service] {
-			fmt.Printf("Ignoring correction for %s: unknown service '%s'\n", corr.Path, corr.Service)
+			logger.Warn("Ignoring service attribution correction for unknown service",
+				zap.String("path", corr.Path),
+				zap.String("service", corr.Service))
 			continue
 		}
 		correctionMap[corr.Path] = corr.Service
