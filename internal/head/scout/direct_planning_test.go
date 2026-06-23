@@ -92,3 +92,37 @@ func TestPlan_AttributesByPathPrefix(t *testing.T) {
 	require.Equal(t, "gateway", serviceOf(cases, "/v1/chat/completions"))
 	require.Equal(t, "admin", serviceOf(cases, "/api/admin/users"))
 }
+
+// TestPlan_AttributesByPathPrefix_UnmatchedPath verifies that an endpoint
+// matching NO service's PathPrefix yields Service == "".
+func TestPlan_AttributesByPathPrefix_UnmatchedPath(t *testing.T) {
+	services := []project.Service{
+		{Name: "gateway", URL: "http://gw", PathPrefix: []string{"/v1"}},
+		{Name: "admin", URL: "http://admin", PathPrefix: []string{"/api/admin"}},
+	}
+
+	cases := planWithPrefix(t, services, []string{
+		"GET /unknown/path",
+	})
+
+	// Unmatched path should result in empty service
+	require.Equal(t, "", serviceOf(cases, "/unknown/path"))
+}
+
+// TestPlan_AttributesByPathPrefix_NoPrefixConfigured verifies that when
+// every service has an empty PathPrefix, all endpoints have Service == "".
+func TestPlan_AttributesByPathPrefix_NoPrefixConfigured(t *testing.T) {
+	services := []project.Service{
+		{Name: "svc1", URL: "http://svc1", PathPrefix: []string{}},
+		{Name: "svc2", URL: "http://svc2", PathPrefix: []string{}},
+	}
+
+	cases := planWithPrefix(t, services, []string{
+		"GET /api/users",
+		"POST /api/posts",
+	})
+
+	// All services should be empty when no PathPrefix is configured
+	require.Equal(t, "", serviceOf(cases, "/api/users"))
+	require.Equal(t, "", serviceOf(cases, "/api/posts"))
+}
