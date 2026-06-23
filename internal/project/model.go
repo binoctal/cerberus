@@ -29,6 +29,7 @@ type EndpointDef struct {
 	Method     string  `yaml:"method"`
 	Path       string  `yaml:"path"`
 	Confidence float64 `yaml:"confidence"`
+	Service    string  `yaml:"service,omitempty"`
 }
 
 type InvariantHint struct {

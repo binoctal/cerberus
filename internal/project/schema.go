@@ -15,16 +15,18 @@ type ProjectMeta struct {
 }
 
 type Service struct {
-	Name    string            `yaml:"name"`
-	URL     string            `yaml:"url"`
-	Health  string            `yaml:"health,omitempty"`
-	Headers map[string]string `yaml:"headers,omitempty"`
+	Name       string            `yaml:"name"`
+	URL        string            `yaml:"url"`
+	Health     string            `yaml:"health,omitempty"`
+	Headers    map[string]string `yaml:"headers,omitempty"`
+	PathPrefix []string          `yaml:"path_prefix,omitempty"`
 }
 
 type Actor struct {
 	Name        string        `yaml:"name"`
 	Credentials CredentialRef `yaml:"credentials"`
 	Entry       string        `yaml:"entry,omitempty"`
+	Service     string        `yaml:"service,omitempty"`
 }
 
 type CredentialRef struct {

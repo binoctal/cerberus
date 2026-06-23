@@ -229,3 +229,22 @@ func TestResolveCoverage(t *testing.T) {
 		})
 	}
 }
+
+func TestServiceActorServiceFieldsRoundTrip(t *testing.T) {
+	src := `
+services:
+  - name: gateway
+    url: "http://localhost:8081"
+    path_prefix: ["/v1", "/v1/models"]
+actors:
+  - name: gw-user
+    service: gateway
+    credentials:
+      email: "u@x"
+`
+	var cfg Config
+	err := yaml.Unmarshal([]byte(src), &cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"/v1", "/v1/models"}, cfg.Services[0].PathPrefix)
+	require.Equal(t, "gateway", cfg.Actors[0].Service)
+}

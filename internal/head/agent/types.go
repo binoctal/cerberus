@@ -33,6 +33,7 @@ type TestCase struct {
 	WaitFor     string  `json:"wait_for,omitempty"`
 	Cleanup     bool    `json:"cleanup,omitempty"`
 	Severity    string  `json:"severity,omitempty"` // "low", "medium", "high", "critical" (from invariant)
+	Service     string  `json:"service,omitempty"`
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.
