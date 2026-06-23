@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -81,7 +82,8 @@ func executeAndRecordAction(r *ReActLoop, ctx context.Context, tc TestCase, acti
 // actions frequently copy the test case's path-only target (e.g.
 // "/v1/chat/completions"); without resolution the request cannot connect and
 // the service-level headers — which are matched by URL host — never get injected.
-// Actions with an absolute URL and non-HTTP actions pass through unchanged.
+// Actions with an absolute URL have their host:port forced to tc.Service's base,
+// preserving the original path/query. Non-HTTP actions pass through unchanged.
 func (r *ReActLoop) withBaseURL(tc TestCase, action types.TypedAction) types.TypedAction {
 	base := ""
 	if r.engine != nil {
@@ -92,10 +94,10 @@ func (r *ReActLoop) withBaseURL(tc TestCase, action types.TypedAction) types.Typ
 	}
 	switch a := action.(type) {
 	case types.HTTPAction:
-		a.URL = resolveActionURL(base, a.URL)
+		a.URL = forceServiceHost(base, a.URL)
 		return a
 	case types.NavigateAction:
-		a.URL = resolveActionURL(base, a.URL)
+		a.URL = forceServiceHost(base, a.URL)
 		return a
 	}
 	return action
@@ -108,6 +110,30 @@ func resolveActionURL(base, target string) string {
 		return target
 	}
 	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(target, "/")
+}
+
+// forceServiceHost returns target unchanged if empty; otherwise rewrites the
+// URL so its scheme+host+port come from base, while preserving the target's
+// path and query. Relative targets are joined onto base. Absolute targets
+// keep their path but take base's host:port (corrects wrong-port guesses).
+func forceServiceHost(base, target string) string {
+	if target == "" {
+		return target
+	}
+	if !isAbsoluteURL(target) {
+		return resolveActionURL(base, target) // relative → base + path (existing behavior)
+	}
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return target
+	}
+	tu, err := url.Parse(target)
+	if err != nil {
+		return target
+	}
+	tu.Scheme = baseURL.Scheme
+	tu.Host = baseURL.Host
+	return tu.String()
 }
 
 // isAbsoluteURL reports whether s has an http/https scheme.

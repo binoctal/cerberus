@@ -142,3 +142,31 @@ func TestWithBaseURL_ResolvesByService(t *testing.T) {
 	require.Equal(t, StepPassed, results[0].Status)
 	require.Equal(t, int32(1), primaryHits.Load(), "must hit primary service, not fallback to secondary")
 }
+
+// TestWithBaseURL_ForcesServiceHostOnAbsoluteURL verifies that withBaseURL rewrites
+// an absolute URL's host:port to tc.Service's base, preserving path/query.
+// This reproduces a bug where the LLM steers to an absolute URL with the wrong
+// host/port (e.g., a guessed localhost:9999), but tc.Service defines the correct
+// gateway. The request must be rewritten to hit the service's host, not the LLM's guess.
+func TestWithBaseURL_ForcesServiceHostOnAbsoluteURL(t *testing.T) {
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	// server is the gateway (correct host); LLM will steer to a WRONG absolute URL (localhost:9999)
+	steerJSON, _ := json.Marshal(makeSteerEnvelope("hit", "POST", "http://localhost:9999/api/data"))
+	loop, s := testLoopWithServices(t, map[string]string{"default": string(steerJSON)},
+		[]project.Service{{Name: "gateway", URL: server.URL}}, nil)
+	sessionID := createTestSession(t, s)
+	plan := &TestPlan{Goal: "g", Cases: []TestCase{
+		{ID: "t1", Target: "verify", Service: "gateway", Method: "POST", Expectation: "ok"},
+	}}
+	results, err := loop.ExecutePlan(context.Background(), plan, sessionID)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), hits.Load(), "absolute URL with wrong host must be rewritten to the service's host")
+	require.Equal(t, StepPassed, results[0].Status)
+}
