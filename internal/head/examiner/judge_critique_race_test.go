@@ -46,10 +46,10 @@ func TestJudgeCritiqueBudgetHeldUnderConcurrency(t *testing.T) {
 	}
 	judgeJSON, _ := json.Marshal(judgeResult)
 	critiqueResult := CritiqueResult{
-		IssuesFound:        true,
-		SuggestedStatus:    StatusPass,
+		IssuesFound:         true,
+		SuggestedStatus:     StatusPass,
 		SuggestedConfidence: 0.9,
-		Critique:           "c",
+		Critique:            "c",
 	}
 	critiqueJSON, _ := json.Marshal(critiqueResult)
 

@@ -12,8 +12,8 @@ func TestServiceHeadersMap(t *testing.T) {
 	services := []project.Service{
 		{Name: "gateway", URL: "http://localhost:8081", Headers: map[string]string{"Host": "api.opendune.com"}},
 		{Name: "router", URL: "http://localhost:8085", Headers: map[string]string{"X-Internal-Auth": "k"}},
-		{Name: "nohdr", URL: "http://localhost:8086"},  // skipped: no headers
-		{Name: "bad", URL: "://bad"},                   // skipped: parse error
+		{Name: "nohdr", URL: "http://localhost:8086"}, // skipped: no headers
+		{Name: "bad", URL: "://bad"}, // skipped: parse error
 	}
 	m := ServiceHeadersMap(services)
 	assert.Equal(t, map[string]string{"Host": "api.opendune.com"}, m["localhost:8081"])
