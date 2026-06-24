@@ -41,9 +41,9 @@ func TestSteer_FallsBackOnActionUnmarshalError(t *testing.T) {
 
 // recordingMockClient captures the last prompt it received for inspection.
 type recordingMockClient struct {
-	mu        sync.Mutex
+	mu         sync.Mutex
 	lastPrompt string
-	responses map[string]string
+	responses  map[string]string
 }
 
 func (r *recordingMockClient) Complete(ctx context.Context, req llm.Request) (*llm.Response, error) {
