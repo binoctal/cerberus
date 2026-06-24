@@ -69,11 +69,44 @@ func buildPassedResult(tc *TestCase, traceID int64, attempt int, start time.Time
 
 // executeAndRecordAction executes the action and records evidence.
 func executeAndRecordAction(r *ReActLoop, ctx context.Context, tc TestCase, action types.TypedAction, traceID int64) types.ExecutorResult {
+	action = r.withServiceHeaders(tc, action)
 	action = r.withActorHeaders(tc, action)
 	action = r.withBaseURL(tc, action)
 	result := r.executor.Execute(ctx, action)
 	r.recordEvidence(ctx, traceID, "steer_attempt", action, result)
 	return result
+}
+
+// withServiceHeaders merges the tc.Service's service-level headers (e.g. Host
+// for domain routing) underneath the action's own headers, mirroring the rule
+// engine's serviceHeaders. Without this the ReAct path reaches the target with
+// Host derived from the URL host, which domain-routed gateways reject as an
+// unknown domain. Final priority is service < actor < action.
+func (r *ReActLoop) withServiceHeaders(tc TestCase, action types.TypedAction) types.TypedAction {
+	if r.engine == nil {
+		return action
+	}
+	ha, ok := action.(types.HTTPAction)
+	if !ok {
+		return action
+	}
+	svc := r.engine.serviceHeaders(tc)
+	if len(svc) == 0 {
+		return action
+	}
+	merged := make(map[string]string, len(svc)+len(ha.Headers))
+	for k, v := range svc {
+		merged[k] = v
+	}
+	for k, v := range ha.Headers {
+		if v == "" {
+			delete(merged, k)
+			continue
+		}
+		merged[k] = v
+	}
+	ha.Headers = merged
+	return ha
 }
 
 // withBaseURL resolves a server-relative URL on HTTP and Navigate actions
