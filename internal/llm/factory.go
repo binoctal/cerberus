@@ -23,6 +23,10 @@ func NewClientWithConfig(cfg ClientConfig) (Client, error) {
 	if provider == "" {
 		provider = detectProvider(cfg.Model)
 	}
+	// Normalize model: many Anthropic-compatible endpoints (e.g. zhipu/bigmodel)
+	// are case-sensitive and reject mixed-case names like "GLM-4.7". Strip the
+	// Claude Code "[Nm]" thinking-budget suffix which is not part of the model id.
+	cfg.Model = normalizeModelID(cfg.Model)
 	switch provider {
 	case "anthropic":
 		return NewClaudeClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil

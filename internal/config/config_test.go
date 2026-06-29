@@ -65,7 +65,8 @@ func TestAPIKeyAutoDetect(t *testing.T) {
 	} {
 		t.Setenv(key, "")
 	}
-	t.Setenv("CLAUDECODE", "") // isolate model-name fallback from host-CLI detection
+	t.Setenv("CLAUDECODE", "")                   // isolate model-name fallback from host-CLI detection
+	t.Setenv("CERBERUS_NO_CLAUDE_SETTINGS", "1") // don't read real settings.json
 
 	tests := []struct {
 		model    string

@@ -1,6 +1,9 @@
 package llm
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // joinBaseURL appends path to base unless base already ends with path.
 //
@@ -22,4 +25,13 @@ func joinBaseURL(base, path string) string {
 		return trimmed
 	}
 	return trimmed + path
+}
+
+var thinkingSuffixRe = regexp.MustCompile(`\[\d+m\]$`)
+
+// normalizeModelID lowercases and strips the Claude Code "[Nm]" thinking-budget
+// suffix so the raw model id can be sent to case-sensitive endpoints.
+func normalizeModelID(model string) string {
+	m := strings.ToLower(model)
+	return thinkingSuffixRe.ReplaceAllString(m, "")
 }

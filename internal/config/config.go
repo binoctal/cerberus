@@ -73,26 +73,31 @@ func resolveModel(settings map[string]string) string {
 	return "claude-sonnet-4-6"
 }
 
-// resolveBaseURL picks the base URL: explicit CERBERUS override, then the
-// detected host CLI's credential prefix, then the historical ANTHROPIC default
-// (so unknown CLIs are unchanged). Environment beats settings.json at each tier.
+// resolveBaseURL picks the base URL for the LLM provider.
+// Priority: CERBERUS_LLM_BASE_URL (explicit override) > target project
+// settings.json > inherited env vars. Settings.json is authoritative for the
+// target project; env vars are inherited from the host Claude Code session and
+// may point at a different provider.
 func resolveBaseURL(settings map[string]string, p detect.Profile) string {
 	if v := os.Getenv("CERBERUS_LLM_BASE_URL"); v != "" {
 		return v
 	}
+	// Settings from target project's .claude/settings.json win over inherited env.
 	if p.EnvPrefix != "" {
-		if v := os.Getenv(p.EnvPrefix + "_BASE_URL"); v != "" {
-			return v
-		}
 		if v := settings[p.EnvPrefix+"_BASE_URL"]; v != "" {
 			return v
 		}
 	}
-	// Graceful fallback: historical anthropic default for unknown CLIs.
-	if v := os.Getenv("ANTHROPIC_BASE_URL"); v != "" {
+	if v := settings["ANTHROPIC_BASE_URL"]; v != "" {
 		return v
 	}
-	if v := settings["ANTHROPIC_BASE_URL"]; v != "" {
+	// Fallback: inherited environment (same project or no settings.json).
+	if p.EnvPrefix != "" {
+		if v := os.Getenv(p.EnvPrefix + "_BASE_URL"); v != "" {
+			return v
+		}
+	}
+	if v := os.Getenv("ANTHROPIC_BASE_URL"); v != "" {
 		return v
 	}
 	return ""
@@ -122,20 +127,19 @@ func resolveAPIKey(model string, settings map[string]string, p detect.Profile) s
 	}
 }
 
-// providerKey returns the first non-empty credential for an env prefix,
-// checking environment then settings.json. AUTH_TOKEN is Anthropic-specific but
-// harmless to check for other prefixes (always unset, skipped).
+// providerKey returns the first non-empty credential for an env prefix.
+// Settings.json (target project) takes precedence over inherited env vars.
 func providerKey(prefix string, settings map[string]string) string {
-	if key := os.Getenv(prefix + "_API_KEY"); key != "" {
-		return key
-	}
-	if key := os.Getenv(prefix + "_AUTH_TOKEN"); key != "" {
-		return key
-	}
 	if key := settings[prefix+"_API_KEY"]; key != "" {
 		return key
 	}
 	if key := settings[prefix+"_AUTH_TOKEN"]; key != "" {
+		return key
+	}
+	if key := os.Getenv(prefix + "_API_KEY"); key != "" {
+		return key
+	}
+	if key := os.Getenv(prefix + "_AUTH_TOKEN"); key != "" {
 		return key
 	}
 	return ""

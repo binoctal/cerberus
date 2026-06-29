@@ -88,8 +88,9 @@ func TestResolveBaseURL_Priority(t *testing.T) {
 	t.Setenv("CERBERUS_LLM_BASE_URL", "")
 	t.Setenv("ANTHROPIC_BASE_URL", "env-url")
 	settings := map[string]string{"ANTHROPIC_BASE_URL": "settings-url"}
-	if got := resolveBaseURL(settings, detect.Profile{}); got != "env-url" {
-		t.Errorf("resolveBaseURL() = %q, want env-url", got)
+	// Settings.json (target project) takes precedence over inherited env.
+	if got := resolveBaseURL(settings, detect.Profile{}); got != "settings-url" {
+		t.Errorf("resolveBaseURL() = %q, want settings-url", got)
 	}
 }
 
@@ -112,13 +113,14 @@ func TestResolveBaseURL_UsesCLIPrefix(t *testing.T) {
 	}
 }
 
-func TestResolveAPIKey_EnvAuthTokenBeatsSettings(t *testing.T) {
+func TestResolveAPIKey_SettingsApiKeyBeatsEnvAuthToken(t *testing.T) {
 	t.Setenv("CERBERUS_LLM_API_KEY", "")
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "auth-tok")
 	settings := map[string]string{"ANTHROPIC_API_KEY": "settings-key"}
-	if got := resolveAPIKey("glm-5.1", settings, detect.Profile{}); got != "auth-tok" {
-		t.Errorf("resolveAPIKey() = %q, want auth-tok (env AUTH_TOKEN beats settings API_KEY)", got)
+	// Settings.json (target project) takes precedence over inherited env.
+	if got := resolveAPIKey("glm-5.1", settings, detect.Profile{}); got != "settings-key" {
+		t.Errorf("resolveAPIKey() = %q, want settings-key (settings beats inherited env)", got)
 	}
 }
 
