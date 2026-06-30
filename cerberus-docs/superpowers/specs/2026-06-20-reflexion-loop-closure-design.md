@@ -1,7 +1,7 @@
 # Reflexion Learning Loop Closure — Design (v4)
 
 **Date:** 2026-06-20
-**Status:** Design (pre-implementation)
+**Status:** Implemented (2026-06-21)
 **Revision history:** v1 over-built on a false premise. v2/v3 fixed fatal gaps but each adversarial review found more. v4 resolves: per-row EMA over-application (new fatal), the unique-index migration landmine, condition-text instability, the insert-vs-update embedding limitation, and underspecified Recovery wiring (embedder + session_id). Reviewers concur the architecture is sound; remaining items are implementation correctness.
 
 ---

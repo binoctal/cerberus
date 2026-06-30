@@ -1,6 +1,10 @@
 # Reflexion Learning Loop Closure Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status:** ✅ COMPLETED (2026-06-21)
+>
+> **Verification:** 4 dogfood rounds, 12 real-LLM runs, all tests passing. See `cerberus-docs/technical/dogfood/2026-06-21-reflexion-dogfood-retrospective.md`.
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Close cerberus's reflexion learning loop so later `cerberus run` sessions benefit from earlier ones: recovery recalls lessons by embedding, effectiveness evolves with real outcomes (grouped, correct rate), the procedural store dedups, memory is governed, and is inspectable via a CLI.
 
@@ -60,7 +64,7 @@
 
 **Interfaces:** Produces schema changes consumed by all later tasks.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/store/migrations_v008_test.go
@@ -106,12 +110,12 @@ func TestV008_AppliesAndDedups(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestV008_AppliesAndDedups -v`
 Expected: FAIL — migration file not found / index creation fails on the duplicate.
 
-- [ ] **Step 3: Create the migration**
+- [x] **Step 3: Create the migration**
 
 ```sql
 -- migrations/V008__reflexion_loop.sql
@@ -149,12 +153,12 @@ CREATE TABLE IF NOT EXISTS memory_usage (
 CREATE INDEX idx_memory_usage_unconsolidated ON memory_usage(procedural_id) WHERE consolidated_at IS NULL;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./internal/store/ -run TestV008_AppliesAndDedups -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add migrations/V008__reflexion_loop.sql internal/store/migrations_v008_test.go
@@ -171,7 +175,7 @@ git commit -m "feat(store): V008 migration for reflexion loop (embedding, archiv
 **Interfaces:**
 - Produces: `memory.NormalizeTarget(string) string`, `memory.NormalizeCondition(string) string`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/memory/normalize_test.go
@@ -211,12 +215,12 @@ func TestNormalizeCondition(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/memory/ -v`
 Expected: FAIL — package does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 // internal/memory/normalize.go
@@ -260,12 +264,12 @@ func NormalizeCondition(s string) string {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./internal/memory/ -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/memory/
@@ -282,7 +286,7 @@ git commit -m "feat(memory): add NormalizeTarget and NormalizeCondition helpers"
 
 **Interfaces:** none new.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/store/seed_test.go
@@ -317,12 +321,12 @@ func TestSeedStrategies_IsIdempotent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestSeedStrategies_IsIdempotent -v`
 Expected: FAIL — second seed duplicates (current `continue` only skips inner loop).
 
-- [ ] **Step 3: Fix the dedup**
+- [x] **Step 3: Fix the dedup**
 
 In `internal/store/seed.go`, replace the broken inner-loop dedup with an existence check. The relevant block currently:
 
@@ -354,12 +358,12 @@ becomes:
 		_, err := s.StoreProceduralWithType(ctx, st.name, st.condition, st.action, projectName, st.category, st.refType)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./internal/store/ -run TestSeedStrategies_IsIdempotent -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/store/seed.go internal/store/seed_test.go
@@ -378,7 +382,7 @@ git commit -m "fix(store): SeedStrategies must not duplicate strategies on re-ru
 - Produces: `StoreProceduralWithType` new signature `(ctx, name, condition, action, projectName, category, refType string, embedding []float64, model string) (*ProceduralMemory, error)`.
 - Produces: `ProceduralMemory.Embedding []float64`, `EmbeddingModel string` fields.
 
-- [ ] **Step 1: Add fields to ProceduralMemory**
+- [x] **Step 1: Add fields to ProceduralMemory**
 
 In `internal/store/procedural_types.go`, add to the struct:
 
@@ -387,7 +391,7 @@ In `internal/store/procedural_types.go`, add to the struct:
 	EmbeddingModel  string    `json:"embedding_model,omitempty"`
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```go
 // internal/store/procedural_create_test.go
@@ -431,12 +435,12 @@ func TestStoreProceduralWithType_UpsertPreserves(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestStoreProceduralWithType_UpsertPreserves -v`
 Expected: FAIL — current signature has no embedding params; plain INSERT duplicates.
 
-- [ ] **Step 4: Rewrite StoreProceduralWithType as upsert**
+- [x] **Step 4: Rewrite StoreProceduralWithType as upsert**
 
 ```go
 // internal/store/procedural_create.go
@@ -490,12 +494,12 @@ func (s *Store) GetProceduralByExactKey(ctx context.Context, projectName, condit
 
 Update the existing `GetProceduralByMatch` SELECT list to also read `embedding`/`embedding_model` and use the shared scanner.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `go test ./internal/store/ -run TestStoreProceduralWithType -v`
 Expected: PASS.
 
-- [ ] **Step 6: Update callers of the old signature**
+- [x] **Step 6: Update callers of the old signature**
 
 `internal/store/seed.go` call site now passes embedding + model:
 
@@ -505,12 +509,12 @@ Expected: PASS.
 
 (Seed rows carry no embedding; they are not recalled by embedding until reembedded.)
 
-- [ ] **Step 7: Run full store package tests**
+- [x] **Step 7: Run full store package tests**
 
 Run: `go test ./internal/store/`
 Expected: PASS (fix any other caller compile errors).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/store/procedural_create.go internal/store/procedural_types.go internal/store/procedural_query.go internal/store/seed.go internal/store/procedural_create_test.go
@@ -528,7 +532,7 @@ git commit -m "feat(store): upsert procedural memory on (project,condition,actio
 **Interfaces:**
 - Consumes: `StoreProceduralWithType(..., embedding, model)` (Task 4), `memory.NormalizeCondition` (Task 2).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/head/examiner/learner_embed_test.go
@@ -574,12 +578,12 @@ func TestLearn_NormalizesAndEmbedsCondition(t *testing.T) {
 
 (The mock JSON shape matches the existing `promptReflectionOutput`; adjust the struct/JSON key to the actual `Reflection` schema if it differs — the field names are `diagnosis`, `condition_pattern`, `strategy`, `category`, `type`.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/head/examiner/ -run TestLearn_NormalizesAndEmbedsCondition -v`
 Expected: FAIL — current Learn passes raw condition, no embedding.
 
-- [ ] **Step 3: Modify Learn**
+- [x] **Step 3: Modify Learn**
 
 In `learner_run.go`, inside the storage loop, normalize + embed before calling the upsert. Replace the `StoreProceduralWithType(...)` call:
 
@@ -596,12 +600,12 @@ In `learner_run.go`, inside the storage loop, normalize + embed before calling t
 
 Add the import `"github.com/binoctal/cerberus/internal/memory"`. (Apply the same `memory.NormalizeCondition` normalization to the semantic content in `storeSingleReflection` so the L2 dedup in Task 12 keys consistently — use `cond`/normalized text consistently.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./internal/head/examiner/ -run TestLearn_NormalizesAndEmbedsCondition -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/head/examiner/learner_run.go internal/head/examiner/learner_embed_test.go
@@ -618,7 +622,7 @@ git commit -m "feat(examiner): normalize + embed reflection condition before ups
 
 **Interfaces:** `SearchSemanticForProject` gains a `model string` parameter (or filters internally via the store's configured model — prefer explicit param for testability).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/store/semantic_filter_test.go
@@ -651,12 +655,12 @@ func TestSearchSemantic_FiltersByModel(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestSearchSemantic_FiltersByModel -v`
 Expected: FAIL — current signature has no model param; returns both rows.
 
-- [ ] **Step 3: Add the model filter**
+- [x] **Step 3: Add the model filter**
 
 In `semantic.go`, change the signature to add `model string` and filter:
 
@@ -671,12 +675,12 @@ In the SELECT, add `AND COALESCE(embedding_model,'') = ?` to the WHERE clause an
 	results, err := s.store.SearchSemanticForProject(ctx, queryEmb, s.config.Project.Name, topK, threshold, s.embedder.ModelName())
 ```
 
-- [ ] **Step 4: Run test to verify it passes; fix other callers**
+- [x] **Step 4: Run test to verify it passes; fix other callers**
 
 Run: `go test ./internal/store/ ./internal/head/scout/`
 Expected: PASS (update any other `SearchSemanticForProject` callers found via grep to pass the model).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/store/semantic.go internal/store/semantic_filter_test.go internal/head/scout/memory_helpers.go
@@ -696,7 +700,7 @@ git commit -m "feat(store): filter semantic recall by embedding model"
 - Produces: `ReActLoopConfig.Embedder embed.Provider`; `Recovery` holds `embedder` + `sessionID`.
 - Produces: `recoverer` interface gains `SetSessionID(string)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/head/agent/recovery_wiring_test.go
@@ -735,12 +739,12 @@ func TestRecovery_HasEmbedderAndSessionID(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/head/agent/ -run TestRecovery_HasEmbedderAndSessionID -v`
 Expected: FAIL — `NewRecovery` has no embedder param; no `SetSessionID`.
 
-- [ ] **Step 3: Add Embedder to config + thread to Recovery**
+- [x] **Step 3: Add Embedder to config + thread to Recovery**
 
 `executor_config.go`:
 
@@ -828,12 +832,12 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 
 (Add the `embedPkg` import. The parallel executor path wraps `loop`, so it inherits the embedder.)
 
-- [ ] **Step 4: Run test to verify it passes; fix compile**
+- [x] **Step 4: Run test to verify it passes; fix compile**
 
 Run: `go build ./... && go test ./internal/head/agent/ -run TestRecovery_HasEmbedderAndSessionID -v`
 Expected: PASS. Fix any other `NewRecovery`/`NewReActLoopWithGate` callers (e.g. tests) to pass an embedder.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/head/agent/ internal/session/run_phases_agent.go internal/head/agent/recovery_wiring_test.go
@@ -853,7 +857,7 @@ git commit -m "feat(agent): thread shared embedder + sessionID into Recovery via
 **Interfaces:**
 - Consumes: `store.RecordEpisodic`, `memory.NormalizeTarget`, `rp.verdicts`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/session/consolidate_episodic_test.go
@@ -900,12 +904,12 @@ func TestConsolidate_WritesEpisodicPerVerdict(t *testing.T) {
 
 (If `newTestRunPhase` doesn't exist, add a minimal helper in the test file that builds a `runPhase` with an in-memory store + session, mirroring existing session test setup.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/session/ -run TestConsolidate_WritesEpisodicPerVerdict -v`
 Expected: FAIL — `executeConsolidatePhase` does not exist.
 
-- [ ] **Step 3: Implement the phase (episodic part; effectiveness added in Task 11)**
+- [x] **Step 3: Implement the phase (episodic part; effectiveness added in Task 11)**
 
 ```go
 // internal/session/run_phases_consolidate.go
@@ -953,7 +957,7 @@ var _ = fmt.Stringer(nil)
 
 (Remove the `var _` guards once real usage lands; kept to avoid unused-import churn mid-plan.)
 
-- [ ] **Step 4: Wire the phase into Run and Resume**
+- [x] **Step 4: Wire the phase into Run and Resume**
 
 In `lifecycle_run.go`, after `executeExaminerPhase()` and before the summary build:
 
@@ -965,7 +969,7 @@ In `lifecycle_run.go`, after `executeExaminerPhase()` and before the summary bui
 
 In the resume path (`resume_phases_run.go`, after its examiner call), add the same call (idempotent — §5-E).
 
-- [ ] **Step 5: Wrap episodic read key with NormalizeTarget**
+- [x] **Step 5: Wrap episodic read key with NormalizeTarget**
 
 In `internal/head/scout/memory_helpers.go`, the `queryEpisodicMemories` loop currently passes the raw target to `GetEpisodicByTarget`. Normalize it:
 
@@ -975,12 +979,12 @@ In `internal/head/scout/memory_helpers.go`, the `queryEpisodicMemories` loop cur
 
 Add `import "github.com/binoctal/cerberus/internal/memory"`.
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `go test ./internal/session/ -run TestConsolidate_WritesEpisodicPerVerdict -v`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/session/run_phases_consolidate.go internal/session/lifecycle_run.go internal/session/resume_phases_run.go internal/head/scout/memory_helpers.go internal/session/consolidate_episodic_test.go
@@ -997,7 +1001,7 @@ git commit -m "feat(session): write episodic memory in a new consolidate phase"
 **Interfaces:**
 - Produces: `GetProceduralByEmbedding(ctx, queryEmbedding []float64, project string, topK int, threshold float64, model string) ([]ProceduralMemory, error)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/store/procedural_embedding_test.go
@@ -1037,12 +1041,12 @@ func TestGetProceduralByEmbedding(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestGetProceduralByEmbedding -v`
 Expected: FAIL — method does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 // internal/store/procedural_embedding.go
@@ -1112,12 +1116,12 @@ func (s *Store) GetProceduralByEmbedding(ctx context.Context, queryEmbedding []f
 
 (`scanProcedural` is the shared scanner from Task 4 that fills `Embedding` via `ParseEmbedding`.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./internal/store/ -run TestGetProceduralByEmbedding -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/store/procedural_embedding.go internal/store/procedural_embedding_test.go
@@ -1137,7 +1141,7 @@ git commit -m "feat(store): embedding-based procedural memory recall"
 - Consumes: `GetProceduralByEmbedding` (Task 9), `embedder`/`sessionID` (Task 7).
 - Produces: `store.RecordMemoryUsage(ctx, proceduralID int64, sessionID, caseID, target string, attempt int) error`.
 
-- [ ] **Step 1: Write the memory_usage store test + impl**
+- [x] **Step 1: Write the memory_usage store test + impl**
 
 ```go
 // internal/store/memory_usage.go
@@ -1212,7 +1216,7 @@ type MemoryUsage struct {
 
 (`memory_usage_test.go`: assert two `RecordMemoryUsage` with same (session,case,proc) → one row; `UnconsolidatedUsage` returns it; `MarkUsageConsolidated` empties the set.)
 
-- [ ] **Step 2: Write the recovery recall test**
+- [x] **Step 2: Write the recovery recall test**
 
 ```go
 // internal/head/agent/recovery_recall_test.go
@@ -1259,12 +1263,12 @@ func TestRecovery_RecallsByEmbeddingAndRecordsUsage(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `go test ./internal/store/ -run TestMemoryUsage ./internal/head/agent/ -run TestRecovery_RecallsByEmbeddingAndRecordsUsage -v`
 Expected: FAIL — `RecordMemoryUsage` missing; recovery still uses substring + writes nothing.
 
-- [ ] **Step 4: Switch recovery to embedding recall + record usage**
+- [x] **Step 4: Switch recovery to embedding recall + record usage**
 
 In `recovery.go` `buildRecoverContext`, replace `GetProceduralByMatch` with embedding recall, and write `memory_usage` for each recalled memory:
 
@@ -1312,12 +1316,12 @@ Add a `projectName` field to `Recovery` (set alongside sessionID via `SetProject
 
 Add imports: `memory`, `store` (already present).
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `go test ./internal/store/ ./internal/head/agent/`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/store/memory_usage.go internal/store/memory_usage_test.go internal/head/agent/recovery.go internal/head/agent/recovery_recall_test.go internal/head/agent/executor_config.go internal/head/agent/executor_run.go internal/session/run_phases_agent.go
@@ -1335,7 +1339,7 @@ git commit -m "feat(agent): recovery recalls L3 by embedding and records memory_
 **Interfaces:**
 - Produces: `Store.ApplyProceduralEMA(ctx, id int64, signal float64, usageDelta int) error` (atomic, replaces read-modify-write).
 
-- [ ] **Step 1: Write the EMA test**
+- [x] **Step 1: Write the EMA test**
 
 ```go
 // internal/store/procedural_update_test.go
@@ -1372,12 +1376,12 @@ func TestApplyProceduralEMA_AtomicOnce(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestApplyProceduralEMA_AtomicOnce -v`
 Expected: FAIL — method does not exist.
 
-- [ ] **Step 3: Implement atomic grouped EMA**
+- [x] **Step 3: Implement atomic grouped EMA**
 
 ```go
 // internal/store/procedural_update.go
@@ -1411,7 +1415,7 @@ func (s *Store) UpdateProceduralEffectiveness(ctx context.Context, id int64, suc
 }
 ```
 
-- [ ] **Step 4: Write the consolidate effectiveness test**
+- [x] **Step 4: Write the consolidate effectiveness test**
 
 ```go
 // internal/session/consolidate_effectiveness_test.go
@@ -1423,7 +1427,7 @@ func (s *Store) UpdateProceduralEffectiveness(ctx context.Context, id int64, suc
 
 (Full body mirrors `consolidate_episodic_test.go`: seed procedural + 3 `RecordMemoryUsage` rows for one procedural_id under `sess-1` with case_ids tc-1/tc-2/tc-3; set `rp.verdicts` for those cases to pass/pass/fail with matching targets; run the phase; assert `effectiveness` equals `0.7*0.5 + 0.3*(2/3)` and all 3 rows have `consolidated_at` set, and `usage_count == 3`.)
 
-- [ ] **Step 5: Implement the effectiveness step in consolidate**
+- [x] **Step 5: Implement the effectiveness step in consolidate**
 
 In `run_phases_consolidate.go`, add to `executeConsolidatePhase` after `writeEpisodicMemory`:
 
@@ -1513,12 +1517,12 @@ func (rp *runPhase) verdictByNormalizedTarget() map[string]examiner.JudgeStatus 
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `go test ./internal/store/ ./internal/session/ -run "EMA|Effectiveness|Consolidate" -v`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/store/procedural_update.go internal/store/procedural_update_test.go internal/session/run_phases_consolidate.go internal/session/consolidate_effectiveness_test.go
@@ -1538,7 +1542,7 @@ git commit -m "feat(session): grouped atomic EMA for procedural effectiveness in
 **Interfaces:**
 - Produces: rewritten `AutoArchiveLowEffectiveness(ctx, project string) (int, error)`; `ArchiveStaleEpisodic(ctx, maxAgeDays int) (int, error)`; `ArchiveStaleSemantic(ctx, maxAgeDays int) (int, error)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 // internal/store/governance_test.go
@@ -1583,12 +1587,12 @@ func TestGovernance_ArchivesByPolicy(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./internal/store/ -run TestGovernance_ArchivesByPolicy -v`
 Expected: FAIL — current `AutoArchiveLowEffectiveness(ctx, threshold)` signature/behavior differs.
 
-- [ ] **Step 3: Rewrite governance**
+- [x] **Step 3: Rewrite governance**
 
 ```go
 // internal/store/procedural_archive.go — rewrite AutoArchiveLowEffectiveness
@@ -1635,7 +1639,7 @@ func (s *Store) ArchiveStaleEpisodic(ctx context.Context, maxAgeDays int) (int, 
 
 Add `archived=0` filters to `GetEpisodicByTarget` (`memory.go`) and to `SearchSemanticForProject` WHERE clauses.
 
-- [ ] **Step 4: Wire governance into consolidate**
+- [x] **Step 4: Wire governance into consolidate**
 
 In `executeConsolidatePhase`, after effectiveness:
 
@@ -1660,12 +1664,12 @@ func (rp *runPhase) archiveStale() {
 }
 ```
 
-- [ ] **Step 5: Run tests; verify read filters**
+- [x] **Step 5: Run tests; verify read filters**
 
 Run: `go test ./internal/store/ ./internal/session/`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/store/procedural_archive.go internal/store/episodic_archive.go internal/store/semantic_archive.go internal/store/memory.go internal/store/semantic.go internal/session/run_phases_consolidate.go internal/store/governance_test.go
@@ -1683,7 +1687,7 @@ git commit -m "feat(store): rewrite memory governance (L1/L2/L3 archival) + arch
 **Interfaces:**
 - Produces: `cerberus memory list|show|prune|reembed`.
 
-- [ ] **Step 1: Write the failing test** (CLI invokes each subcommand against an in-memory store; assert list output contains a seeded row, `prune` archives, `reembed` updates `embedding_model`).
+- [x] **Step 1: Write the failing test** (CLI invokes each subcommand against an in-memory store; assert list output contains a seeded row, `prune` archives, `reembed` updates `embedding_model`).
 
 ```go
 // cmd/cerberus/memory_command_test.go — table-driven: seed rows, run each
@@ -1692,7 +1696,7 @@ git commit -m "feat(store): rewrite memory governance (L1/L2/L3 archival) + arch
 
 (Follow the existing `cmd/cerberus/cli_test.go` harness pattern for invoking cobra commands in tests.)
 
-- [ ] **Step 2: Implement the command**
+- [x] **Step 2: Implement the command**
 
 ```go
 // cmd/cerberus/memory_command.go
@@ -1767,12 +1771,12 @@ Register in `main.go`:
 	rootCmd.AddCommand(..., memoryCmd(), ...)
 ```
 
-- [ ] **Step 3: Run tests to verify they pass**
+- [x] **Step 3: Run tests to verify they pass**
 
 Run: `go test ./cmd/cerberus/ -run Memory -v`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/cerberus/memory_command.go cmd/cerberus/memory_command_test.go cmd/cerberus/main.go
@@ -1787,14 +1791,14 @@ git commit -m "feat(cli): cerberus memory list/show/prune/reembed"
 - Remove: `MatchStrategies`, `FormatStrategiesForPrompt` (`internal/head/examiner/strategy_matcher.go`) after confirming no callers.
 - Test: `internal/session/reflexion_integration_test.go` (two-session loop), `internal/session/resume_idempotency_test.go`.
 
-- [ ] **Step 1: Remove dead code**
+- [x] **Step 1: Remove dead code**
 
 ```bash
 grep -rn "MatchStrategies\|FormatStrategiesForPrompt" internal/ cmd/ --include="*.go" | grep -v _test.go
 ```
 If empty (no callers), delete `strategy_matcher.go` (or just the two funcs if the file has others). Keep `GetSemanticByID` (used by `memory show`).
 
-- [ ] **Step 2: Write the two-session integration test**
+- [x] **Step 2: Write the two-session integration test**
 
 ```go
 // internal/session/reflexion_integration_test.go
@@ -1805,7 +1809,7 @@ If empty (no callers), delete `strategy_matcher.go` (or just the two funcs if th
 // recalls the L3 by embedding. Use the existing session test harness.
 ```
 
-- [ ] **Step 3: Write the resume idempotency test**
+- [x] **Step 3: Write the resume idempotency test**
 
 ```go
 // internal/session/resume_idempotency_test.go
@@ -1814,16 +1818,16 @@ If empty (no callers), delete `strategy_matcher.go` (or just the two funcs if th
 // memory_usage row consolidated at most once (consolidated_at).
 ```
 
-- [ ] **Step 4: Run the full suite + lint + build**
+- [x] **Step 4: Run the full suite + lint + build**
 
 Run: `make check`
 Expected: PASS (fmt + lint + test, including `-race`).
 
-- [ ] **Step 5: Real dogfood**
+- [x] **Step 5: Real dogfood**
 
 Run: `./build/cerberus run --goal "<same goal>"` twice; inspect the second run's logs for ` Learned Strategies` in recovery and prior per-target entries in the plan context. Then `./build/cerberus memory list` to confirm memories populated.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
