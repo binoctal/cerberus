@@ -26,8 +26,8 @@ func renderAutoTest(data *ReportData) string {
 	reverted := countStatus(data, "reverted")
 	skipped := countStatus(data, "skipped")
 	failed := countStatus(data, "failed")
-	b.WriteString(fmt.Sprintf("| Written / Reverted / Skipped / Failed | %d / %d / %d / %d |\n\n",
-		written, reverted, skipped, failed))
+	fmt.Fprintf(&b, "| Written / Reverted / Skipped / Failed | %d / %d / %d / %d |\n\n",
+		written, reverted, skipped, failed)
 
 	// Item table
 	b.WriteString("| # | Test File | Target | Reason | Status |\n")
@@ -35,13 +35,13 @@ func renderAutoTest(data *ReportData) string {
 
 	for i, item := range data.AutoTest.Items {
 		statusBadge := statusBadge(item.Status)
-		b.WriteString(fmt.Sprintf("| %d | `%s` | %s (`%s`) | %s | %s |\n",
+		fmt.Fprintf(&b, "| %d | `%s` | %s (`%s`) | %s | %s |\n",
 			i+1,
 			item.TestPath,
 			item.TargetFunc,
 			filepath.Base(item.TargetFile),
 			item.Reason,
-			statusBadge))
+			statusBadge)
 	}
 	b.WriteString("\n")
 
