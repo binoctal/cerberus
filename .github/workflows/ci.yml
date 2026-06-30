@@ -30,6 +30,10 @@ jobs:
           cd test/fixtures/node-app && npm install --silent
           cd ../python-pkg && pip install -q -r requirements.txt
 
+      - name: Generate fixture coverage data
+        run: |
+          cd test/fixtures/python-pkg && python -m pytest --cov=mymath --cov-report=json:coverage.json -v
+
       - name: Verify dependencies
         run: go mod verify
 
@@ -61,4 +65,4 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v2.12.2
