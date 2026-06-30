@@ -99,14 +99,14 @@ type EdgeCase struct {
 func (bm *BusinessModel) String() string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("Domain: %s\n", bm.Domain))
-	sb.WriteString(fmt.Sprintf("Entities: %d\n", len(bm.Entities)))
-	sb.WriteString(fmt.Sprintf("Workflows: %d\n", len(bm.Workflows)))
-	sb.WriteString(fmt.Sprintf("Business Rules: %d\n", len(bm.BusinessRules)))
-	sb.WriteString(fmt.Sprintf("Constraints: %d\n", len(bm.Constraints)))
-	sb.WriteString(fmt.Sprintf("State Machines: %d\n", len(bm.StateMachines)))
-	sb.WriteString(fmt.Sprintf("Edge Cases: %d\n", len(bm.EdgeCases)))
-	sb.WriteString(fmt.Sprintf("Confidence: %.2f\n", bm.Confidence))
+	fmt.Fprintf(&sb, "Domain: %s\n", bm.Domain)
+	fmt.Fprintf(&sb, "Entities: %d\n", len(bm.Entities))
+	fmt.Fprintf(&sb, "Workflows: %d\n", len(bm.Workflows))
+	fmt.Fprintf(&sb, "Business Rules: %d\n", len(bm.BusinessRules))
+	fmt.Fprintf(&sb, "Constraints: %d\n", len(bm.Constraints))
+	fmt.Fprintf(&sb, "State Machines: %d\n", len(bm.StateMachines))
+	fmt.Fprintf(&sb, "Edge Cases: %d\n", len(bm.EdgeCases))
+	fmt.Fprintf(&sb, "Confidence: %.2f\n", bm.Confidence)
 
 	return sb.String()
 }
