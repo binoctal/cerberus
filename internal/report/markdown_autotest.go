@@ -18,8 +18,8 @@ func renderAutoTest(data *ReportData) string {
 	b.WriteString("## AutoTest\n\n")
 
 	// Coverage summary
-	b.WriteString(fmt.Sprintf("| Before → After Coverage | %.1f%% → %.1f%% |\n",
-		data.AutoTest.BeforeCoveragePct, data.AutoTest.AfterCoveragePct))
+	fmt.Fprintf(&b, "| Before → After Coverage | %.1f%% → %.1f%% |\n",
+		data.AutoTest.BeforeCoveragePct, data.AutoTest.AfterCoveragePct)
 
 	// Status summary
 	written := countStatus(data, "written")

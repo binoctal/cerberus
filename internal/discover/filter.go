@@ -88,7 +88,7 @@ func FormatDroppedServices(dropped []DropReason) string {
 	var sb strings.Builder
 	sb.WriteString("Filtered services:\n")
 	for _, d := range dropped {
-		sb.WriteString(fmt.Sprintf("  - %s (%s)\n", d.Name, d.Reason))
+		fmt.Fprintf(&sb, "  - %s (%s)\n", d.Name, d.Reason)
 	}
 	return sb.String()
 }

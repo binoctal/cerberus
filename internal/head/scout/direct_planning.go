@@ -303,7 +303,7 @@ func formatCasesForVerification(cases []agent.TestCase) string {
 	var sb strings.Builder
 	sb.WriteString("Current test cases:\n")
 	for _, tc := range cases {
-		sb.WriteString(fmt.Sprintf("- Path: %s, Current Service: %s\n", tc.Target, tc.Service))
+		fmt.Fprintf(&sb, "- Path: %s, Current Service: %s\n", tc.Target, tc.Service)
 	}
 	return sb.String()
 }
