@@ -1,7 +1,7 @@
 # Test-Content Improvements — Design
 
 - Date: 2026-06-24
-- Status: Draft
+- Status: Implemented (2026-06-24) — commits d6a49cb, b2fb111, 1e7e029, 53d248f, 63bb2e8
 - Author: binoctal
 
 ## Goal

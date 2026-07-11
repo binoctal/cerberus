@@ -1,6 +1,6 @@
 # Local Deploy Discovery Implementation Plan (Block ②)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add `cerberus discover`, which parses `docker-compose.yml` into `project.yaml` services (name/url/health), plus a run-time hint nudging users to run it.
 
@@ -39,7 +39,7 @@
 **Interfaces:**
 - Produces: `type ComposeFile struct { Services map[string]ComposeService }`; `type ComposeService struct { Image string; Ports []string; Healthcheck ComposeHealthcheck }`; `type ComposeHealthcheck struct { Test []string }`; `func ParseCompose(data []byte) (*ComposeFile, error)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package discover
@@ -74,12 +74,12 @@ services:
 }
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./internal/discover/ -run TestParseCompose -v`
 Expected: FAIL — package/types undefined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 package discover
@@ -113,12 +113,12 @@ func ParseCompose(data []byte) (*ComposeFile, error) {
 }
 ```
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
 Run: `go test ./internal/discover/ -run TestParseCompose -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/discover/compose.go internal/discover/compose_test.go
@@ -137,7 +137,7 @@ git commit -m "feat(discover): parse docker-compose.yml services"
 - Consumes: `ComposeService`.
 - Produces: `func FilterServices(services map[string]ComposeService, include, exclude []string) []NamedComposeService` where `type NamedComposeService struct { Name string; Service ComposeService }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package discover
@@ -184,12 +184,12 @@ func namesOf(s []NamedComposeService) []string {
 }
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./internal/discover/ -run TestFilterServices -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 package discover
@@ -253,12 +253,12 @@ func FilterServices(services map[string]ComposeService, include, exclude []strin
 }
 ```
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
 Run: `go test ./internal/discover/ -run TestFilterServices -v`
 Expected: PASS (all three subtests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/discover/filter.go internal/discover/filter_test.go
@@ -277,7 +277,7 @@ git commit -m "feat(discover): filter infra and portless services"
 - Consumes: `NamedComposeService`.
 - Produces: `func ToProjectServices(in []NamedComposeService) []project.Service`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package discover
@@ -320,12 +320,12 @@ func TestHostPort(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./internal/discover/ -run "TestToProjectServices|TestHostPort" -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 package discover
@@ -391,12 +391,12 @@ func ToProjectServices(in []NamedComposeService) []project.Service {
 
 (Delete the first incorrect `hostPort` draft; keep only the explicit one.)
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
 Run: `go test ./internal/discover/ -run "TestToProjectServices|TestHostPort" -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/discover/map.go internal/discover/map_test.go
@@ -415,7 +415,7 @@ git commit -m "feat(discover): map ports and healthcheck to project.Service"
 - Consumes: `*project.Config`, `[]project.Service`.
 - Produces: `func MergeIntoConfig(cfg *project.Config, discovered []project.Service) (added []string)` — appends services whose Name is absent from cfg.Services (existing services keep their hand-written overrides); returns the names appended.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package discover
@@ -447,12 +447,12 @@ func TestMergeIntoConfig_PreservesExistingAppendsNew(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./internal/discover/ -run TestMergeIntoConfig -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 package discover
@@ -481,12 +481,12 @@ func MergeIntoConfig(cfg *project.Config, discovered []project.Service) []string
 }
 ```
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
 Run: `go test ./internal/discover/ -run TestMergeIntoConfig -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/discover/merge.go internal/discover/merge_test.go
@@ -504,7 +504,7 @@ git commit -m "feat(discover): merge services into config preserving overrides"
 **Interfaces:**
 - Produces: `type ServiceGaps struct { Name string; MissingHost bool; MissingPathPrefix bool }`; `func Gaps(services []project.Service) []ServiceGaps`; `func FormatGaps(gaps []ServiceGaps, hasActorKey bool) string`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package discover
@@ -536,12 +536,12 @@ func TestFormatGaps_MentionsActorKey(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./internal/discover/ -run "TestGaps|TestFormatGaps" -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 package discover
@@ -603,12 +603,12 @@ func FormatGaps(gaps []ServiceGaps, hasActorKey bool) string {
 }
 ```
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
 Run: `go test ./internal/discover/ -run "TestGaps|TestFormatGaps" -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/discover/gaps.go internal/discover/gaps_test.go
@@ -627,7 +627,7 @@ git commit -m "feat(discover): report domain/path_prefix/key gaps"
 **Interfaces:**
 - Consumes: `discover.ParseCompose`, `FilterServices`, `ToProjectServices`, `MergeIntoConfig`, `Gaps`, `FormatGaps`; `project.LoadFromFile`/`LoadFromYAML`; `os.ReadFile`/`os.WriteFile`.
 
-- [ ] **Step 1: Write the failing test (golden: compose → merged project.yaml content)**
+- [x] **Step 1: Write the failing test (golden: compose → merged project.yaml content)**
 
 ```go
 package main
@@ -673,12 +673,12 @@ services:
 
 (The test calls a package-level `runDiscover(workDir, compose string, include, exclude []string, dryRun bool) error` — factor the command's RunE body into this testable function.)
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./cmd/cerberus/ -run TestDiscoverCmd -v`
 Expected: FAIL — `runDiscover` undefined.
 
-- [ ] **Step 3: Implement `main_discover.go`**
+- [x] **Step 3: Implement `main_discover.go`**
 
 ```go
 package main
@@ -759,12 +759,12 @@ func runDiscover(workDir, composePath string, include, exclude []string, dryRun 
 
 Register it in `cmd/cerberus/main.go` by adding `discoverCmd()` inside the existing `rootCmd.AddCommand(...)` argument list.
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
 Run: `go test ./cmd/cerberus/ -run TestDiscoverCmd -v && go build ./...`
 Expected: PASS + build OK.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cmd/cerberus/main_discover.go cmd/cerberus/main_discover_test.go cmd/cerberus/main.go
@@ -783,7 +783,7 @@ git commit -m "feat(cmd): cerberus discover command"
 **Interfaces:**
 - Produces: `func ShouldHintDiscover(services []project.Service, composeExists bool) bool`; `const HintMessage string`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 package discover
@@ -807,12 +807,12 @@ func TestHintMessage_MentionsDiscover(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
 Run: `go test ./internal/discover/ -run "TestShouldHint|TestHintMessage" -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `run_hint.go`**
+- [x] **Step 3: Implement `run_hint.go`**
 
 ```go
 package discover
@@ -840,12 +840,12 @@ if composePath, _ := filepath.Abs("docker-compose.yml"); fileExists(composePath)
 
 (Add a tiny `fileExists` helper if one isn't already in the package, and the `filepath`/`discover`/`fmt` imports.)
 
-- [ ] **Step 4: Run, verify PASS + build**
+- [x] **Step 4: Run, verify PASS + build**
 
 Run: `go test ./internal/discover/ -run "TestShouldHint|TestHintMessage" -v && go build ./...`
 Expected: PASS + build OK.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/discover/run_hint.go internal/discover/run_hint_test.go cmd/cerberus/main_run.go

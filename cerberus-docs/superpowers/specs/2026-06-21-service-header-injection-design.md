@@ -1,7 +1,7 @@
 # Service-Level Header Injection — Design Spec
 
 > Date: 2026-06-21
-> Status: Draft (awaiting review)
+> Status: Implemented (2026-06-21) — commits 03541d6, 839effb
 > Origin: modelsite E2E evaluation — L2 auth-boundary run failed because the
 > ReAct agent never set the `Host` / `Authorization` headers required by the
 > relay gateway (domain-routed + bearer auth).

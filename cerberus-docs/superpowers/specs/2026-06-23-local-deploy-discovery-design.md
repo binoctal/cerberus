@@ -1,7 +1,7 @@
 # Local Deploy Discovery + Multi-Service Routing — Design
 
 - Date: 2026-06-23
-- Status: Draft
+- Status: Implemented (2026-06-23) — commits de9daff..5ae1bef
 - Author: binoctal
 
 ## Goal
