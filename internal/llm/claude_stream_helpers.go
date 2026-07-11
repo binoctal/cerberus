@@ -31,7 +31,7 @@ func prepareStreamRequest(ctx context.Context, req Request, client *ClaudeClient
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", client.apiKey)
+	client.setAuthHeader(httpReq.Header)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 
 	return httpReq, nil

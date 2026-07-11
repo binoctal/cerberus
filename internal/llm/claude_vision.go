@@ -37,7 +37,7 @@ func (c *ClaudeClient) CompleteWithVision(ctx context.Context, prompt string, im
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
+	c.setAuthHeader(httpReq.Header)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 
 	resp, err := c.client().Do(httpReq)

@@ -51,10 +51,11 @@ func (srv *Server) createLLMClient(projCfg *project.Config, reqModel string) (ll
 	}
 
 	return srv.clientFactory(llm.ClientConfig{
-		Model:    model,
-		APIKey:   apiKey,
-		BaseURL:  baseURL,
-		Provider: srv.cfg.LLMProvider,
+		Model:      model,
+		APIKey:     apiKey,
+		BaseURL:    baseURL,
+		Provider:   srv.cfg.LLMProvider,
+		AuthScheme: srv.cfg.LLMAuthScheme,
 	})
 }
 
@@ -83,7 +84,7 @@ func (srv *Server) createSessionWithConfig(ctx context.Context, cancel context.C
 	if baseURL == "" {
 		baseURL = srv.cfg.LLMBaseURL
 	}
-	sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL, srv.cfg.TierModels)
+	sess.SetupHeadDrivers(srv.cfg.LLMAPIKey, baseURL, srv.cfg.LLMAuthScheme, srv.cfg.TierModels)
 
 	return sess, nil
 }

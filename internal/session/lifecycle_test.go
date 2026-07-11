@@ -738,7 +738,7 @@ func TestSetupHeadDrivers_CreatesDriversByPriority(t *testing.T) {
 		// HeadCritic absent from tiers → resolves to global-m.
 	}
 
-	s.SetupHeadDrivers("test-key", "http://test.invalid", tiers)
+	s.SetupHeadDrivers("test-key", "http://test.invalid", llm.AuthSchemeAPIKey, tiers)
 
 	// Agent: explicit "explicit-agent" → driver created.
 	assert.NotNil(t, s.agentDriver, "Agent driver from explicit model")

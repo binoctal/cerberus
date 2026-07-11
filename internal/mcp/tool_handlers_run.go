@@ -34,10 +34,11 @@ func (srv *Server) handleRun(ctx context.Context, c *conn, args map[string]any) 
 
 	// Create LLM client.
 	client, clientErr := llm.NewClientWithConfig(llm.ClientConfig{
-		Model:    cfg.LLMModel,
-		APIKey:   cfg.LLMAPIKey,
-		BaseURL:  cfg.LLMBaseURL,
-		Provider: cfg.LLMProvider,
+		Model:      cfg.LLMModel,
+		APIKey:     cfg.LLMAPIKey,
+		BaseURL:    cfg.LLMBaseURL,
+		Provider:   cfg.LLMProvider,
+		AuthScheme: cfg.LLMAuthScheme,
 	})
 	if clientErr != nil {
 		cancel()
@@ -59,7 +60,7 @@ func (srv *Server) handleRun(ctx context.Context, c *conn, args map[string]any) 
 		cancel()
 		return errorResult(fmt.Sprintf("create session: %v", sessionErr))
 	}
-	testSess.SetupHeadDrivers(cfg.LLMAPIKey, cfg.LLMBaseURL, cfg.TierModels)
+	testSess.SetupHeadDrivers(cfg.LLMAPIKey, cfg.LLMBaseURL, cfg.LLMAuthScheme, cfg.TierModels)
 	sessionID := testSess.ID
 
 	srv.mu.Lock()

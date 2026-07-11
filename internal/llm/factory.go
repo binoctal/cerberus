@@ -29,7 +29,9 @@ func NewClientWithConfig(cfg ClientConfig) (Client, error) {
 	cfg.Model = normalizeModelID(cfg.Model)
 	switch provider {
 	case "anthropic":
-		return NewClaudeClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil
+		claude := NewClaudeClient(cfg.APIKey, cfg.Model, cfg.BaseURL)
+		claude.authScheme = cfg.AuthScheme
+		return claude, nil
 	case "openai":
 		return NewOpenAIClient(cfg.APIKey, cfg.Model, cfg.BaseURL), nil
 	case "gemini":

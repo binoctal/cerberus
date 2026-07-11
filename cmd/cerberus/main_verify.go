@@ -54,10 +54,11 @@ func verifyCmd() *cobra.Command {
 			}
 
 			client, err := llm.NewClientWithConfig(llm.ClientConfig{
-				Model:    model,
-				APIKey:   apiKey,
-				BaseURL:  baseURL,
-				Provider: cfg.LLMProvider,
+				Model:      model,
+				APIKey:     apiKey,
+				BaseURL:    baseURL,
+				Provider:   cfg.LLMProvider,
+				AuthScheme: cfg.LLMAuthScheme,
 			})
 			if err != nil {
 				return fmt.Errorf("create LLM client: %w", err)
@@ -77,7 +78,7 @@ func verifyCmd() *cobra.Command {
 				return fmt.Errorf("create session: %w", err)
 			}
 
-			sess.SetupHeadDrivers(apiKey, baseURL, cfg.TierModels)
+			sess.SetupHeadDrivers(apiKey, baseURL, cfg.LLMAuthScheme, cfg.TierModels)
 
 			if err := sess.Run(ctx); err != nil {
 				return fmt.Errorf("session verify: %w", err)

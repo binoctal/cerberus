@@ -12,7 +12,7 @@ import (
 // Model resolution uses the Phase 1 priority chain (see config.PickModel):
 // explicit settings.models > tier from the host CLI > global ai_budget.model.
 // Heads with no resolved model fall back to the shared Driver.
-func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierModels) {
+func (s *Session) SetupHeadDrivers(apiKey, baseURL string, authScheme llm.AuthScheme, tiers config.TierModels) {
 	s.tiers = tiers
 	globalModel := s.Config.Settings.AIBudget.Model
 	models := s.Config.Settings.Models
@@ -40,15 +40,17 @@ func (s *Session) SetupHeadDrivers(apiKey, baseURL string, tiers config.TierMode
 		var err error
 		if s.clientFactory != nil {
 			client, err = s.clientFactory(llm.ClientConfig{
-				Model:   m,
-				APIKey:  apiKey,
-				BaseURL: baseURL,
+				Model:      m,
+				APIKey:     apiKey,
+				BaseURL:    baseURL,
+				AuthScheme: authScheme,
 			})
 		} else {
 			client, err = llm.NewClientWithConfig(llm.ClientConfig{
-				Model:   m,
-				APIKey:  apiKey,
-				BaseURL: baseURL,
+				Model:      m,
+				APIKey:     apiKey,
+				BaseURL:    baseURL,
+				AuthScheme: authScheme,
 			})
 		}
 		if err != nil {

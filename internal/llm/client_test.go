@@ -137,6 +137,41 @@ func TestClaudeClient_Complete(t *testing.T) {
 	assert.Equal(t, "claude-sonnet-4-6", receivedBody["model"])
 }
 
+func TestClaudeClient_AuthScheme_Bearer(t *testing.T) {
+	var gotAuth, gotAPIKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotAPIKey = r.Header.Get("x-api-key")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"content":[{"text":"ok"}],"usage":{"input_tokens":1,"output_tokens":1},"stop_reason":"end_turn"}`))
+	}))
+	defer server.Close()
+
+	client := &ClaudeClient{apiKey: "tok", model: "claude-sonnet-4-6", httpClient: server.Client(), serverURL: server.URL, authScheme: AuthSchemeBearer}
+	_, err := client.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}})
+	require.NoError(t, err)
+	assert.Equal(t, "Bearer tok", gotAuth, "auth token must use Authorization: Bearer")
+	assert.Empty(t, gotAPIKey, "x-api-key must not be set under bearer scheme")
+}
+
+func TestClaudeClient_AuthScheme_APIKeyDefault(t *testing.T) {
+	var gotAuth, gotAPIKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotAPIKey = r.Header.Get("x-api-key")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"content":[{"text":"ok"}],"usage":{"input_tokens":1,"output_tokens":1},"stop_reason":"end_turn"}`))
+	}))
+	defer server.Close()
+
+	// Empty authScheme (zero value) must default to x-api-key.
+	client := &ClaudeClient{apiKey: "sk-key", model: "claude-sonnet-4-6", httpClient: server.Client(), serverURL: server.URL}
+	_, err := client.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}})
+	require.NoError(t, err)
+	assert.Equal(t, "sk-key", gotAPIKey, "api key must use x-api-key")
+	assert.Empty(t, gotAuth, "Authorization must not be set under api-key scheme")
+}
+
 func TestClaudeClient_Complete_Non200(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(429)

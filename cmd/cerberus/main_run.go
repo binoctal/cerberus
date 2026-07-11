@@ -65,10 +65,11 @@ func runCmd() *cobra.Command {
 			}
 
 			client, err := llm.NewClientWithConfig(llm.ClientConfig{
-				Model:    model,
-				APIKey:   apiKey,
-				BaseURL:  baseURL,
-				Provider: cfg.LLMProvider,
+				Model:      model,
+				APIKey:     apiKey,
+				BaseURL:    baseURL,
+				Provider:   cfg.LLMProvider,
+				AuthScheme: cfg.LLMAuthScheme,
 			})
 			if err != nil {
 				return fmt.Errorf("create LLM client: %w", err)
@@ -97,7 +98,7 @@ func runCmd() *cobra.Command {
 			sess.Parallel = parallelFlag
 			sess.MaxWorkers = workersFlag
 			sess.AutoTestSafety = autoTestSafetyFlag
-			sess.SetupHeadDrivers(apiKey, baseURL, cfg.TierModels)
+			sess.SetupHeadDrivers(apiKey, baseURL, cfg.LLMAuthScheme, cfg.TierModels)
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()

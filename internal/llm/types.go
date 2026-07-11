@@ -60,10 +60,26 @@ type StreamEvent struct {
 	Err     error
 }
 
+// AuthScheme selects the HTTP authentication header for Anthropic-compatible
+// endpoints. It is derived from the credential source: an API key (*_API_KEY)
+// uses the native x-api-key header; an auth token (*_AUTH_TOKEN, e.g. an OAuth
+// bearer from Claude Code or a proxy) uses Authorization: Bearer.
+type AuthScheme string
+
+const (
+	// AuthSchemeAPIKey sends the credential via the x-api-key header. This is
+	// the default and matches api.anthropic.com's native key auth.
+	AuthSchemeAPIKey AuthScheme = "api_key"
+	// AuthSchemeBearer sends the credential via Authorization: Bearer, required
+	// by OAuth auth tokens and proxies (e.g. ModelSite) that reject x-api-key.
+	AuthSchemeBearer AuthScheme = "bearer"
+)
+
 // ClientConfig holds options for creating an LLM client.
 type ClientConfig struct {
-	Model    string
-	APIKey   string
-	BaseURL  string // optional: overrides the provider's default API URL
-	Provider string // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
+	Model      string
+	APIKey     string
+	BaseURL    string     // optional: overrides the provider's default API URL
+	Provider   string     // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
+	AuthScheme AuthScheme // optional: auth header for Anthropic; empty defaults to AuthSchemeAPIKey
 }

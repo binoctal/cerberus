@@ -5,22 +5,24 @@ import (
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/detect"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/runtime"
 )
 
 type Config struct {
-	Port         string
-	DBPath       string // SQLite file path (default: runtime path, use ":memory:" for tests)
-	MigrationDir string
-	LogLevel     string
-	LLMModel     string
-	LLMAPIKey    string
-	LLMBaseURL   string         // optional: overrides the provider's default API URL
-	LLMProvider  string         // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
-	CLIProfile   detect.Profile // resolved host CLI identity
-	TierModels   TierModels     // head → model tier (empty when CLI unknown)
-	TierContexts TierContexts   // head → model context-window tokens (drives depth scaling)
-	Paths        *runtime.Paths // runtime file paths (auto-detected)
+	Port          string
+	DBPath        string // SQLite file path (default: runtime path, use ":memory:" for tests)
+	MigrationDir  string
+	LogLevel      string
+	LLMModel      string
+	LLMAPIKey     string
+	LLMBaseURL    string         // optional: overrides the provider's default API URL
+	LLMProvider   string         // optional: "anthropic"|"openai"|"gemini"|"mock"; overrides model-based detection
+	LLMAuthScheme llm.AuthScheme // auth header for Anthropic, derived from credential source
+	CLIProfile    detect.Profile // resolved host CLI identity
+	TierModels    TierModels     // head → model tier (empty when CLI unknown)
+	TierContexts  TierContexts   // head → model context-window tokens (drives depth scaling)
+	Paths         *runtime.Paths // runtime file paths (auto-detected)
 }
 
 func Load() *Config {
@@ -54,7 +56,7 @@ func Load() *Config {
 
 	// API key resolution: explicit CERBERUS key first, then CLI prefix, then
 	// model-name inference (see resolveAPIKey).
-	cfg.LLMAPIKey = resolveAPIKey(cfg.LLMModel, settings, profile)
+	cfg.LLMAPIKey, cfg.LLMAuthScheme = resolveAPIKeyWithScheme(cfg.LLMModel, settings, profile)
 	cfg.TierModels = resolveTierModels(profile.CLI, settings)
 	cfg.TierContexts = resolveTierContexts(cfg.TierModels)
 
@@ -109,40 +111,51 @@ func resolveBaseURL(settings map[string]string, p detect.Profile) string {
 // inference is retained as a graceful fallback so unknown CLIs — and models
 // whose provider differs from the host CLI's — keep working.
 func resolveAPIKey(model string, settings map[string]string, p detect.Profile) string {
+	key, _ := resolveAPIKeyWithScheme(model, settings, p)
+	return key
+}
+
+// resolveAPIKeyWithScheme resolves the credential and the auth scheme implied
+// by its source. A credential from *_API_KEY (or CERBERUS_LLM_API_KEY) uses
+// x-api-key; one from *_AUTH_TOKEN uses Authorization: Bearer. The scheme is
+// decided at resolution time from whatever settings.json/env actually provides,
+// so switching credential source flips the header with no further config.
+func resolveAPIKeyWithScheme(model string, settings map[string]string, p detect.Profile) (string, llm.AuthScheme) {
 	if key := os.Getenv("CERBERUS_LLM_API_KEY"); key != "" {
-		return key
+		return key, llm.AuthSchemeAPIKey
 	}
 	if p.EnvPrefix != "" {
-		if key := providerKey(p.EnvPrefix, settings); key != "" {
-			return key
+		if key, scheme := providerKey(p.EnvPrefix, settings); key != "" {
+			return key, scheme
 		}
 	}
 	switch {
 	case isModel(model, "gpt"):
-		return os.Getenv("OPENAI_API_KEY")
+		return os.Getenv("OPENAI_API_KEY"), llm.AuthSchemeAPIKey
 	case isModel(model, "gemini"):
-		return os.Getenv("GEMINI_API_KEY")
+		return os.Getenv("GEMINI_API_KEY"), llm.AuthSchemeAPIKey
 	default:
 		return providerKey("ANTHROPIC", settings)
 	}
 }
 
-// providerKey returns the first non-empty credential for an env prefix.
+// providerKey returns the first non-empty credential for an env prefix and the
+// auth scheme its source implies (_API_KEY → x-api-key, _AUTH_TOKEN → Bearer).
 // Settings.json (target project) takes precedence over inherited env vars.
-func providerKey(prefix string, settings map[string]string) string {
+func providerKey(prefix string, settings map[string]string) (string, llm.AuthScheme) {
 	if key := settings[prefix+"_API_KEY"]; key != "" {
-		return key
+		return key, llm.AuthSchemeAPIKey
 	}
 	if key := settings[prefix+"_AUTH_TOKEN"]; key != "" {
-		return key
+		return key, llm.AuthSchemeBearer
 	}
 	if key := os.Getenv(prefix + "_API_KEY"); key != "" {
-		return key
+		return key, llm.AuthSchemeAPIKey
 	}
 	if key := os.Getenv(prefix + "_AUTH_TOKEN"); key != "" {
-		return key
+		return key, llm.AuthSchemeBearer
 	}
-	return ""
+	return "", llm.AuthSchemeAPIKey
 }
 
 // isModel reports whether model's name starts with prefix, case-insensitively.

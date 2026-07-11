@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/detect"
+	"github.com/binoctal/cerberus/internal/llm"
 )
 
 func TestFindUp_SearchesUpward(t *testing.T) {
@@ -132,6 +133,36 @@ func TestResolveAPIKey_SettingsFallback(t *testing.T) {
 	if got := resolveAPIKey("glm-5.1", settings, detect.Profile{}); got != "settings-tok" {
 		t.Errorf("resolveAPIKey() = %q, want settings-tok", got)
 	}
+}
+
+func TestResolveAPIKeyWithScheme_SourceDrivesScheme(t *testing.T) {
+	for _, key := range []string{"CERBERUS_LLM_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"} {
+		t.Setenv(key, "")
+	}
+
+	t.Run("api key source uses x-api-key", func(t *testing.T) {
+		settings := map[string]string{"ANTHROPIC_API_KEY": "sk-key"}
+		key, scheme := resolveAPIKeyWithScheme("claude-sonnet-4-6", settings, detect.Profile{})
+		if key != "sk-key" || scheme != llm.AuthSchemeAPIKey {
+			t.Errorf("got (%q, %q), want (sk-key, %q)", key, scheme, llm.AuthSchemeAPIKey)
+		}
+	})
+
+	t.Run("auth token source uses bearer", func(t *testing.T) {
+		settings := map[string]string{"ANTHROPIC_AUTH_TOKEN": "sk-ms-tok"}
+		key, scheme := resolveAPIKeyWithScheme("claude-sonnet-4-6", settings, detect.Profile{})
+		if key != "sk-ms-tok" || scheme != llm.AuthSchemeBearer {
+			t.Errorf("got (%q, %q), want (sk-ms-tok, %q)", key, scheme, llm.AuthSchemeBearer)
+		}
+	})
+
+	t.Run("CERBERUS_LLM_API_KEY override uses x-api-key", func(t *testing.T) {
+		t.Setenv("CERBERUS_LLM_API_KEY", "explicit")
+		key, scheme := resolveAPIKeyWithScheme("claude-sonnet-4-6", nil, detect.Profile{})
+		if key != "explicit" || scheme != llm.AuthSchemeAPIKey {
+			t.Errorf("got (%q, %q), want (explicit, %q)", key, scheme, llm.AuthSchemeAPIKey)
+		}
+	})
 }
 
 func TestResolveAPIKey_UsesCLIPrefix(t *testing.T) {

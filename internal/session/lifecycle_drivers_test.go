@@ -43,7 +43,7 @@ func TestSetupHeadDrivers_SharesSessionBudget(t *testing.T) {
 	sess.SetClientFactory(func(llm.ClientConfig) (llm.Client, error) {
 		return llm.NewMockClient(map[string]string{"default": `{}`}), nil
 	})
-	sess.SetupHeadDrivers("key", "https://example.test", tiers)
+	sess.SetupHeadDrivers("key", "https://example.test", llm.AuthSchemeAPIKey, tiers)
 
 	require.NotNil(t, sess.scoutDriver, "scout driver should be configured from tier")
 
