@@ -1,7 +1,7 @@
 # Auth Discover Command — Design
 
 Date: 2026-07-16
-Status: Approved (design), pending implementation plan
+Status: Implemented — Component 3a, merged to main 2026-07-16
 Builds on: `2026-07-12-auth-flow-design.md` (Components 1, 2, 4 are implemented and merged to main).
 
 ## Problem

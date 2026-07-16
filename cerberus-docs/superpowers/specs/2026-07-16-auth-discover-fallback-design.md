@@ -1,7 +1,7 @@
 # Auth Fallback (Session-Only Discovery) — Design
 
 Date: 2026-07-16
-Status: Approved (design), pending implementation plan
+Status: Implemented — Component 3b, merged to main 2026-07-16
 Builds on: `2026-07-12-auth-flow-design.md` (core loop) and `2026-07-16-auth-discover-design.md` (Component 3a `cerberus auth discover`, both merged to main).
 
 ## Problem

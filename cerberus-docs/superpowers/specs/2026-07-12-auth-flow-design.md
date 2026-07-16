@@ -1,7 +1,7 @@
 # Declarative Auth Flow — Design
 
 Date: 2026-07-12
-Status: Approved (design), pending implementation plan
+Status: Implemented — merged to main 2026-07-16 (Components 1, 2, 4 + session integration; Component 3 split into 3a `auth discover` CLI and 3b session fallback, both implemented)
 
 ## Problem
 
