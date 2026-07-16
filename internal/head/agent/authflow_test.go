@@ -177,7 +177,7 @@ func TestResolveAuthHeader_Non2xxDegrades(t *testing.T) {
 	defer srv.Close()
 
 	actor := project.Actor{Auth: &project.AuthFlow{
-		Login: project.AuthLogin{Method: "POST", Path: "/login"},
+		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
 	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
@@ -191,7 +191,7 @@ func TestResolveAuthHeader_MissingTokenFieldDegrades(t *testing.T) {
 	defer srv.Close()
 
 	actor := project.Actor{Auth: &project.AuthFlow{
-		Login: project.AuthLogin{Method: "POST", Path: "/login"},
+		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
 	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
@@ -200,5 +200,25 @@ func TestResolveAuthHeader_MissingTokenFieldDegrades(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "token") {
 		t.Fatalf("error should name the missing key, got %v", err)
+	}
+}
+
+func TestResolveAuthHeader_ErrorNeverContainsToken(t *testing.T) {
+	// Server returns 200 but with a token at a DIFFERENT key than token_from,
+	// so extraction fails. The real token must not appear in the error.
+	srv := newLoginServer(t, 200, `{"token":"REAL-SECRET-VALUE"}`, nil)
+	defer srv.Close()
+
+	actor := project.Actor{Auth: &project.AuthFlow{
+		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
+		TokenFrom: "missing", // mismatch → extraction error
+		InjectAs:  "Authorization: Bearer {token}",
+	}}
+	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err == nil {
+		t.Fatal("want error")
+	}
+	if strings.Contains(err.Error(), "REAL-SECRET-VALUE") {
+		t.Fatalf("error leaks token: %v", err)
 	}
 }
