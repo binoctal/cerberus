@@ -26,6 +26,7 @@ type Service struct {
 type Actor struct {
 	Name        string        `yaml:"name"`
 	Credentials CredentialRef `yaml:"credentials"`
+	Auth        *AuthFlow     `yaml:"auth,omitempty"`
 	Entry       string        `yaml:"entry,omitempty"`
 	Service     string        `yaml:"service,omitempty"`
 }
