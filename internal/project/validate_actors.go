@@ -15,5 +15,8 @@ func validateActors(cfg *Config, ve *ValidationError) {
 		} else {
 			seenActor[a.Name] = true
 		}
+		if msg := validateAuthFlow(i, a); msg != "" {
+			ve.add(msg)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package project
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -70,5 +71,88 @@ func TestActorAuthAbsentByDefault(t *testing.T) {
 	}
 	if cfg.Actors[0].Auth != nil {
 		t.Fatal("Auth must be nil when absent (zero breakage)")
+	}
+}
+
+func TestValidateAuthFlowErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want string
+	}{
+		{
+			name: "missing method",
+			yaml: `actors:
+  - name: u
+    credentials: {email: a@b.c}
+    auth:
+      login: {path: /login}
+      token_from: token
+      inject_as: "Authorization: Bearer {token}"`,
+			want: "login.method",
+		},
+		{
+			name: "missing token_from",
+			yaml: `actors:
+  - name: u
+    credentials: {email: a@b.c}
+    auth:
+      login: {method: POST, path: /login}
+      inject_as: "Authorization: Bearer {token}"`,
+			want: "token_from",
+		},
+		{
+			name: "missing inject_as",
+			yaml: `actors:
+  - name: u
+    credentials: {email: a@b.c}
+    auth:
+      login: {method: POST, path: /login}
+      token_from: token`,
+			want: "inject_as",
+		},
+		{
+			name: "body references missing email credential",
+			yaml: `actors:
+  - name: u
+    credentials: {}
+    auth:
+      login: {method: POST, path: /login, body: {email: "{email}"}}
+      token_from: token
+      inject_as: "Authorization: Bearer {token}"`,
+			want: "interpolation variable {email}",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var cfg Config
+			if err := yaml.Unmarshal([]byte(tc.yaml), &cfg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			err := cfg.Validate()
+			if err == nil {
+				t.Fatal("want validation error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error %q does not contain %q", err.Error(), tc.want)
+			}
+		})
+	}
+}
+
+func TestValidateAuthFlowOK(t *testing.T) {
+	in := []byte(`actors:
+  - name: u
+    credentials: {email: a@b.c, password: pw}
+    auth:
+      login: {method: POST, path: /login, body: {email: "{email}", password: "{password}"}}
+      token_from: data.accessToken
+      inject_as: "Authorization: Bearer {token}"`)
+	var cfg Config
+	if err := yaml.Unmarshal(in, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("want nil, got %v", err)
 	}
 }
