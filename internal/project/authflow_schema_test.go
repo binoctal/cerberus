@@ -156,3 +156,40 @@ func TestValidateAuthFlowOK(t *testing.T) {
 		t.Fatalf("want nil, got %v", err)
 	}
 }
+
+func TestValidateAuthFlowExported(t *testing.T) {
+	cases := []struct {
+		name    string
+		auth    *AuthFlow
+		wantErr bool
+	}{
+		{name: "valid", auth: &AuthFlow{
+			Login:     AuthLogin{Method: "POST", Path: "/login"},
+			TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
+		}, wantErr: false},
+		{name: "missing method", auth: &AuthFlow{
+			Login: AuthLogin{Path: "/login"}, TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
+		}, wantErr: true},
+		{name: "missing token_from", auth: &AuthFlow{
+			Login: AuthLogin{Method: "POST", Path: "/login"}, InjectAs: "Authorization: Bearer {token}",
+		}, wantErr: true},
+		{name: "missing inject_as", auth: &AuthFlow{
+			Login: AuthLogin{Method: "POST", Path: "/login"}, TokenFrom: "token",
+		}, wantErr: true},
+		{name: "inject_as without colon", auth: &AuthFlow{
+			Login: AuthLogin{Method: "POST", Path: "/login"}, TokenFrom: "token", InjectAs: "Bearer {token}",
+		}, wantErr: true},
+		{name: "nil auth", auth: nil, wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateAuthFlow(tc.auth)
+			if tc.wantErr && err == nil {
+				t.Fatal("want error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("want nil, got %v", err)
+			}
+		})
+	}
+}

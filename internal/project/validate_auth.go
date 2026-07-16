@@ -5,31 +5,48 @@ import (
 	"strings"
 )
 
-// validateAuthFlow validates an actor's optional declarative auth block.
-// All checks are config-time so a misconfigured flow is never a runtime
-// surprise. Returns the first problem found (validation collects per-actor).
+// ValidateAuthFlow checks an AuthFlow's structural completeness: required
+// fields (login.method, login.path, token_from, inject_as) are non-empty and
+// inject_as contains a colon so it can split into a header name/value pair.
+// It does NOT check interpolation variables against credentials — that needs
+// an Actor and stays in validateAuthFlow below. Returns nil if valid.
+func ValidateAuthFlow(af *AuthFlow) error {
+	if af == nil {
+		return fmt.Errorf("auth flow is required")
+	}
+	if af.Login.Method == "" {
+		return fmt.Errorf("login.method is required")
+	}
+	if af.Login.Path == "" {
+		return fmt.Errorf("login.path is required")
+	}
+	if af.TokenFrom == "" {
+		return fmt.Errorf("token_from is required")
+	}
+	if af.InjectAs == "" {
+		return fmt.Errorf("inject_as is required")
+	}
+	if !strings.Contains(af.InjectAs, ":") {
+		return fmt.Errorf("inject_as %q must be a 'Name: Value' header", af.InjectAs)
+	}
+	return nil
+}
+
+// validateAuthFlow validates an actor's optional declarative auth block for
+// config-time errors. Returns the first problem as a string (validation
+// collects per-actor into ValidationError).
 func validateAuthFlow(actorIdx int, a Actor) string {
 	if a.Auth == nil {
 		return ""
 	}
-	af := a.Auth
 	prefix := fmt.Sprintf("actors[%d].auth", actorIdx)
-	if af.Login.Method == "" {
-		return prefix + ".login.method is required"
-	}
-	if af.Login.Path == "" {
-		return prefix + ".login.path is required"
-	}
-	if af.TokenFrom == "" {
-		return prefix + ".token_from is required"
-	}
-	if af.InjectAs == "" {
-		return prefix + ".inject_as is required"
+	if err := ValidateAuthFlow(a.Auth); err != nil {
+		return prefix + "." + err.Error()
 	}
 	// Every {email}/{password} referenced in login.body must have a matching
 	// non-empty credential field; otherwise login would interpolate to "" at
 	// runtime with no warning.
-	for _, v := range af.Login.Body {
+	for _, v := range a.Auth.Login.Body {
 		for _, ref := range []string{"{email}", "{password}"} {
 			if strings.Contains(v, ref) {
 				field := ref[1 : len(ref)-1] // "email" or "password"
