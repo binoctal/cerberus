@@ -73,6 +73,7 @@ type Settings struct {
 	ToT                 ToTSettings       `yaml:"tot,omitempty"`
 	Reflexion           ReflexionSettings `yaml:"reflexion,omitempty"`
 	Coverage            CoverageSettings  `yaml:"coverage,omitempty"`
+	Auth                AuthSettings      `yaml:"auth,omitempty"`
 }
 
 type AIBudget struct {
@@ -120,6 +121,12 @@ type CoverageSettings struct {
 	Depth           string  `yaml:"depth,omitempty"`            // default "standard"
 	LineThreshold   float64 `yaml:"line_threshold,omitempty"`   // default 0.65
 	BranchThreshold float64 `yaml:"branch_threshold,omitempty"` // default 0.50
+}
+
+// AuthSettings configures session-only auth discovery. All optional; unset
+// fields preserve prior behavior (no fallback).
+type AuthSettings struct {
+	DiscoverFallback bool `yaml:"discover_fallback,omitempty"` // opt-in: discover an AuthFlow in-memory at setup when an actor has no auth block
 }
 
 // ResolveCoverage fills defaults (called by DefaultConfig + config loaders).

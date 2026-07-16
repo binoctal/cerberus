@@ -193,3 +193,29 @@ func TestValidateAuthFlowExported(t *testing.T) {
 		})
 	}
 }
+
+func TestSettingsAuthFallbackParses(t *testing.T) {
+	in := []byte(`
+settings:
+  auth:
+    discover_fallback: true
+`)
+	var cfg Config
+	if err := yaml.Unmarshal(in, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !cfg.Settings.Auth.DiscoverFallback {
+		t.Fatal("want Settings.Auth.DiscoverFallback = true")
+	}
+}
+
+func TestSettingsAuthAbsentByDefault(t *testing.T) {
+	in := []byte("settings: {}\n")
+	var cfg Config
+	if err := yaml.Unmarshal(in, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if cfg.Settings.Auth.DiscoverFallback {
+		t.Fatal("DiscoverFallback must default to false (opt-in)")
+	}
+}
