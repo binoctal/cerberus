@@ -55,11 +55,15 @@ type scored struct {
 // scores remaining files by auth-keyword hits, and returns the top files within
 // a byte budget. Returns an error if root is missing.
 func selectSourceFiles(root string) ([]SourceFile, error) {
-	if info, err := os.Stat(root); err != nil || !info.IsDir() {
-		return nil, fmt.Errorf("code root %q is not a readable directory", root)
+	info, err := os.Stat(root)
+	if err != nil {
+		return nil, fmt.Errorf("code root %q not accessible: %w", root, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("code root %q is not a directory", root)
 	}
 	var picks []scored
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

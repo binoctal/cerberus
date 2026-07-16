@@ -37,11 +37,13 @@ type discoverOutput struct {
 // tests inject a mock and Discover never builds LLM clients. serviceURL is the
 // base the model's login.path is relative to.
 //
-// On a parse/validation failure the returned error wraps the cause WITHOUT the
-// raw LLM response (Driver.Decide embeds it; we hide it). On "no login flow" it
-// returns ErrNoAuthFlow.
+// On a parse failure the returned error is a static message that does NOT
+// include the raw LLM response (Driver.Decide embeds it; we hide it). On a
+// validation failure the cause is wrapped. On "no login flow" it returns
+// ErrNoAuthFlow.
 func Discover(ctx context.Context, driver *ai.Driver, cfg *project.Config, actorName, serviceURL string) (*project.AuthFlow, error) {
-	if _, err := findActor(cfg, actorName); err != nil {
+	actor, err := findActor(cfg, actorName)
+	if err != nil {
 		return nil, err
 	}
 
@@ -50,7 +52,7 @@ func Discover(ctx context.Context, driver *ai.Driver, cfg *project.Config, actor
 		return nil, fmt.Errorf("select source files: %w", err)
 	}
 
-	prompt := buildDiscoverPrompt(serviceURL, files, credentialFieldNames(cfg, actorName))
+	prompt := buildDiscoverPrompt(serviceURL, files, credentialFieldNamesFor(actor))
 
 	var out discoverOutput
 	if err := driver.Decide(ctx, prompt, &out); err != nil {
@@ -90,13 +92,10 @@ func findActor(cfg *project.Config, name string) (project.Actor, error) {
 	return project.Actor{}, fmt.Errorf("actor %q not found in config", name)
 }
 
-// credentialFieldNames returns the credential field names the actor has, so the
-// prompt can ask for {email}/{password} placeholders. Values are never included.
-func credentialFieldNames(cfg *project.Config, actorName string) []string {
-	a, err := findActor(cfg, actorName)
-	if err != nil {
-		return nil
-	}
+// credentialFieldNamesFor returns the credential field names the actor has, so
+// the prompt can ask for {email}/{password} placeholders. Values are never
+// included.
+func credentialFieldNamesFor(a project.Actor) []string {
 	var names []string
 	if a.Credentials.Email != "" {
 		names = append(names, "email")

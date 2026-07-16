@@ -102,16 +102,11 @@ func TestDiscover_PromptHasShapeAndNoCredentialValues(t *testing.T) {
 	if err := writeRootFile(root, "svc/login.go", "package svc\n// login\n"); err != nil {
 		t.Fatal(err)
 	}
-	driver, err := driverReturning(`{"found": true, "login": {"method":"POST","path":"/login"}, "token_from":"token", "inject_as":"X: {token}"}`)
-	if err != nil {
-		t.Fatal(err)
-	}
 	cfg := &project.Config{
 		Code:   project.CodeConfig{Root: root},
 		Actors: []project.Actor{{Name: "u", Credentials: project.CredentialRef{Email: "REAL-EMAIL-VALUE", Password: "REAL-PASSWORD-VALUE"}}},
 	}
-	_ = driver // driver is not needed here; this test checks prompt construction only.
-	prompt := buildDiscoverPrompt("http://svc.local", selectFilesOrEmpty(root), credentialFieldNames(cfg, "u"))
+	prompt := buildDiscoverPrompt("http://svc.local", selectFilesOrEmpty(root), credentialFieldNamesFor(cfg.Actors[0]))
 	// JSON shape is inlined.
 	for _, token := range []string{"found", "login", "token_from", "inject_as"} {
 		if !strings.Contains(prompt, token) {
@@ -155,4 +150,30 @@ func selectFilesOrEmpty(root string) []SourceFile {
 		return nil
 	}
 	return f
+}
+
+func TestDiscover_InvalidFlowRejected(t *testing.T) {
+	root := t.TempDir()
+	if err := writeRootFile(root, "svc/login.go", "package svc\n// login\n"); err != nil {
+		t.Fatal(err)
+	}
+	// found=true but login.method empty → ValidateAuthFlow fails inside Discover.
+	driver, err := driverReturning(`{"found": true, "login": {"path": "/login"}, "token_from": "token", "inject_as": "Authorization: Bearer {token}"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &project.Config{
+		Code:   project.CodeConfig{Root: root},
+		Actors: []project.Actor{{Name: "u"}},
+	}
+	_, err = Discover(context.Background(), driver, cfg, "u", "http://svc.local")
+	if err == nil {
+		t.Fatal("want error for invalid flow")
+	}
+	if errors.Is(err, ErrNoAuthFlow) {
+		t.Fatal("invalid flow must not be reported as ErrNoAuthFlow")
+	}
+	if !strings.Contains(err.Error(), "invalid auth flow") {
+		t.Fatalf("error should mention invalid auth flow, got %v", err)
+	}
 }

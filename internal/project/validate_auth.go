@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -12,19 +13,19 @@ import (
 // an Actor and stays in validateAuthFlow below. Returns nil if valid.
 func ValidateAuthFlow(af *AuthFlow) error {
 	if af == nil {
-		return fmt.Errorf("auth flow is required")
+		return errors.New("auth flow is required")
 	}
 	if af.Login.Method == "" {
-		return fmt.Errorf("login.method is required")
+		return errors.New("login.method is required")
 	}
 	if af.Login.Path == "" {
-		return fmt.Errorf("login.path is required")
+		return errors.New("login.path is required")
 	}
 	if af.TokenFrom == "" {
-		return fmt.Errorf("token_from is required")
+		return errors.New("token_from is required")
 	}
 	if af.InjectAs == "" {
-		return fmt.Errorf("inject_as is required")
+		return errors.New("inject_as is required")
 	}
 	if !strings.Contains(af.InjectAs, ":") {
 		return fmt.Errorf("inject_as %q must be a 'Name: Value' header", af.InjectAs)

@@ -170,6 +170,9 @@ func TestValidateAuthFlowExported(t *testing.T) {
 		{name: "missing method", auth: &AuthFlow{
 			Login: AuthLogin{Path: "/login"}, TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 		}, wantErr: true},
+		{name: "missing login.path", auth: &AuthFlow{
+			Login: AuthLogin{Method: "POST"}, TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
+		}, wantErr: true},
 		{name: "missing token_from", auth: &AuthFlow{
 			Login: AuthLogin{Method: "POST", Path: "/login"}, InjectAs: "Authorization: Bearer {token}",
 		}, wantErr: true},

@@ -73,3 +73,29 @@ func TestSelectSourceFiles_MissingRoot(t *testing.T) {
 		t.Fatal("want error for missing root")
 	}
 }
+
+func TestSelectSourceFiles_RespectsByteBudget(t *testing.T) {
+	root := t.TempDir()
+	// Oversized file (exceeds maxBytes alone) — must be skipped, not truncated.
+	writeFile(t, root, "big/login.go", strings.Repeat("login token ", 2500)) // ~30000 bytes
+	// Small auth-relevant file — must be selected.
+	writeFile(t, root, "svc/login.go", "package svc\n// login token\n")
+	got, err := selectSourceFiles(root)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	for _, f := range got {
+		if strings.Contains(f.Path, "big/") {
+			t.Fatalf("oversized file must be skipped under byte budget: %s", f.Path)
+		}
+	}
+	foundSmall := false
+	for _, f := range got {
+		if filepath.Base(f.Path) == "login.go" && !strings.Contains(f.Path, "big/") {
+			foundSmall = true
+		}
+	}
+	if !foundSmall {
+		t.Fatal("small auth-relevant file must be selected")
+	}
+}
