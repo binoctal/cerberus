@@ -28,6 +28,7 @@ func main() {
 		versionCmd(),
 		selftestCmd(),
 		discoverCmd(),
+		authCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
