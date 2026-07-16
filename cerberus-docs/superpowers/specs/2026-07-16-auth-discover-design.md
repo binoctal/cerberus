@@ -41,11 +41,14 @@ a separate plan.
   already deserializes the LLM's JSON output into the provided schema struct
   (with retry/cache); the command passes `&discoverOutput{}`. Not native
   tool-use / response_schema.
-- **Driver construction: shared helper.** The client+driver build currently
-  embedded in `SetupHeadDrivers` (model/baseURL from `cfg.Settings.AIBudget`,
-  API key from the same source session uses) is extracted into a shared
-  constructor (e.g. `ai.NewDriverFromConfig(cfg)`). Session setup and
-  `authdiscover` both call it; no LLM-client code lives in `cmd/`.
+- **Driver construction: direct public API.** `auth discover` builds its single
+  driver inline in `cmd/` from existing public primitives —
+  `llm.NewClientWithConfig` (model from `projCfg.Settings.AIBudget.Model`;
+  API key / base URL / auth scheme from the global `config.Load()` result, the
+  same fields `main_run.go` reads: `LLMAPIKey`, `LLMBaseURL`, `LLMAuthScheme`)
+  then `ai.NewDriver`. `SetupHeadDrivers` is left untouched: its complexity is
+  per-head model picking (`PickModel`/`tiers`), which the command does not
+  need, so there is nothing worth extracting.
 - **Validation reuse: export it.** `validateAuthFlow` is unexported and coupled
   to `(actorIdx, Actor) string`; export the core check as
   `project.ValidateAuthFlow(*AuthFlow) error` so `authdiscover` rejects invalid
@@ -101,14 +104,15 @@ func Discover(ctx context.Context, driver *ai.Driver, cfg *project.Config, actor
 
 ### File selection
 
-- Reuse `internal/architecture`'s directory walk and its skip rules
-  (`handleDirectoryDuringWalk` already excludes `vendor/`, `node_modules/`,
-  `build/`, `dist/`) rather than reimplementing them. Keep files matching
-  supported language extensions (`.go`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`,
-  plus others as added).
-- As an authdiscover-specific layer on top of that walk, score each surviving
-  file by keyword hits (`login`, `signin`, `sign-in`, `auth`, `session`,
-  `jwt`, `token`, `bearer`, `middleware`, `route`, `passport`, `handler`).
+- Walk `cfg.Code.Root` with `filepath.WalkDir`. `internal/architecture`'s walk
+  is NOT reusable — it is an `*Analyzer` method bound to `projectPath` and
+  hard-codes `.go` only; authdiscover needs multi-language source. So it owns a
+  small walk that skips `vendor/`, `node_modules/`, `build/`, `dist/`, `.git/`
+  and keeps files matching supported extensions (`.go`, `.ts`, `.tsx`, `.js`,
+  `.jsx`, `.py`).
+- Score each surviving file by keyword hits (`login`, `signin`, `sign-in`,
+  `auth`, `session`, `jwt`, `token`, `bearer`, `middleware`, `route`,
+  `passport`, `handler`).
 - Take top-N by score, capped by a total-byte budget so the prompt fits the
   model window. N and the budget are package constants, chosen for a typical
   login flow (a handful of files). The selected source snippets already
@@ -117,8 +121,9 @@ func Discover(ctx context.Context, driver *ai.Driver, cfg *project.Config, actor
 
 ### LLM call
 
-- Obtain the driver via the shared constructor (see Driver construction above)
-  — `cmd/` does not build LLM clients inline.
+- The driver is built by the command (see Driver construction above) and passed
+  in as the `driver` arg — `Discover` itself never constructs clients, so tests
+  inject a mock `*ai.Driver`.
 - Prompt: describe the task (infer a single login flow), include the selected
   source snippets, include the actor's credential **field names** (`email`,
   `password`) so the model emits `{email}`/`{password}` placeholders — never
@@ -204,8 +209,8 @@ Mirror `main_discover.go`:
     nil result.
   - File selection: a tempdir with seeded source files of varying keyword
     relevance → asserts the top-N selection picks the high-relevance files and
-    respects the byte budget; vendored/build dirs are excluded (reusing the
-    architecture walk rules).
+    respects the byte budget; vendored/build dirs are excluded and multiple
+    languages (`.go`, `.ts`, `.py`) are admitted.
   - `Found: false` → the result signals "no login flow" distinctly from a hard
     error, so the command exits cleanly without writing.
   - Parse failure: a mock response containing a known marker string → the
