@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/project"
 	"go.uber.org/zap"
+
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 func newAuthLoginServer(t *testing.T, token string) *httptest.Server {
