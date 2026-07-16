@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
+	"errors"
 
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/authdiscover"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -14,14 +16,29 @@ import (
 // existing static-header injection path (authHeadersFor / withActorHeaders)
 // carries the dynamic token with no further changes.
 //
-// Failures degrade, never abort: a failed login, non-2xx response, or missing
-// token field logs a warning and leaves the actor unauthenticated so invariants
-// that expect rejection can still be exercised.
+// When an actor has no auth: block and settings.auth.discover_fallback is on,
+// an AuthFlow is discovered in-memory (never persisted) and used for this
+// session only. Failures degrade, never abort.
 func (s *Session) resolveActorAuth(ctx context.Context) {
 	for i := range s.Config.Actors {
 		a := &s.Config.Actors[i]
 		if a.Auth == nil {
-			continue
+			if !s.Config.Settings.Auth.DiscoverFallback || s.Driver == nil {
+				continue
+			}
+			if err := s.discoverActorAuth(ctx, a); err != nil {
+				if errors.Is(err, authdiscover.ErrNoAuthFlow) {
+					s.Logger.Info("no auth flow found for actor; staying unauthenticated",
+						zap.String("actor", a.Name),
+					)
+				} else {
+					s.Logger.Warn("auth discovery fallback failed; degrading actor to unauthenticated",
+						zap.String("actor", a.Name),
+						zap.Error(err),
+					)
+				}
+				continue
+			}
 		}
 		svcURL := s.serviceURLForActor(a)
 		name, value, err := agent.ResolveAuthHeader(ctx, svcURL, *a)
@@ -43,6 +60,24 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 			zap.Int("value_len", len(value)),
 		)
 	}
+}
+
+// discoverActorAuth infers an AuthFlow for an actor with no auth: block and
+// sets it on the in-memory config (NEVER persisted to project.yaml). On
+// success the caller proceeds through ResolveAuthHeader as if the block had
+// been configured. Credential values are never placed in the prompt
+// (authdiscover guarantee).
+func (s *Session) discoverActorAuth(ctx context.Context, a *project.Actor) error {
+	svcURL := s.serviceURLForActor(a)
+	af, err := authdiscover.Discover(ctx, s.Driver, s.Config, a.Name, svcURL)
+	if err != nil {
+		return err
+	}
+	a.Auth = af
+	s.Logger.Info("auth discovered for session only; persist with `cerberus auth discover --actor "+a.Name+"`",
+		zap.String("actor", a.Name),
+	)
+	return nil
 }
 
 // serviceURLForActor returns the service URL the actor authenticates against:
