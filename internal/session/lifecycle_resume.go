@@ -27,6 +27,10 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 		return err
 	}
 
+	// Resolve dynamic auth (one login per actor with an auth: block) before
+	// any remaining test case runs. Failures degrade; never abort.
+	s.resolveActorAuth(ctx)
+
 	// Load saved plan
 	if err := rp.loadSavedPlan(); err != nil {
 		rp.err = err

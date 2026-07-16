@@ -28,6 +28,10 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	// Resolve dynamic auth (one login per actor with an auth: block) before
+	// any test case runs. Failures degrade; never abort.
+	s.resolveActorAuth(ctx)
+
 	// Phase 1: Scout — Analyze + Plan
 	model, err := rp.executeScoutPhase()
 	if err != nil {
