@@ -54,3 +54,25 @@ func TestGoCoverage_NoTestFileGaps(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a_test.go"), []byte("package p\n"), 0o644))
 	assert.Empty(t, p.NoTestFileGaps(dir))
 }
+
+func TestParseCoverProfile_LineCoveragePct(t *testing.T) {
+	// Two blocks: one covered (count>0, 10 stmts), one uncovered (count=0, 30 stmts).
+	// => 10/40 covered = 25%.
+	in := []byte("mode: set\n" +
+		"foo/bar.go:1.1,2.2 10 1\n" +
+		"foo/baz.go:5.1,6.2 30 0\n")
+	rep, err := parseCoverProfile(in)
+	require.NoError(t, err)
+	assert.Equal(t, "line", rep.CoverageUnit)
+	assert.InDelta(t, 25.0, rep.LineCoveragePct, 0.001)
+}
+
+func TestParseCoverProfile_ZeroCoveredIsKnown(t *testing.T) {
+	// All blocks uncovered => 0% but still measured (denominator > 0).
+	in := []byte("mode: set\nfoo/bar.go:1.1,2.2 10 0\n")
+	rep, err := parseCoverProfile(in)
+	require.NoError(t, err)
+	assert.Equal(t, 0.0, rep.LineCoveragePct)
+	// denominator present => caller treats as Known. Expose via Profile length.
+	assert.NotEmpty(t, rep.Profile)
+}

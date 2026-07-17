@@ -6,9 +6,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// initialize prepares the session for resuming
+// initialize prepares the session for resuming.
 func (rp *resumePhase) initialize() error {
 	rp.session.Logger.Info("resuming session", zap.String("id", rp.session.ID))
+	// Resume skips Scout, so reload the persisted coverage contract (if any) to
+	// allow the Examiner to assess coverage. Best-effort: never aborts resume.
+	if c, err := rp.session.Store.LoadContract(rp.ctx, rp.session.ID); err != nil {
+		rp.session.Logger.Warn("load contract for resume", zap.Error(err))
+	} else if c != nil {
+		rp.session.Contract = c
+	}
 	return nil
 }
 

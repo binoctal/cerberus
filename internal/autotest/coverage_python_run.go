@@ -42,6 +42,7 @@ func (p *PythonCoverageProvider) RunCoverage(ctx context.Context, projectDir str
 
 	// Mark as pass if we got coverage data
 	report.Pass = true
+	report.CoverageUnit = "function"
 
 	p.logger.Info("python coverage complete",
 		zap.Int("total_funcs", report.TotalFuncs),

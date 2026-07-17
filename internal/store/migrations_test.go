@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/head/contract"
 )
 
 func TestRunMigrations(t *testing.T) {
@@ -83,6 +85,32 @@ func TestUpdateSessionAutoTest_RoundTrip(t *testing.T) {
 	items, ok := parsed["items"].([]interface{})
 	require.True(t, ok, "items should exist")
 	assert.Len(t, items, 1, "should have 1 item")
+}
+
+func TestSaveAndLoadContract_RoundTrip(t *testing.T) {
+	s := testStoreWithMigrations(t)
+	defer func() { _ = s.Close() }()
+
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "run", "g", "p")
+	require.NoError(t, err)
+
+	in := &contract.Contract{
+		Depth:        "standard",
+		Scope:        []string{"internal/llm"},
+		CoverageGate: contract.Gate{Module: "internal/llm", LineThreshold: 0.65},
+	}
+	require.NoError(t, s.SaveContract(ctx, sess.ID, in))
+
+	got, err := s.LoadContract(ctx, sess.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "standard", got.Depth)
+	assert.Equal(t, 0.65, got.CoverageGate.LineThreshold)
+
+	// GetSession must still scan the new column without error.
+	_, err = s.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
 }
 
 // testStoreWithMigrations creates an in-memory SQLite DB and runs all migrations.

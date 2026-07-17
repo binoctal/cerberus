@@ -33,12 +33,12 @@ func (rp *runPhase) executeExaminerPhase() error {
 
 	// Assess coverage against contract if present
 	if rp.session.Contract != nil {
-		// Use real line coverage from AutoTest report or independent coverage run.
-		// rp.session.lineCoverage honors an injected stub (tests) to avoid
-		// recursively running go test/jest/pytest when ProjectDir is a module
-		// under test.
-		covPct := rp.session.lineCoverage(rp.ctx)
-		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, covPct)
+		// Measurement is an independent coverage-provider run (go test/jest/pytest),
+		// not a reuse of the AutoTest report. rp.session.lineCoverage honors an
+		// injected stub (tests) to avoid recursively running those subprocesses
+		// when ProjectDir is a module under test.
+		measurement := rp.session.lineCoverage(rp.ctx)
+		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, measurement)
 		if aerr == nil {
 			rp.session.Assessment = assessment
 			rp.session.Logger.Info("coverage assessment",

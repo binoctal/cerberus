@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/memory"
@@ -45,7 +46,9 @@ func TestReflexionTwoSessionLoop(t *testing.T) {
 		Logger:     logger1,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess1.ID = "sess-reflexion-1"
@@ -151,7 +154,9 @@ func TestReflexionProceduralWithEmbedding(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess.ID = "sess-procedural-embedding"
@@ -214,7 +219,9 @@ func TestReflexionEndToEnd(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess.ID = "sess-reflexion-e2e"

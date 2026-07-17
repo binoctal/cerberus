@@ -49,7 +49,8 @@ func (p *GoCoverageProvider) RunCoverage(ctx context.Context, projectDir string)
 // parseCoverProfile parses Go cover.out text (mode line + blocks).
 // Format per block: file:start.col,end.col numStmts count
 func parseCoverProfile(data []byte) (*CoverageReport, error) {
-	rep := &CoverageReport{}
+	rep := &CoverageReport{CoverageUnit: "line"}
+	var totalStmts, coveredStmts int
 	sc := bufio.NewScanner(strings.NewReader(string(data)))
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
@@ -73,6 +74,7 @@ func parseCoverProfile(data []byte) (*CoverageReport, error) {
 		}
 		start, _ := strconv.Atoi(strings.Split(posComma[0], ".")[0])
 		end, _ := strconv.Atoi(strings.Split(posComma[1], ".")[0])
+		numStmts, _ := strconv.Atoi(parts[1])
 		count, _ := strconv.Atoi(parts[2])
 		rep.Profile = append(rep.Profile, CoverageLine{
 			File: file, Start: start, End: end, Count: count,
@@ -81,6 +83,14 @@ func parseCoverProfile(data []byte) (*CoverageReport, error) {
 		if count > 0 {
 			rep.CoveredFuncs++
 		}
+		// Statement-level (line) coverage: go tool cover -func semantics.
+		totalStmts += numStmts
+		if count > 0 {
+			coveredStmts += numStmts
+		}
+	}
+	if totalStmts > 0 {
+		rep.LineCoveragePct = float64(coveredStmts) / float64(totalStmts) * 100
 	}
 	return rep, sc.Err()
 }

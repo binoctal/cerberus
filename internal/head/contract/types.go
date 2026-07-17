@@ -79,3 +79,14 @@ type Gap struct {
 	Kind   string `json:"kind"` // scope | pathtype | error | boundary | invariant | coverage
 	Detail string `json:"detail"`
 }
+
+// CoverageMeasurement is the objective coverage value passed to AssessCoverage.
+// Pct is a 0–1 fraction (matching Gate.LineThreshold and Assessment.CoveragePct),
+// NOT a 0–100 percentage. Unit is "line" (Go) or "function" (Node/Python).
+// Known is false when no measurement could be obtained (provider failure or
+// nothing measurable); a measured 0% has Known=true.
+type CoverageMeasurement struct {
+	Pct   float64
+	Unit  string
+	Known bool
+}
