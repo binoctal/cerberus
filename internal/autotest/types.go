@@ -46,6 +46,11 @@ type CoverageReport struct {
 	Pass                     bool
 	Profile                  []CoverageLine
 	TotalFuncs, CoveredFuncs int
+	// LineCoveragePct is statement coverage in 0–100 (Go only). 0 when no line
+	// data was collected; distinguish from a measured 0% via TotalFuncs/Profile.
+	LineCoveragePct float64
+	// CoverageUnit is "line" (Go coverprofile) or "function" (Node/Python).
+	CoverageUnit string
 }
 
 // CoverageGap is an uncovered target worth generating a test for.
