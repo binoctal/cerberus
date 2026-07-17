@@ -52,7 +52,8 @@ func (rp *resumePhase) executeRemainingCases() error {
 	return err
 }
 
-// examineResults runs the examiner phase on the results
+// examineResults runs the examiner phase on the results, then assesses coverage
+// when a contract is present (mirroring run_phases_examiner.go).
 func (rp *resumePhase) examineResults() error {
 	examinerCfg := examiner.DefaultExaminerConfig()
 	if rp.session.Config.Settings.ConfidenceThreshold > 0 {
@@ -67,6 +68,24 @@ func (rp *resumePhase) examineResults() error {
 	rp.verdicts, rp.reflections, err = examinerHead.Examine(rp.ctx, rp.results, rp.session.ID, rp.session.Config.Project.Name)
 	if err != nil {
 		return fmt.Errorf("examiner (resume): %w", err)
+	}
+
+	// Assess coverage against contract if present (mirrors run path).
+	if rp.session.Contract != nil {
+		// rp.session.lineCoverage honors an injected stub (tests) to avoid
+		// recursively running go test/jest/pytest when ProjectDir is a module
+		// under test.
+		measurement := rp.session.lineCoverage(rp.ctx)
+		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, measurement)
+		if aerr == nil {
+			rp.session.Assessment = assessment
+			rp.session.Logger.Info("coverage assessment (resume)",
+				zap.Bool("reached", assessment.Reached),
+				zap.Int("gaps", len(assessment.Gaps)),
+				zap.Float64("coverage_pct", assessment.CoveragePct))
+		} else {
+			rp.session.Logger.Warn("coverage assessment failed (resume)", zap.Error(aerr))
+		}
 	}
 
 	return nil

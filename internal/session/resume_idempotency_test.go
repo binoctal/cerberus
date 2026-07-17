@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -405,4 +406,73 @@ func TestResumePhase_ConsolidateAppliesEffectiveness(t *testing.T) {
 	rows, err := sess.Store.UnconsolidatedUsage(ctx, sess.ID)
 	require.NoError(t, err)
 	require.Empty(t, rows, "all usage should be consolidated")
+}
+
+// newResumableSessionWithContract builds a Session bound to a real
+// migrations-backed store, then saves a single-case plan and the given coverage
+// contract so a subsequent Resume() skips Scout, reloads the plan, runs the
+// Agent + Examiner, and (once Task 12 lands) reloads the contract to assess
+// coverage. Stub LLM responses (contractJSON) let Resume complete without live
+// API calls. Mirrors the scaffolding in TestSession_Resume_SkipsCompleted and
+// reuses testStoreWithMigrations / testConfig / stubCoverageFn.
+func newResumableSessionWithContract(t *testing.T, c *contract.Contract) (SessionConfig, *Session, func()) {
+	t.Helper()
+	s := testStoreWithMigrations(t)
+
+	cfg := testConfig()
+	scfg := SessionConfig{
+		Mode:       ModeRun,
+		Goal:       "resume coverage test",
+		Config:     &cfg,
+		Store:      s,
+		Client:     llm.NewMockClient(map[string]string{"default": contractJSON()}),
+		Logger:     zap.NewNop(),
+		Gate:       nil,
+		ProjectDir: ".",
+		CoverageFn: stubCoverageFn(),
+	}
+
+	sess, err := NewSession(context.Background(), scfg)
+	require.NoError(t, err)
+
+	plan := map[string]any{
+		"goal": "resume coverage test",
+		"cases": []map[string]any{
+			{"id": "tc-resume", "name": "pending case", "target": "/api/new", "method": "GET", "expectation": "ok", "priority": 0.8},
+		},
+		"project_url": "http://localhost:9999",
+	}
+	require.NoError(t, s.SavePlan(context.Background(), sess.ID, plan))
+	require.NoError(t, s.SaveContract(context.Background(), sess.ID, c))
+
+	cleanup := func() {
+		sess.Close()
+		_ = s.Close()
+	}
+	return scfg, sess, cleanup
+}
+
+// TestResume_AssessesCoverageWithLoadedContract proves the resume path reloads
+// the persisted coverage contract and runs AssessCoverage against it, mirroring
+// the run path. With measurement 10% and a 99% line gate, the objective gate
+// must force Reached=false deterministically.
+func TestResume_AssessesCoverageWithLoadedContract(t *testing.T) {
+	cfg, sess, cleanup := newResumableSessionWithContract(t, &contract.Contract{
+		Depth:        "standard",
+		Scope:        []string{"internal/llm"},
+		CoverageGate: contract.Gate{Module: "internal/llm", LineThreshold: 0.99},
+	})
+	defer cleanup()
+	cfg.CoverageFn = func(context.Context, *Session) contract.CoverageMeasurement {
+		return contract.CoverageMeasurement{Pct: 0.10, Unit: "line", Known: true}
+	}
+	// NewSession captured the original CoverageFn at construction time; mirror
+	// the override onto the session so Resume observes the 10% measurement.
+	sess.coverageFn = cfg.CoverageFn
+
+	err := sess.Resume(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, sess.Contract, "resume must load the saved contract")
+	require.NotNil(t, sess.Assessment, "resume must assess coverage when contract present")
+	assert.False(t, sess.Assessment.Reached, "10% < 99% gate → not reached")
 }
