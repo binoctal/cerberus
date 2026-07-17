@@ -41,7 +41,7 @@ type SessionConfig struct {
 	// available, else independently runs the language-specific coverage provider
 	// (go test/jest/pytest). Tests inject a stub to avoid recursively running
 	// those subprocesses when ProjectDir is itself a module under test.
-	CoverageFn func(ctx context.Context, sess *Session) float64
+	CoverageFn func(ctx context.Context, sess *Session) contract.CoverageMeasurement
 }
 
 type Session struct {
@@ -81,5 +81,5 @@ type Session struct {
 	// coverageFn overrides Examiner-phase coverage retrieval. If nil, the
 	// package-level coverageForSession is used. Mirrors clientFactory: injected
 	// by tests via SessionConfig.CoverageFn to avoid real coverage subprocesses.
-	coverageFn func(ctx context.Context, sess *Session) float64
+	coverageFn func(ctx context.Context, sess *Session) contract.CoverageMeasurement
 }

@@ -6,29 +6,24 @@ import (
 	"path/filepath"
 
 	"github.com/binoctal/cerberus/internal/autotest"
+	"github.com/binoctal/cerberus/internal/head/contract"
 )
 
-// lineCoverage returns the Examiner-phase line coverage percentage, using an
-// injected override when present (tests); otherwise the default
-// coverageForSession (reuses the AutoTest report, else runs a coverage provider).
-func (s *Session) lineCoverage(ctx context.Context) float64 {
+// lineCoverage returns the Examiner-phase coverage measurement, using an injected
+// override when present (tests); otherwise the default coverageForSession.
+func (s *Session) lineCoverage(ctx context.Context) contract.CoverageMeasurement {
 	if s.coverageFn != nil {
 		return s.coverageFn(ctx, s)
 	}
 	return coverageForSession(ctx, s)
 }
 
-// coverageForSession returns the real line coverage percentage for the session's
-// project. If AutoTest ran (has a report with coverage), reuse it; otherwise
-// independently run the language-specific coverage provider.
-func coverageForSession(ctx context.Context, sess *Session) float64 {
-	// A: reuse AutoTest report if available.
-	if sess.LastAutoTestReport != nil && sess.LastAutoTestReport.BeforeCoveragePct > 0 {
-		return sess.LastAutoTestReport.BeforeCoveragePct
-	}
-
-	// B: independently run coverage provider.
-	// Detect language from project directory
+// coverageForSession runs the language-specific coverage provider and returns a
+// CoverageMeasurement. Pct is normalized to a 0–1 fraction (matching
+// Gate.LineThreshold). Known is true only when the provider succeeded and the
+// coverage denominator is non-zero; a provider error yields Known=false so the
+// objective gate is skipped instead of forcing a false not-reached on a fake 0.
+func coverageForSession(ctx context.Context, sess *Session) contract.CoverageMeasurement {
 	markers := make(map[string]bool)
 	if _, err := os.Stat(filepath.Join(sess.ProjectDir, "package.json")); err == nil {
 		markers["package.json"] = true
@@ -40,7 +35,6 @@ func coverageForSession(ctx context.Context, sess *Session) float64 {
 		markers["pyproject.toml"] = true
 	}
 
-	// Find a source file to detect extension
 	var sourceFile string
 	if matches, _ := filepath.Glob(filepath.Join(sess.ProjectDir, "*.go")); len(matches) > 0 {
 		sourceFile = matches[0]
@@ -56,12 +50,29 @@ func coverageForSession(ctx context.Context, sess *Session) float64 {
 	provider := autotest.NewCoverageProviderForLanguage(lang, autotest.DefaultGoCoverageRunner, sess.Logger)
 	report, err := provider.RunCoverage(ctx, sess.ProjectDir)
 	if err != nil || report == nil {
-		return 0
+		return contract.CoverageMeasurement{Known: false}
 	}
 
-	// Calculate coverage percentage from report
-	if report.TotalFuncs == 0 {
-		return 0
+	unit := report.CoverageUnit
+	if unit == "" {
+		unit = "function"
 	}
-	return float64(report.CoveredFuncs) / float64(report.TotalFuncs) * 100
+	var pct100 float64
+	known := false
+	if unit == "line" {
+		// Line coverage is measured when any profile block exists.
+		if len(report.Profile) > 0 {
+			pct100 = report.LineCoveragePct
+			known = true
+		}
+	} else {
+		if report.TotalFuncs > 0 {
+			pct100 = float64(report.CoveredFuncs) / float64(report.TotalFuncs) * 100
+			known = true
+		}
+	}
+	if !known {
+		return contract.CoverageMeasurement{Known: false}
+	}
+	return contract.CoverageMeasurement{Pct: pct100 / 100, Unit: unit, Known: true}
 }

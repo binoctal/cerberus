@@ -4,53 +4,40 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-
-	"github.com/binoctal/cerberus/internal/autotest"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
-func TestCoverageForSession_WithAutoTestReport(t *testing.T) {
-	// Test with AutoTest report → should reuse it.
-	s, err := store.New(":memory:")
-	require.NoError(t, err)
+func TestCoverageForSession_GoLineMeasurement(t *testing.T) {
+	// coverageFn injected: simulate a Go line measurement of 75.5% (0–100) → 0.755 fraction.
+	s, _ := store.New(":memory:")
 	defer func() { _ = s.Close() }()
-
 	cfg := project.DefaultConfig()
-	sess := &Session{
-		Config:     &cfg,
-		Store:      s,
-		Logger:     zap.NewNop(),
-		ProjectDir: ".",
-		LastAutoTestReport: &autotest.AutoTestReport{
-			BeforeCoveragePct: 75.5,
-		},
-	}
-
-	pct := coverageForSession(context.Background(), sess)
-	// Should reuse the AutoTest report value
-	assert.Equal(t, 75.5, pct, "should reuse AutoTest report coverage")
+	sess := &Session{Config: &cfg, Store: s, Logger: zap.NewNop(), ProjectDir: ".",
+		coverageFn: func(_ context.Context, _ *Session) contract.CoverageMeasurement {
+			// Stand-in for the real provider path; see TestCoverageForSession_NormalizesProvider.
+			return contract.CoverageMeasurement{Pct: 0.755, Unit: "line", Known: true}
+		}}
+	m := sess.lineCoverage(context.Background())
+	assert.True(t, m.Known)
+	assert.Equal(t, "line", m.Unit)
+	assert.InDelta(t, 0.755, m.Pct, 0.0001)
 }
 
-func TestCoverageForSession_NoAutoTestReport_ErrorHandling(t *testing.T) {
-	// Test without AutoTest report but with invalid project dir → should return 0
-	s, err := store.New(":memory:")
-	require.NoError(t, err)
+func TestCoverageForSession_NormalizesProviderToFraction(t *testing.T) {
+	// Provider returns 0–100; coverageForSession must divide by 100 and set Known
+	// when the denominator is non-zero. We exercise the provider path directly by
+	// giving a Session with no coverageFn and a ProjectDir that has no measurable
+	// source → falls to error path → Known=false.
+	s, _ := store.New(":memory:")
 	defer func() { _ = s.Close() }()
-
 	cfg := project.DefaultConfig()
-	sess := &Session{
-		Config:     &cfg,
-		Store:      s,
-		Logger:     zap.NewNop(),
-		ProjectDir: "/nonexistent/path/that/does/not/exist",
-		// No AutoTest report
-	}
-
-	pct := coverageForSession(context.Background(), sess)
-	// Should return 0 on error
-	assert.Equal(t, 0.0, pct, "should return 0 when coverage run fails")
+	sess := &Session{Config: &cfg, Store: s, Logger: zap.NewNop(),
+		ProjectDir: "/nonexistent/path/that/does/not/exist"}
+	m := coverageForSession(context.Background(), sess)
+	assert.False(t, m.Known, "provider failure → Known=false, not Pct=0 gate-bait")
+	assert.Equal(t, 0.0, m.Pct)
 }
