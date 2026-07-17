@@ -190,3 +190,30 @@ func (m *mockCoverageProvider) RunCoverage(_ context.Context, _ string) (*Covera
 func (m *mockCoverageProvider) Gaps(_ *CoverageReport) []CoverageGap {
 	return m.gaps
 }
+
+func TestPct_PrefersLineCoverage(t *testing.T) {
+	// Line says 25%, function-level says 50% (1 of 2 blocks). Must pick line.
+	rep := &CoverageReport{
+		TotalFuncs:      2,
+		CoveredFuncs:    1,
+		LineCoveragePct: 25.0,
+		Profile:         []CoverageLine{{File: "x.go", Start: 1, End: 2, Count: 1}},
+	}
+	assert.InDelta(t, 25.0, pct(rep), 0.001)
+}
+
+func TestPct_FallsBackToFunctionWhenNoLineData(t *testing.T) {
+	rep := &CoverageReport{TotalFuncs: 4, CoveredFuncs: 1} // no Profile, no LineCoveragePct
+	assert.InDelta(t, 25.0, pct(rep), 0.001)
+}
+
+func TestPct_ZeroLineCoverageIsMeasured(t *testing.T) {
+	// 0% line coverage with Profile present must return 0, not fall back.
+	rep := &CoverageReport{
+		TotalFuncs:      2,
+		CoveredFuncs:    2, // function-level would say 100%
+		LineCoveragePct: 0,
+		Profile:         []CoverageLine{{File: "x.go", Start: 1, End: 2, Count: 0}},
+	}
+	assert.Equal(t, 0.0, pct(rep))
+}

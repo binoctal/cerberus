@@ -11,9 +11,17 @@ func (a *AutoTest) afterCoverageOr(ctx context.Context, dir string, fallback flo
 	return pct(r)
 }
 
-// pct calculates coverage percentage from a report
+// pct calculates coverage percentage from a report (0–100). It prefers
+// statement-level (line) coverage when the report carries profile data —
+// including a measured 0% — and falls back to function/block-level otherwise.
 func pct(r *CoverageReport) float64 {
-	if r == nil || r.TotalFuncs == 0 {
+	if r == nil {
+		return 0
+	}
+	if len(r.Profile) > 0 {
+		return r.LineCoveragePct
+	}
+	if r.TotalFuncs == 0 {
 		return 0
 	}
 	return float64(r.CoveredFuncs) / float64(r.TotalFuncs) * 100
