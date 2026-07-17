@@ -5,8 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/autotest"
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/contract"
+	"github.com/binoctal/cerberus/internal/head/examiner"
 )
 
 // lineCoverage returns the Examiner-phase coverage measurement, using an injected
@@ -16,6 +20,27 @@ func (s *Session) lineCoverage(ctx context.Context) contract.CoverageMeasurement
 		return s.coverageFn(ctx, s)
 	}
 	return coverageForSession(ctx, s)
+}
+
+// assessCoverageIfContract runs the objective coverage assessment against the
+// session's contract (if any). Shared by the run and resume Examiner paths.
+// sess.lineCoverage honors an injected stub (tests) to avoid recursively
+// running go test/jest/pytest when ProjectDir is a module under test.
+func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *examiner.Examiner, results []agent.StepResult) {
+	if sess.Contract == nil {
+		return
+	}
+	measurement := sess.lineCoverage(ctx)
+	assessment, err := examinerHead.AssessCoverage(ctx, sess.Contract, results, measurement)
+	if err == nil {
+		sess.Assessment = assessment
+		sess.Logger.Info("coverage assessment",
+			zap.Bool("reached", assessment.Reached),
+			zap.Int("gaps", len(assessment.Gaps)),
+			zap.Float64("coverage_pct", assessment.CoveragePct))
+	} else {
+		sess.Logger.Warn("coverage assessment failed", zap.Error(err))
+	}
 }
 
 // coverageForSession runs the language-specific coverage provider and returns a

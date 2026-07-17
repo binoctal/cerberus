@@ -31,24 +31,8 @@ func (rp *runPhase) executeExaminerPhase() error {
 		zap.Int("reflections_stored", rp.reflections),
 	)
 
-	// Assess coverage against contract if present
-	if rp.session.Contract != nil {
-		// Measurement is an independent coverage-provider run (go test/jest/pytest),
-		// not a reuse of the AutoTest report. rp.session.lineCoverage honors an
-		// injected stub (tests) to avoid recursively running those subprocesses
-		// when ProjectDir is a module under test.
-		measurement := rp.session.lineCoverage(rp.ctx)
-		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, measurement)
-		if aerr == nil {
-			rp.session.Assessment = assessment
-			rp.session.Logger.Info("coverage assessment",
-				zap.Bool("reached", assessment.Reached),
-				zap.Int("gaps", len(assessment.Gaps)),
-				zap.Float64("coverage_pct", assessment.CoveragePct))
-		} else {
-			rp.session.Logger.Warn("coverage assessment failed", zap.Error(aerr))
-		}
-	}
+	// Assess coverage against contract if present (shared with resume path).
+	assessCoverageIfContract(rp.ctx, rp.session, examinerHead, rp.results)
 
 	return nil
 }

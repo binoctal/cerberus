@@ -58,6 +58,14 @@ func TestAssessCoverage_MeasuredZeroForcesNotReached(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, a.Reached, "measured 0% is not unknown")
 	assert.Equal(t, 0.0, a.CoveragePct, "measurement overrides LLM coverage_pct")
+	found := false
+	for _, g := range a.Gaps {
+		if g.Kind == "coverage" {
+			found = true
+			assert.Contains(t, g.Detail, "0% < 65%")
+		}
+	}
+	assert.True(t, found, "coverage gap appended at measured 0%")
 }
 
 func TestAssessCoverage_UnknownSkipsGate(t *testing.T) {
@@ -84,7 +92,7 @@ func TestAssessCoverage_FunctionUnitNotesMismatch(t *testing.T) {
 	for _, g := range a.Gaps {
 		if g.Kind == "coverage" {
 			found = true
-			assert.Contains(t, g.Detail, "function")
+			assert.Contains(t, g.Detail, " (measured as function coverage)")
 		}
 	}
 	assert.True(t, found)

@@ -70,23 +70,13 @@ func (rp *resumePhase) examineResults() error {
 		return fmt.Errorf("examiner (resume): %w", err)
 	}
 
-	// Assess coverage against contract if present (mirrors run path).
-	if rp.session.Contract != nil {
-		// rp.session.lineCoverage honors an injected stub (tests) to avoid
-		// recursively running go test/jest/pytest when ProjectDir is a module
-		// under test.
-		measurement := rp.session.lineCoverage(rp.ctx)
-		assessment, aerr := examinerHead.AssessCoverage(rp.ctx, rp.session.Contract, rp.results, measurement)
-		if aerr == nil {
-			rp.session.Assessment = assessment
-			rp.session.Logger.Info("coverage assessment (resume)",
-				zap.Bool("reached", assessment.Reached),
-				zap.Int("gaps", len(assessment.Gaps)),
-				zap.Float64("coverage_pct", assessment.CoveragePct))
-		} else {
-			rp.session.Logger.Warn("coverage assessment failed (resume)", zap.Error(aerr))
-		}
-	}
+	rp.session.Logger.Info("examination complete (resume)",
+		zap.Int("verdicts", len(rp.verdicts)),
+		zap.Int("reflections_stored", rp.reflections),
+	)
+
+	// Assess coverage against contract if present (shared with run path).
+	assessCoverageIfContract(rp.ctx, rp.session, examinerHead, rp.results)
 
 	return nil
 }
