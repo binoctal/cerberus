@@ -74,6 +74,7 @@ func (p *NodeCoverageProvider) RunCoverage(ctx context.Context, projectDir strin
 
 	// Mark as pass if we got coverage data (even if tests failed)
 	report.Pass = true
+	report.CoverageUnit = "function"
 
 	p.logger.Info("node coverage complete",
 		zap.Int("total_funcs", report.TotalFuncs),

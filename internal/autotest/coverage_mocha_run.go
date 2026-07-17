@@ -74,6 +74,7 @@ func (p *MochaCoverageProvider) RunCoverage(ctx context.Context, projectDir stri
 
 	// Mark as pass if we got coverage data (even if tests failed)
 	report.Pass = true
+	report.CoverageUnit = "function"
 
 	p.logger.Info("mocha coverage complete",
 		zap.Int("total_funcs", report.TotalFuncs),
