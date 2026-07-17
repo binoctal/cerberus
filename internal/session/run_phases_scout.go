@@ -52,6 +52,12 @@ func (rp *runPhase) executeScoutPhase() (*project.ProjectModel, error) {
 				rp.session.Logger.Info("contract self-assessment notes", zap.Strings("notes", notes))
 			}
 		}
+		// Persist contract so resume (which skips Scout) can still assess coverage.
+		if rp.session.Contract != nil {
+			if saveErr := rp.session.Store.SaveContract(rp.ctx, rp.session.ID, rp.session.Contract); saveErr != nil {
+				rp.session.Logger.Warn("failed to save contract", zap.Error(saveErr))
+			}
+		}
 	} else {
 		rp.session.Logger.Info("coverage disabled - skipping contract build")
 	}
