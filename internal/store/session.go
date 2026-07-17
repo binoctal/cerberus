@@ -2,9 +2,12 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/binoctal/cerberus/internal/head/contract"
 )
 
 type Session struct {
@@ -16,6 +19,7 @@ type Session struct {
 	CoveragePct    float64 `json:"coverage_pct"`
 	Stats          string  `json:"stats"`
 	AutoTestReport string  `json:"autotest_report,omitempty"`
+	Contract       string  `json:"contract,omitempty"`
 	StartedAt      string  `json:"started_at"`
 	FinishedAt     string  `json:"finished_at,omitempty"`
 }
@@ -39,10 +43,10 @@ func (s *Store) CreateSession(ctx context.Context, mode, goal, projectName strin
 func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	sess := &Session{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, autotest_report, started_at, COALESCE(finished_at, '')
+		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, autotest_report, contract, started_at, COALESCE(finished_at, '')
 		 FROM sessions WHERE id = ?`, id).Scan(
 		&sess.ID, &sess.Mode, &sess.Status, &sess.Goal, &sess.ProjectName,
-		&sess.CoveragePct, &sess.Stats, &sess.AutoTestReport, &sess.StartedAt, &sess.FinishedAt)
+		&sess.CoveragePct, &sess.Stats, &sess.AutoTestReport, &sess.Contract, &sess.StartedAt, &sess.FinishedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +55,7 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 
 func (s *Store) ListSessions(ctx context.Context, limit int) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, autotest_report, started_at, COALESCE(finished_at, '')
+		`SELECT id, mode, status, goal, project_name, coverage_pct, stats, autotest_report, contract, started_at, COALESCE(finished_at, '')
 		 FROM sessions ORDER BY started_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -63,7 +67,7 @@ func (s *Store) ListSessions(ctx context.Context, limit int) ([]Session, error) 
 		var sess Session
 		if err := rows.Scan(&sess.ID, &sess.Mode, &sess.Status, &sess.Goal,
 			&sess.ProjectName, &sess.CoveragePct, &sess.Stats, &sess.AutoTestReport,
-			&sess.StartedAt, &sess.FinishedAt); err != nil {
+			&sess.Contract, &sess.StartedAt, &sess.FinishedAt); err != nil {
 			return nil, err
 		}
 		sessions = append(sessions, sess)
@@ -109,4 +113,34 @@ func (s *Store) UpdateSessionAutoTest(ctx context.Context, id string, report any
 		`UPDATE sessions SET autotest_report = ? WHERE id = ?`,
 		*json, id)
 	return err
+}
+
+// SaveContract persists the coverage contract JSON for a session (UPSERT).
+func (s *Store) SaveContract(ctx context.Context, sessionID string, c *contract.Contract) error {
+	raw, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE sessions SET contract = ? WHERE id = ?`, string(raw), sessionID)
+	return err
+}
+
+// LoadContract reads and decodes the coverage contract for a session.
+// Returns (nil, nil) when no contract is stored.
+func (s *Store) LoadContract(ctx context.Context, sessionID string) (*contract.Contract, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT contract FROM sessions WHERE id = ?`, sessionID).Scan(&raw)
+	if err != nil {
+		return nil, err
+	}
+	if raw == "" {
+		return nil, nil
+	}
+	var c contract.Contract
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		return nil, err
+	}
+	return &c, nil
 }
