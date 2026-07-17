@@ -14,63 +14,84 @@ import (
 	"github.com/binoctal/cerberus/internal/llm"
 )
 
-func TestAssessCoverage(t *testing.T) {
-	mock := llm.NewMockClient(map[string]string{
-		"default": `{"reached":false,"gaps":[{"kind":"scope","detail":"internal/session not covered"}],"coverage_pct":0.42,"reasoning":"scope incomplete"}`,
-	})
+func newAssessExaminer(t *testing.T, resp string) *Examiner {
+	mock := llm.NewMockClient(map[string]string{"default": resp})
 	driver := ai.NewDriver(mock, ai.NewTokenBudget(10000, 1000))
-	e := NewExaminer(driver, nil, setupExaminerStore(t), DefaultExaminerConfig(), zap.NewNop())
-
-	c := &contract.Contract{Depth: "standard", Scope: []string{"internal/llm", "internal/session"}, CoverageGate: contract.Gate{Module: "internal/llm", LineThreshold: 0.65}}
-	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
-
-	a, err := e.AssessCoverage(context.Background(), c, res, 0.42)
-	require.NoError(t, err)
-	assert.False(t, a.Reached)
-	assert.NotEmpty(t, a.Gaps)
+	return NewExaminer(driver, nil, setupExaminerStore(t), DefaultExaminerConfig(), zap.NewNop())
 }
 
-func TestAssessCoverage_ObjectiveGateOverride(t *testing.T) {
-	// LLM says reached, but coverage is below threshold → override to false.
-	mock := llm.NewMockClient(map[string]string{
-		"default": `{"reached":true,"gaps":[],"coverage_pct":0.5,"reasoning":"all scope covered"}`,
-	})
-	driver := ai.NewDriver(mock, ai.NewTokenBudget(10000, 1000))
-	e := NewExaminer(driver, nil, setupExaminerStore(t), DefaultExaminerConfig(), zap.NewNop())
+func stdContract() *contract.Contract {
+	return &contract.Contract{
+		Depth:        "standard",
+		Scope:        []string{"internal/llm"},
+		CoverageGate: contract.Gate{Module: "internal/llm", LineThreshold: 0.65},
+	}
+}
 
-	c := &contract.Contract{Depth: "standard", Scope: []string{"internal/llm", "internal/session"}, CoverageGate: contract.Gate{Module: "internal/llm", LineThreshold: 0.65}}
+func TestAssessCoverage_BelowThresholdForcesNotReached(t *testing.T) {
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.5,"reasoning":"ok"}`)
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
-	// Coverage 50% < 65% gate → should override LLM's "reached=true"
-	a, err := e.AssessCoverage(context.Background(), c, res, 0.50)
+	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.50, Unit: "line", Known: true})
 	require.NoError(t, err)
-	assert.False(t, a.Reached, "objective gate should override LLM judgment")
+	assert.False(t, a.Reached, "objective gate overrides LLM reached=true")
 	assert.Equal(t, 0.50, a.CoveragePct)
-
-	// Should have the coverage gap from override
-	foundCoverageGap := false
-	for _, gap := range a.Gaps {
-		if gap.Kind == "coverage" {
-			foundCoverageGap = true
-			assert.Contains(t, gap.Detail, "50% < 65%")
+	found := false
+	for _, g := range a.Gaps {
+		if g.Kind == "coverage" {
+			found = true
+			assert.Contains(t, g.Detail, "50% < 65%")
 		}
 	}
-	assert.True(t, foundCoverageGap, "should have coverage gap from objective gate override")
+	assert.True(t, found)
+}
+
+func TestAssessCoverage_MeasuredZeroForcesNotReached(t *testing.T) {
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0,"reasoning":"ok"}`)
+	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
+
+	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0, Unit: "line", Known: true})
+	require.NoError(t, err)
+	assert.False(t, a.Reached, "measured 0% is not unknown")
+	assert.Equal(t, 0.0, a.CoveragePct)
+}
+
+func TestAssessCoverage_UnknownSkipsGate(t *testing.T) {
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0,"reasoning":"ok"}`)
+	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
+
+	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Known: false})
+	require.NoError(t, err)
+	assert.True(t, a.Reached, "LLM judgment stands when coverage unmeasured")
+	assert.Equal(t, 0.0, a.CoveragePct)
+	for _, g := range a.Gaps {
+		assert.NotEqual(t, "coverage", g.Kind, "no coverage gap appended when unknown")
+	}
+}
+
+func TestAssessCoverage_FunctionUnitNotesMismatch(t *testing.T) {
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.5,"reasoning":"ok"}`)
+	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
+
+	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.50, Unit: "function", Known: true})
+	require.NoError(t, err)
+	assert.False(t, a.Reached)
+	found := false
+	for _, g := range a.Gaps {
+		if g.Kind == "coverage" {
+			found = true
+			assert.Contains(t, g.Detail, "function")
+		}
+	}
+	assert.True(t, found)
 }
 
 func TestAssessCoverage_BothAgreeReached(t *testing.T) {
-	// LLM says reached AND coverage passes threshold → reached.
-	mock := llm.NewMockClient(map[string]string{
-		"default": `{"reached":true,"gaps":[],"coverage_pct":0.80,"reasoning":"all good"}`,
-	})
-	driver := ai.NewDriver(mock, ai.NewTokenBudget(10000, 1000))
-	e := NewExaminer(driver, nil, setupExaminerStore(t), DefaultExaminerConfig(), zap.NewNop())
-
-	c := &contract.Contract{Depth: "standard", Scope: []string{"internal/llm"}, CoverageGate: contract.Gate{Module: "internal/llm", LineThreshold: 0.65}}
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.80,"reasoning":"ok"}`)
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
-	a, err := e.AssessCoverage(context.Background(), c, res, 0.80)
+	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.80, Unit: "line", Known: true})
 	require.NoError(t, err)
-	assert.True(t, a.Reached, "both LLM and objective gate agree")
+	assert.True(t, a.Reached)
 	assert.Equal(t, 0.80, a.CoveragePct)
 }
