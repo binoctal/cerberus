@@ -115,7 +115,8 @@ func (s *Store) UpdateSessionAutoTest(ctx context.Context, id string, report any
 	return err
 }
 
-// SaveContract persists the coverage contract JSON for a session (UPSERT).
+// SaveContract stores the coverage contract JSON for an existing session.
+// The session row always pre-exists, so this is an UPDATE, not an UPSERT.
 func (s *Store) SaveContract(ctx context.Context, sessionID string, c *contract.Contract) error {
 	raw, err := json.Marshal(c)
 	if err != nil {

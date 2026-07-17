@@ -2,13 +2,17 @@ package session
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestCoverageForSession_GoLineMeasurement(t *testing.T) {
@@ -40,4 +44,40 @@ func TestCoverageForSession_NormalizesProviderToFraction(t *testing.T) {
 	m := coverageForSession(context.Background(), sess)
 	assert.False(t, m.Known, "provider failure → Known=false, not Pct=0 gate-bait")
 	assert.Equal(t, 0.0, m.Pct)
+}
+
+func TestCoverageForSession_ScalesProviderPctToFraction(t *testing.T) {
+	// Drive coverageForSession through the REAL provider path so the
+	// Pct: pct100 / 100 normalization (the core scale-bug fix) is exercised
+	// directly, not bypassed by coverageFn. We build a tiny isolated Go module
+	// whose coverage is deterministic: 4 single-statement functions, 3 exercised
+	// by the test → exactly 75.0% line coverage, which coverageForSession must
+	// scale to the 0–1 fraction 0.75. If the /100 division is dropped, Pct
+	// becomes 75.0 and this assertion fails.
+	dir := t.TempDir()
+	writeFile := func(name, body string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
+	}
+	writeFile("go.mod", "module covsample\n\ngo 1.25\n")
+	writeFile("sample.go",
+		"package covsample\n\n"+
+			"func A() int { return 1 }\n"+
+			"func B() int { return 2 }\n"+
+			"func C() int { return 3 }\n"+
+			"func D() int { return 4 }\n")
+	writeFile("sample_test.go",
+		"package covsample\n\n"+
+			"import \"testing\"\n\n"+
+			"func TestABC(t *testing.T) { _, _, _ = A(), B(), C() }\n")
+
+	s, _ := store.New(":memory:")
+	defer func() { _ = s.Close() }()
+	cfg := project.DefaultConfig()
+	sess := &Session{Config: &cfg, Store: s, Logger: zap.NewNop(), ProjectDir: dir}
+
+	m := coverageForSession(context.Background(), sess)
+	assert.True(t, m.Known, "real provider success → Known=true")
+	assert.Equal(t, "line", m.Unit)
+	assert.InDelta(t, 0.75, m.Pct, 0.001, "provider 75.0% must scale to 0.75 fraction")
 }

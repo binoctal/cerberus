@@ -411,8 +411,8 @@ func TestResumePhase_ConsolidateAppliesEffectiveness(t *testing.T) {
 // newResumableSessionWithContract builds a Session bound to a real
 // migrations-backed store, then saves a single-case plan and the given coverage
 // contract so a subsequent Resume() skips Scout, reloads the plan, runs the
-// Agent + Examiner, and (once Task 12 lands) reloads the contract to assess
-// coverage. Stub LLM responses (contractJSON) let Resume complete without live
+// Agent + Examiner, and reloads the contract to assess coverage. Stub LLM
+// responses (contractJSON) let Resume complete without live
 // API calls. Mirrors the scaffolding in TestSession_Resume_SkipsCompleted and
 // reuses testStoreWithMigrations / testConfig / stubCoverageFn.
 func newResumableSessionWithContract(t *testing.T, c *contract.Contract) (SessionConfig, *Session, func()) {

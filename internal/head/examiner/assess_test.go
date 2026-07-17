@@ -29,13 +29,15 @@ func stdContract() *contract.Contract {
 }
 
 func TestAssessCoverage_BelowThresholdForcesNotReached(t *testing.T) {
-	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.5,"reasoning":"ok"}`)
+	// LLM coverage_pct (0.99) deliberately differs from the measurement (0.50)
+	// to assert the measurement overrides the model's estimate.
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.99,"reasoning":"ok"}`)
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
 	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.50, Unit: "line", Known: true})
 	require.NoError(t, err)
 	assert.False(t, a.Reached, "objective gate overrides LLM reached=true")
-	assert.Equal(t, 0.50, a.CoveragePct)
+	assert.Equal(t, 0.50, a.CoveragePct, "measurement overrides LLM coverage_pct")
 	found := false
 	for _, g := range a.Gaps {
 		if g.Kind == "coverage" {
@@ -47,13 +49,15 @@ func TestAssessCoverage_BelowThresholdForcesNotReached(t *testing.T) {
 }
 
 func TestAssessCoverage_MeasuredZeroForcesNotReached(t *testing.T) {
-	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0,"reasoning":"ok"}`)
+	// LLM coverage_pct (0.99) deliberately differs from the measurement (0)
+	// to assert the measurement overrides the model's estimate.
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.99,"reasoning":"ok"}`)
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
 	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0, Unit: "line", Known: true})
 	require.NoError(t, err)
 	assert.False(t, a.Reached, "measured 0% is not unknown")
-	assert.Equal(t, 0.0, a.CoveragePct)
+	assert.Equal(t, 0.0, a.CoveragePct, "measurement overrides LLM coverage_pct")
 }
 
 func TestAssessCoverage_UnknownSkipsGate(t *testing.T) {
@@ -87,11 +91,13 @@ func TestAssessCoverage_FunctionUnitNotesMismatch(t *testing.T) {
 }
 
 func TestAssessCoverage_BothAgreeReached(t *testing.T) {
-	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.80,"reasoning":"ok"}`)
+	// LLM coverage_pct (0.99) deliberately differs from the measurement (0.80)
+	// to assert the measurement overrides the model's estimate.
+	e := newAssessExaminer(t, `{"reached":true,"gaps":[],"coverage_pct":0.99,"reasoning":"ok"}`)
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
 	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.80, Unit: "line", Known: true})
 	require.NoError(t, err)
 	assert.True(t, a.Reached)
-	assert.Equal(t, 0.80, a.CoveragePct)
+	assert.Equal(t, 0.80, a.CoveragePct, "measurement overrides LLM coverage_pct")
 }
