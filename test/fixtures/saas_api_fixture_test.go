@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
@@ -21,8 +22,10 @@ import (
 // under the cerberus repo (e.g. test/fixtures itself), which would recurse up
 // to the cerberus module and re-run the whole test suite. See
 // internal/session/coverage.go.
-func stubCoverageFn() func(context.Context, *session.Session) float64 {
-	return func(context.Context, *session.Session) float64 { return 100.0 }
+func stubCoverageFn() func(context.Context, *session.Session) contract.CoverageMeasurement {
+	return func(context.Context, *session.Session) contract.CoverageMeasurement {
+		return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+	}
 }
 
 func TestSaaSAPIFixture(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
@@ -24,8 +25,10 @@ import (
 // smokeCoverageFn is a stub CoverageFn for smoke tests, avoiding real go
 // test/jest/pytest subprocesses when ProjectDir is the cerberus repo under
 // test (which would recurse). See internal/session/coverage.go.
-func smokeCoverageFn() func(context.Context, *session.Session) float64 {
-	return func(context.Context, *session.Session) float64 { return 100.0 }
+func smokeCoverageFn() func(context.Context, *session.Session) contract.CoverageMeasurement {
+	return func(context.Context, *session.Session) contract.CoverageMeasurement {
+		return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+	}
 }
 
 func TestSessionSmokeTest(t *testing.T) {
