@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/memory"
@@ -45,7 +46,9 @@ func TestResumeIdempotency_ConsolidatedAtGuard(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess.ID = "sess-resume-idempotency"
@@ -149,7 +152,9 @@ func TestResumeIdempotency_UsageGuard(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess.ID = "sess-usage-guard"
@@ -235,7 +240,9 @@ func TestResumeIdempotency_EpisodicUniqueness(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess.ID = "sess-episodic-uniq"
@@ -317,7 +324,9 @@ func TestResumePhase_ConsolidateAppliesEffectiveness(t *testing.T) {
 		Logger:     logger,
 		Gate:       nil,
 		ProjectDir: ".",
-		CoverageFn: func(context.Context, *Session) float64 { return 100.0 },
+		CoverageFn: func(context.Context, *Session) contract.CoverageMeasurement {
+			return contract.CoverageMeasurement{Pct: 1.0, Unit: "line", Known: true}
+		},
 	})
 	require.NoError(t, err)
 	sess.ID = "sess-resume-consolidate"

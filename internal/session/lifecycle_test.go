@@ -13,6 +13,7 @@ import (
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
@@ -44,12 +45,17 @@ func testConfig() project.Config {
 // without executing any subprocess. Injected into test sessions to avoid
 // recursively running go test/jest/pytest when ProjectDir is the cerberus repo
 // itself (a module under test). See internal/session/coverage.go.
-func stubCoverageFn(pcts ...float64) func(context.Context, *Session) float64 {
+//
+// pcts is a 0–100 percentage (legacy convention); it is converted to the
+// 0–1 fraction that contract.CoverageMeasurement.Pct expects.
+func stubCoverageFn(pcts ...float64) func(context.Context, *Session) contract.CoverageMeasurement {
 	pct := 100.0
 	if len(pcts) > 0 {
 		pct = pcts[0]
 	}
-	return func(context.Context, *Session) float64 { return pct }
+	return func(context.Context, *Session) contract.CoverageMeasurement {
+		return contract.CoverageMeasurement{Pct: pct / 100, Unit: "line", Known: true}
+	}
 }
 
 // planJSON returns a mock PlanOutput JSON that the LLM mock client
