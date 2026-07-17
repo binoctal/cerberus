@@ -77,6 +77,63 @@ func TestReActLoop_WithActorHeadersMerged(t *testing.T) {
 	assert.False(t, present)
 }
 
+// ReAct path selects the actor whose Service matches tc.Service, mirroring the
+// rule engine — not actors[0].
+func TestReActLoop_WithActorHeadersPerService(t *testing.T) {
+	services := []project.Service{
+		{Name: "a", URL: "http://a"},
+		{Name: "b", URL: "http://b"},
+	}
+	actors := []project.Actor{
+		{Service: "a", Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-a"}}},
+		{Service: "b", Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-b"}}},
+	}
+	engine := NewRuleEngine(services, actors, "")
+	loop := &ReActLoop{engine: engine}
+
+	out := loop.withActorHeaders(TestCase{ID: "t1", Service: "b"}, types.HTTPAction{Method: "GET", URL: "http://b/y"})
+	assert.Equal(t, "Bearer sk-b", out.(types.HTTPAction).Headers["Authorization"])
+
+	// Service "a" does NOT leak actor b's credentials.
+	outA := loop.withActorHeaders(TestCase{ID: "t2", Service: "a"}, types.HTTPAction{Method: "GET", URL: "http://a/y"})
+	assert.Equal(t, "Bearer sk-a", outA.(types.HTTPAction).Headers["Authorization"])
+}
+
+// ReAct path injects X-Test-User from the selected actor's email, matching the
+// rule path (previously dropped on the ReAct path).
+func TestReActLoop_WithActorHeadersInjectsXTestUser(t *testing.T) {
+	services := []project.Service{{Name: "a", URL: "http://a"}}
+	engine := NewRuleEngine(services, []project.Actor{{
+		Service:     "a",
+		Credentials: project.CredentialRef{Email: "u@a"},
+	}}, "")
+	loop := &ReActLoop{engine: engine}
+
+	out := loop.withActorHeaders(TestCase{Service: "a"}, types.HTTPAction{Method: "GET", URL: "http://a/y"})
+	assert.Equal(t, "u@a", out.(types.HTTPAction).Headers["X-Test-User"])
+}
+
+// ReAct path falls back to a global actor (Service == "") when no actor matches
+// tc.Service, then to actors[0] when no global actor exists.
+func TestReActLoop_WithActorHeadersFallbacks(t *testing.T) {
+	services := []project.Service{{Name: "a", URL: "http://a"}}
+	specific := project.Actor{Service: "x", Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-x"}}}
+	global := project.Actor{Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-global"}}}
+
+	// Global-actor fallback: tc.Service matches no actor, but a global actor
+	// exists (and is not actors[0]) — selection must skip the specific actor.
+	engine := NewRuleEngine(services, []project.Actor{specific, global}, "")
+	loop := &ReActLoop{engine: engine}
+	out := loop.withActorHeaders(TestCase{Service: "missing"}, types.HTTPAction{Method: "GET", URL: "http://a/y"})
+	assert.Equal(t, "Bearer sk-global", out.(types.HTTPAction).Headers["Authorization"])
+
+	// actors[0] fallback: no matching actor and no global actor.
+	engine2 := NewRuleEngine(services, []project.Actor{specific}, "")
+	loop2 := &ReActLoop{engine: engine2}
+	out2 := loop2.withActorHeaders(TestCase{Service: "missing"}, types.HTTPAction{Method: "GET", URL: "http://a/y"})
+	assert.Equal(t, "Bearer sk-x", out2.(types.HTTPAction).Headers["Authorization"])
+}
+
 // Non-HTTP actions pass through untouched.
 func TestReActLoop_WithActorHeadersNonHTTP(t *testing.T) {
 	services := []project.Service{{Name: "default", URL: "http://localhost"}}

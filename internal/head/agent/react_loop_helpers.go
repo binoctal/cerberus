@@ -183,25 +183,25 @@ func isNoopWait(action types.TypedAction) bool {
 	return ok && w.Selector == "" && w.WaitForState == ""
 }
 
-// withActorHeaders merges the active actor's Credentials.Headers underneath an
-// HTTP action's own headers (action overrides; empty removes). Non-HTTP
-// actions pass through unchanged. Combined with the executor's service-level
-// TODO: per-service actor for ReAct path (currently uses actors[0]).
-// headers, final priority is service < actor < action.
+// withActorHeaders merges the selected actor's headers underneath an HTTP
+// action's own headers (action overrides; empty removes). Actor selection and
+// the X-Test-User header mirror authHeadersFor on the rule engine, so both
+// paths authenticate identically. Non-HTTP actions pass through unchanged.
+// Combined with withServiceHeaders, final priority is service < actor < action.
 func (r *ReActLoop) withActorHeaders(tc TestCase, action types.TypedAction) types.TypedAction {
-	if r.engine == nil || len(r.engine.actors) == 0 {
+	if r.engine == nil {
 		return action
 	}
-	actor := r.engine.actors[0]
-	if len(actor.Credentials.Headers) == 0 {
+	actorHeaders := r.engine.authHeadersFor(tc)
+	if len(actorHeaders) == 0 {
 		return action
 	}
 	ha, ok := action.(types.HTTPAction)
 	if !ok {
 		return action
 	}
-	merged := make(map[string]string, len(actor.Credentials.Headers)+len(ha.Headers))
-	for k, v := range actor.Credentials.Headers {
+	merged := make(map[string]string, len(actorHeaders)+len(ha.Headers))
+	for k, v := range actorHeaders {
 		merged[k] = v
 	}
 	for k, v := range ha.Headers {

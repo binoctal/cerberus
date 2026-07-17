@@ -86,20 +86,21 @@ func TestReActLoop_WithActorHeadersInjectsXTestUser(t *testing.T) {
 // tc.Service, then to actors[0] when no global actor exists.
 func TestReActLoop_WithActorHeadersFallbacks(t *testing.T) {
 	services := []project.Service{{Name: "a", URL: "http://a"}}
-	first := project.Actor{Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-first"}}}
+	specific := project.Actor{Service: "x", Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-x"}}}
 	global := project.Actor{Credentials: project.CredentialRef{Headers: map[string]string{"Authorization": "Bearer sk-global"}}}
 
-	// Global-actor fallback: tc.Service has no matching actor, but a global actor exists.
-	engine := NewRuleEngine(services, []project.Actor{first, global}, "")
+	// Global-actor fallback: tc.Service matches no actor, but a global actor
+	// exists (and is not actors[0]) — selection must skip the specific actor.
+	engine := NewRuleEngine(services, []project.Actor{specific, global}, "")
 	loop := &ReActLoop{engine: engine}
 	out := loop.withActorHeaders(TestCase{Service: "missing"}, types.HTTPAction{Method: "GET", URL: "http://a/y"})
 	assert.Equal(t, "Bearer sk-global", out.(types.HTTPAction).Headers["Authorization"])
 
 	// actors[0] fallback: no matching actor and no global actor.
-	engine2 := NewRuleEngine(services, []project.Actor{first}, "")
+	engine2 := NewRuleEngine(services, []project.Actor{specific}, "")
 	loop2 := &ReActLoop{engine: engine2}
 	out2 := loop2.withActorHeaders(TestCase{Service: "missing"}, types.HTTPAction{Method: "GET", URL: "http://a/y"})
-	assert.Equal(t, "Bearer sk-first", out2.(types.HTTPAction).Headers["Authorization"])
+	assert.Equal(t, "Bearer sk-x", out2.(types.HTTPAction).Headers["Authorization"])
 }
 ```
 
