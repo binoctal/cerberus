@@ -28,6 +28,25 @@ func TestGoCoverage_RunCoverage_ParsesProfile(t *testing.T) {
 	assert.Equal(t, 0, rep.Profile[1].Count) // uncovered
 }
 
+// RunCoverage surfaces a runner error as its own error, unwrapped for the
+// caller to inspect via errors.Is/As on the inner cause.
+func TestGoCoverage_RunCoverage_RunnerError(t *testing.T) {
+	p := NewGoCoverageProvider(func(_ context.Context, _ string) ([]byte, error) {
+		return nil, assert.AnError
+	}, nil)
+	_, err := p.RunCoverage(context.Background(), ".")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "coverage run failed")
+}
+
+// A provider built without a runner refuses to run rather than nil-deref'ing.
+func TestGoCoverage_RunCoverage_NilRunner(t *testing.T) {
+	p := NewGoCoverageProvider(nil, nil)
+	_, err := p.RunCoverage(context.Background(), ".")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "coverage runner not configured")
+}
+
 func TestGoCoverage_Gaps_ZeroCover(t *testing.T) {
 	p := NewGoCoverageProvider(nil, nil)
 	rep := &CoverageReport{Profile: []CoverageLine{
