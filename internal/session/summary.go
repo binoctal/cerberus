@@ -58,16 +58,35 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		DurationMs:        elapsed.Milliseconds(),
 	}
 
-	for _, r := range results {
-		switch r.Status {
-		case agent.StepPassed:
-			s.Passed++
-		case agent.StepFailed:
-			s.Failed++
-		case agent.StepSkipped:
-			s.Skipped++
-		case agent.StepUncertain:
-			s.Uncertain++
+	// Count final outcomes. Prefer examiner verdicts — the final judgment
+	// reflects correctness adjustments (e.g. pass→uncertain) that raw step
+	// status lacks, and these counts feed user-facing reports. Fall back to
+	// step status only when the Examiner didn't run (no verdicts).
+	if len(verdicts) > 0 {
+		for _, v := range verdicts {
+			switch v.Status {
+			case examiner.StatusPass:
+				s.Passed++
+			case examiner.StatusFail:
+				s.Failed++
+			case examiner.StatusSkip:
+				s.Skipped++
+			case examiner.StatusUncertain:
+				s.Uncertain++
+			}
+		}
+	} else {
+		for _, r := range results {
+			switch r.Status {
+			case agent.StepPassed:
+				s.Passed++
+			case agent.StepFailed:
+				s.Failed++
+			case agent.StepSkipped:
+				s.Skipped++
+			case agent.StepUncertain:
+				s.Uncertain++
+			}
 		}
 	}
 

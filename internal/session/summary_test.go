@@ -38,6 +38,21 @@ func TestSessionSummary_FromResults(t *testing.T) {
 	assert.InDelta(t, 50.0, summary.CoveragePct, 0.01) // 2 passed / 4 total * 100
 }
 
+func TestSessionSummary_FromResults_PrefersVerdictStatus(t *testing.T) {
+	// Agent executed pass, but Examiner downgraded to uncertain (low
+	// correctness). The summary must reflect the final verdict, not the raw
+	// step status — otherwise reports undercount uncertain verdicts.
+	results := []agent.StepResult{
+		{TestCase: &agent.TestCase{ID: "tc-001"}, Status: agent.StepPassed},
+	}
+	verdicts := []examiner.FinalVerdict{
+		{Status: examiner.StatusUncertain, StepResult: results[0]},
+	}
+	summary := FromResults("g", "", 1, results, verdicts, 0, 0, 0)
+	assert.Equal(t, 0, summary.Passed, "verdict uncertain overrides step pass")
+	assert.Equal(t, 1, summary.Uncertain)
+}
+
 func TestSessionSummary_String(t *testing.T) {
 	summary := &SessionSummary{
 		Passed:            10,
