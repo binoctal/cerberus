@@ -2,7 +2,7 @@
 -- Based on known issues from BUG-001 (Provider interface detection)
 
 -- Known Issue 1: Provider interface false positive
-INSERT INTO known_issues (
+INSERT OR IGNORE INTO known_issues (
     issue_type, file_path, line_number, description,
     is_false_positive, verified_by, verified_at, verification_notes,
     related_bug_id
@@ -19,7 +19,7 @@ INSERT INTO known_issues (
 );
 
 -- Known Issue 2: Real complexity issue
-INSERT INTO known_issues (
+INSERT OR IGNORE INTO known_issues (
     issue_type, file_path, line_number, description,
     is_false_positive, verified_by, verified_at, verification_notes
 ) VALUES (
@@ -34,7 +34,7 @@ INSERT INTO known_issues (
 );
 
 -- Known Issue 3: Real file length issue
-INSERT INTO known_issues (
+INSERT OR IGNORE INTO known_issues (
     issue_type, file_path, line_number, description,
     is_false_positive, verified_by, verified_at, verification_notes
 ) VALUES (
@@ -49,7 +49,7 @@ INSERT INTO known_issues (
 );
 
 -- Regression Test 1: BUG-001 - Provider interface detection (positive)
-INSERT INTO regression_tests (
+INSERT OR IGNORE INTO regression_tests (
     name, bug_id, category, test_type,
     description, file_path, interface_name,
     expected_result, notes
@@ -66,7 +66,7 @@ INSERT INTO regression_tests (
 );
 
 -- Regression Test 2: BUG-001 - Negative test
-INSERT INTO regression_tests (
+INSERT OR IGNORE INTO regression_tests (
     name, bug_id, category, test_type,
     description, expected_result, notes
 ) VALUES (
@@ -80,7 +80,7 @@ INSERT INTO regression_tests (
 );
 
 -- Regression Test 3: Complexity - main.go function complexity
-INSERT INTO regression_tests (
+INSERT OR IGNORE INTO regression_tests (
     name, category, test_type,
     description, file_path,
     expected_result, notes
@@ -95,7 +95,7 @@ INSERT INTO regression_tests (
 );
 
 -- Regression Test 4: File length - main.go
-INSERT INTO regression_tests (
+INSERT OR IGNORE INTO regression_tests (
     name, category, test_type,
     description, file_path,
     expected_result, notes
@@ -110,7 +110,7 @@ INSERT INTO regression_tests (
 );
 
 -- Bug Record 1
-INSERT INTO bug_tracker (
+INSERT OR IGNORE INTO bug_tracker (
     bug_id, title, description, severity, category,
     affected_component, status, root_cause
 ) VALUES (
@@ -125,7 +125,7 @@ INSERT INTO bug_tracker (
 );
 
 -- Initial accuracy report (baseline)
-INSERT INTO accuracy_reports (
+INSERT OR IGNORE INTO accuracy_reports (
     run_id, timestamp, project_path,
     total_issues, true_positives, false_positives, true_negatives,
     overall_accuracy, complexity_accuracy, abstraction_accuracy, solid_accuracy,
