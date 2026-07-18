@@ -6,6 +6,17 @@ Scope: `internal/` + `cmd/`. Method: `go test -cover` per package, `go tool cove
 
 The codebase is in good shape: no oversized files (max 450 LOC), only 2 `panic()` calls (both legitimate — registry lookup at init, constructor arg validation), tests green, and coverage is genuinely high after correcting one tooling artifact. The single most actionable finding is a **coverage-reporting artifact**, not a code defect.
 
+**Trustworthy project-wide coverage: 72.8%** (`make coverage`, which uses `go test -coverprofile` + `go tool cover -func`). Use this number, not per-package `go test -cover` lines.
+
+## Resolution (2026-07-18, same day)
+
+All four findings investigated and closed:
+
+- **P0 — no code change needed.** `make coverage` already derives totals from `go tool cover -func` over a merged `-coverprofile`; it reports the correct 72.8%. The 0.0% artifact only appears when someone runs `go test -cover ./pkg` directly (which reads the inline summary line). The project's own tooling is correct; the pitfall is documented in cccmemory (`go126-cover-display-bug`).
+- **P1 — partially closed.** `GoCoverageProvider.RunCoverage` was already covered on its success path; this pass added the two error branches (nil runner, runner error) → RunCoverage now at 90% (`9a39944`). `DefaultGoCoverageRunner` (a 3-line `exec` shell-out) and the Node/Python/Mocha `RunCoverage` methods remain at 0% — these are integration boundaries needing real runtimes and stay in the backlog.
+- **P2 — no leak found.** Both goroutines use buffered channels plus a timeout branch that actively unblocks the blocked operation (`process_mgr`: `Kill()` guarantees `cmd.Wait()` returns; `mcp_exec_stdio`: `closeStdioLocked` closes stdin + kills + waits so `ReadBytes` returns). No code change.
+- **P3 — the one genuine TODO was already fixed today** (`4e1cc7b`, ReAct per-service actor).
+
 ## P0 — `go test -cover` misreports `internal/ai` as 0.0%
 
 `go test -cover ./internal/ai/` prints `coverage: 0.0%`, yet the generated profile is valid and `go tool cover -func` reports **86.8%**. The package has 99 passing tests across 18 test files; this is a Go 1.26 display/aggregation artifact (path mismatch between the cover summary and the profile), not missing tests.
