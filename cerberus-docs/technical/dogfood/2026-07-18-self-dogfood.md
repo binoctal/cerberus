@@ -44,6 +44,12 @@ Verdicts: 7 pass, 0 fail, 1 skip   |   ~7K tokens   |   52s
 
 Agent exercised `file_exists`, `file_glob`, `process_exec` (`go test`, `go vet`, `go build ./...`, `go test ./...`) — read-only + command execution, no source files written (auto-test-safety off). Rule engine hit rate 43% (3 hits / 4 misses). Reflexion stored 6 reflections.
 
+## Resolution (2026-07-18)
+
+- **Finding 1 — fixed** (`4f97620`): V009 seed made idempotent.
+- **Finding 2 — not a bug.** `actionFromEnvelope` is designed to fall back when an LLM action fails `Validate` (its docstring says this is common with non-Claude models and that aborting would skip the target — worse than retrying with a safe default). The warn log is the expected signal that fallback fired, not a defect. No change.
+- **Finding 3 — fixed** (`da1624f`). Root cause: `summary.FromResults` counted pass/fail/skip/uncertain from the agent's raw `StepResult.Status`, but the summary fields (and the HTML/markdown/junit reports built on them) are presented as final verdicts. The Examiner downgrades a correctly-executed step to `uncertain` on low correctness; those were silently counted as `pass`, so reports undercounted uncertain. `FromResults` now counts from `FinalVerdict.Status` when verdicts exist, falling back to step status only when the Examiner didn't run. Covered by `TestSessionSummary_FromResults_PrefersVerdictStatus`.
+
 ## Confirmed
 
 - cerberus starts, migrates, plans (8 cases), executes (ReAct steer loop), judges (Examiner), and persists — end-to-end on a real LLM against its own code.
