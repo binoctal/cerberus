@@ -72,7 +72,7 @@ func coverageForSession(ctx context.Context, sess *Session) contract.CoverageMea
 	}
 
 	lang := autotest.DetectLanguage(sourceFile, markers)
-	provider := autotest.NewCoverageProviderForLanguage(lang, autotest.DefaultGoCoverageRunner, sess.Logger)
+	provider := autotest.NewCoverageProviderForLanguage(lang, nil, sess.Logger)
 	report, err := provider.RunCoverage(ctx, sess.ProjectDir)
 	if err != nil || report == nil {
 		return contract.CoverageMeasurement{Known: false}

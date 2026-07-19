@@ -7,25 +7,24 @@ import (
 )
 
 // NewCoverageProviderForLanguage creates the correct coverage provider for a
-// detected language. Reused by AutoTest (run_phases_autotest) and the
-// Examiner coverage step (run_phases_examiner).
-//
-// For Go: pass a coverageRunner func(ctx, projectDir) ([]byte, error).
-// For Node/Python: pass nil runner (providers use CoverageConfig with embedded logic).
-func NewCoverageProviderForLanguage(lang string, runner interface{}, logger *zap.Logger) CoverageProvider {
+// detected language. Reused by AutoTest (run_phases_autotest) and the Examiner
+// coverage step (coverage.go). Pass nil runner to use each language's Default.
+func NewCoverageProviderForLanguage(lang string, runner func(context.Context, string) ([]byte, error), logger *zap.Logger) CoverageProvider {
 	switch lang {
 	case "node":
-		return NewNodeCoverageProvider(DefaultNodeCoverageConfig(), DefaultNodeCoverageRunner, logger)
+		if runner == nil {
+			runner = DefaultNodeCoverageRunner
+		}
+		return NewNodeCoverageProvider(DefaultNodeCoverageConfig(), runner, logger)
 	case "python":
-		return NewPythonCoverageProvider(DefaultPythonCoverageConfig(), DefaultPythonCoverageRunner, logger)
+		if runner == nil {
+			runner = DefaultPythonCoverageRunner
+		}
+		return NewPythonCoverageProvider(DefaultPythonCoverageConfig(), runner, logger)
 	default: // "go" or fallback
 		if runner == nil {
 			runner = DefaultGoCoverageRunner
 		}
-		if cr, ok := runner.(func(context.Context, string) ([]byte, error)); ok {
-			return NewGoCoverageProvider(cr, logger)
-		}
-		// Fallback to default runner
-		return NewGoCoverageProvider(DefaultGoCoverageRunner, logger)
+		return NewGoCoverageProvider(runner, logger)
 	}
 }

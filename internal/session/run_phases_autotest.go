@@ -50,7 +50,7 @@ func (rp *runPhase) executeAutoTestPhase() {
 	var gen autotest.TestGenerator
 
 	lang := autotest.DetectLanguage(sourceFile, markers)
-	cov = autotest.NewCoverageProviderForLanguage(lang, autotest.DefaultGoCoverageRunner, rp.session.Logger)
+	cov = autotest.NewCoverageProviderForLanguage(lang, nil, rp.session.Logger)
 
 	// Create test generator (still language-specific)
 	switch lang {
