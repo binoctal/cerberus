@@ -62,12 +62,13 @@ Reference implementation: `GoCoverageProvider` in `coverage_go.go` — already e
 - `DefaultPythonCoverageRunner`: keep (returns JSON bytes); now wired as default.
 - `RunCoverage`: `nil-check → p.run → p.parseJSONCoverage → set Pass/Unit`.
 - **Decision D1 (see below):** remove `parseCoverageData` (the JSON→SQLite fallback) and `parseSQLiteCoverage`. The injected runner guarantees JSON, so the fallback has no trigger and no test.
-- **Decision D2 (see below):** the 5 exec helpers (`determinePythonCommand`, `buildPythonTestCommand`, `applyTimeout`, `executeTestCommand`, `generateCoverageReport`) serve only the old inline-exec model. Delete the four exec-flow helpers; keep `determinePythonCommand` (cross-platform `python3`/`python` selection) and call it inside `DefaultPythonCoverageRunner`.
+- **Decision D2 (see below):** delete the entire `coverage_python_run_helpers.go` (`pythonCmdContext` + all five helpers, including `determinePythonCommand`). `DefaultPythonCoverageRunner` uses the `coverage` CLI directly and needs none of them.
 
 **Mocha**
 - Same structural change.
 - **Add** `DefaultMochaCoverageRunner` (mirror Node: tmpdir + `npm test` + read Istanbul JSON).
 - `RunCoverage`: delete inline exec → `p.run → p.parseIstanbulCoverage → set Pass/Unit`.
+- **Not factory-routed:** `DetectLanguage` never returns `"mocha"`, so `NewCoverageProviderForLanguage` has no mocha case and `DefaultMochaCoverageRunner` isn't called in production. It exists for symmetry with Node/Python and to make `RunCoverage` testable.
 
 ### `provider_factory.go` unification
 
@@ -80,7 +81,7 @@ Today `NewCoverageProviderForLanguage(lang, runner interface{}, logger)` accepts
 ### Decisions requiring confirmation
 
 - **D1 — Remove Python SQLite fallback.** `parseCoverageData` + `parseSQLiteCoverage` (both 0%, untested) are deleted. Rationale: the injected runner always produces JSON; the SQLite path existed only as a recovery when JSON wasn't generated, which can't happen under the new model. This is a **capability removal** — the only behavior change in the refactor. If keeping SQLite support matters, the alternative is to make the runner return a discriminated `{JSON bytes | SQLite path}`, rejected here as over-engineered.
-- **D2 — Delete the four Python exec-flow helpers**, keep `determinePythonCommand` inside the Default runner. They become dead code once `RunCoverage` stops inlining exec.
+- **D2 — Delete the entire `coverage_python_run_helpers.go`** (`pythonCmdContext` + `determinePythonCommand` + `buildPythonTestCommand` + `applyTimeout` + `executeTestCommand` + `generateCoverageReport`). All become dead code once `RunCoverage` stops inlining exec; `DefaultPythonCoverageRunner` uses the `coverage` CLI and needs none of them.
 - **D3 — Factory owns Default-runner selection** (callers pass `nil`), rather than callers passing per-language runners. Keeps session code simple; matches Go's existing "default if nil" pattern.
 
 ## Testing
@@ -90,15 +91,12 @@ Today `NewCoverageProviderForLanguage(lang, runner interface{}, logger)` accepts
 For each provider's `RunCoverage`:
 1. `config == nil` → error.
 2. `p.run == nil` → error (matches Go's nil-runner guard).
-3. `run` returns `error` → wrapped error.
+3. `run` returns `error` → wrapped error. (Timeout is one such error — the runner owns `ctx`, so `RunCoverage` has no separate timeout branch, matching Go.)
 4. `run` returns valid coverage JSON (reuse existing parse-test fixtures) → success, `Pass == true`, `TotalFuncs`/`CoveredFuncs` populated correctly.
 5. `run` returns garbage bytes → parse error.
 
-Node / Mocha additionally:
-6. `run` returns a `context.DeadlineExceeded`-wrapped error → timeout error path.
-
 Python additionally:
-7. `parseJSONCoverage` happy path is already 100% via `coverage_python_test.go`; the new test reuses its fixture JSON as the mock-runner return value.
+6. `parseJSONCoverage` happy path is already 100% via `coverage_python_test.go`; the new test reuses its fixture JSON as the mock-runner return value.
 
 ### Default-runner end-to-end (skip-if-no-toolchain)
 
