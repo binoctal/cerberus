@@ -46,7 +46,7 @@ func CreateProvider(typ ProjectType, driver interface{}, cfg *CoverageConfig) (C
 		}
 		return NewMochaCoverageProvider(cfg), NewMochaTestGenerator(driver), nil
 	case ProjectTypePython:
-		return NewPythonCoverageProvider(cfg), NewPythonTestGenerator(driver), nil
+		return NewPythonCoverageProvider(cfg, DefaultPythonCoverageRunner, nil), NewPythonTestGenerator(driver), nil
 	default:
 		return nil, nil, fmt.Errorf("unsupported project type: %s", typ)
 	}

@@ -17,7 +17,7 @@ func NewCoverageProviderForLanguage(lang string, runner interface{}, logger *zap
 	case "node":
 		return NewNodeCoverageProvider(DefaultNodeCoverageConfig(), DefaultNodeCoverageRunner, logger)
 	case "python":
-		return NewPythonCoverageProvider(DefaultPythonCoverageConfig())
+		return NewPythonCoverageProvider(DefaultPythonCoverageConfig(), DefaultPythonCoverageRunner, logger)
 	default: // "go" or fallback
 		if runner == nil {
 			runner = DefaultGoCoverageRunner

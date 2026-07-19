@@ -50,7 +50,7 @@ func TestMochaParseIstanbulCoverage(t *testing.T) {
 
 // Python provider: new coverage.py format with executed_lines/missing_lines.
 func TestPythonParseJSONCoverage_NewFormat(t *testing.T) {
-	p := NewPythonCoverageProvider(nil)
+	p := NewPythonCoverageProvider(nil, nil, nil)
 	data := []byte(`{"files":{"foo.py":{"executed_lines":[1,2],"missing_lines":[3]}}}`)
 	rep, err := p.parseJSONCoverage(data)
 	require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestPythonParseJSONCoverage_NewFormat(t *testing.T) {
 
 // Python provider: legacy format with a lines map (line number string → count).
 func TestPythonParseJSONCoverage_LegacyFormat(t *testing.T) {
-	p := NewPythonCoverageProvider(nil)
+	p := NewPythonCoverageProvider(nil, nil, nil)
 	data := []byte(`{"files":{"foo.py":{"lines":{"1":1,"2":0}}}}`)
 	rep, err := p.parseJSONCoverage(data)
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func TestPythonParseJSONCoverage_LegacyFormat(t *testing.T) {
 
 // Python provider surfaces malformed JSON as an error.
 func TestPythonParseJSONCoverage_BadJSON(t *testing.T) {
-	p := NewPythonCoverageProvider(nil)
+	p := NewPythonCoverageProvider(nil, nil, nil)
 	_, err := p.parseJSONCoverage([]byte("{not json"))
 	require.Error(t, err)
 }

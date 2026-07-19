@@ -5,6 +5,7 @@ import "go.uber.org/zap"
 // PythonCoverageProvider implements CoverageProvider for Python pytest+coverage.py projects
 type PythonCoverageProvider struct {
 	config *CoverageConfig
+	run    coverageRunner
 	logger *zap.Logger
 }
 

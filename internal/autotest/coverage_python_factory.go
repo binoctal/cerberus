@@ -9,29 +9,25 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewPythonCoverageProvider creates a new Python coverage provider
-func NewPythonCoverageProvider(cfg *CoverageConfig) *PythonCoverageProvider {
-	return &PythonCoverageProvider{
-		config: cfg,
-		logger: zap.NewNop(),
+// NewPythonCoverageProvider creates a new Python coverage provider. Pass nil run
+// for the nil-runner guard (tests); the factory wires the real default.
+func NewPythonCoverageProvider(cfg *CoverageConfig, run coverageRunner, logger *zap.Logger) *PythonCoverageProvider {
+	if logger == nil {
+		logger = zap.NewNop()
 	}
+	return &PythonCoverageProvider{config: cfg, run: run, logger: logger}
 }
 
-// DefaultPythonCoverageRunner runs pytest with coverage and returns JSON report
+// DefaultPythonCoverageRunner runs pytest with coverage and returns the JSON
+// report bytes. Mirrors DefaultPythonCoverageConfig: `pytest --cov
+// --cov-report=term --cov-report=json:coverage.json`, reading the project-local
+// coverage.json. pytest returns non-zero on test failure but still writes the
+// report.
 func DefaultPythonCoverageRunner(ctx context.Context, projectDir string) ([]byte, error) {
-	tmp, err := os.MkdirTemp("", "cerberus-python-cover-")
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = os.RemoveAll(tmp) }()
-
-	out := filepath.Join(tmp, "coverage.json")
-	cmd := exec.CommandContext(ctx, "coverage", "run", "-m", "pytest", "--cov-report=json:"+out)
+	cmd := exec.CommandContext(ctx, "pytest", "--cov", "--cov-report=term", "--cov-report=json:coverage.json")
 	cmd.Dir = projectDir
-
 	if runErr := cmd.Run(); runErr != nil {
-		_ = runErr // Coverage report might still exist
+		_ = runErr // report may still exist
 	}
-
-	return os.ReadFile(out)
+	return os.ReadFile(filepath.Join(projectDir, "coverage.json"))
 }
