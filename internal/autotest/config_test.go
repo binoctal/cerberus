@@ -38,11 +38,3 @@ func TestNodeCoverageConfig_Custom(t *testing.T) {
 	assert.Equal(t, 2*time.Minute, cfg.Timeout)
 	assert.Equal(t, ProjectTypeNode, cfg.ProjectType)
 }
-
-func TestPythonCoverageConfig_Custom(t *testing.T) {
-	cfg := PythonCoverageConfig("python3", "cov.json", 3*time.Minute)
-	assert.Equal(t, "cov.json", cfg.OutputPath)
-	assert.Equal(t, ".coverage", cfg.DatabasePath)
-	assert.Equal(t, 3*time.Minute, cfg.Timeout)
-	assert.Equal(t, ProjectTypePython, cfg.ProjectType)
-}

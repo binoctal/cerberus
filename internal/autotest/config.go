@@ -70,16 +70,3 @@ func NodeCoverageConfig(testCommand []string, outputPath string, timeout time.Du
 		ProjectType:  ProjectTypeNode,
 	}
 }
-
-// PythonCoverageConfig creates custom Python configuration
-func PythonCoverageConfig(pythonCmd string, outputPath string, timeout time.Duration) *CoverageConfig {
-	return &CoverageConfig{
-		TestCommand:  []string{"coverage", "run", "-m", "pytest"},
-		CoverageArgs: []string{"report", "--json", "-o", outputPath},
-		OutputPath:   outputPath,
-		DatabasePath: ".coverage",
-		Timeout:      timeout,
-		Env:          nil,
-		ProjectType:  ProjectTypePython,
-	}
-}
