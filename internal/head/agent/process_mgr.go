@@ -101,6 +101,11 @@ func (pm *ProcessManager) stopLocked(name string) error {
 	} else {
 		// Wait up to 5 seconds for graceful shutdown.
 		done := make(chan error, 1)
+		// Lifecycle: this goroutine exits when cmd.Wait returns (process
+		// exited). On the 5s-timeout branch below, SIGKILL guarantees the
+		// process exits and Wait returns, so the goroutine never leaks. done
+		// is buffered (cap 1) so the send never blocks even after the select
+		// has already moved on.
 		go func() {
 			done <- mp.cmd.Wait()
 		}()

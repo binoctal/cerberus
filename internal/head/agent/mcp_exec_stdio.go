@@ -59,6 +59,11 @@ func (e *MCPExecutor) sendStdio(ctx context.Context, ep MCPEndpoint, body []byte
 		err  error
 	}
 	ch := make(chan readResult, 1)
+	// Lifecycle: this goroutine exits when ReadBytes returns. On the timeout
+	// branch below, closeStdioLocked kills the process and closes stdin,
+	// which closes the stdout pipe and unblocks ReadBytes (EOF), so the
+	// goroutine never leaks. ch is buffered (cap 1) so the send never blocks
+	// after the select has already timed out.
 	go func() {
 		data, err := conn.stdout.ReadBytes('\n')
 		ch <- readResult{data: data, err: err}
