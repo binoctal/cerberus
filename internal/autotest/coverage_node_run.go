@@ -8,7 +8,7 @@ import (
 )
 
 // RunCoverage invokes the injected runner and parses the returned Jest JSON.
-// The runner owns exec, timeout, and reading the coverage file.
+// The runner owns exec and reading the coverage file; timeout is the caller's responsibility via ctx.
 func (p *NodeCoverageProvider) RunCoverage(ctx context.Context, projectDir string) (*CoverageReport, error) {
 	if p.config == nil {
 		return nil, fmt.Errorf("node coverage: config not set")

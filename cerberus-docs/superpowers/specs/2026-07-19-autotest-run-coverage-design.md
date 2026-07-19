@@ -118,6 +118,8 @@ The actual shell command each Default runner executes must match what the old in
 | Python | `coverage run -m pytest` (+ json report via helpers) | `coverage run -m pytest --cov-report=json:<tmp>` | yes |
 | Mocha | `npm test` (+ istanbul json) | new `DefaultMochaCoverageRunner`: `npm test` (+ istanbul json to tmp) | yes (newly unified) |
 
+**Timeout/Env are no longer applied by the Default runners.** The old inline `RunCoverage` paths wrapped exec in `context.WithTimeout(ctx, config.Timeout)` (5min) and injected `config.Env` (e.g. `NODE_ENV=test` for Node/Mocha). The new `DefaultXxxCoverageRunner` functions apply neither — they use the caller's `ctx` as-is and inherit the process environment. This matches `DefaultGoCoverageRunner`. Callers that need a timeout must supply it via the `ctx` they pass in. This is an intentional symmetry change, not a regression in the default path.
+
 Only divergence: Python D1 (SQLite fallback removed).
 
 ## Risks

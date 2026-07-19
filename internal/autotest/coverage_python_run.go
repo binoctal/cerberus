@@ -8,8 +8,8 @@ import (
 )
 
 // RunCoverage invokes the injected runner and parses the returned coverage.py JSON.
-// The runner owns exec, timeout, and reading the coverage file. SQLite fallback
-// was removed: the runner guarantees JSON output.
+// The runner owns exec and reading the coverage file; timeout is the caller's responsibility via ctx.
+// SQLite fallback was removed: the runner guarantees JSON output.
 func (p *PythonCoverageProvider) RunCoverage(ctx context.Context, projectDir string) (*CoverageReport, error) {
 	if p.config == nil {
 		return nil, fmt.Errorf("python coverage: config not set")
