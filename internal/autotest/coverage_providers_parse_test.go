@@ -41,7 +41,7 @@ func TestNodeParseJestCoverage_BadJSON(t *testing.T) {
 
 // Mocha provider parses Istanbul JSON, which is the same format as Jest.
 func TestMochaParseIstanbulCoverage(t *testing.T) {
-	p := NewMochaCoverageProvider(nil)
+	p := NewMochaCoverageProvider(nil, nil, nil)
 	rep, err := p.parseIstanbulCoverage([]byte(jestFixture))
 	require.NoError(t, err)
 	assert.Equal(t, 2, rep.TotalFuncs)

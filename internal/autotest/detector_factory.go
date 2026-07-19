@@ -44,7 +44,7 @@ func CreateProvider(typ ProjectType, driver interface{}, cfg *CoverageConfig) (C
 		if cfg == nil {
 			cfg = DefaultMochaCoverageConfig()
 		}
-		return NewMochaCoverageProvider(cfg), NewMochaTestGenerator(driver), nil
+		return NewMochaCoverageProvider(cfg, DefaultMochaCoverageRunner, nil), NewMochaTestGenerator(driver), nil
 	case ProjectTypePython:
 		return NewPythonCoverageProvider(cfg, DefaultPythonCoverageRunner, nil), NewPythonTestGenerator(driver), nil
 	default:
