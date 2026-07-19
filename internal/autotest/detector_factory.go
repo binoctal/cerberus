@@ -39,7 +39,7 @@ func CreateProvider(typ ProjectType, driver interface{}, cfg *CoverageConfig) (C
 		// This will be handled by the existing code path
 		return nil, nil, fmt.Errorf("go provider should use existing path")
 	case ProjectTypeNode:
-		return NewNodeCoverageProvider(cfg), NewNodeTestGenerator(driver), nil
+		return NewNodeCoverageProvider(cfg, DefaultNodeCoverageRunner, nil), NewNodeTestGenerator(driver), nil
 	case ProjectTypeMocha:
 		if cfg == nil {
 			cfg = DefaultMochaCoverageConfig()

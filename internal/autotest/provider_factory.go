@@ -15,7 +15,7 @@ import (
 func NewCoverageProviderForLanguage(lang string, runner interface{}, logger *zap.Logger) CoverageProvider {
 	switch lang {
 	case "node":
-		return NewNodeCoverageProvider(DefaultNodeCoverageConfig())
+		return NewNodeCoverageProvider(DefaultNodeCoverageConfig(), DefaultNodeCoverageRunner, logger)
 	case "python":
 		return NewPythonCoverageProvider(DefaultPythonCoverageConfig())
 	default: // "go" or fallback

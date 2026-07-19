@@ -21,7 +21,7 @@ const jestFixture = `{
 
 // Node provider parses Jest JSON: two statements, one covered → 1/2.
 func TestNodeParseJestCoverage(t *testing.T) {
-	p := NewNodeCoverageProvider(nil)
+	p := NewNodeCoverageProvider(nil, nil, nil)
 	rep, err := p.parseJestCoverage([]byte(jestFixture))
 	require.NoError(t, err)
 	assert.Equal(t, 2, rep.TotalFuncs)
@@ -34,7 +34,7 @@ func TestNodeParseJestCoverage(t *testing.T) {
 
 // Node provider surfaces malformed JSON as an error.
 func TestNodeParseJestCoverage_BadJSON(t *testing.T) {
-	p := NewNodeCoverageProvider(nil)
+	p := NewNodeCoverageProvider(nil, nil, nil)
 	_, err := p.parseJestCoverage([]byte("{not json"))
 	require.Error(t, err)
 }

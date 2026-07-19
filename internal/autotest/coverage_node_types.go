@@ -5,6 +5,7 @@ import "go.uber.org/zap"
 // NodeCoverageProvider implements CoverageProvider for Node.js Jest projects
 type NodeCoverageProvider struct {
 	config *CoverageConfig
+	run    coverageRunner
 	logger *zap.Logger
 }
 
