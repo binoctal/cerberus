@@ -1,6 +1,9 @@
 package project
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateProtocol(t *testing.T) {
 	actor := Actor{Name: "web"}
@@ -43,5 +46,38 @@ func TestValidateIntegrationRejectsBadProtocol(t *testing.T) {
 	err := cfg.Validate()
 	if err == nil {
 		t.Fatal("want validation error for text framing")
+	}
+}
+
+func TestValidateProtocolRoles(t *testing.T) {
+	actor := Actor{Name: "web"}
+	cases := []struct {
+		name    string
+		p       *Protocol
+		wantErr string
+	}{
+		{name: "role ok", p: &Protocol{Auth: &ProtocolAuth{Strategy: "query", Param: "token"},
+			Roles: map[string]*ProtocolRole{"web": {CredentialRef: "web", Params: map[string]string{"type": "web"}}}},
+			wantErr: ""},
+		{name: "role credential_ref missing actor", p: &Protocol{Roles: map[string]*ProtocolRole{"web": {CredentialRef: "ghost"}}},
+			wantErr: "credential_ref"},
+		{name: "role param collides with auth.param", p: &Protocol{Auth: &ProtocolAuth{Strategy: "query", Param: "token"},
+			Roles: map[string]*ProtocolRole{"web": {Params: map[string]string{"token": "x"}}}},
+			wantErr: "auth.param"},
+		{name: "handshake missing await_type", p: &Protocol{Roles: map[string]*ProtocolRole{"web": {Handshake: &RoleHandshake{Timeout: 5}}}},
+			wantErr: "await_type"},
+		{name: "handshake timeout zero", p: &Protocol{Roles: map[string]*ProtocolRole{"web": {Handshake: &RoleHandshake{AwaitType: "x", Timeout: 0}}}},
+			wantErr: "timeout"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateProtocol(tc.p, []Actor{actor})
+			if tc.wantErr == "" && err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Fatalf("want err containing %q, got %v", tc.wantErr, err)
+			}
+		})
 	}
 }

@@ -39,6 +39,33 @@ func ValidateProtocol(p *Protocol, actors []Actor) error {
 			}
 		}
 	}
+	for name, role := range p.Roles {
+		if role.CredentialRef != "" {
+			found := false
+			for _, a := range actors {
+				if a.Name == role.CredentialRef {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("roles[%q].credential_ref %q does not match any actor", name, role.CredentialRef)
+			}
+		}
+		for k := range role.Params {
+			if p.Auth != nil && k == p.Auth.Param {
+				return fmt.Errorf("roles[%q].params[%q] collides with auth.param (token slot)", name, k)
+			}
+		}
+		if role.Handshake != nil {
+			if role.Handshake.AwaitType == "" {
+				return fmt.Errorf("roles[%q].handshake.await_type is required", name)
+			}
+			if role.Handshake.Timeout <= 0 {
+				return fmt.Errorf("roles[%q].handshake.timeout must be > 0", name)
+			}
+		}
+	}
 	return nil
 }
 
