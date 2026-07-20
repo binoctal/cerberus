@@ -27,7 +27,11 @@ func (r WSResult) Summary() string {
 	if !r.OK {
 		status = "error"
 	}
-	return fmt.Sprintf("ws %s %s (%d msgs, %s)", status, r.URL, len(r.Messages), r.Latency)
+	matched := 0
+	if r.MatchedMessage != "" {
+		matched = 1
+	}
+	return fmt.Sprintf("ws %s %s (matched=%d seen=%d, %s)", status, r.URL, matched, len(r.SeenMessages), r.Latency)
 }
 func (r WSResult) Evidence() EvidenceData {
 	var all []string

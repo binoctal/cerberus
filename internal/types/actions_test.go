@@ -39,6 +39,8 @@ func TestValidate_HappyPath(t *testing.T) {
 		{"GraphQLQueryAction", GraphQLQueryAction{URL: "http://api/graphql", Query: "{ users { id } }"}},
 		{"WSConnectAction", WSConnectAction{URL: "ws://example.com/ws"}},
 		{"WSSendAction", WSSendAction{ConnectionID: "c1", Message: "hello"}},
+		{"WSReceiveAction", WSReceiveAction{ConnectionID: "c1", Type: "response"}},
+		{"WSDisconnectAction", WSDisconnectAction{ConnectionID: "c1"}},
 	}
 
 	for _, tt := range tests {
@@ -83,6 +85,9 @@ func TestValidate_Errors(t *testing.T) {
 		{"WSConnectAction missing url", WSConnectAction{}, "url is required"},
 		{"WSSendAction missing connection_id", WSSendAction{Message: "hi"}, "connection_id is required"},
 		{"WSSendAction missing message", WSSendAction{ConnectionID: "c1"}, "message is required"},
+		{"WSReceiveAction missing connection_id", WSReceiveAction{Type: "response"}, "connection_id is required"},
+		{"WSReceiveAction missing type", WSReceiveAction{ConnectionID: "c1"}, "type is required"},
+		{"WSDisconnectAction missing connection_id", WSDisconnectAction{}, "connection_id is required"},
 	}
 
 	for _, tt := range tests {
@@ -123,6 +128,8 @@ func TestGetActionType(t *testing.T) {
 		{GraphQLQueryAction{}, ActionGraphQLQuery},
 		{WSConnectAction{}, ActionWSConnect},
 		{WSSendAction{}, ActionWSSend},
+		{WSReceiveAction{}, ActionWSReceive},
+		{WSDisconnectAction{}, ActionWSDisconnect},
 	}
 
 	for _, tt := range tests {
@@ -172,6 +179,8 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 		GraphQLQueryAction{URL: "http://api/gql", Query: "{ users { id } }"},
 		WSConnectAction{URL: "ws://example.com/ws"},
 		WSSendAction{ConnectionID: "c1", Message: `{"type":"ping"}`},
+		WSReceiveAction{ConnectionID: "c1", Type: "pong", Timeout: 5, Decisive: true},
+		WSDisconnectAction{ConnectionID: "c1"},
 	}
 
 	for _, original := range actions {

@@ -142,7 +142,23 @@ func TestGraphQLResult_Summary(t *testing.T) {
 func TestWSResult_Summary(t *testing.T) {
 	r := WSResult{OK: true, URL: "ws://x", Messages: []string{"a", "b"}, Latency: 10 * time.Millisecond}
 	assert.Contains(t, r.Summary(), "ws ok ws://x")
-	assert.Contains(t, r.Summary(), "2 msgs")
+	// Summary reports matched/seen, not the legacy Messages list.
+	assert.Contains(t, r.Summary(), "matched=0")
+	assert.Contains(t, r.Summary(), "seen=0")
+}
+
+func TestWSResult_Summary_ReportsMatchedSeen(t *testing.T) {
+	r := WSResult{
+		OK:             true,
+		URL:            "ws://x",
+		MatchedMessage: `{"type":"pong"}`,
+		SeenMessages:   []string{"tick", "tick"},
+		Latency:        5 * time.Millisecond,
+	}
+	s := r.Summary()
+	assert.Contains(t, s, "ws ok ws://x")
+	assert.Contains(t, s, "matched=1")
+	assert.Contains(t, s, "seen=2")
 }
 
 // --- Success() tests ---
