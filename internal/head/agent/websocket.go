@@ -203,7 +203,53 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// in any future result field) remains the un-namespaced id.
 	key := caseNamespace(ctx, id)
 	e.store(key, conn, ctx, proto)
-	return types.WSResult{OK: true, URL: preInjectionURL, Latency: time.Since(start)}
+	// Auto-handshake (role with handshake declared). The handshake is
+	// non-decisive: a match means "connection ready", not "case passed", so
+	// ws_connect stays an intermediate step. The Read loop is guarded by the
+	// entry's readMu alone (mirroring doReceive); only the timeout cleanup
+	// takes e.mu, never both at once. The Read runs against a fresh timeout
+	// context derived from role.Handshake.Timeout, independent of the case ctx.
+	var seen []string
+	if role != nil && role.Handshake != nil {
+		hsTimeout := time.Duration(role.Handshake.Timeout) * time.Second
+		hsCtx, hsCancel := context.WithTimeout(ctx, hsTimeout)
+		entry, ok := e.lookup(key)
+		if !ok {
+			hsCancel()
+			return types.WSResult{OK: false, URL: preInjectionURL, Err: "ws handshake: connection vanished", Latency: time.Since(start)}
+		}
+		entry.readMu.Lock()
+		matched := false
+		for {
+			_, data, rerr := entry.conn.Read(hsCtx)
+			if rerr != nil {
+				break // timeout or peer close
+			}
+			seen = append(seen, string(data))
+			path := "type"
+			if proto.TypePath != "" {
+				path = proto.TypePath
+			}
+			if t, ok := extractTypePath(data, path); ok && t == role.Handshake.AwaitType {
+				matched = true
+				break
+			}
+		}
+		entry.readMu.Unlock()
+		hsCancel()
+		if !matched {
+			// Mandatory handshake did not complete: close + remove the
+			// connection so a subsequent ws_send on this id fails as unknown.
+			e.mu.Lock()
+			if ent, ok := e.conns[key]; ok {
+				_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake timeout")
+				delete(e.conns, key)
+			}
+			e.mu.Unlock()
+			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", role.Handshake.AwaitType), SeenMessages: seen, Latency: time.Since(start)}
+		}
+	}
+	return types.WSResult{OK: true, URL: preInjectionURL, SeenMessages: seen, Latency: time.Since(start)}
 }
 
 // injectAuth resolves the declared credential for the already-resolved actor,

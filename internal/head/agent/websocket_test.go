@@ -695,3 +695,51 @@ func TestConnectUnknownRoleFails(t *testing.T) {
 		t.Fatalf("unknown role should not dial: %s", latestQuery())
 	}
 }
+
+// TestConnectRoleHandshakeSuccess proves that when a role declares a handshake,
+// doConnect auto-awaits the declared await_type via a readMu-guarded receive
+// loop and includes the handshake message (plus any non-matching frames that
+// arrived first) in SeenMessages.
+func TestConnectRoleHandshakeSuccess(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"devices:sync"}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 2}}}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, wsURL, p))
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL, ConnectionID: "c1", Role: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	if !strings.Contains(strings.Join(ws.SeenMessages, ""), "devices:sync") {
+		t.Fatalf("handshake message not in evidence: %v", ws.SeenMessages)
+	}
+}
+
+// TestConnectRoleHandshakeTimeoutFailsAndCleansUp proves that when the awaited
+// handshake message does not arrive within role.Handshake.Timeout, doConnect
+// fails AND tears down the connection (closes the socket, removes the entry)
+// so a subsequent ws_send on that id fails as unknown.
+func TestConnectRoleHandshakeTimeoutFailsAndCleansUp(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx) // never sends devices:sync
+	})
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 1}}}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, wsURL, p))
+	ctx := context.Background()
+	res := ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: "c1", Role: "web"})
+	if res.Success() {
+		t.Fatalf("handshake timeout should fail: %+v", res)
+	}
+	// Connection must be cleaned up: a subsequent send fails as unknown id.
+	if ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: `{"type":"x"}`}).Success() {
+		t.Fatal("connection should be removed after handshake timeout")
+	}
+}
