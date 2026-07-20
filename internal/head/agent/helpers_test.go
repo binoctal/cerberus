@@ -89,7 +89,7 @@ func TestSandboxPolicyFor_AllActionTypes(t *testing.T) {
 		{"db assert", types.DBAssertAction{Driver: "sqlite", Query: "SELECT 1", Assertion: "rows.length > 0"}},
 		{"graphql query", types.GraphQLQueryAction{URL: "http://x", Query: "{ users { id } }"}},
 		{"ws connect", types.WSConnectAction{URL: "ws://x"}},
-		{"ws send", types.WSSendAction{URL: "ws://x", Message: "hello"}},
+		{"ws send", types.WSSendAction{ConnectionID: "c1", Message: "hello"}},
 	}
 
 	for _, tt := range tests {

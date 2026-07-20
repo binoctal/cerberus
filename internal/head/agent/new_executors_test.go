@@ -222,7 +222,7 @@ func TestGraphQLActionSerialization(t *testing.T) {
 func TestWSActionSerialization(t *testing.T) {
 	for _, original := range []types.TypedAction{
 		types.WSConnectAction{URL: "ws://localhost:8080/ws"},
-		types.WSSendAction{URL: "ws://localhost:8080/ws", Message: "hello"},
+		types.WSSendAction{ConnectionID: "c1", Message: "hello"},
 	} {
 		envelope, err := types.MarshalAction(original)
 		require.NoError(t, err)

@@ -122,7 +122,16 @@ func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconne
 }
 
 func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, start time.Time) types.ExecutorResult {
-	return types.ErrorResult{Err: "ws_send not yet implemented"} // Task 4
+	conn, _, ok := e.lookup(a.ConnectionID)
+	if !ok {
+		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
+	}
+	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := conn.Write(writeCtx, websocket.MessageText, []byte(a.Message)); err != nil {
+		return types.WSResult{OK: false, Err: fmt.Sprintf("write: %v", err), Latency: time.Since(start)}
+	}
+	return types.WSResult{OK: true, Latency: time.Since(start)}
 }
 
 func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveAction, start time.Time) types.ExecutorResult {

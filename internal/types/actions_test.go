@@ -38,7 +38,7 @@ func TestValidate_HappyPath(t *testing.T) {
 		{"DBAssertAction", DBAssertAction{Driver: "sqlite", Query: "SELECT 1", Assertion: "count == 1"}},
 		{"GraphQLQueryAction", GraphQLQueryAction{URL: "http://api/graphql", Query: "{ users { id } }"}},
 		{"WSConnectAction", WSConnectAction{URL: "ws://example.com/ws"}},
-		{"WSSendAction", WSSendAction{URL: "ws://example.com/ws", Message: "hello"}},
+		{"WSSendAction", WSSendAction{ConnectionID: "c1", Message: "hello"}},
 	}
 
 	for _, tt := range tests {
@@ -81,8 +81,8 @@ func TestValidate_Errors(t *testing.T) {
 		{"GraphQLQueryAction missing url", GraphQLQueryAction{Query: "{ }"}, "url is required"},
 		{"GraphQLQueryAction missing query", GraphQLQueryAction{URL: "http://x"}, "query is required"},
 		{"WSConnectAction missing url", WSConnectAction{}, "url is required"},
-		{"WSSendAction missing url", WSSendAction{Message: "hi"}, "url is required"},
-		{"WSSendAction missing message", WSSendAction{URL: "ws://x"}, "message is required"},
+		{"WSSendAction missing connection_id", WSSendAction{Message: "hi"}, "connection_id is required"},
+		{"WSSendAction missing message", WSSendAction{ConnectionID: "c1"}, "message is required"},
 	}
 
 	for _, tt := range tests {
@@ -171,7 +171,7 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 		DBAssertAction{Driver: "postgres", Query: "SELECT count(*) FROM users", Assertion: "count > 0"},
 		GraphQLQueryAction{URL: "http://api/gql", Query: "{ users { id } }"},
 		WSConnectAction{URL: "ws://example.com/ws"},
-		WSSendAction{URL: "ws://example.com/ws", Message: `{"type":"ping"}`},
+		WSSendAction{ConnectionID: "c1", Message: `{"type":"ping"}`},
 	}
 
 	for _, original := range actions {

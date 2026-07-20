@@ -165,3 +165,31 @@ func TestWSConnectAutoIDsUnique(t *testing.T) {
 		t.Fatalf("executor holds %d connections, want %d (auto-id collision)", got, n)
 	}
 }
+
+func TestWSSendReusesConnection(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		for {
+			if _, _, err := conn.Read(ctx); err != nil {
+				return
+			}
+		}
+	})
+
+	ex := newWSExecutor()
+	ctx := context.Background()
+	if !ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect failed")
+	}
+
+	res := ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: `{"type":"ping"}`})
+	if !res.Success() {
+		t.Fatalf("send failed: %+v", res)
+	}
+	// Unknown id fails, does not dial.
+	res2 := ex.Execute(ctx, types.WSSendAction{ConnectionID: "nope", Message: "x"})
+	if res2.Success() {
+		t.Fatal("send on unknown connection_id should fail")
+	}
+}

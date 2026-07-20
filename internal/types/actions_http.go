@@ -191,19 +191,18 @@ func (a WSConnectAction) Validate() error {
 	return nil
 }
 
-// WSSendAction represents sending a message over a WebSocket.
+// WSSendAction sends a message over an existing WebSocket connection.
 type WSSendAction struct {
-	// URL identifies which WebSocket connection to use.
-	URL string `json:"url"`
-	// Message is the message content to send.
-	Message string `json:"message"`
+	// ConnectionID identifies the connection established by WSConnect.
+	ConnectionID string `json:"connection_id"`
+	Message      string `json:"message"`
 }
 
 func (a WSSendAction) GetActionType() ActionType { return ActionWSSend }
-func (a WSSendAction) Target() string            { return a.URL }
+func (a WSSendAction) Target() string            { return a.ConnectionID }
 func (a WSSendAction) Validate() error {
-	if a.URL == "" {
-		return fmt.Errorf("url is required")
+	if a.ConnectionID == "" {
+		return fmt.Errorf("connection_id is required")
 	}
 	if a.Message == "" {
 		return fmt.Errorf("message is required")
