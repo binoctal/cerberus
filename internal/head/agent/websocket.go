@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -22,10 +23,13 @@ type wsEntry struct {
 }
 
 // WebSocketExecutor handles persistent WebSocket connections and primitives.
+// It is a singleton shared across parallel cases (spec D3), so auto-generated
+// connection ids draw from a monotonic counter to avoid collisions.
 type WebSocketExecutor struct {
 	logger *zap.Logger
 	mu     sync.RWMutex
 	conns  map[string]*wsEntry
+	seq    uint64
 }
 
 // NewWebSocketExecutor creates a WebSocket executor.
@@ -87,6 +91,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	for k, v := range a.Headers {
 		headers.Set(k, v)
 	}
+	opts.HTTPHeader = headers
 	if len(a.Subprotocols) > 0 {
 		opts.Subprotocols = a.Subprotocols
 	}
@@ -96,7 +101,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	}
 	id := a.ConnectionID
 	if id == "" {
-		id = fmt.Sprintf("ws-%d", time.Now().UnixNano())
+		id = fmt.Sprintf("ws-%d", atomic.AddUint64(&e.seq, 1))
 	}
 	e.store(id, conn, ctx)
 	return types.WSResult{OK: true, URL: a.URL, Latency: time.Since(start)}

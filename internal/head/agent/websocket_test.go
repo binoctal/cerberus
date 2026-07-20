@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,5 +87,81 @@ func TestWSConnectCtxCancelClosesConnection(t *testing.T) {
 	case <-closed:
 	case <-time.After(2 * time.Second):
 		t.Fatal("connection not closed after ctx cancel")
+	}
+}
+
+// TestWSConnectSendsHeaders asserts that a.Headers is actually applied to the
+// WebSocket handshake request. The shared newWSTestServer helper hands the
+// handler a *websocket.Conn, so it cannot observe request headers; this test
+// therefore spins up its own httptest server and inspects r.Header BEFORE
+// calling websocket.Accept.
+func TestWSConnectSendsHeaders(t *testing.T) {
+	seen := make(chan string, 1)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		select { case seen <- r.Header.Get("X-Test-Auth"): default: }
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			t.Errorf("accept: %v", err)
+			return
+		}
+		defer conn.Close(websocket.StatusNormalClosure, "")
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	ex := newWSExecutor()
+	res := ex.Execute(context.Background(), types.WSConnectAction{
+		URL:           url,
+		ConnectionID:  "c1",
+		Headers:       map[string]string{"X-Test-Auth": "secret"},
+	})
+	if !res.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	select {
+	case h := <-seen:
+		if h != "secret" {
+			t.Fatalf("server saw X-Test-Auth=%q, want %q", h, "secret")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server never observed the handshake header (a.Headers was dropped)")
+	}
+}
+
+// TestWSConnectAutoIDsUnique verifies that when many parallel cases omit
+// ConnectionID, the singleton executor mints distinct ids (spec D3: parallel
+// cases cannot collide on a shared id). Run with -race.
+func TestWSConnectAutoIDsUnique(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx) // block until test ends
+	})
+
+	ex := newWSExecutor()
+	const n = 100
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			res := ex.Execute(context.Background(), types.WSConnectAction{URL: url})
+			if !res.Success() {
+				t.Errorf("connect failed: %+v", res)
+			}
+		}()
+	}
+	wg.Wait()
+
+	ex.mu.Lock()
+	got := len(ex.conns)
+	ex.mu.Unlock()
+	if got != n {
+		t.Fatalf("executor holds %d connections, want %d (auto-id collision)", got, n)
 	}
 }
