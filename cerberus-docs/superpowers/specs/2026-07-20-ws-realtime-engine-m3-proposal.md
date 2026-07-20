@@ -45,7 +45,8 @@ path from documentation.
 
 Lean **(a)** — consistency with M1 and `project.yaml`; no new parser. M3 is
 chiefly the extraction of M1's inline block into a versioned, referenceable
-file, plus the fields M2 added.
+file, plus the fields M2 added. Once standalone files exist, M1's inline form
+is a transitional stepping stone and the standalone file is the target.
 
 ### D2 — Scout-generated cases
 Scout does not generate WS cases today (M0 is LLM-driven). M3 teaches it:

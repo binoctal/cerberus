@@ -43,13 +43,17 @@ still the orchestrator; the declaration just removes repetitive guesswork.
 - (c) Both.
 
 Lean toward **(a)** for M1 (YAGNI — cross-project protocol reuse is unproven).
-Extract to standalone files in M3 only if reuse actually materializes.
+Extract to standalone files in M3 only if reuse actually materializes. Note:
+**(a)** requires extending the `project.yaml` service schema with a protocol
+block — a prerequisite for M1.
 
 ### D2 — What the description covers
-M1 declares three fields — the highest-frequency, highest-token protocol facts:
-`auth`, `type_path`, `framing`. Handshake sequences are deferred to M2 (they are
-inherently multi-step / timing-related). Keeping M1 to these three keeps the
-schema small and the value obvious.
+M1 declares four protocol facts: `auth`, `type_path`, `framing`, and
+`handshake` (the static connect-time exchange). The first three are the
+highest-frequency, highest-token knowledge. `handshake` is declared here because
+it is static protocol description, and it is **executed via M0 primitives**
+(connect→send→receive) — either by the executor automatically on connect or by
+the LLM orchestrating M0 primitives from the declaration. No M2 dependency.
 
 ### D3 — Declaration vs LLM inference (fallback policy)
 - (a) Declaration first; when absent, fall back to LLM inference (M0 behavior).

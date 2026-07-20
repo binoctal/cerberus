@@ -61,11 +61,14 @@ M0 chose Examiner-side content judgment to avoid an evaluator. M2 introduces a
   `assert`, the receive fails fast on mismatch (deterministic, in-case).
 
 This gives safety-critical fields a deterministic path without committing cerberus
-to an expression engine.
+to an expression engine. Note this changes `WSReceive` success semantics versus
+M0: with `assert` present, a field mismatch fails the receive; without `assert`,
+M0 behavior (arrival-only, content left to the Examiner) is unchanged.
 
 ### D3 — Timing assertions (minimal)
-- The executor records per-case message arrival order (it already accumulates
-  evidence).
+- The executor records per-case message arrival order. Note: M0 accumulates
+  `SeenMessages` per-receive only; cross-receive ordering requires a new per-case
+  global arrival log maintained by the executor.
 - A small assertion expresses ordering: e.g. a `WSReceive` with
   `after: <prior-receive-ref>` requires its match to arrive after a named prior
   match; violation fails the action.
@@ -74,10 +77,10 @@ to an expression engine.
 Lean toward the smallest ordering primitive that catches real reorder bugs; do
 not build a temporal DSL.
 
-### D4 — Handshake sequences
-Declared in M1's protocol description (`handshake: [{send}, {expect}]`), but
-**executed** here (it needs the multi-step / receive machinery M0/M2 provide).
-M2 is where the handshake declaration becomes executor behavior.
+### D4 — Handshake (owned by M1, not M2)
+Handshake sequences are **declared and executed in M1** (see M1 D2) using M0
+primitives. M2 does not touch handshake; this section exists only to prevent
+re-introducing the earlier M1/M2 contradiction.
 
 ## Relationship to M0/M1 / Trigger Conditions
 
