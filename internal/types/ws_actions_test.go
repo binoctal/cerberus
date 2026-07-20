@@ -71,3 +71,25 @@ func TestWSReceiveActionJSONTags(t *testing.T) {
 		t.Fatalf("json tags mismatch: %+v", r)
 	}
 }
+
+func TestWSConnectActionCredentialRefRoundTrip(t *testing.T) {
+	envelope, err := MarshalAction(&WSConnectAction{
+		URL:           "ws://x",
+		ConnectionID:  "c1",
+		CredentialRef: "bridge-actor",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got, err := UnmarshalAction(envelope)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	c, ok := got.(WSConnectAction)
+	if !ok {
+		t.Fatalf("type %T, want WSConnectAction", got)
+	}
+	if c.CredentialRef != "bridge-actor" {
+		t.Fatalf("credential_ref round-trip lost: %+v", c)
+	}
+}

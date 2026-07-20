@@ -180,6 +180,10 @@ type WSConnectAction struct {
 	// ConnectionID names this connection for later send/receive/disconnect.
 	// If empty the executor assigns one.
 	ConnectionID string `json:"connection_id,omitempty"`
+	// CredentialRef optionally names the actor whose resolved raw token the
+	// executor injects for this connection (overrides the service protocol's
+	// auth.credential_ref). Only meaningful when the service declares a protocol.
+	CredentialRef string `json:"credential_ref,omitempty"`
 }
 
 func (a WSConnectAction) GetActionType() ActionType { return ActionWSConnect }
