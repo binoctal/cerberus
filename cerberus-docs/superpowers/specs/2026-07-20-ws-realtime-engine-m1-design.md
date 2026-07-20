@@ -151,8 +151,15 @@ therefore cannot depend on the LLM omitting credentials. Instead `doConnect`
 treats its resolved credential as authoritative: it **strips** any existing
 `param` the LLM supplied (from url query / headers / subprotocols) and then
 **injects** the resolved value. Whether the LLM obeys a prompt hint or not,
-exactly one correct credential reaches the server. The prompt change (§Prompt)
-is a best-effort token-saving hint only.
+exactly one correct credential reaches the server. The prompt change (see
+Impact — `prompts.go`) is a best-effort token-saving hint only.
+
+**Why only auth needs this guarantee.** `type_path` and `framing` are fully
+executor-side: the LLM supplies the routing-key *value* (e.g.
+`type: "permission:response"`) and the message text, and the executor extracts/
+decodes per the declaration — no LLM cooperation or prompt dependency. Only auth
+risks an LLM-supplied duplicate (the LLM may also emit credentials), which is why
+auth alone needs executor authority.
 
 ### D4 — Per-case `connection_id` namespacing (completes M0 D3)
 
