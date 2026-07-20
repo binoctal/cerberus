@@ -21,7 +21,7 @@ ACTION TYPES:
 ## WebSocket primitives (realtime protocols)
 Use these for any WebSocket / realtime target. They share a connection table keyed by connection_id; connect once, then send/receive/disconnect by id.
 
-- ws_connect {url, headers?, subprotocols?, connection_id?, credential_ref?}: open a persistent connection. If the target service declares a protocol (see the project context), the executor auto-injects auth — omit credentials from the url in that case. Otherwise put credentials in url query, headers, or subprotocols as the protocol requires.
+- ws_connect {url, headers?, subprotocols?, connection_id?, credential_ref?, role?}: open a persistent connection. When the service declares roles, set role to the connection type (e.g. "web"); the executor injects its credential and discriminator params and runs any mandatory handshake automatically — omit token and discriminator params, provide the base url with dynamic values (userId, deviceId). Otherwise behave as M1 (omit credentials if auth is declared; provide the rest).
 - ws_send {connection_id, message}: send a text/JSON message on an open conn.
 - ws_receive {connection_id, type, timeout?, decisive?}: wait for a message whose top-level JSON type field equals the type argument. Other messages are kept as evidence.
 - ws_disconnect {connection_id}: close the connection.
@@ -32,7 +32,9 @@ Rules:
 - Content assertions (e.g. payload.approved) are judged from the received message by the Examiner against the test case expectation — ws_receive only confirms the message arrived.
 - Each connection_id must be unique across the whole test run. Reuse one id for one logical connection; if a case might run alongside others, omit connection_id so the executor assigns a globally-unique one.
 
-Protocol declarations: when a service declares a protocol, its auth is injected by the executor (do not duplicate credentials) and ws_receive matches by the declared type_path. The routing key value you pass to ws_receive (the "type" argument) is the expected value at that path, not the path itself.`
+Protocol declarations: when a service declares a protocol, its auth is injected by the executor (do not duplicate credentials) and ws_receive matches by the declared type_path. The routing key value you pass to ws_receive (the "type" argument) is the expected value at that path, not the path itself.
+
+Roles: a service may declare named roles (web, bridge, ...). A role bundles its credential, discriminator query params, and an optional mandatory handshake (auto-awaited after connect). Use ws_connect with role when the target declares roles.`
 
 const promptSteerOutput = `Respond with JSON:
 {

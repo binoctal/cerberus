@@ -60,8 +60,9 @@ case ends (normal exit, timeout, or cancellation). Parallel cases are isolated.
   Field-level assertions are judged by the Examiner from the received message.
   Configurable type-field paths, auth injection, and framing selection are
   declarable via the [Protocol declaration](#protocol-declaration) (M1).
-- Handshake sequences, role abstraction, field-level assertions, and
-  `text`/`binary` framing remain deferred to M2.
+- Roles and the per-role mandatory handshake are declarable via
+  [Protocol declaration > Roles](#roles) (M2). Field-level assertions and
+  `text`/`binary` framing remain deferred.
 
 ## Protocol Declaration
 
@@ -116,6 +117,82 @@ the login. `InjectAs` formatting stays HTTP-only; a WS protocol that needs a
 formatted header value (e.g. `Authorization: Bearer …`) is not expressible in
 M1 and lands with roles in M2. If the named actor is missing or has no
 resolvable token, `ws_connect` fails with a non-secret error and does not dial.
+
+### Roles
+
+A service with multiple distinct connection types (e.g. a `web` client and a
+`bridge` device on the same realtime endpoint) may declare named **roles**
+under `protocol.roles`. A role bundles three per-connection-type facts the
+executor owns: the credential (`credential_ref`), discriminator query
+`params`, and an optional mandatory `handshake`. The LLM only names the role
+on `ws_connect`; the executor expands the bundle.
+
+```yaml
+protocol:
+  framing: json
+  type_path: type
+  auth: { strategy: query, param: token, credential_ref: web-actor }
+  roles:
+    web:
+      credential_ref: web-actor
+      params: { type: web }
+      handshake: { await_type: devices:sync, timeout: 5 }
+    bridge:
+      credential_ref: bridge-actor
+      params: { type: bridge }
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `roles.<name>.credential_ref` | string | — | Names an entry in `actors[]` whose resolved raw token is injected for this role. Overrides `protocol.auth.credential_ref` for this connection. |
+| `roles.<name>.params` | map[string]string | — | Discriminator query params applied (strip-then-inject) to the dial url. Must not include `protocol.auth.param` (token-slot collision is rejected by validation). |
+| `roles.<name>.handshake` | object | — | Optional mandatory post-connect exchange. When set, the executor auto-awaits `await_type` (matched at `protocol.type_path`) before the connect returns success. |
+| `roles.<name>.handshake.await_type` | string | — | Routing-key value to wait for. Required when `handshake` is set. |
+| `roles.<name>.handshake.timeout` | int | — | Seconds to wait; must be > 0 (validation) so a mandatory handshake cannot hang a case indefinitely. |
+
+`ws_connect` gains a `role` field:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `role` | string | no | Names a declared protocol role. When set, the executor expands the role's credential, discriminator params, and handshake; `credential_ref` on the action is ignored. |
+
+**Executor expansion (strip-then-inject + auto-handshake):** when `role` is set,
+the executor (1) resolves the role (unknown role, or a role on a service
+without a `protocol:`, fails the connect with a non-secret error and does not
+dial); (2) resolves the effective credential as `role.credential_ref` →
+`protocol.auth.credential_ref`; (3) reuses M1's `injectAuth` to strip any
+LLM-supplied value at `auth.param` and inject the resolved raw token; (4)
+strip-then-injects each of `role.params` into the url query (delete then set,
+so an LLM-supplied `?type=web` is normalized to exactly the role's value);
+and (5) after dial, if the role declares a `handshake`, runs an internal
+receive loop (guarded by the connection's `readMu`, matching via
+`extractTypePath(data, type_path)`) until `await_type` arrives or `timeout`
+elapses. Non-matching messages during the handshake are accumulated as
+evidence (same as `ws_receive`), not consumed silently.
+
+**Handshake is non-decisive:** `await_type` arrival means the connection is
+*ready*, not that the case passed — `ws_connect` stays an intermediate step.
+The matched handshake message plus any non-matching handshake-period messages
+go into the connect `WSResult.SeenMessages` (reusing the existing field), so
+the exchange is visible to the Examiner; `MatchedMessage` stays empty for a
+connect. On timeout, the dial succeeded but the mandatory handshake did not
+complete, so the connection is unusable — the executor closes the connection,
+removes its entry from the table (explicit cleanup), and returns a failure
+result, driving the M0 recovery/retry path.
+
+**No role → M1 fallback:** a `ws_connect` without `role` (or a service without
+`roles:`) uses `protocol.auth.credential_ref` (or the action's
+`credential_ref`) and no auto-handshake — exactly M1. Roles are a graceful
+enhancement, never a replacement; M1 secret hygiene (strip-then-inject,
+pre-injection url in `WSResult`, redaction backstop) is preserved verbatim.
+
+Role discovery — how the LLM learns role names, given the static steer prompt
+cannot carry them — remains an Open Question. M2 ships the mechanism plus the
+graceful M1 fallback above; value-realization is via dogfooding / M3
+(Scout-generated WS cases that emit role connects from the protocol
+declaration). Design rationale and rejected alternatives are in the M2 design
+spec:
+[`cerberus-docs/superpowers/specs/2026-07-21-ws-realtime-engine-m2-roles-design.md`](../superpowers/specs/2026-07-21-ws-realtime-engine-m2-roles-design.md).
 
 ### M0 fallback
 

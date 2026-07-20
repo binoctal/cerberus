@@ -27,3 +27,11 @@ func TestSteerPromptMentionsProtocolDeclaration(t *testing.T) {
 		}
 	}
 }
+
+func TestSteerPromptMentionsRoles(t *testing.T) {
+	for _, want := range []string{"role", "handshake"} {
+		if !contains(promptSteerSystem, want) {
+			t.Fatalf("steer prompt missing %q", want)
+		}
+	}
+}
