@@ -212,6 +212,14 @@ response body was valid") today.
   arrived"*, not *"its contents were correct"*. A case can pass the flow yet
   have the Examiner flag a content mismatch at session end. This matches
   cerberus's existing two-layer judgment (action success vs. expectation).
+- **Examiner evidence requirement (critical):** today
+  `Judge.buildEvidenceContext` (`examiner/judge.go:122`) extracts body content
+  only for `HTTPResult`; every other result type falls back to `Result.Summary()`
+  (`judge.go:146-148`), and `WSResult.Summary()` carries no message bodies (just
+  `ws ok <url> (N msgs)`). For (c) to work, M0 extends `buildEvidenceContext` with
+  a `WSResult` branch that surfaces `WSResult.Messages` into the judge prompt —
+  the same shape as the HTTP body branch. Without this the Examiner literally
+  cannot see `payload.approved`, and content assertions are impossible.
 
 **Rejected — machine expression/JSONPath `match`+`assert` (original draft).**
 Based on the false premise that an evaluator existed. Building one is scope
@@ -236,6 +244,9 @@ are hardcoded.
 - `WSConnect` / `WSSend` are modified forms of today's actions (gain
   `connection_id`, no longer dial-and-close). `WSReceive` / `WSDisconnect` are
   new.
+- A case should have **at most one `decisive=true` receive** (its verification
+  endpoint); the first decisive success passes the case. The prompt states this
+  explicitly so the LLM does not emit several.
 
 ## Judgment Model
 
@@ -258,7 +269,11 @@ or mis-labeled skips.
 - `WSSend` / `WSReceive` / `WSDisconnect`: look up conn by `connection_id`;
   `WSReceive` reads with its own `timeout`; `WSDisconnect` closes + removes.
 - Per-case ctx cancellation (normal exit, timeout, panic) closes every conn the
-  case opened and prunes the table.
+  case opened and prunes the table. Entries record the context that created them
+  so cancellation prunes exactly that case's connections.
+- `WSReceive` treats a peer-side close as a failure (no matching message will
+  arrive). When accumulating non-matching messages into evidence, the matched
+  message is preserved first if truncation is needed.
 
 ## Impact / Change List
 
@@ -282,6 +297,9 @@ or mis-labeled skips.
   (`!isIntermediateStep(action) || !newResult.Success()`).
 - `internal/types/result_ws.go`: extend `WSResult` to carry the matched message
   + non-matching messages seen during the scan, as evidence.
+- `internal/head/examiner/judge.go`: extend `buildEvidenceContext` with a
+  `WSResult` branch surfacing message bodies (else the Examiner cannot judge WS
+  content expectations — see D5). Truncate like the HTTP body branch.
 - `internal/prompts/`: add WS primitive guidance + a worked example so the LLM
   knows the `connection_id` / `decisive` / `type` contract.
 - `cerberus-docs/executors/websocket.md`: rewrite for persistent connections and
