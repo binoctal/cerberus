@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -451,5 +452,47 @@ func TestMultiExecutorRoutesWSReceiveAndWSDisconnect(t *testing.T) {
 	}
 	if !strings.Contains(wsDisc.Err, "unknown connection_id") {
 		t.Fatalf("ws_disconnect: error %q does not prove doDisconnect was reached", wsDisc.Err)
+	}
+}
+
+// TestReceiveSerializedPerConnection drives two concurrent ws_receive calls
+// against the SAME connection_id. coder/websocket forbids concurrent Read on
+// one conn (it would race / error), so the executor must serialize them with a
+// per-entry read mutex. Run with -race: without the guard this test either
+// fails the receive with a "concurrent read" error or trips the race detector.
+func TestReceiveSerializedPerConnection(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		for i := 0; i < 20; i++ {
+			_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"ping"}`))
+		}
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	// Two concurrent receives on the SAME connection must serialize, not race.
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			r := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "ping", Timeout: 2})
+			if !r.Success() {
+				errs <- fmt.Errorf("receive failed: %v", r)
+				return
+			}
+			errs <- nil
+		}()
+	}
+	for i := 0; i < 2; i++ {
+		select {
+		case e := <-errs:
+			if e != nil {
+				t.Fatal(e)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("receive timed out")
+		}
 	}
 }

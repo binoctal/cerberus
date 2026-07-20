@@ -35,8 +35,9 @@ func caseNamespace(ctx context.Context, connectionID string) string {
 
 // wsEntry is a persisted WebSocket connection owned by a case context.
 type wsEntry struct {
-	conn *websocket.Conn
-	ctx  context.Context // per-case ctx; cancellation closes the conn
+	conn   *websocket.Conn
+	ctx    context.Context // per-case ctx; cancellation closes the conn
+	readMu sync.Mutex      // serializes concurrent Reads on this conn
 }
 
 // WebSocketExecutor handles persistent WebSocket connections and primitives.
@@ -92,14 +93,11 @@ func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.C
 	}()
 }
 
-func (e *WebSocketExecutor) lookup(id string) (*websocket.Conn, context.Context, bool) {
+func (e *WebSocketExecutor) lookup(id string) (*wsEntry, bool) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	entry, ok := e.conns[id]
-	if !ok {
-		return nil, nil, false
-	}
-	return entry.conn, entry.ctx, true
+	return entry, ok
 }
 
 func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectAction, start time.Time) types.ExecutorResult {
@@ -144,10 +142,11 @@ func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconne
 }
 
 func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, start time.Time) types.ExecutorResult {
-	conn, _, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
+	entry, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
 	if !ok {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
 	}
+	conn := entry.conn
 	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := conn.Write(writeCtx, websocket.MessageText, []byte(a.Message)); err != nil {
@@ -169,10 +168,16 @@ func messageType(data []byte) (string, bool) {
 }
 
 func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveAction, start time.Time) types.ExecutorResult {
-	conn, connCtx, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
+	entry, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
 	if !ok {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
 	}
+	// coder/websocket forbids concurrent Read on one conn (it would corrupt
+	// the frame stream). Serialize Reads per connection via readMu — different
+	// connections still run in parallel because each entry has its own mutex.
+	entry.readMu.Lock()
+	defer entry.readMu.Unlock()
+	conn, connCtx := entry.conn, entry.ctx
 	timeout := time.Duration(a.Timeout) * time.Second
 	if timeout <= 0 {
 		timeout = 10 * time.Second
