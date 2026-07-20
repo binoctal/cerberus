@@ -136,13 +136,36 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 		opts.Subprotocols = a.Subprotocols
 	}
 	dialURL := wsURL(a.URL)
+	// Resolve role + effective credential_ref + discriminator params. `role`
+	// stays in scope so the handshake block (Task 5) can read role.Handshake.
+	var role *project.ProtocolRole
+	var roleParams map[string]string
+	var credentialRef string
+	if a.Role != "" {
+		if proto != nil {
+			role = proto.Roles[a.Role]
+		}
+		if role == nil {
+			// Unknown role: fail before dial. The echoed url strips the
+			// auth.param slot (if any) so no LLM-supplied secret leaks.
+			return types.WSResult{OK: false, URL: stripQuery(a.URL, maybeAuthParam(proto)), Err: fmt.Sprintf("ws connect: unknown role %q", a.Role), Latency: time.Since(start)}
+		}
+		credentialRef = role.CredentialRef
+		roleParams = role.Params
+	}
+	if credentialRef == "" {
+		credentialRef = a.CredentialRef
+	}
+	if credentialRef == "" && proto != nil && proto.Auth != nil {
+		credentialRef = proto.Auth.CredentialRef
+	}
 	// preInjectionURL is the secret-free url returned in WSResult. With auth
 	// it is computed from the pre-injection dial url (query stripped of
 	// auth.param); without auth it is just the caller-supplied url.
 	var preInjectionURL string
 	if proto != nil && proto.Auth != nil {
 		var authErr error
-		dialURL, preInjectionURL, authErr = e.injectAuth(ctx, dialURL, a, proto.Auth, opts)
+		dialURL, preInjectionURL, authErr = e.injectAuth(ctx, dialURL, credentialRef, proto.Auth, opts)
 		if authErr != nil {
 			// Auth-resolution failure: strip the declared param from the
 			// echoed url, symmetric with the dial-error and success paths.
@@ -152,6 +175,20 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 		}
 	} else {
 		preInjectionURL = a.URL
+	}
+	// Role discriminator params (strip-then-inject onto the dial url).
+	for k, v := range roleParams {
+		dialURL = setQueryParam(dialURL, k, v)
+	}
+	// After role-param injection, recompute preInjectionURL from the final dial
+	// url so the result reflects what was actually dialed (role params present,
+	// token stripped via auth.param). No-op for non-role connects.
+	if len(roleParams) > 0 {
+		if ap := maybeAuthParam(proto); ap != "" {
+			preInjectionURL = stripQuery(dialURL, ap)
+		} else {
+			preInjectionURL = dialURL
+		}
 	}
 	conn, _, err := websocket.Dial(ctx, dialURL, opts)
 	if err != nil {
@@ -169,32 +206,21 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	return types.WSResult{OK: true, URL: preInjectionURL, Latency: time.Since(start)}
 }
 
-// injectAuth resolves the declared credential, strips any existing value at
-// auth.param, and injects the resolved value. It returns the dial url (which
-// may carry the secret, depending on strategy) and the pre-injection url
-// (without the secret) for WSResult. The action's CredentialRef, when set,
-// overrides the protocol's. url.QueryEscape is applied automatically by
+// injectAuth resolves the declared credential for the already-resolved actor,
+// strips any existing value at auth.param, and injects the resolved value. It
+// returns the dial url (which may carry the secret, depending on strategy) and
+// the pre-injection url (without the secret) for WSResult. The caller picks the
+// authoritative credential_ref (protocol default, action override, or role) and
+// passes it as `actor`. url.QueryEscape is applied automatically by
 // url.Values.Encode for the query strategy.
-func (e *WebSocketExecutor) injectAuth(ctx context.Context, dialURL string, a types.WSConnectAction, auth *project.ProtocolAuth, opts *websocket.DialOptions) (string, string, error) {
-	actor := auth.CredentialRef
-	if a.CredentialRef != "" {
-		actor = a.CredentialRef
-	}
+func (e *WebSocketExecutor) injectAuth(ctx context.Context, dialURL string, actor string, auth *project.ProtocolAuth, opts *websocket.DialOptions) (string, string, error) {
 	token, ok := e.tokenFor(actor)
 	if !ok {
 		return "", "", fmt.Errorf("ws auth: no token for actor %q", actor)
 	}
 	switch auth.Strategy {
 	case "query":
-		u, err := url.Parse(dialURL)
-		if err != nil {
-			return "", "", fmt.Errorf("ws auth: bad url: %w", err)
-		}
-		q := u.Query()
-		q.Del(auth.Param) // strip any LLM-supplied value
-		q.Set(auth.Param, token)
-		u.RawQuery = q.Encode()
-		return u.String(), stripQuery(dialURL, auth.Param), nil
+		return setQueryParam(dialURL, auth.Param, token), stripQuery(dialURL, auth.Param), nil
 	case "header":
 		if opts.HTTPHeader == nil {
 			opts.HTTPHeader = http.Header{}
@@ -208,6 +234,31 @@ func (e *WebSocketExecutor) injectAuth(ctx context.Context, dialURL string, a ty
 		return dialURL, dialURL, nil
 	}
 	return "", "", fmt.Errorf("ws auth: unknown strategy %q", auth.Strategy)
+}
+
+// maybeAuthParam returns the protocol's auth.param (the token slot to strip
+// from echoed urls) or "" when there is no declared auth. Used by failure-path
+// url scrubbing and post-role-param preInjectionURL recompute.
+func maybeAuthParam(p *project.Protocol) string {
+	if p != nil && p.Auth != nil {
+		return p.Auth.Param
+	}
+	return ""
+}
+
+// setQueryParam removes any existing key then sets it to val on the url's query
+// string, returning the rewritten url. Falls back to rawURL on parse error so a
+// malformed url never becomes a security surface.
+func setQueryParam(rawURL, key, val string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	q := u.Query()
+	q.Del(key)
+	q.Set(key, val)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // tokenFor returns the cached raw token for actor and a boolean indicating

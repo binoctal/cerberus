@@ -648,3 +648,50 @@ func TestReceiveMatchesByTypePath(t *testing.T) {
 		t.Fatalf("did not match via type_path: %s", ws.MatchedMessage)
 	}
 }
+
+// TestConnectRoleUsesRoleCredentialAndParams proves that when ws_connect names
+// a role, the role's credential_ref is authoritative (not the protocol's
+// default-actor) and the role's discriminator params are strip-then-injected
+// onto the dial url (any LLM-supplied value at that key is replaced).
+func TestConnectRoleUsesRoleCredentialAndParams(t *testing.T) {
+	wsURL, latestQuery := newWSTestServerCapture(t)
+	p := &project.Protocol{
+		Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "default-actor"},
+		Roles: map[string]*project.ProtocolRole{
+			"web": {CredentialRef: "web-actor", Params: map[string]string{"type": "web"}},
+		},
+	}
+	idx := &WSProtocolIndex{
+		ByHost:      map[string]*project.Protocol{hostOf(t, wsURL): p},
+		ActorTokens: map[string]string{"web-actor": "WEB-JWT", "default-actor": "DEF"},
+	}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL + "?type=WRONG", ConnectionID: "c1", Role: "web"})
+	if !res.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	q := latestQuery()
+	if !strings.Contains(q, "token=WEB-JWT") || strings.Contains(q, "DEF") {
+		t.Fatalf("role credential not used: %s", q)
+	}
+	if !strings.Contains(q, "type=web") || strings.Contains(q, "type=WRONG") {
+		t.Fatalf("role param not strip-then-injected: %s", q)
+	}
+}
+
+// TestConnectUnknownRoleFails proves that an unknown role name fails the
+// connect (no dial) — the role must be declared in the protocol. The failure
+// path's WSResult.URL is secret-free (auth.param stripped if any).
+func TestConnectUnknownRoleFails(t *testing.T) {
+	wsURL, latestQuery := newWSTestServerCapture(t)
+	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}}}
+	idx := &WSProtocolIndex{ByHost: map[string]*project.Protocol{hostOf(t, wsURL): p}}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL, ConnectionID: "c1", Role: "ghost"})
+	if res.Success() {
+		t.Fatalf("unknown role should fail: %+v", res)
+	}
+	if latestQuery() != "" {
+		t.Fatalf("unknown role should not dial: %s", latestQuery())
+	}
+}
