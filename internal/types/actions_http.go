@@ -184,6 +184,10 @@ type WSConnectAction struct {
 	// executor injects for this connection (overrides the service protocol's
 	// auth.credential_ref). Only meaningful when the service declares a protocol.
 	CredentialRef string `json:"credential_ref,omitempty"`
+	// Role optionally names a declared protocol role whose credential,
+	// discriminator params, and handshake the executor expands. When set,
+	// CredentialRef is ignored and the role's declaration drives auth + params.
+	Role string `json:"role,omitempty"`
 }
 
 func (a WSConnectAction) GetActionType() ActionType { return ActionWSConnect }

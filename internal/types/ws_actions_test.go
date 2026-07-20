@@ -93,3 +93,20 @@ func TestWSConnectActionCredentialRefRoundTrip(t *testing.T) {
 		t.Fatalf("credential_ref round-trip lost: %+v", c)
 	}
 }
+
+func TestWSConnectActionRoleRoundTrip(t *testing.T) {
+	envelope, err := MarshalAction(&WSConnectAction{
+		URL: "ws://x", ConnectionID: "c1", Role: "web",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got, err := UnmarshalAction(envelope)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	c, ok := got.(WSConnectAction)
+	if !ok || c.Role != "web" {
+		t.Fatalf("role round-trip lost: %+v", got)
+	}
+}
