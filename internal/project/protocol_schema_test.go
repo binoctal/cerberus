@@ -45,3 +45,39 @@ func TestServiceWithoutProtocol(t *testing.T) {
 		t.Fatalf("protocol should be nil when absent, got %+v", svc.Protocol)
 	}
 }
+
+func TestProtocolRolesYAMLRoundTrip(t *testing.T) {
+	in := `
+name: rt
+url: http://localhost:8787
+protocol:
+  type_path: type
+  auth: { strategy: query, param: token, credential_ref: web-actor }
+  roles:
+    web:
+      credential_ref: web-actor
+      params: { type: web }
+      handshake: { await_type: devices:sync, timeout: 5 }
+    bridge:
+      credential_ref: bridge-actor
+      params: { type: bridge }
+`
+	var svc Service
+	if err := yaml.Unmarshal([]byte(in), &svc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if svc.Protocol == nil || len(svc.Protocol.Roles) != 2 {
+		t.Fatalf("roles = %+v", svc.Protocol)
+	}
+	web := svc.Protocol.Roles["web"]
+	if web == nil || web.CredentialRef != "web-actor" || web.Params["type"] != "web" {
+		t.Fatalf("web role = %+v", web)
+	}
+	if web.Handshake == nil || web.Handshake.AwaitType != "devices:sync" || web.Handshake.Timeout != 5 {
+		t.Fatalf("web handshake = %+v", web.Handshake)
+	}
+	bridge := svc.Protocol.Roles["bridge"]
+	if bridge == nil || bridge.Handshake != nil {
+		t.Fatalf("bridge role = %+v", bridge)
+	}
+}
