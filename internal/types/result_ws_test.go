@@ -1,6 +1,9 @@
 package types
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestWSResultEvidenceIncludesMatchedAndSeen(t *testing.T) {
 	r := WSResult{
@@ -30,4 +33,15 @@ func contains(s, sub string) bool {
 		}
 		return false
 	}())
+}
+
+func TestWSResultRedactsSecretQuery(t *testing.T) {
+	r := WSResult{OK: true, URL: "ws://h/ws?type=web&token=SECRET&token2=x"}
+	s := r.Summary()
+	if strings.Contains(s, "SECRET") {
+		t.Fatalf("summary leaks token: %s", s)
+	}
+	if !strings.Contains(s, "token=%3Credacted%3E") {
+		t.Fatalf("summary did not redact token: %s", s)
+	}
 }

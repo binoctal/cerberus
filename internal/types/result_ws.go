@@ -2,8 +2,35 @@ package types
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
+
+var secretQueryParams = map[string]bool{
+	"token": true, "password": true, "secret": true, "key": true,
+	"apikey": true, "api_key": true, "authorization": true,
+}
+
+// redactSecretQuery redacts known-sensitive query params from a url string.
+func redactSecretQuery(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	q := u.Query()
+	changed := false
+	for k := range q {
+		if secretQueryParams[k] {
+			q.Set(k, "<redacted>")
+			changed = true
+		}
+	}
+	if !changed {
+		return raw
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
 
 // WSResult represents a WebSocket operation result.
 type WSResult struct {
@@ -31,7 +58,7 @@ func (r WSResult) Summary() string {
 	if r.MatchedMessage != "" {
 		matched = 1
 	}
-	return fmt.Sprintf("ws %s %s (matched=%d seen=%d, %s)", status, r.URL, matched, len(r.SeenMessages), r.Latency)
+	return fmt.Sprintf("ws %s %s (matched=%d seen=%d, %s)", status, redactSecretQuery(r.URL), matched, len(r.SeenMessages), r.Latency)
 }
 func (r WSResult) Evidence() EvidenceData {
 	var all []string
