@@ -214,3 +214,40 @@ func (a WSSendAction) Validate() error {
 	}
 	return nil
 }
+
+// WSReceiveAction waits for an inbound message whose top-level "type" field
+// equals Type. Non-matching messages are accumulated as evidence. When Decisive
+// is true (the default), a matching message passes the case.
+type WSReceiveAction struct {
+	ConnectionID string `json:"connection_id"`
+	Type         string `json:"type"`
+	// Timeout in seconds for the matching message to arrive.
+	Timeout  int  `json:"timeout,omitempty"`
+	Decisive bool `json:"decisive,omitempty"`
+}
+
+func (a WSReceiveAction) GetActionType() ActionType { return ActionWSReceive }
+func (a WSReceiveAction) Target() string            { return a.ConnectionID }
+func (a WSReceiveAction) Validate() error {
+	if a.ConnectionID == "" {
+		return fmt.Errorf("connection_id is required")
+	}
+	if a.Type == "" {
+		return fmt.Errorf("type is required")
+	}
+	return nil
+}
+
+// WSDisconnectAction closes and removes an established WebSocket connection.
+type WSDisconnectAction struct {
+	ConnectionID string `json:"connection_id"`
+}
+
+func (a WSDisconnectAction) GetActionType() ActionType { return ActionWSDisconnect }
+func (a WSDisconnectAction) Target() string            { return a.ConnectionID }
+func (a WSDisconnectAction) Validate() error {
+	if a.ConnectionID == "" {
+		return fmt.Errorf("connection_id is required")
+	}
+	return nil
+}

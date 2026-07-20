@@ -32,6 +32,8 @@ var unmarshalRegistry = map[ActionType]actionFactory{
 	ActionGraphQLQuery: func() TypedAction { return &GraphQLQueryAction{} },
 	ActionWSConnect:    func() TypedAction { return &WSConnectAction{} },
 	ActionWSSend:       func() TypedAction { return &WSSendAction{} },
+	ActionWSReceive:    func() TypedAction { return &WSReceiveAction{} },
+	ActionWSDisconnect: func() TypedAction { return &WSDisconnectAction{} },
 }
 
 // UnmarshalAction deserializes an ActionEnvelope into a concrete TypedAction.

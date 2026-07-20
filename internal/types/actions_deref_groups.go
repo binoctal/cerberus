@@ -11,6 +11,10 @@ func derefHTTPActions(a TypedAction) (TypedAction, bool) {
 		return *v, true
 	case *WSSendAction:
 		return *v, true
+	case *WSReceiveAction:
+		return *v, true
+	case *WSDisconnectAction:
+		return *v, true
 	}
 	return nil, false
 }
