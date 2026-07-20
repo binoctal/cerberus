@@ -127,23 +127,43 @@ func (j *Judge) buildEvidenceContext(r agent.StepResult) string {
 	b = append(b, fmt.Sprintf("Attempts: %d\n", r.Attempts)...)
 
 	if r.Result != nil {
-		// Extract HTTP-specific details if available.
-		if httpRes, ok := r.Result.(types.HTTPResult); ok {
-			if httpRes.StatusCode != 0 {
-				b = append(b, fmt.Sprintf("HTTP Status: %d\n", httpRes.StatusCode)...)
+		// Extract result-specific details. HTTP and WS carry bodies that
+		// Summary() omits; surface them so content expectations are judgeable.
+		switch res := r.Result.(type) {
+		case types.HTTPResult:
+			if res.StatusCode != 0 {
+				b = append(b, fmt.Sprintf("HTTP Status: %d\n", res.StatusCode)...)
 			}
-			if httpRes.Body != "" {
-				body := httpRes.Body
+			if res.Body != "" {
+				body := res.Body
 				if len(body) > 2000 {
 					body = body[:2000] + "\n... (truncated)"
 				}
 				b = append(b, fmt.Sprintf("Response Body: %s\n", body)...)
 			}
-			if httpRes.Err != "" {
-				b = append(b, fmt.Sprintf("Error: %s\n", httpRes.Err)...)
+			if res.Err != "" {
+				b = append(b, fmt.Sprintf("Error: %s\n", res.Err)...)
 			}
-		} else {
-			// Non-HTTP result: use summary and evidence.
+		case types.WSResult:
+			if res.MatchedMessage != "" {
+				msg := res.MatchedMessage
+				if len(msg) > 2000 {
+					msg = msg[:2000] + "\n... (truncated)"
+				}
+				b = append(b, fmt.Sprintf("WS Matched Message: %s\n", msg)...)
+			}
+			for i, seen := range res.SeenMessages {
+				if i >= 5 { // cap noise from heartbeats
+					b = append(b, fmt.Sprintf("... and %d more seen messages\n", len(res.SeenMessages)-5)...)
+					break
+				}
+				b = append(b, fmt.Sprintf("WS Seen: %s\n", seen)...)
+			}
+			if res.Err != "" {
+				b = append(b, fmt.Sprintf("WS Error: %s\n", res.Err)...)
+			}
+		default:
+			// Other result types: use summary and evidence.
 			b = append(b, fmt.Sprintf("Result Summary: %s\n", r.Result.Summary())...)
 		}
 	}
