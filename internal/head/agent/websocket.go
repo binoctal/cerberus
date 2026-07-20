@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -134,6 +135,40 @@ func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, st
 	return types.WSResult{OK: true, Latency: time.Since(start)}
 }
 
+// messageType reads the top-level "type" field of a JSON text message.
+// Returns ("", false) for non-JSON or non-object messages.
+func messageType(data []byte) (string, bool) {
+	var probe struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return "", false
+	}
+	return probe.Type, true
+}
+
 func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveAction, start time.Time) types.ExecutorResult {
-	return types.ErrorResult{Err: "ws_receive not yet implemented"} // Task 5
+	conn, connCtx, ok := e.lookup(a.ConnectionID)
+	if !ok {
+		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
+	}
+	timeout := time.Duration(a.Timeout) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	readCtx, cancel := context.WithTimeout(connCtx, timeout)
+	defer cancel()
+
+	var seen []string
+	for {
+		_, data, err := conn.Read(readCtx)
+		if err != nil {
+			// Peer close or timeout: no matching message arrived.
+			return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", err), SeenMessages: seen, Latency: time.Since(start)}
+		}
+		if t, _ := messageType(data); t == a.Type {
+			return types.WSResult{OK: true, MatchedMessage: string(data), SeenMessages: seen, Latency: time.Since(start)}
+		}
+		seen = append(seen, string(data))
+	}
 }

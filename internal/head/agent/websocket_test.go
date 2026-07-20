@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -191,5 +192,60 @@ func TestWSSendReusesConnection(t *testing.T) {
 	res2 := ex.Execute(ctx, types.WSSendAction{ConnectionID: "nope", Message: "x"})
 	if res2.Success() {
 		t.Fatal("send on unknown connection_id should fail")
+	}
+}
+
+func TestWSReceiveMatchesByType(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		// Server pushes a heartbeat then the awaited response.
+		write := func(m map[string]any) {
+			b, _ := json.Marshal(m)
+			_ = conn.Write(ctx, websocket.MessageText, b)
+		}
+		write(map[string]any{"type": "heartbeat"})
+		write(map[string]any{"type": "permission:response", "payload": map[string]any{"approved": true}})
+		_, _, _ = conn.Read(ctx)
+	})
+
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "permission:response", Timeout: 2})
+	ws, ok := res.(types.WSResult)
+	if !ok {
+		t.Fatalf("result type %T, want WSResult", res)
+	}
+	if !ws.OK {
+		t.Fatalf("receive failed: %+v", ws)
+	}
+	if !strings.Contains(ws.MatchedMessage, "permission:response") {
+		t.Fatalf("matched message wrong: %s", ws.MatchedMessage)
+	}
+	if !strings.Contains(strings.Join(ws.SeenMessages, ""), "heartbeat") {
+		t.Fatalf("non-match not captured in seen: %v", ws.SeenMessages)
+	}
+}
+
+func TestWSReceiveTimeout(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		write := func(m map[string]any) {
+			b, _ := json.Marshal(m)
+			_ = conn.Write(ctx, websocket.MessageText, b)
+		}
+		write(map[string]any{"type": "unrelated"})
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "never", Timeout: 1})
+	if res.Success() {
+		t.Fatalf("expected timeout failure, got success: %+v", res)
 	}
 }
