@@ -115,16 +115,19 @@ round-trip has multiple steps, but a case can pass only once.
   `WSDisconnect` are intermediate: success does **not** trigger `passed`; the
   ReAct loop continues steering the next step.
 - `WSReceive` carries a `decisive` flag:
-  - `decisive=true` (default): a message of the awaited `type` arrives →
-    **case passed**.
-  - `decisive=false`: arrival → continue steering (an intermediate checkpoint);
-    timeout → action fails.
+  - `decisive=true`: a message of the awaited `type` arrives → **case passed**.
+  - `decisive=false` (the M0 default): arrival → continue steering (an
+    intermediate checkpoint); timeout → action fails.
 - An intermediate `WSReceive` timeout still sinks the case: the failed action
   drives recovery/retry, and exhausting attempts yields `finalizeResult = failed`.
 
-**Default `decisive=true`** because most WS verifications are "wait until the key
-reply arrives" (single decisive point). Multi-step conversations mark
-intermediate receives `decisive=false`. *(Default revisitable after M0
+**M0 defaults `decisive=false`.** The Go zero-value of `Decisive bool` is
+`false`, which is intentionally safer: a forgotten flag cannot prematurely pass
+a case. The steer prompt instructs the LLM to set `decisive=true` explicitly on
+the one verification receive for the case; intermediate receives omit it. Most
+WS verifications are "wait until the key reply arrives" (a single decisive
+point), but the default favors correctness over convenience until dogfooding
+shows the prompt reliably sets the flag. *(Default revisitable after M0
 dogfooding — see Open Questions.)*
 
 **Recovery guard (critical).** Without protection, an intermediate step that
@@ -362,8 +365,12 @@ dogfooded. Listed for directional alignment, **not** detailed design.
 
 ## Open Questions
 
-1. **`decisive` default.** `true` is chosen for M0; revisit after dogfooding
-   whether multi-step conversations are common enough to flip the default.
+1. **`decisive` default.** M0 ships `decisive=false` (the Go zero-value) as the
+   safer default — a forgotten flag cannot prematurely pass a case. The steer
+   prompt instructs the LLM to set `decisive=true` explicitly on the one
+   verification receive for the case. Revisit after dogfooding whether to flip
+   the default to `true` (e.g. if the prompt proves reliable at setting the
+   flag, the safer default loses value).
 2. **`connection_id` source.** Executor-generated uuid (case-namespaced) vs
    honoring an LLM-supplied id. Design favors "generate when absent, accept
    case-namespaced otherwise"; finalize in plan.

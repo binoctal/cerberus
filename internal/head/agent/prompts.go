@@ -29,7 +29,8 @@ Use these for any WebSocket / realtime target. They share a connection table key
 Rules:
 - Reuse the SAME connection_id across connect/send/receive/disconnect for one logical connection.
 - A case passes when a ws_receive with decisive=true sees its awaited type arrive. Set decisive=true explicitly on the one verification receive for the case; use decisive=false (or omit it) only for intermediate checks that should not pass the case. Use at most one decisive receive per case.
-- Content assertions (e.g. payload.approved) are judged from the received message by the Examiner against the test case expectation — ws_receive only confirms the message arrived.`
+- Content assertions (e.g. payload.approved) are judged from the received message by the Examiner against the test case expectation — ws_receive only confirms the message arrived.
+- Each connection_id must be unique across the whole test run. Reuse one id for one logical connection; if a case might run alongside others, omit connection_id so the executor assigns a globally-unique one.`
 
 const promptSteerOutput = `Respond with JSON:
 {
