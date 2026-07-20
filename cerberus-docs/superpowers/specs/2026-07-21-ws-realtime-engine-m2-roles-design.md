@@ -180,7 +180,8 @@ type ProtocolRole struct {
 type RoleHandshake struct {
 	// AwaitType is the routing-key value (at protocol.type_path) to wait for.
 	AwaitType string `yaml:"await_type"`
-	// Timeout is seconds to wait; <=0 means no timeout (use ctx).
+	// Timeout is seconds to wait; must be > 0 (validation) so a mandatory
+	// handshake cannot hang a case indefinitely.
 	Timeout   int    `yaml:"timeout,omitempty"`
 }
 
@@ -236,10 +237,14 @@ auto-awaits `devices:sync` for web.
 `injectAuth`/dial):
 
 1. If `a.Role != ""`:
-   - Resolve `proto.Roles[a.Role]`; if absent → fail the connect with a
-     non-secret error (`unknown role %q`) and do not dial.
-   - Determine `credentialRef = role.CredentialRef` (else `proto.Auth.CredentialRef`).
-     Pass this to `injectAuth` (instead of `a.CredentialRef`/the M1 default).
+   - Resolve `proto.Roles[a.Role]`; if absent (or `proto` itself is nil) → fail
+     the connect with a non-secret error (`unknown role %q`) and do not dial.
+   - Resolve the effective credential_ref: `role.CredentialRef` (role set) →
+     `a.CredentialRef` (action) → `proto.Auth.CredentialRef` (protocol default).
+     **Refactor `injectAuth` to take this as an explicit `actor` param** (M1 read
+     `a.CredentialRef`/`auth.CredentialRef` internally, so without this refactor a
+     role connect would silently fall back to the protocol default and ignore
+     `role.CredentialRef`); `doConnect` passes the resolved value.
    - After `injectAuth` (token strip-then-inject), **strip-then-inject each of
      `role.Params`** into the dial url query (delete then set).
 2. Dial (M1).
@@ -266,7 +271,8 @@ Extend `internal/project/validate_protocol.go` (`ValidateProtocol`):
 - `role.credential_ref` (when set) must name an existing actor (reuse the
   existing actor check).
 - `role.params` must not include `protocol.auth.param` (token-slot collision).
-- When `role.handshake` is set: `await_type` non-empty, `timeout >= 0`.
+- When `role.handshake` is set: `await_type` non-empty, `timeout > 0` (a
+  mandatory handshake must not hang a case indefinitely).
 - (Optional warning) a `ws_connect` setting both `role` and `credential_ref`.
 
 ## Prompt & Docs
@@ -304,7 +310,8 @@ Table-driven, mirroring M1:
 - `internal/project/validate_protocol.go` — role validation.
 - `internal/types/actions_http.go` — `WSConnectAction.Role`.
 - `internal/head/agent/websocket.go` — role resolution, param strip-then-inject,
-  auto-handshake loop, failure cleanup.
+  auto-handshake loop, failure cleanup; `injectAuth` refactored to take an
+  explicit resolved-actor param.
 - `internal/head/agent/prompts.go` — best-effort role hint.
 - `cerberus-docs/executors/websocket.md` — roles documentation.
 
