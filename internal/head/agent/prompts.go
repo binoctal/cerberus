@@ -21,7 +21,7 @@ ACTION TYPES:
 ## WebSocket primitives (realtime protocols)
 Use these for any WebSocket / realtime target. They share a connection table keyed by connection_id; connect once, then send/receive/disconnect by id.
 
-- ws_connect {url, headers?, subprotocols?, connection_id?}: open a persistent connection. Put credentials in url query, headers, or subprotocols as the protocol requires. If connection_id is omitted, one is assigned.
+- ws_connect {url, headers?, subprotocols?, connection_id?, credential_ref?}: open a persistent connection. If the target service declares a protocol (see the project context), the executor auto-injects auth — omit credentials from the url in that case. Otherwise put credentials in url query, headers, or subprotocols as the protocol requires.
 - ws_send {connection_id, message}: send a text/JSON message on an open conn.
 - ws_receive {connection_id, type, timeout?, decisive?}: wait for a message whose top-level JSON type field equals the type argument. Other messages are kept as evidence.
 - ws_disconnect {connection_id}: close the connection.
@@ -30,7 +30,9 @@ Rules:
 - Reuse the SAME connection_id across connect/send/receive/disconnect for one logical connection.
 - A case passes when a ws_receive with decisive=true sees its awaited type arrive. Set decisive=true explicitly on the one verification receive for the case; use decisive=false (or omit it) only for intermediate checks that should not pass the case. Use at most one decisive receive per case.
 - Content assertions (e.g. payload.approved) are judged from the received message by the Examiner against the test case expectation — ws_receive only confirms the message arrived.
-- Each connection_id must be unique across the whole test run. Reuse one id for one logical connection; if a case might run alongside others, omit connection_id so the executor assigns a globally-unique one.`
+- Each connection_id must be unique across the whole test run. Reuse one id for one logical connection; if a case might run alongside others, omit connection_id so the executor assigns a globally-unique one.
+
+Protocol declarations: when a service declares a protocol, its auth is injected by the executor (do not duplicate credentials) and ws_receive matches by the declared type_path. The routing key value you pass to ws_receive (the "type" argument) is the expected value at that path, not the path itself.`
 
 const promptSteerOutput = `Respond with JSON:
 {

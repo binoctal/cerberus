@@ -15,3 +15,15 @@ func TestSteerPromptDocumentsWSPrimitives(t *testing.T) {
 		t.Fatal("steer prompt must state at-most-one-decisive")
 	}
 }
+
+func TestSteerPromptMentionsProtocolDeclaration(t *testing.T) {
+	for _, want := range []string{
+		"declares a protocol",
+		"omit credentials",
+		"type_path",
+	} {
+		if !contains(promptSteerSystem, want) {
+			t.Fatalf("steer prompt missing %q", want)
+		}
+	}
+}
