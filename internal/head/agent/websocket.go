@@ -266,6 +266,13 @@ func (e *WebSocketExecutor) injectAuth(ctx context.Context, dialURL string, acto
 	}
 	switch auth.Strategy {
 	case "query":
+		// M1 guard: explicit bad-url early-fail. setQueryParam/stripQuery fall
+		// back to the raw url on parse error, so without this guard a malformed
+		// dial url would silently slip through to websocket.Dial and surface as
+		// a less-specific dial error. Restoring the guard is strict improvement.
+		if _, err := url.Parse(dialURL); err != nil {
+			return "", "", fmt.Errorf("ws auth: bad url: %w", err)
+		}
 		return setQueryParam(dialURL, auth.Param, token), stripQuery(dialURL, auth.Param), nil
 	case "header":
 		if opts.HTTPHeader == nil {

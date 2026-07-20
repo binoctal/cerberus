@@ -743,3 +743,45 @@ func TestConnectRoleHandshakeTimeoutFailsAndCleansUp(t *testing.T) {
 		t.Fatal("connection should be removed after handshake timeout")
 	}
 }
+
+// TestInjectAuthQueryBadURLFails locks in the M1 bad-url guard that Task 4
+// regressed: with strategy=query, a malformed dial url must fail fast inside
+// injectAuth with "ws auth: bad url" rather than silently falling back through
+// setQueryParam/stripQuery (which return the raw url on parse error) and
+// surfacing later as a less-specific websocket.Dial error. Tested directly
+// because, in the Execute flow, a malformed a.URL already short-circuits at
+// resolveProtocol (nil proto -> injectAuth is skipped); this unit test covers
+// the guard against any future caller that invokes injectAuth directly.
+//
+// The resolved real token must NOT appear in either returned url on the error
+// path (M1 secret hygiene).
+func TestInjectAuthQueryBadURLFails(t *testing.T) {
+	// "ws://[" + ":" yields "ws://[:" which url.Parse rejects with a
+	// "missing ']' in host" error. Constructed at runtime so staticcheck's
+	// SA1007 invalid-URL literal check does not flag the deliberate malformed
+	// input. The resolved token ("REAL-SECRET") is never written to either
+	// returned url because the guard fires before setQueryParam/stripQuery.
+	malformedDialURL := "ws://[" + ":" + "::1"
+
+	idx := &WSProtocolIndex{ActorTokens: map[string]string{"web": "REAL-SECRET"}}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	auth := &project.ProtocolAuth{Strategy: "query", Param: "token"}
+	opts := &websocket.DialOptions{}
+
+	dialURL, preInjectionURL, err := ex.injectAuth(context.Background(), malformedDialURL, "web", auth, opts)
+	if err == nil {
+		t.Fatalf("injectAuth: expected bad-url error, got nil (dialURL=%q preInjectionURL=%q)", dialURL, preInjectionURL)
+	}
+	if !strings.Contains(err.Error(), "ws auth: bad url") {
+		t.Fatalf("injectAuth: error %q does not contain \"ws auth: bad url\"", err.Error())
+	}
+	if dialURL != "" {
+		t.Fatalf("injectAuth: error path must return empty dialURL, got %q", dialURL)
+	}
+	if preInjectionURL != "" {
+		t.Fatalf("injectAuth: error path must return empty preInjectionURL, got %q", preInjectionURL)
+	}
+	if strings.Contains(err.Error(), "REAL-SECRET") {
+		t.Fatalf("injectAuth: error leaks resolved token: %s", err.Error())
+	}
+}
