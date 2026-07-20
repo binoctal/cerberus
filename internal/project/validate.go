@@ -38,6 +38,9 @@ func (cfg *Config) Validate() error {
 	// Phase 5: Validate settings
 	validateSettings(cfg, &ve)
 
+	// Phase 6: Validate WS protocol declarations
+	validateProtocol(cfg, &ve)
+
 	if len(ve.Errors) == 0 {
 		return nil
 	}
