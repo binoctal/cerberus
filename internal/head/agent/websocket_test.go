@@ -593,6 +593,9 @@ func TestConnectStripsLLMSuppliedToken(t *testing.T) {
 
 // TestConnectFailsWhenAuthUnresolvable proves a declared auth whose actor has
 // no resolved token fails the connect with a non-secret error BEFORE dialing.
+// It also verifies the failure path's WSResult.URL strips the declared param:
+// a custom param name (e.g. "jwt") not in the default redaction denylist must
+// not echo back any LLM-supplied value (spec D6 — secrets never reach results).
 func TestConnectFailsWhenAuthUnresolvable(t *testing.T) {
 	wsURL, _ := newWSTestServerCapture(t)
 	p := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "ghost"}}
@@ -601,6 +604,23 @@ func TestConnectFailsWhenAuthUnresolvable(t *testing.T) {
 	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
 	if res.Success() {
 		t.Fatalf("want failure for unresolvable auth, got %+v", res)
+	}
+
+	// Failure path must also strip a custom-named (non-denylist) param so the
+	// LLM-supplied value at auth.param never leaks via WSResult.URL.
+	jwtProto := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "jwt", CredentialRef: "ghost"}}
+	jwtIdx := &WSProtocolIndex{ByHost: map[string]*project.Protocol{hostOf(t, wsURL): jwtProto}, ActorTokens: map[string]string{"web": "X"}}
+	jwtEx := NewWebSocketExecutor(zap.NewNop(), jwtIdx)
+	jwtRes := jwtEx.Execute(context.Background(), types.WSConnectAction{URL: wsURL + "?jwt=LLM-SECRET", ConnectionID: "c2"})
+	ws, ok := jwtRes.(types.WSResult)
+	if !ok {
+		t.Fatalf("result type %T, want WSResult", jwtRes)
+	}
+	if ws.Success() {
+		t.Fatalf("want failure for unresolvable auth, got %+v", ws)
+	}
+	if strings.Contains(ws.URL, "LLM-SECRET") {
+		t.Fatalf("auth-failure WSResult.URL leaks LLM-supplied param: %s", ws.URL)
 	}
 }
 

@@ -144,7 +144,11 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 		var authErr error
 		dialURL, preInjectionURL, authErr = e.injectAuth(ctx, dialURL, a, proto.Auth, opts)
 		if authErr != nil {
-			return types.WSResult{OK: false, URL: a.URL, Err: authErr.Error(), Latency: time.Since(start)}
+			// Auth-resolution failure: strip the declared param from the
+			// echoed url, symmetric with the dial-error and success paths.
+			// Without this, an LLM-supplied value at a custom param name
+			// not in the default redaction denylist would leak via WSResult.URL.
+			return types.WSResult{OK: false, URL: stripQuery(a.URL, proto.Auth.Param), Err: authErr.Error(), Latency: time.Since(start)}
 		}
 	} else {
 		preInjectionURL = a.URL
