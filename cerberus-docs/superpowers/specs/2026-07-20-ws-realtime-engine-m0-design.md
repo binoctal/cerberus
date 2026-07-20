@@ -1,7 +1,7 @@
 # WebSocket Realtime Engine (M0) — Design
 
 **Date:** 2026-07-20
-**Status:** Draft (brainstormed, pending review)
+**Status:** Draft (brainstormed, revised after self-review)
 **Scope:** `internal/head/agent` (websocket executor, ReAct judgment), `internal/types` (WS actions + result), `internal/prompts` (WS primitive guidance), `cerberus-docs/executors/websocket.md`
 
 ## Background
@@ -17,10 +17,9 @@ This shape cannot express real-world realtime flows. The trigger was attempting
 to migrate `open-agents`' `permission-flow-real.spec.ts` into a cerberus case.
 That flow requires **two concurrent authenticated connections** (a `bridge`
 client and a `web` client), a message sent on one, routed by the server, and
-received/asserted on the other — a full round-trip with content assertions
-(`payload.approved == true`). The current executor dials-and-closes per action
-and has no "wait for a matching message" or "assert message content" primitive,
-so the flow is unrepresentable.
+received on the other — a full round-trip. The current executor dials-and-closes
+per action and has no "wait for a message" primitive, so the flow is
+unrepresentable.
 
 A second, broader motivation: open-agents is only the first of many
 websocket/realtime systems cerberus will face. The capability must not be a
@@ -30,17 +29,28 @@ system-specific code.
 
 Two hard constraints from the existing architecture shape the design:
 
-1. **A TestCase passes only via a successful non-wait action.**
-   `execute_phases_react_loop.go:51` returns `passed` the moment an action
-   succeeds (`!isNoopWait(action)`). `finalizeResult`
-   (`execute_phases_recovery.go:62`) **never** sets `passed` — only
-   `failed`/`skipped`. There is no "LLM declares done" path; case success is
-   action-driven.
+1. **A TestCase passes only via a successful action.** Case `passed` is driven
+   by an action succeeding — through the ReAct loop
+   (`execute_phases_react_loop.go:51`), the rule engine
+   (`execute_phases_rule_engine.go:45,74`), or recovery
+   (`execute_phases_recovery.go:49`). `finalizeResult`
+   (`execute_phases_recovery.go:62`) sets only `failed`/`skipped`, never
+   `passed`. The LLM has **no "declare done"** path: `steer`
+   (`executor_steer.go:44`) returns exactly one action, never a completion
+   signal.
 2. **No cross-action connection state, no lifecycle hooks.** `grep` for
    `connStore`/`connPool`/`cookie`/`jar` in the agent package returns nothing.
    The `TypedExecutor` interface (`multi.go:17`) has only `Execute` — no
    `Close`/`Shutdown`. The `TestCase.Cleanup` field is declared but unused
    (dead). There is no session/case lifecycle hook to lean on.
+
+A third finding shapes the assertion model:
+
+3. **Cerberus has no runtime expression evaluator.** `invariant.check` strings
+   in `project.yaml` (e.g. `response.status < 500`) are **never machine-evalued**;
+   `scout.go:100` feeds them to the LLM as text and `examiner/judge.go:42` has
+   the LLM judge them. They look like expressions but are natural-language
+   prompts. M0 must not assume an evaluator exists.
 
 ## Goal
 
@@ -52,7 +62,7 @@ criteria:
   `WSDisconnect`, all referencing connections by `connection_id` (no hardcoded
   role names or message fields).
 - A single TestCase can run a multi-step realtime conversation (connect →
-  send → receive → assert → disconnect, including concurrent connections).
+  send → receive → disconnect, including concurrent connections).
 - Connections live for the duration of a case and are cleaned up automatically —
   no leaks, no interface changes, no lifecycle hooks.
 - The executor contains **zero** open-agents-specific code; all protocol
@@ -62,14 +72,17 @@ criteria:
 
 ## Non-Goals
 
-- **M1 — protocol adaptation layer** (auth strategy, framing, type-field path
-  declared in `project.yaml`).
-- **M2 — multi-role orchestration & timing assertions** (role abstraction,
-  handshake sequences, message-order/window assertions).
+- **M1 — protocol adaptation layer** (auth strategy, framing, configurable
+  type-field path).
+- **M2 — multi-role orchestration, timing & field assertions** (role
+  abstraction, handshake sequences, message-order/window assertions,
+  field-level `assert`).
 - **M3 — declarative protocol descriptions & auto-adaptation** (protocol
   description files; Scout generating cases from descriptions/docs/captures).
 - Non-WS realtime transports (SSE / WebRTC / raw TCP) and fully-encrypted
   undocumented binary protocols — out of scope, future extension.
+- A general expression/JSONPath evaluator (cerberus has none today; M0 does not
+  introduce one).
 - Reducing LLM token cost for protocol understanding (that is M1's purpose).
 
 ## Design Decisions
@@ -91,11 +104,10 @@ composes primitives on the fly.
 token cost is higher than a declarative approach. This is the intentional price
 of zero-config generality; M1 offsets it by persisting protocol knowledge.
 
-### D2 — Multi-step within a single TestCase via a `decisive` flag
+### D2 — Multi-step within a single TestCase; `decisive` flag + recovery guard
 
-**Problem:** Constraint (1) means a case passes on the first successful
-non-wait action. A round-trip has multiple verification points (web receives
-request; bridge receives approved response), but a case can pass only once.
+**Problem:** Constraint (1) means a case passes on a successful action. A
+round-trip has multiple steps, but a case can pass only once.
 
 **Decision:** split actions into **intermediate steps** and **decisive steps**.
 
@@ -103,69 +115,107 @@ request; bridge receives approved response), but a case can pass only once.
   `WSDisconnect` are intermediate: success does **not** trigger `passed`; the
   ReAct loop continues steering the next step.
 - `WSReceive` carries a `decisive` flag:
-  - `decisive=true` (default): `match` + `assert` pass → **case passed**.
-  - `decisive=false`: `match` + `assert` pass → continue steering (an
-    intermediate verification point); failure → action fails.
-- An intermediate `WSReceive` failure still sinks the case: the failed action
+  - `decisive=true` (default): a message of the awaited `type` arrives →
+    **case passed**.
+  - `decisive=false`: arrival → continue steering (an intermediate checkpoint);
+    timeout → action fails.
+- An intermediate `WSReceive` timeout still sinks the case: the failed action
   drives recovery/retry, and exhausting attempts yields `finalizeResult = failed`.
 
-**Default `decisive=true`** because most WS verifications are "wait until the
-key reply arrives and assert it" (single decisive point). Multi-step
-conversations mark intermediate receives `decisive=false`. *(Default is
-revisitable after M0 dogfooding — see Open Questions.)*
+**Default `decisive=true`** because most WS verifications are "wait until the key
+reply arrives" (single decisive point). Multi-step conversations mark
+intermediate receives `decisive=false`. *(Default revisitable after M0
+dogfooding — see Open Questions.)*
 
-**Rejected alternative — independent `WSAssert` action as the sole decisive
-step.** More orthogonal, but `assert` must reference messages received by prior
-`receive` actions, reintroducing cross-action message state — strictly more
-complex than the `decisive` flag.
+**Recovery guard (critical).** Without protection, an intermediate step that
+succeeds falls through to Phase 7 `tryRecovery` (`execute_phases_react_loop.go`),
+which unconditionally calls `Recover(..., lastResult, ...)` (`recovery.go:49`)
+using **failure** semantics (`"Failed action... Error: <summary>"`,
+`recovery.go:55`). Fed a *successful* result, the LLM's behavior is undefined
+and typically returns `Skip`, which:
+- triggers one extra LLM call per intermediate step (token waste — 5 spurious
+  calls in the permission-flow), and
+- sets `recoverySkipped`, which makes `finalizeResult` mis-label a non-passing
+  case as `StepSkipped` instead of `failed` (`execute_phases_recovery.go:63`).
 
-**Rejected alternative — split the round-trip across multiple TestCases with
-`DependsOn`.** This forces connections to outlive a single case, resurrecting
-the cross-case lifecycle problem (D3 exists precisely to avoid that) and
-ordering/timing fragility. Rejected.
+Therefore Phase 7 must **skip recovery when an intermediate step succeeded**:
+`if !isIntermediateStep(action) || !newResult.Success() { tryRecovery }`. The
+existing `isNoopWait` path benefits from the same guard.
+
+**Rejected — independent `WSAssert` action as the sole decisive step.** More
+orthogonal, but `assert` must reference messages received by prior `receive`
+actions, reintroducing cross-action message state — strictly more complex than
+the `decisive` flag.
+
+**Rejected — split the round-trip across multiple TestCases with `DependsOn`.**
+Forces connections to outlive a single case, resurrecting the cross-case
+lifecycle problem (D3 exists to avoid that) and ordering/timing fragility.
 
 ### D3 — Connection lifetime bound to per-case context
 
 **Problem:** Constraint (2) — no lifecycle hooks, executor interface is
-`Execute`-only. How are connections cleaned up?
+`Execute`-only.
 
 **Decision:** each `WSConnect` registers a goroutine that closes the connection
-on `ctx.Done()`. Because `executeStep` derives a per-case context
-(`context.WithTimeout`), case exit cancels the context and closes **all** of
-that case's connections automatically.
+on `ctx.Done()`. `executeStep` derives a per-case context
+(`context.WithTimeout`, `execute_phases.go:40`) **when `PerCaseTimeout > 0`**;
+case exit cancels it and closes all of that case's connections.
 
-- Connection table: `connectionID (uuid) → *Conn`, guarded by `sync.RWMutex`,
-  held on the singleton executor. `WSConnect` generates the id (or honors an
-  LLM-supplied one), stores the conn; `WSSend`/`WSReceive`/`WSDisconnect` look
-  it up by id.
-- Case context cancellation both closes conns (via the goroutine) and removes
-  the table entries for that case (tracked per-context).
-- **No `TypedExecutor` interface change, no framework hook, no leak,
-  concurrency-safe** (parallel execution gives each case its own context).
+- Connection table: `connectionID → *Conn`, guarded by `sync.RWMutex`, held on
+  the singleton executor.
+- **`connection_id` is unique within a case** (executor generates a uuid when
+  the LLM omits it; honors an LLM-supplied id only within that case's
+  namespace). Parallel cases cannot collide on a shared id like `"conn1"`.
+- Case context cancellation both closes conns and prunes the table.
+
+**Dependency & caveat:** D3 relies on `PerCaseTimeout > 0`. The default config
+sets it to **2 minutes** (`types.go:124`), which is fine for the
+permission-flow but may be tight for long realtime sessions — callers tuning
+that down to `0` lose per-case isolation. This is documented as a config
+constraint, not a code dependency.
+
+**No `TypedExecutor` interface change, no framework hook, no leak,
+concurrency-safe** (parallel execution gives each case its own context).
 
 ### D4 — Generality: zero protocol code in the executor
 
-**Decision:** the executor implements only the generic primitives. Anything
-system-specific — authentication placement, message framing, the field that
-identifies a message type, business semantics — is supplied by the LLM.
+The executor implements only the generic primitives. Anything system-specific —
+authentication placement, message framing, business semantics — is supplied by
+the LLM.
 
-- Authentication is not a first-class concept in M0: the LLM puts credentials
-  into `url` query params / `headers` / `subprotocols` as the protocol demands.
-  (open-agents uses URL query tokens.) M1 promotes this to a declared strategy.
+- Authentication is not first-class in M0: the LLM puts credentials into `url`
+  query params / `headers` / `subprotocols` as the protocol demands (open-agents
+  uses URL query tokens). M1 promotes this to a declared strategy.
 - `project.yaml` gains **no** WS schema in M0. WS cases are LLM-driven (Scout
   does not generate WS cases today; that stays).
 
-### D5 — Match/assert via expressions over deserialized JSON (reuse invariant engine)
+### D5 — Type-based matching; assertions via Examiner (no evaluator)
 
-`WSReceive`'s `match` (which message to accept) and `assert` (field-level
-verification) are **expression strings** evaluated against the deserialized
-message JSON, e.g. `match="$.type == 'permission:request'"`,
-`assert="$.payload.approved == true"`. No hardcoded field names.
+**Problem:** Constraint (3) — there is no runtime expression evaluator to reuse.
 
-This reuses cerberus's existing expression evaluation (the same source as
-`invariants[].check` in `project.yaml`, e.g. `response.status < 500`). *Confirm
-the exact engine and JSONPath-vs-dot-notation syntax during planning; if a
-JSONPath dependency is needed, prefer one already in the module graph.*
+**Decision:** `WSReceive` matches a message by its **top-level `type` field**
+(exact equality, e.g. waits until a message with `type ==
+"permission:response"` arrives). M0 performs **no field-level assertion**;
+content correctness (`payload.approved == true`) is judged by the case's
+`Expectation` via the existing Examiner LLM path — exactly how HTTP action
+success ("request returned 200") is separated from business correctness ("the
+response body was valid") today.
+
+- This avoids introducing an evaluator cerberus has never had, and stays
+  consistent with the LLM-driven judgment model used by invariants and the
+  Examiner.
+- **M0 boundary:** assumes messages are JSON with a top-level `type` used for
+  routing (open-agents and most JSON WS protocols satisfy this). Protocols
+  whose routing key lives elsewhere (nested field, `event`/`action`, non-JSON)
+  are **not supported in M0** — the configurable type-field path is M1's job.
+- **Semantic implication:** `decisive` receive `passed` means *"the key message
+  arrived"*, not *"its contents were correct"*. A case can pass the flow yet
+  have the Examiner flag a content mismatch at session end. This matches
+  cerberus's existing two-layer judgment (action success vs. expectation).
+
+**Rejected — machine expression/JSONPath `match`+`assert` (original draft).**
+Based on the false premise that an evaluator existed. Building one is scope
+creep M0 should not take on; M2 may add field assertions if dogfooding demands.
 
 ## WS Primitive Actions
 
@@ -174,119 +224,131 @@ are hardcoded.
 
 | Action | Key fields | Semantics | Step class |
 |---|---|---|---|
-| `WSConnect` | `url`, `headers?`, `subprotocols?`, `connection_id` | dial → store in table → bind to per-case ctx | intermediate |
+| `WSConnect` | `url`, `headers?`, `subprotocols?`, `connection_id?` | dial → store in table → bind to per-case ctx | intermediate |
 | `WSSend` | `connection_id`, `message` | send on an established connection | intermediate |
-| `WSReceive` | `connection_id`, `match`, `assert?`, `timeout?`, `decisive?` | wait for a message matching `match`, optional `assert` | decisive (when `decisive=true`) |
+| `WSReceive` | `connection_id`, `type`, `timeout?`, `decisive?` | wait for a message whose top-level `type` matches | decisive (when `decisive=true`) |
 | `WSDisconnect` | `connection_id` | close + remove | intermediate |
 
-`WSConnect` / `WSSend` are modified forms of today's `WSConnectAction` /
-`WSSendAction` (gain `connection_id`, no longer dial-and-close). `WSReceive` /
-`WSDisconnect` are new.
+- `WSReceive` scans the inbound stream until a matching `type` arrives or
+  `timeout` hits. **Non-matching messages are not consumed silently**: they are
+  appended to the result's evidence (so the Examiner sees the full conversation)
+  and the read loop continues.
+- `WSConnect` / `WSSend` are modified forms of today's actions (gain
+  `connection_id`, no longer dial-and-close). `WSReceive` / `WSDisconnect` are
+  new.
 
 ## Judgment Model
 
 ```
 intermediate action (connect/send/disconnect, or receive decisive=false) succeeds
-  → ReAct continues steering (next primitive)
-  → on failure: recovery / retry → finalizeResult=failed if attempts exhausted
+  → SKIP tryRecovery, ReAct continues steering (next primitive)
+  → on failure: tryRecovery → retry → finalizeResult=failed if attempts exhausted
 
-WSReceive decisive=true: match+assert pass → case PASSED
-                           match timeout / assert fail → action fail
+WSReceive decisive=true: awaited type arrives → case PASSED
+                           timeout → action fail
 ```
+
+The recovery guard (D2) is what makes multi-step work without spurious LLM calls
+or mis-labeled skips.
 
 ## Connection Lifecycle
 
-- `WSConnect`: dial, generate/accept `connection_id`, store `*Conn` in the
-  table, spawn `go func() { <-ctx.Done(); conn.Close(...) }()`.
+- `WSConnect`: dial, generate (or accept, case-namespaced) `connection_id`,
+  store `*Conn`, spawn `go func() { <-ctx.Done(); conn.Close(...) }()`.
 - `WSSend` / `WSReceive` / `WSDisconnect`: look up conn by `connection_id`;
   `WSReceive` reads with its own `timeout`; `WSDisconnect` closes + removes.
-- Per-case ctx cancellation (normal exit, timeout, or panic) closes every conn
-  the case opened and prunes the table.
+- Per-case ctx cancellation (normal exit, timeout, panic) closes every conn the
+  case opened and prunes the table.
 
 ## Impact / Change List
 
 **New:**
-- `WSReceiveAction`, `WSDisconnectAction` types (`internal/types/actions_http.go`
-  alongside existing WS actions).
-- Register both in `internal/types/actions_registry.go`; add deref groups in
-  `internal/types/actions_deref_groups.go`.
+- `WSReceiveAction`, `WSDisconnectAction` types (`internal/types/actions_http.go`).
+- Register both in `internal/types/actions_registry.go` (so `actionFromEnvelope`
+  in `executor_steer.go:44` / `recovery.go:66` can parse LLM JSON into them);
+  add deref groups in `internal/types/actions_deref_groups.go`.
 - Connection table + `sync.RWMutex` on `WebSocketExecutor`.
 - `isIntermediateStep` predicate.
 
 **Modified:**
 - `internal/head/agent/websocket.go`: rewrite `doConnect` (keep conn open,
   register ctx-cleanup, honor `connection_id`), rewrite `doSend` (reuse conn by
-  id), add `doReceive` (read-loop with `match`/`assert`/`timeout`) and
-  `doDisconnect`.
+  id), add `doReceive` (read-loop by `type` + `timeout`, accumulate non-matches
+  as evidence) and `doDisconnect`.
 - `internal/head/agent/react_loop_helpers.go`: `isNoopWait` → generalized
   `isIntermediateStep` (covers WaitAction + WS intermediate actions).
-- `internal/head/agent/execute_phases_react_loop.go:51`: use
-  `isIntermediateStep` in the pass-gate.
+- `internal/head/agent/execute_phases_react_loop.go`: (a) line 51 pass-gate uses
+  `isIntermediateStep`; (b) Phase 7 gains the recovery guard
+  (`!isIntermediateStep(action) || !newResult.Success()`).
 - `internal/types/result_ws.go`: extend `WSResult` to carry the matched message
-  and a match/assert outcome for evidence.
+  + non-matching messages seen during the scan, as evidence.
 - `internal/prompts/`: add WS primitive guidance + a worked example so the LLM
-  knows the `connection_id` / `decisive` contract.
-- `cerberus-docs/executors/websocket.md`: rewrite to reflect persistent
-  connections and the new primitives; fix the stale `nhooyr.io/websocket`
-  reference (now `github.com/coder/websocket`).
+  knows the `connection_id` / `decisive` / `type` contract.
+- `cerberus-docs/executors/websocket.md`: rewrite for persistent connections and
+  the new primitives; fix the stale `nhooyr.io/websocket` reference (now
+  `github.com/coder/websocket`).
 
-**Unchanged:**
-- `MultiExecutor` routing, Scout, `project.yaml` schema, the Examiner.
+**Unchanged:** `MultiExecutor` routing, Scout, `project.yaml` schema, the
+Examiner (it already judges `Expectation` via LLM).
 
 ## Testing Strategy
 
 - **Unit (local WS server via `httptest`/`coder/websocket` Accept):** each
-  primitive in isolation — connect+persist, send-on-existing, receive with
-  match hit/miss/timeout, assert pass/fail, disconnect cleanup.
-- **Lifecycle:** open N conns, cancel ctx → assert all closed and table empty.
-  Concurrent cases → assert isolation (per-case ctx).
-- **Judgment:** an intermediate-step success does not pass a case; a
-  `decisive=true` receive pass does; a `decisive=false` receive pass continues.
+  primitive in isolation — connect+persist, send-on-existing, receive match
+  hit/miss/timeout, non-match accumulation, disconnect cleanup.
+- **Lifecycle:** open N conns, cancel ctx → assert all closed and table empty;
+  parallel cases → assert isolation; connection_id reuse across parallel cases
+  does not collide.
+- **Judgment:** intermediate-step success does **not** pass a case and does
+  **not** invoke recovery; a `decisive=true` receive arrival passes; a
+  `decisive=false` receive arrival continues; recovery is invoked only on actual
+  failures.
 - **Integration (open-agents):** with the open-agents API+realtime stack
   running, run the permission-flow case end-to-end (requires the stack up; gate
   behind an env flag so CI without it skips).
 
 ## Validation Case — open-agents permission-flow as one TestCase
 
-Single case, `Expectation`: "bridge receives `permission:response` with
-`approved==true`". The LLM orchestrates within the case:
+Single case, `Expectation`: "bridge receives a `permission:response` message
+with `payload.approved == true`". The LLM orchestrates within the case:
 
 1. `WSConnect` bridge conn (`url` carries `?type=bridge&token=...&deviceId=...`)
 2. `WSConnect` web conn (`?type=web&token=<jwt>`)
 3. `WSSend` bridge: `{type:"permission:request", payload:{id, toolName, risk:"high", ...}}`
-4. `WSReceive` web, `match="$.type=='permission:request'"`, `decisive=false`
+4. `WSReceive` web, `type="permission:request"`, `decisive=false`
    (intermediate — request reached web)
 5. `WSSend` web: `{type:"permission:response", payload:{id, approved:true, ...}}`
-6. `WSReceive` bridge, `match="$.type=='permission:response'"`,
-   `assert="$.payload.approved==true"`, `decisive=true` → **case passed**
+6. `WSReceive` bridge, `type="permission:response"`, `decisive=true` → **case passed**
 7. ctx exit closes both conns
 
-No open-agents symbol appears in the executor; only in the LLM's actions.
+The `approved==true` content check is **not** in the receive — it lives in
+`Expectation` and is judged by the Examiner from evidence. No open-agents symbol
+appears in the executor; only in the LLM's actions.
 
 ## Roadmap (M1–M3)
 
 Each milestone is a separate spec → plan → implementation, started after M0 is
-dogfooded. Listed here for directional alignment, **not** detailed design.
+dogfooded. Listed for directional alignment, **not** detailed design.
 
 - **M1 — Protocol adaptation layer.** Promote the protocol knowledge the LLM
-  re-derives every run (auth strategy, framing, the type-field path) into
-  `project.yaml` declarations. Lowers token cost, raises determinism/
-  reproducibility. *Trigger to start:* M0 dogfooding shows which protocol facts
-  the LLM most often re-derives.
-- **M2 — Multi-role & timing.** Role abstraction, configurable handshake
-  sequences, message-order/window assertions. Supports more complex multi-agent
-  realtime topologies.
+  re-derives every run (auth strategy, framing, the configurable type-field
+  path that lifts M0's "top-level `type`" assumption) into `project.yaml`
+  declarations. Lowers token cost, raises determinism/reproducibility.
+  *Trigger:* M0 dogfooding shows which protocol facts the LLM most often
+  re-derives, and which protocols break the top-level-`type` assumption.
+- **M2 — Multi-role, timing & field assertions.** Role abstraction, configurable
+  handshake sequences, message-order/window assertions, and the field-level
+  `assert` that M0 deliberately omits.
 - **M3 — Declarative protocol descriptions & auto-adaptation.** A protocol
   description file format; Scout generating cases from descriptions/docs/captures.
-  Gives a deterministic path for users who do not want to rely on LLM
-  orchestration quality.
 
 ## Open Questions
 
 1. **`decisive` default.** `true` is chosen for M0; revisit after dogfooding
    whether multi-step conversations are common enough to flip the default.
-2. **Expression engine for `match`/`assert`.** Confirm the existing evaluation
-   engine (shared with `invariants[].check`) and whether it supports
-   JSONPath-style paths over nested JSON; resolve during planning.
-3. **Connection id source.** LLM-supplied vs executor-generated uuid vs both
-   (honor supplied, generate when absent). Design favors "both"; finalize in plan.
+2. **`connection_id` source.** Executor-generated uuid (case-namespaced) vs
+   honoring an LLM-supplied id. Design favors "generate when absent, accept
+   case-namespaced otherwise"; finalize in plan.
+3. **Top-level `type` coverage.** M0's matching assumption covers JSON protocols
+  routed by a top-level `type`. Confirm via M0 dogfooding how often real targets
+  deviate (to size M1's type-field-path work).
