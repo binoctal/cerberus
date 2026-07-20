@@ -249,3 +249,100 @@ func TestWSReceiveTimeout(t *testing.T) {
 		t.Fatalf("expected timeout failure, got success: %+v", res)
 	}
 }
+
+// TestIsIntermediateStep is a table-driven unit test of the predicate that
+// splits a realtime round-trip into intermediate steps (whose success must
+// neither pass the case nor consume recovery) and the single decisive step
+// (a matching WSReceive, whose success passes the case). It generalizes the
+// old isNoopWait: pure waits, WSConnect/WSSend/WSDisconnect, and a
+// non-decisive WSReceive are all intermediate; a Decisive WSReceive and a
+// wait that probes a selector/state are not.
+func TestIsIntermediateStep(t *testing.T) {
+	cases := []struct {
+		name string
+		a    types.TypedAction
+		want bool
+	}{
+		{"ws_connect", types.WSConnectAction{URL: "ws://x"}, true},
+		{"ws_send", types.WSSendAction{ConnectionID: "c", Message: "m"}, true},
+		{"ws_disconnect", types.WSDisconnectAction{ConnectionID: "c"}, true},
+		{"ws_receive decisive=false", types.WSReceiveAction{ConnectionID: "c", Type: "t"}, true},
+		{"ws_receive decisive=true", types.WSReceiveAction{ConnectionID: "c", Type: "t", Decisive: true}, false},
+		{"pure wait", types.WaitAction{Duration: "1s"}, true},
+		{"wait with selector", types.WaitAction{Duration: "1s", Selector: "#x"}, false},
+		{"wait with state", types.WaitAction{Duration: "1s", WaitForState: "visible"}, false},
+		{"http action is not intermediate", types.HTTPAction{Method: "GET", URL: "http://x"}, false},
+	}
+	for _, c := range cases {
+		if got := isIntermediateStep(c.a); got != c.want {
+			t.Fatalf("%s: got %v want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// TestReActLoop_IntermediateStepSkipsRecovery drives the ReAct loop with an
+// intermediate action (WSConnect) that succeeds, and asserts the Phase-7
+// recovery guard does NOT invoke tryRecovery. Without the guard, every
+// intermediate success would fall through to tryRecovery — burning a spurious
+// recovery LLM call per step and setting recoverySkipped, which mislabels a
+// non-passing case as StepSkipped instead of StepFailed (spec D2).
+//
+// The countingRecovery doubles as a probe: if the guard skips recovery on
+// intermediate+success, calls stays 0 across all MaxSteerAttempts.
+func TestReActLoop_IntermediateStepSkipsRecovery(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx) // block until the case ends
+	})
+
+	// Steer always emits WSConnect (intermediate). It succeeds against the
+	// httptest WS server, so the pass-gate sees Success && isIntermediate —
+	// which must NOT fire and must NOT consume recovery.
+	steerJSON, _ := json.Marshal(SteerOutput{
+		Reasoning: "open the websocket before receiving",
+		Envelope: types.ActionEnvelope{
+			Type: types.ActionWSConnect,
+			Raw:  mustJSON(types.WSConnectAction{URL: url, ConnectionID: "c1"}),
+		},
+	})
+
+	loop, s := testLoop(t, map[string]string{"default": string(steerJSON)}, nil)
+	rec := &countingRecovery{}
+	loop.recovery = rec
+	sessionID := createTestSession(t, s)
+
+	plan := &TestPlan{
+		Goal: "intermediate step must not pass or recover",
+		Cases: []TestCase{
+			{ID: "t1", Name: "connect", Target: "verify ws", Expectation: "connected"},
+		},
+	}
+	results, err := loop.ExecutePlan(context.Background(), plan, sessionID)
+	if err != nil {
+		t.Fatalf("ExecutePlan error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("got %d results, want 1", len(results))
+	}
+	if results[0].Status == StepPassed {
+		t.Fatalf("WSConnect is intermediate — its success must not pass the case")
+	}
+	if rec.calls != 0 {
+		t.Fatalf("Phase-7 guard must skip recovery on intermediate+success; Recover was called %d time(s)", rec.calls)
+	}
+}
+
+// countingRecovery is a recoverer test double that counts Recover() calls and
+// returns a benign decision (no skip, no action) so the loop continues. The
+// Phase-7 guard test uses it as a probe for whether tryRecovery was invoked.
+type countingRecovery struct {
+	calls int
+}
+
+func (c *countingRecovery) Recover(context.Context, TestCase, types.ExecutorResult, int) (RecoverDecision, error) {
+	c.calls++
+	return RecoverDecision{}, nil
+}
+func (c *countingRecovery) SetSessionID(string) {}
+func (c *countingRecovery) SetProject(string)   {}

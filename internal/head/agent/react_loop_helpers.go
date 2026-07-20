@@ -174,13 +174,24 @@ func isAbsoluteURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
-// isNoopWait reports whether action is a duration-only wait with no selector or
-// state — i.e. it merely delays and asserts nothing about the system under
-// test. Such an action succeeding must not be judged as a passing step. A wait
-// that targets a selector or state is a real UI probe, not a noop.
-func isNoopWait(action types.TypedAction) bool {
-	w, ok := action.(types.WaitAction)
-	return ok && w.Selector == "" && w.WaitForState == ""
+// isIntermediateStep reports whether an action's success should NOT end the
+// case or consume recovery. It generalizes the old isNoopWait: pure duration
+// waits stay intermediate (they assert nothing about the system under test),
+// and so do the WebSocket plumbing actions plus non-decisive receives. A
+// Decisive WSReceive is the verification endpoint — the only WS step whose
+// success passes the case — so it is NOT intermediate. A wait that targets a
+// selector or state is a real UI probe, also not intermediate.
+func isIntermediateStep(action types.TypedAction) bool {
+	if w, ok := action.(types.WaitAction); ok {
+		return w.Selector == "" && w.WaitForState == ""
+	}
+	switch a := action.(type) {
+	case types.WSConnectAction, types.WSSendAction, types.WSDisconnectAction:
+		return true
+	case types.WSReceiveAction:
+		return !a.Decisive
+	}
+	return false
 }
 
 // withActorHeaders merges the selected actor's headers underneath an HTTP

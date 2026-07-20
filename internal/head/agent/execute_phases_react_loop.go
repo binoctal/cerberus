@@ -45,19 +45,26 @@ func (se *stepExecution) runReactLoop() StepResult {
 		// Phase 5: Log attempt
 		logSteerAttempt(r.logger, attempt, action, newResult)
 
-		// Phase 6: Check for success. A pure duration wait only delays — it
-		// verifies nothing about the target — so its success must not be judged
-		// as a passing step; fall through to recovery / the next attempt.
-		if newResult.Success() && !isNoopWait(action) {
+		// Phase 6: Check for success. An intermediate step (pure wait,
+		// WSConnect/WSSend/WSDisconnect, or non-decisive WSReceive) only
+		// advances plumbing — its success verifies nothing about the target,
+		// so it must not be judged as a passing step; fall through to Phase 7.
+		if newResult.Success() && !isIntermediateStep(action) {
 			if err := r.store.FinishTrace(se.ctx, se.traceID, string(StepPassed)); err != nil {
 				r.logger.Error("finish trace", zap.Error(err))
 			}
 			return buildPassedResult(se.tc, se.traceID, attempt, se.start, action, newResult)
 		}
 
-		// Phase 7: Attempt recovery before next steer
-		if se.tryRecovery(attempt) {
-			continue
+		// Phase 7: Attempt recovery ONLY on actual failures. An intermediate
+		// step that succeeded (connect/send/non-decisive receive) must proceed
+		// to the next steer without burning a recovery LLM call or setting
+		// recoverySkipped (which would mislabel a non-passing case as skipped
+		// instead of failed). Spec D2.
+		if !isIntermediateStep(action) || !newResult.Success() {
+			if se.tryRecovery(attempt) {
+				continue
+			}
 		}
 	}
 
