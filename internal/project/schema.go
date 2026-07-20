@@ -21,6 +21,9 @@ type Service struct {
 	Headers      map[string]string `yaml:"headers,omitempty"`
 	PathPrefix   []string          `yaml:"path_prefix,omitempty"`
 	BodyTemplate string            `yaml:"body_template,omitempty"`
+	// Protocol optionally declares this service's WebSocket protocol facts.
+	// When nil, the WS executor falls back to M0 behavior.
+	Protocol *Protocol `yaml:"protocol,omitempty"`
 }
 
 type Actor struct {
