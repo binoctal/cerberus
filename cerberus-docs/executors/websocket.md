@@ -1,91 +1,59 @@
 # WebSocket Executor
 
-The WebSocket executor tests real-time communication endpoints. It supports
-`ws_connect` for establishing connections and `ws_send` for sending messages
-and reading responses.
+Tests realtime communication over persistent WebSocket connections. The LLM
+orchestrates four protocol-agnostic primitives; connections are referenced by
+`connection_id` and live for the duration of a test case.
 
-## URL Auto-Conversion
-
-The executor automatically converts HTTP(S) URLs to WebSocket URLs:
-
-| Input                    | Resolved                |
-|--------------------------|-------------------------|
-| `http://host:8080/ws`    | `ws://host:8080/ws`     |
-| `https://host:8080/ws`   | `wss://host:8080/ws`    |
-| `ws://host:8080/ws`      | `ws://host:8080/ws`     |
+Uses `github.com/coder/websocket`.
 
 ## Actions
 
 ### `ws_connect`
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | yes | WebSocket URL (http(s) auto-converts to ws(s)) |
+| `headers` | map[string]string | no | Handshake headers |
+| `subprotocols` | []string | no | WS subprotocols |
+| `connection_id` | string | no | Name for this connection (assigned if omitted) |
 
-| Field    | Type              | Required | Description          |
-|----------|-------------------|----------|----------------------|
-| `url`    | string            | yes      | WebSocket URL        |
-| `headers`| map[string]string | no       | HTTP headers for handshake |
-
-Connects to the server and reads one message with a **5-second** timeout as a
-handshake confirmation.
+Opens a persistent connection. Put credentials in the url query string,
+headers, or subprotocols as the target requires.
 
 ### `ws_send`
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `connection_id` | string | yes | Connection from `ws_connect` |
+| `message` | string | yes | Message to send |
 
-| Field   | Type   | Required | Description                |
-|---------|--------|----------|----------------------------|
-| `url`   | string | yes      | WebSocket URL              |
-| `message`| string | yes      | Message to send (text)    |
+### `ws_receive`
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `connection_id` | string | yes | Connection to read from |
+| `type` | string | yes | Wait for a message whose top-level `type` matches |
+| `timeout` | int | no | Seconds (default 10) |
+| `decisive` | bool | no | Set true on the receive that should pass the case; defaults to false (intermediate) |
 
-Sends a text message and reads one response with a **10-second** timeout.
+Non-matching messages are kept as evidence. At most one `decisive=true`
+receive per case.
 
-## Examples
+### `ws_disconnect`
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `connection_id` | string | yes | Connection to close |
 
-### Connect to echo server
+## Lifecycle
 
-```json
-{
-  "action_type": "ws_connect",
-  "url": "ws://localhost:8080/echo"
-}
-```
-
-### Send message and read response
-
-```json
-{
-  "action_type": "ws_send",
-  "url": "ws://localhost:8080/echo",
-  "message": "Hello, WebSocket!"
-}
-```
-
-### Authenticated connection
-
-```json
-{
-  "action_type": "ws_connect",
-  "url": "wss://api.example.com/ws",
-  "headers": {
-    "Authorization": "Bearer token123"
-  }
-}
-```
-
-### Send JSON payload
-
-```json
-{
-  "action_type": "ws_send",
-  "url": "wss://api.example.com/ws",
-  "message": "{\"type\": \"subscribe\", \"channel\": \"updates\"}"
-}
-```
+Connections are bound to the per-case context and close automatically when the
+case ends (normal exit, timeout, or cancellation). Parallel cases are isolated.
 
 ## Result
 
-- **Success** -- connection established / message sent and response received
-- **Evidence** -- received message content
-- **Duration** -- time for full round-trip
+- **Success** — connect/send succeeded, or the awaited `type` arrived.
+- **Evidence** — matched message plus non-matching messages seen.
+- **Duration** — time for the operation.
 
 ## Notes
 
-- Uses the `nhooyr.io/websocket` library
-- Each action creates a new connection; connections are not persisted between actions
-- Context cancellation is respected at every stage
+- Matching is by top-level JSON `type` only (M0). Field-level assertions are
+  judged by the Examiner from the received message. Configurable type-field
+  paths and a declarative protocol layer arrive in later milestones (M1/M2).
