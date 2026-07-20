@@ -22,7 +22,7 @@ func (m *MultiExecutor) sandboxPolicyFor(action types.TypedAction) sandbox.Polic
 		return sandbox.DefaultDBPolicy()
 	case types.ActionGraphQLQuery:
 		return sandbox.DefaultGraphQLPolicy()
-	case types.ActionWSConnect, types.ActionWSSend:
+	case types.ActionWSConnect, types.ActionWSSend, types.ActionWSReceive, types.ActionWSDisconnect:
 		return sandbox.DefaultWSPolicy()
 	default:
 		return sandbox.DefaultHTTPPolicy()

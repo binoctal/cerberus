@@ -13,6 +13,9 @@ import (
 	"github.com/coder/websocket"
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/escalation"
+	"github.com/binoctal/cerberus/internal/policy"
+	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -346,3 +349,66 @@ func (c *countingRecovery) Recover(context.Context, TestCase, types.ExecutorResu
 }
 func (c *countingRecovery) SetSessionID(string) {}
 func (c *countingRecovery) SetProject(string)   {}
+
+// TestMultiExecutorRoutesWSReceiveAndWSDisconnect proves that the LLM-facing
+// ws_receive and ws_disconnect actions are routable through the MultiExecutor
+// (registry -> ApplyTo -> executors map). The plan gap left them out of
+// wsPlugin.ActionTypes(), so before the fix they fell through to the
+// "no executor for action type" error even though ex.Execute handled them
+// (unit tests passed only because they bypassed routing by calling ex.Execute
+// directly). Reaching the "unknown connection_id" error path inside
+// doReceive/doDisconnect is positive proof of routing: that string exists
+// nowhere else in the codebase.
+func TestMultiExecutorRoutesWSReceiveAndWSDisconnect(t *testing.T) {
+	logger := zap.NewNop()
+	registry := NewPluginRegistry(logger)
+	registry.RegisterExecutor(&wsPlugin{executor: NewWebSocketExecutor(logger)})
+
+	multi := NewMultiExecutor(
+		policy.NewDefaultActionPolicy("."),
+		sandbox.NoOpSandbox{},
+		escalation.NoOpGate{},
+		logger,
+	)
+	registry.ApplyTo(multi)
+
+	// Sanity: the action types are bound to the WS executor.
+	for _, at := range []types.ActionType{
+		types.ActionWSConnect, types.ActionWSSend,
+		types.ActionWSReceive, types.ActionWSDisconnect,
+	} {
+		if _, ok := multi.executors[at]; !ok {
+			t.Fatalf("MultiExecutor has no executor registered for %s", at)
+		}
+	}
+
+	ctx := context.Background()
+
+	// Dispatch a WSReceive through the MultiExecutor (NOT via ex.Execute).
+	// Using a bogus connection_id means doReceive must return the
+	// "unknown connection_id" error — reachable only if routing worked.
+	got := multi.Execute(ctx, types.WSReceiveAction{ConnectionID: "no-such-conn", Type: "x"})
+	wsRecv, ok := got.(types.WSResult)
+	if !ok {
+		t.Fatalf("ws_receive: result type %T, want WSResult (routing dropped or misrouted)", got)
+	}
+	if wsRecv.OK {
+		t.Fatalf("ws_receive: expected OK=false on unknown connection_id, got success")
+	}
+	if !strings.Contains(wsRecv.Err, "unknown connection_id") {
+		t.Fatalf("ws_receive: error %q does not prove doReceive was reached", wsRecv.Err)
+	}
+
+	// Same for WSDisconnect.
+	got = multi.Execute(ctx, types.WSDisconnectAction{ConnectionID: "no-such-conn"})
+	wsDisc, ok := got.(types.WSResult)
+	if !ok {
+		t.Fatalf("ws_disconnect: result type %T, want WSResult (routing dropped or misrouted)", got)
+	}
+	if wsDisc.OK {
+		t.Fatalf("ws_disconnect: expected OK=false on unknown connection_id, got success")
+	}
+	if !strings.Contains(wsDisc.Err, "unknown connection_id") {
+		t.Fatalf("ws_disconnect: error %q does not prove doDisconnect was reached", wsDisc.Err)
+	}
+}

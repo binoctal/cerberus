@@ -84,5 +84,5 @@ type wsPlugin struct{ executor *WebSocketExecutor }
 func (p *wsPlugin) Name() string            { return "websocket" }
 func (p *wsPlugin) Executor() TypedExecutor { return p.executor }
 func (p *wsPlugin) ActionTypes() []types.ActionType {
-	return []types.ActionType{types.ActionWSConnect, types.ActionWSSend}
+	return []types.ActionType{types.ActionWSConnect, types.ActionWSSend, types.ActionWSReceive, types.ActionWSDisconnect}
 }
