@@ -66,11 +66,13 @@ func extractByDotPath(data map[string]any, path string) (string, error) {
 // unauthenticated rather than aborting the session.
 //
 // Token values are never returned in errors or logged by this function — the
-// caller records only the header name, HTTP status, and length.
-func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) (name, value string, err error) {
+// caller records only the header name, HTTP status, and length. The rawToken
+// return is the unformatted credential extracted from the login response; it
+// is a value, never logged, and is cached by the caller for WS auth injection.
+func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) (name, value, rawToken string, err error) {
 	af := actor.Auth
 	if af == nil {
-		return "", "", fmt.Errorf("actor has no auth flow")
+		return "", "", "", fmt.Errorf("actor has no auth flow")
 	}
 
 	// 1. Interpolate {email}/{password} into the login body.
@@ -93,7 +95,7 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 	if len(bodyFields) > 0 {
 		encoded, mErr := json.Marshal(bodyFields)
 		if mErr != nil {
-			return "", "", fmt.Errorf("auth flow: encode login body: %w", mErr)
+			return "", "", "", fmt.Errorf("auth flow: encode login body: %w", mErr)
 		}
 		bodyReader = strings.NewReader(string(encoded))
 	}
@@ -104,7 +106,7 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 	}
 	req, err := http.NewRequestWithContext(ctx, method, loginURL, bodyReader)
 	if err != nil {
-		return "", "", fmt.Errorf("auth flow: build request: %w", err)
+		return "", "", "", fmt.Errorf("auth flow: build request: %w", err)
 	}
 	if len(bodyFields) > 0 {
 		req.Header.Set("Content-Type", "application/json")
@@ -116,37 +118,37 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 	// 3. Send one real request.
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("auth flow: login request: %w", err)
+		return "", "", "", fmt.Errorf("auth flow: login request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		// Non-2xx: never include the body (may echo credentials).
-		return "", "", fmt.Errorf("auth flow: login returned status %d", resp.StatusCode)
+		return "", "", "", fmt.Errorf("auth flow: login returned status %d", resp.StatusCode)
 	}
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", fmt.Errorf("auth flow: read response: %w", err)
+		return "", "", "", fmt.Errorf("auth flow: read response: %w", err)
 	}
 	var decoded map[string]any
 	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return "", "", fmt.Errorf("auth flow: response is not a JSON object")
+		return "", "", "", fmt.Errorf("auth flow: response is not a JSON object")
 	}
 
 	// 4. Extract the token by dot-path.
 	token, err := extractByDotPath(decoded, af.TokenFrom)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	// 5. Interpolate {token} into inject_as and split into header name/value.
 	header := interpolate(af.InjectAs, map[string]string{"{token}": token})
 	hName, hValue, ok := splitHeader(header)
 	if !ok {
-		return "", "", fmt.Errorf("auth flow: inject_as %q is not a 'Name: Value' header", af.InjectAs)
+		return "", "", "", fmt.Errorf("auth flow: inject_as %q is not a 'Name: Value' header", af.InjectAs)
 	}
-	return hName, hValue, nil
+	return hName, hValue, token, nil
 }
 
 // splitHeader splits "Name: Value" into name and value at the first colon.

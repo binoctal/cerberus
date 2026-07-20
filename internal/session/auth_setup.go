@@ -41,7 +41,7 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 			}
 		}
 		svcURL := s.serviceURLForActor(a)
-		name, value, err := agent.ResolveAuthHeader(ctx, svcURL, *a)
+		name, value, rawToken, err := agent.ResolveAuthHeader(ctx, svcURL, *a)
 		if err != nil {
 			s.Logger.Warn("auth flow failed; degrading actor to unauthenticated",
 				zap.String("actor", a.Name),
@@ -54,6 +54,7 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 			a.Credentials.Headers = make(map[string]string)
 		}
 		a.Credentials.Headers[name] = value
+		a.Credentials.RawToken = rawToken
 		s.Logger.Info("auth flow resolved",
 			zap.String("actor", a.Name),
 			zap.String("header", name),

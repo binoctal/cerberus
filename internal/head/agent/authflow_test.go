@@ -114,7 +114,7 @@ func TestResolveAuthHeader_TopLevelToken(t *testing.T) {
 		TokenFrom: "token",
 		InjectAs:  "Authorization: Bearer {token}",
 	}}
-	name, value, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	name, value, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestResolveAuthHeader_DotPathToken(t *testing.T) {
 		TokenFrom: "data.accessToken",
 		InjectAs:  "X-Token: {token}",
 	}}
-	name, value, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	name, value, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestResolveAuthHeader_EmailPasswordInterpolation(t *testing.T) {
 			InjectAs:  "Authorization: Bearer {token}",
 		},
 	}
-	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestResolveAuthHeader_Non2xxDegrades(t *testing.T) {
 		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
-	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err == nil {
 		t.Fatal("want error on non-2xx, got nil")
 	}
@@ -194,7 +194,7 @@ func TestResolveAuthHeader_MissingTokenFieldDegrades(t *testing.T) {
 		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
-	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err == nil {
 		t.Fatal("want error when token field missing, got nil")
 	}
@@ -214,11 +214,27 @@ func TestResolveAuthHeader_ErrorNeverContainsToken(t *testing.T) {
 		TokenFrom: "missing", // mismatch → extraction error
 		InjectAs:  "Authorization: Bearer {token}",
 	}}
-	_, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err == nil {
 		t.Fatal("want error")
 	}
 	if strings.Contains(err.Error(), "REAL-SECRET-VALUE") {
 		t.Fatalf("error leaks token: %v", err)
+	}
+}
+
+func TestResolveAuthHeaderReturnsRawToken(t *testing.T) {
+	srv := newLoginServer(t, 200, `{"token":"JWT-RAW"}`, nil)
+	defer srv.Close()
+	actor := project.Actor{Auth: &project.AuthFlow{
+		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
+		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
+	}}
+	_, _, raw, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != "JWT-RAW" {
+		t.Fatalf("raw token = %q, want JWT-RAW", raw)
 	}
 }

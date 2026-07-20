@@ -38,6 +38,10 @@ type CredentialRef struct {
 	Email    string            `yaml:"email"`
 	Password string            `yaml:"password"`
 	Headers  map[string]string `yaml:"headers,omitempty"`
+	// RawToken is the unformatted token cached at session setup (populated by
+	// auth setup when the actor has an Auth flow). Runtime-only; not loaded
+	// from YAML. Used by WS query/header/subprotocol auth injection.
+	RawToken string `yaml:"-" json:"-"`
 }
 
 type Database struct {
