@@ -90,7 +90,7 @@ func (m *MultiExecutor) Execute(ctx context.Context, action types.TypedAction) t
 // BuildMultiExecutor assembles the standard executor with all built-in executor plugins.
 // Attempts to use Linux sandbox isolation; falls back to NoOpSandbox if unavailable.
 // Loads optional policy overrides from .cerberus/policy.yaml.
-func BuildMultiExecutor(projectDir string, serviceHeaders map[string]map[string]string, gate escalation.Gate, logger *zap.Logger) *MultiExecutor {
+func BuildMultiExecutor(projectDir string, serviceHeaders map[string]map[string]string, wsIdx *WSProtocolIndex, gate escalation.Gate, logger *zap.Logger) *MultiExecutor {
 	p := policy.NewDefaultActionPolicy(projectDir)
 
 	// Load optional policy overrides.
@@ -112,7 +112,7 @@ func BuildMultiExecutor(projectDir string, serviceHeaders map[string]map[string]
 
 	// Register built-in executor plugins.
 	registry := NewPluginRegistry(logger)
-	for _, plugin := range BuiltinPluginsWithSandbox(projectDir, serviceHeaders, sb, gate, logger) {
+	for _, plugin := range BuiltinPluginsWithSandbox(projectDir, serviceHeaders, wsIdx, sb, gate, logger) {
 		registry.RegisterExecutor(plugin)
 	}
 	registry.ApplyTo(multi)

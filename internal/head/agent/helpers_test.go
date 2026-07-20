@@ -115,7 +115,7 @@ func testLoopWithServices(t *testing.T, responses map[string]string, services []
 
 	engine := NewRuleEngine(services, actors, ".")
 
-	executor := BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	executor := BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := NewReActLoopWithConfig(ReActLoopConfig{
 		Driver:   driver,

@@ -1,6 +1,10 @@
 package agent
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/binoctal/cerberus/internal/project"
+)
 
 func TestExtractTypePath(t *testing.T) {
 	cases := []struct {
@@ -25,5 +29,32 @@ func TestExtractTypePath(t *testing.T) {
 				t.Fatalf("got (%q,%v) want (%q,%v)", got, ok, tc.want, tc.ok)
 			}
 		})
+	}
+}
+
+func TestBuildWSProtocolIndex(t *testing.T) {
+	cfg := &project.Config{
+		Services: []project.Service{{
+			Name: "rt", URL: "http://localhost:8787",
+			Protocol: &project.Protocol{TypePath: "data.event"},
+		}},
+		Actors: []project.Actor{{Name: "web", Credentials: project.CredentialRef{RawToken: "JWT"}}},
+	}
+	idx := BuildWSProtocolIndex(cfg)
+	if idx == nil {
+		t.Fatal("index is nil")
+	}
+	if p, ok := idx.ByHost["localhost:8787"]; !ok || p.TypePath != "data.event" {
+		t.Fatalf("ByHost = %+v", idx.ByHost)
+	}
+	if idx.ActorTokens["web"] != "JWT" {
+		t.Fatalf("ActorTokens = %+v", idx.ActorTokens)
+	}
+}
+
+func TestBuildWSProtocolIndexNilWhenNoProtocols(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "x", URL: "http://x"}}}
+	if idx := BuildWSProtocolIndex(cfg); idx != nil {
+		t.Fatalf("want nil index when no protocols, got %+v", idx)
 	}
 }

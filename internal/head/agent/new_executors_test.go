@@ -159,7 +159,7 @@ func TestGraphQLExecutor_GraphQLErrors(t *testing.T) {
 // --- WebSocket Executor Tests ---
 
 func TestWebSocketExecutor_UnsupportedAction(t *testing.T) {
-	exec := NewWebSocketExecutor(zap.NewNop())
+	exec := NewWebSocketExecutor(zap.NewNop(), nil)
 	result := exec.Execute(context.Background(), types.HTTPAction{URL: "http://test"})
 	errResult, ok := result.(types.ErrorResult)
 	require.True(t, ok)
@@ -169,7 +169,7 @@ func TestWebSocketExecutor_UnsupportedAction(t *testing.T) {
 // --- Plugin Registration Tests ---
 
 func TestBuiltinPluginsIncludesNewExecutors(t *testing.T) {
-	plugins := BuiltinPluginsWithSandbox(".", nil, nil, nil, zap.NewNop())
+	plugins := BuiltinPluginsWithSandbox(".", nil, nil, nil, nil, zap.NewNop())
 	names := make(map[string]bool)
 	for _, p := range plugins {
 		names[p.Name()] = true

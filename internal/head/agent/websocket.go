@@ -2,9 +2,9 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 
 	"github.com/coder/websocket"
@@ -35,9 +36,10 @@ func caseNamespace(ctx context.Context, connectionID string) string {
 
 // wsEntry is a persisted WebSocket connection owned by a case context.
 type wsEntry struct {
-	conn   *websocket.Conn
-	ctx    context.Context // per-case ctx; cancellation closes the conn
-	readMu sync.Mutex      // serializes concurrent Reads on this conn
+	conn     *websocket.Conn
+	ctx      context.Context    // per-case ctx; cancellation closes the conn
+	readMu   sync.Mutex         // serializes concurrent Reads on this conn
+	protocol *project.Protocol // service protocol resolved at connect; nil = M0
 }
 
 // WebSocketExecutor handles persistent WebSocket connections and primitives.
@@ -48,11 +50,27 @@ type WebSocketExecutor struct {
 	mu     sync.RWMutex
 	conns  map[string]*wsEntry
 	seq    uint64
+	idx    *WSProtocolIndex
 }
 
-// NewWebSocketExecutor creates a WebSocket executor.
-func NewWebSocketExecutor(logger *zap.Logger) *WebSocketExecutor {
-	return &WebSocketExecutor{logger: logger, conns: make(map[string]*wsEntry)}
+// NewWebSocketExecutor creates a WebSocket executor. A nil idx preserves M0
+// behavior (top-level "type" matching, no auto auth injection).
+func NewWebSocketExecutor(logger *zap.Logger, idx *WSProtocolIndex) *WebSocketExecutor {
+	return &WebSocketExecutor{logger: logger, conns: make(map[string]*wsEntry), idx: idx}
+}
+
+// resolveProtocol returns the declared protocol for a dial URL's host, or nil
+// when none is declared (M0 behavior). A nil index short-circuits to the M0
+// path without a map lookup.
+func (e *WebSocketExecutor) resolveProtocol(rawURL string) *project.Protocol {
+	if e.idx == nil {
+		return nil
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil
+	}
+	return e.idx.ByHost[u.Host]
 }
 
 // Execute dispatches WebSocket actions.
@@ -79,9 +97,9 @@ func wsURL(u string) string {
 	return u
 }
 
-func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.Context) {
+func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.Context, proto *project.Protocol) {
 	e.mu.Lock()
-	e.conns[id] = &wsEntry{conn: conn, ctx: ctx}
+	e.conns[id] = &wsEntry{conn: conn, ctx: ctx, protocol: proto}
 	e.mu.Unlock()
 	// Close the connection when the owning case context is cancelled.
 	go func() {
@@ -101,6 +119,11 @@ func (e *WebSocketExecutor) lookup(id string) (*wsEntry, bool) {
 }
 
 func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectAction, start time.Time) types.ExecutorResult {
+	// Resolve the protocol for this dial URL's host once, before building
+	// opts / dialing. Task 9 will use it to strip caller-supplied auth and
+	// re-inject the declared credential; doReceive reads it back from the
+	// entry to switch to the declared type_path.
+	proto := e.resolveProtocol(a.URL)
 	opts := &websocket.DialOptions{}
 	headers := http.Header{}
 	for k, v := range a.Headers {
@@ -122,7 +145,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// LLM-supplied connection_id do not collide. The user-facing id (returned
 	// in any future result field) remains the un-namespaced id.
 	key := caseNamespace(ctx, id)
-	e.store(key, conn, ctx)
+	e.store(key, conn, ctx, proto)
 	return types.WSResult{OK: true, URL: a.URL, Latency: time.Since(start)}
 }
 
@@ -155,18 +178,6 @@ func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, st
 	return types.WSResult{OK: true, Latency: time.Since(start)}
 }
 
-// messageType reads the top-level "type" field of a JSON text message.
-// Returns ("", false) for non-JSON or non-object messages.
-func messageType(data []byte) (string, bool) {
-	var probe struct {
-		Type string `json:"type"`
-	}
-	if err := json.Unmarshal(data, &probe); err != nil {
-		return "", false
-	}
-	return probe.Type, true
-}
-
 func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveAction, start time.Time) types.ExecutorResult {
 	entry, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
 	if !ok {
@@ -178,6 +189,13 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	entry.readMu.Lock()
 	defer entry.readMu.Unlock()
 	conn, connCtx := entry.conn, entry.ctx
+	// type_path selects the routing key for this connection's protocol. Empty
+	// (no protocol, or protocol with no type_path) falls back to M0's
+	// top-level "type" field via extractTypePath's default.
+	path := "type"
+	if entry.protocol != nil && entry.protocol.TypePath != "" {
+		path = entry.protocol.TypePath
+	}
 	timeout := time.Duration(a.Timeout) * time.Second
 	if timeout <= 0 {
 		timeout = 10 * time.Second
@@ -192,7 +210,7 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 			// Peer close or timeout: no matching message arrived.
 			return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", err), SeenMessages: seen, Latency: time.Since(start)}
 		}
-		if t, _ := messageType(data); t == a.Type {
+		if t, ok := extractTypePath(data, path); ok && t == a.Type {
 			return types.WSResult{OK: true, MatchedMessage: string(data), SeenMessages: seen, Latency: time.Since(start)}
 		}
 		seen = append(seen, string(data))

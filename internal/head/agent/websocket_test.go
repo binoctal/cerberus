@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/policy"
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/sandbox"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -42,7 +44,19 @@ func newWSTestServer(t *testing.T, handler func(conn *websocket.Conn)) string {
 }
 
 func newWSExecutor() *WebSocketExecutor {
-	return NewWebSocketExecutor(zap.NewNop())
+	return NewWebSocketExecutor(zap.NewNop(), nil)
+}
+
+// protocolIndexForURL builds a WSProtocolIndex mapping the host of url to p.
+// Used by tests that need to exercise the protocol-aware path without spinning
+// up a full project.Config.
+func protocolIndexForURL(t *testing.T, rawURL string, p *project.Protocol) *WSProtocolIndex {
+	t.Helper()
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	return &WSProtocolIndex{ByHost: map[string]*project.Protocol{u.Host: p}}
 }
 
 func TestWSConnectPersistsAndDisconnectCloses(t *testing.T) {
@@ -404,7 +418,7 @@ func TestConnectionNamespacingByCaseID(t *testing.T) {
 func TestMultiExecutorRoutesWSReceiveAndWSDisconnect(t *testing.T) {
 	logger := zap.NewNop()
 	registry := NewPluginRegistry(logger)
-	registry.RegisterExecutor(&wsPlugin{executor: NewWebSocketExecutor(logger)})
+	registry.RegisterExecutor(&wsPlugin{executor: NewWebSocketExecutor(logger, nil)})
 
 	multi := NewMultiExecutor(
 		policy.NewDefaultActionPolicy("."),
@@ -494,5 +508,30 @@ func TestReceiveSerializedPerConnection(t *testing.T) {
 		case <-time.After(3 * time.Second):
 			t.Fatal("receive timed out")
 		}
+	}
+}
+
+// TestReceiveMatchesByTypePath proves that when a service declares
+// type_path: data.event, the executor matches incoming messages by the nested
+// routing key (not the M0 top-level "type" field). Without protocol-aware
+// matching the nested {"data":{"event":"go"}} frame would never match a.Type
+// "go" and the test would time out.
+func TestReceiveMatchesByTypePath(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"data":{"event":"go"}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{TypePath: "data.event"}))
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "go", Timeout: 2})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("receive failed: %+v", res)
+	}
+	if !strings.Contains(ws.MatchedMessage, "go") {
+		t.Fatalf("did not match via type_path: %s", ws.MatchedMessage)
 	}
 }

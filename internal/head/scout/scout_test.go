@@ -454,7 +454,7 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	require.NoError(t, err)
 
 	engine := agent.NewRuleEngine(cfg.Services, nil, ".")
-	exec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	exec := agent.BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{
 		Driver:   driver,

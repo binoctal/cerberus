@@ -134,7 +134,7 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 
 	services := []project.Service{{Name: "default", URL: srv.URL}}
 	engine := agent.NewRuleEngine(services, nil, ".")
-	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	multiExec := agent.BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	reactCfg := agent.DefaultReActConfig()
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{
@@ -215,7 +215,7 @@ func TestEndToEnd_ProgressEvents(t *testing.T) {
 
 	services := []project.Service{{Name: "default", URL: srv.URL}}
 	engine := agent.NewRuleEngine(services, nil, ".")
-	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	multiExec := agent.BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
 
@@ -273,7 +273,7 @@ func TestEndToEnd_RuleEngineStats(t *testing.T) {
 
 	services := []project.Service{{Name: "default", URL: srv.URL}}
 	engine := agent.NewRuleEngine(services, nil, ".")
-	multiExec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	multiExec := agent.BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{Driver: driver, Store: s, Engine: engine, Executor: multiExec, Config: agent.DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
 

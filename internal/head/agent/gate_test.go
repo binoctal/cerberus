@@ -41,7 +41,7 @@ func setupGateTest(t *testing.T) (*ReActLoop, *recordingGate, *store.Store) {
 	t.Cleanup(func() { _ = s.Close() })
 	gate := &recordingGate{}
 	engine := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost:9999"}}, nil, ".")
-	exec := BuildMultiExecutor(".", nil, gate, zap.NewNop())
+	exec := BuildMultiExecutor(".", nil, nil, gate, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := NewReActLoopWithGateWithConfig(ReActLoopConfig{
 		Driver:   nil,

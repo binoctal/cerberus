@@ -132,7 +132,7 @@ func TestExtendedRuleEngineStats(t *testing.T) {
 
 func TestBuiltinPluginsWithSandboxCount(t *testing.T) {
 	logger := zap.NewNop()
-	plugins := BuiltinPluginsWithSandbox(".", nil, nil, nil, logger)
+	plugins := BuiltinPluginsWithSandbox(".", nil, nil, nil, nil, logger)
 
 	// At minimum: http, wait, process, file, mcp, code = 6 (browser optional).
 	if len(plugins) < 6 {

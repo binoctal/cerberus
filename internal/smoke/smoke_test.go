@@ -248,7 +248,7 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	services := []project.Service{{Name: "default", URL: server.URL}}
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	engine := agent.NewRuleEngine(services, nil, ".")
-	exec := agent.BuildMultiExecutor(".", nil, nil, zap.NewNop())
+	exec := agent.BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop := agent.NewReActLoopWithConfig(agent.ReActLoopConfig{
 		Driver:   driver,
