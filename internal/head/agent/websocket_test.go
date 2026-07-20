@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -352,6 +353,43 @@ func (c *countingRecovery) Recover(context.Context, TestCase, types.ExecutorResu
 }
 func (c *countingRecovery) SetSessionID(string) {}
 func (c *countingRecovery) SetProject(string)   {}
+
+// TestConnectionNamespacingByCaseID verifies M0 D3: two parallel cases that
+// both pass the same LLM-supplied connection_id (e.g. "c1") do not collide on
+// the singleton executor's connection table. The caseID carried on the per-case
+// context namespaces the table key to <caseID>:<connectionID>. Disconnect in
+// one case must not touch the other case's connection. Run with -race.
+func TestConnectionNamespacingByCaseID(t *testing.T) {
+	// connects is written from the httptest server goroutine and read from the
+	// test goroutine, so it must be atomic to be -race-clean.
+	var connects atomic.Int32
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		connects.Add(1)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+
+	// Two different case contexts, same LLM-supplied connection_id "c1".
+	ctxA := context.WithValue(context.Background(), caseIDKey{}, "case-A")
+	ctxB := context.WithValue(context.Background(), caseIDKey{}, "case-B")
+
+	if !ex.Execute(ctxA, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect A failed")
+	}
+	if !ex.Execute(ctxB, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect B failed")
+	}
+	if got := connects.Load(); got != 2 {
+		t.Fatalf("server saw %d connects, want 2 (namespacing failed)", got)
+	}
+	// Disconnect in case A must not touch case B's connection.
+	ex.Execute(ctxA, types.WSDisconnectAction{ConnectionID: "c1"})
+	if !ex.Execute(ctxB, types.WSSendAction{ConnectionID: "c1", Message: `{"type":"ping"}`}).Success() {
+		t.Fatal("case B connection lost after case A disconnect (namespacing failed)")
+	}
+}
 
 // TestMultiExecutorRoutesWSReceiveAndWSDisconnect proves that the LLM-facing
 // ws_receive and ws_disconnect actions are routable through the MultiExecutor

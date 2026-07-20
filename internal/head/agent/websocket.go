@@ -17,6 +17,22 @@ import (
 	"github.com/coder/websocket"
 )
 
+// caseIDKey is the per-case identifier carried on the per-case context, used to
+// namespace connection-table keys so parallel cases cannot collide on a shared
+// LLM-supplied connection_id.
+type caseIDKey struct{}
+
+// caseNamespace reads the caseID from ctx (defaulting to "_default" when absent,
+// e.g. in unit tests that use context.Background()) and returns the namespaced
+// connection-table key: <caseID>:<connectionID>.
+func caseNamespace(ctx context.Context, connectionID string) string {
+	v, _ := ctx.Value(caseIDKey{}).(string)
+	if v == "" {
+		v = "_default"
+	}
+	return v + ":" + connectionID
+}
+
 // wsEntry is a persisted WebSocket connection owned by a case context.
 type wsEntry struct {
 	conn *websocket.Conn
@@ -104,16 +120,21 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	if id == "" {
 		id = fmt.Sprintf("ws-%d", atomic.AddUint64(&e.seq, 1))
 	}
-	e.store(id, conn, ctx)
+	// Namespace the table key by caseID so parallel cases passing the same
+	// LLM-supplied connection_id do not collide. The user-facing id (returned
+	// in any future result field) remains the un-namespaced id.
+	key := caseNamespace(ctx, id)
+	e.store(key, conn, ctx)
 	return types.WSResult{OK: true, URL: a.URL, Latency: time.Since(start)}
 }
 
 func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconnectAction, start time.Time) types.ExecutorResult {
+	key := caseNamespace(ctx, a.ConnectionID)
 	e.mu.Lock()
-	entry, ok := e.conns[a.ConnectionID]
+	entry, ok := e.conns[key]
 	if ok {
 		_ = entry.conn.Close(websocket.StatusNormalClosure, "disconnect")
-		delete(e.conns, a.ConnectionID)
+		delete(e.conns, key)
 	}
 	e.mu.Unlock()
 	if !ok {
@@ -123,7 +144,7 @@ func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconne
 }
 
 func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, start time.Time) types.ExecutorResult {
-	conn, _, ok := e.lookup(a.ConnectionID)
+	conn, _, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
 	if !ok {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
 	}
@@ -148,7 +169,7 @@ func messageType(data []byte) (string, bool) {
 }
 
 func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveAction, start time.Time) types.ExecutorResult {
-	conn, connCtx, ok := e.lookup(a.ConnectionID)
+	conn, connCtx, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
 	if !ok {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
 	}

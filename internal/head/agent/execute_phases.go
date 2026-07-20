@@ -40,6 +40,10 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		se.ctx, cancel = context.WithTimeout(se.ctx, r.config.PerCaseTimeout)
 		defer cancel()
 	}
+	// Carry the case identifier so the WS executor can namespace connection-table
+	// keys by <caseID>:<connectionID> — parallel cases passing the same
+	// LLM-supplied connection_id otherwise collide on the shared table.
+	se.ctx = context.WithValue(se.ctx, caseIDKey{}, tc.ID)
 
 	// Create a trace for this step.
 	traceID, err := r.store.CreateTrace(se.ctx, sessionID, "agent", tc.Target)
