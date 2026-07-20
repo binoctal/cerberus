@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,14 +15,22 @@ import (
 	"github.com/coder/websocket"
 )
 
-// WebSocketExecutor handles WebSocket connect and send actions.
+// wsEntry is a persisted WebSocket connection owned by a case context.
+type wsEntry struct {
+	conn *websocket.Conn
+	ctx  context.Context // per-case ctx; cancellation closes the conn
+}
+
+// WebSocketExecutor handles persistent WebSocket connections and primitives.
 type WebSocketExecutor struct {
 	logger *zap.Logger
+	mu     sync.RWMutex
+	conns  map[string]*wsEntry
 }
 
 // NewWebSocketExecutor creates a WebSocket executor.
 func NewWebSocketExecutor(logger *zap.Logger) *WebSocketExecutor {
-	return &WebSocketExecutor{logger: logger}
+	return &WebSocketExecutor{logger: logger, conns: make(map[string]*wsEntry)}
 }
 
 // Execute dispatches WebSocket actions.
@@ -32,9 +41,44 @@ func (e *WebSocketExecutor) Execute(ctx context.Context, action types.TypedActio
 		return e.doConnect(ctx, a, start)
 	case types.WSSendAction:
 		return e.doSend(ctx, a, start)
+	case types.WSReceiveAction:
+		return e.doReceive(ctx, a, start)
+	case types.WSDisconnectAction:
+		return e.doDisconnect(ctx, a, start)
 	default:
 		return types.ErrorResult{Err: fmt.Sprintf("ws executor: unsupported action %T", action)}
 	}
+}
+
+// wsURL converts http(s) URLs to ws(s).
+func wsURL(u string) string {
+	u = strings.Replace(u, "https://", "wss://", 1)
+	u = strings.Replace(u, "http://", "ws://", 1)
+	return u
+}
+
+func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.Context) {
+	e.mu.Lock()
+	e.conns[id] = &wsEntry{conn: conn, ctx: ctx}
+	e.mu.Unlock()
+	// Close the connection when the owning case context is cancelled.
+	go func() {
+		<-ctx.Done()
+		_ = conn.Close(websocket.StatusNormalClosure, "ctx done")
+		e.mu.Lock()
+		delete(e.conns, id)
+		e.mu.Unlock()
+	}()
+}
+
+func (e *WebSocketExecutor) lookup(id string) (*websocket.Conn, context.Context, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	entry, ok := e.conns[id]
+	if !ok {
+		return nil, nil, false
+	}
+	return entry.conn, entry.ctx, true
 }
 
 func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectAction, start time.Time) types.ExecutorResult {
@@ -43,68 +87,39 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	for k, v := range a.Headers {
 		headers.Set(k, v)
 	}
-
-	// Convert http(s) URLs to ws(s).
-	wsURL := a.URL
-	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
-	wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
-
-	conn, _, err := websocket.Dial(ctx, wsURL, opts)
+	if len(a.Subprotocols) > 0 {
+		opts.Subprotocols = a.Subprotocols
+	}
+	conn, _, err := websocket.Dial(ctx, wsURL(a.URL), opts)
 	if err != nil {
 		return types.WSResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
 	}
-	defer func() { _ = conn.Close(websocket.StatusNormalClosure, "done") }()
-
-	// Read one message as a handshake confirmation.
-	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	_, msg, err := conn.Read(readCtx)
-	if err != nil {
-		// Connection established but no immediate message — still OK.
-		return types.WSResult{OK: true, URL: a.URL, Latency: time.Since(start)}
+	id := a.ConnectionID
+	if id == "" {
+		id = fmt.Sprintf("ws-%d", time.Now().UnixNano())
 	}
+	e.store(id, conn, ctx)
+	return types.WSResult{OK: true, URL: a.URL, Latency: time.Since(start)}
+}
 
-	return types.WSResult{
-		OK:       true,
-		URL:      a.URL,
-		Messages: []string{string(msg)},
-		Latency:  time.Since(start),
+func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconnectAction, start time.Time) types.ExecutorResult {
+	e.mu.Lock()
+	entry, ok := e.conns[a.ConnectionID]
+	if ok {
+		_ = entry.conn.Close(websocket.StatusNormalClosure, "disconnect")
+		delete(e.conns, a.ConnectionID)
 	}
+	e.mu.Unlock()
+	if !ok {
+		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
+	}
+	return types.WSResult{OK: true, Latency: time.Since(start)}
 }
 
 func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, start time.Time) types.ExecutorResult {
-	wsURL := a.URL
-	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
-	wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
+	return types.ErrorResult{Err: "ws_send not yet implemented"} // Task 4
+}
 
-	conn, _, err := websocket.Dial(ctx, wsURL, nil)
-	if err != nil {
-		return types.WSResult{OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start)}
-	}
-	defer func() { _ = conn.Close(websocket.StatusNormalClosure, "done") }()
-
-	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	if err := conn.Write(writeCtx, websocket.MessageText, []byte(a.Message)); err != nil {
-		return types.WSResult{OK: false, URL: a.URL, Err: fmt.Sprintf("write: %v", err), Latency: time.Since(start)}
-	}
-
-	// Read response.
-	readCtx, readCancel := context.WithTimeout(ctx, 10*time.Second)
-	defer readCancel()
-
-	_, resp, err := conn.Read(readCtx)
-	var messages []string
-	if err == nil {
-		messages = append(messages, string(resp))
-	}
-
-	return types.WSResult{
-		OK:       true,
-		URL:      a.URL,
-		Messages: messages,
-		Latency:  time.Since(start),
-	}
+func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveAction, start time.Time) types.ExecutorResult {
+	return types.ErrorResult{Err: "ws_receive not yet implemented"} // Task 5
 }

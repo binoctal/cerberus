@@ -168,22 +168,18 @@ func (a WaitAction) Validate() error {
 
 // WebSocket actions
 
-// WSConnectAction represents a WebSocket connection.
+// WSConnectAction establishes and persists a WebSocket connection.
 type WSConnectAction struct {
-	// URL is the WebSocket endpoint URL.
 	URL string `json:"url"`
 	// Headers are optional WebSocket handshake headers.
 	Headers map[string]string `json:"headers,omitempty"`
+	// Subprotocols are optional WS subprotocols to negotiate.
+	Subprotocols []string `json:"subprotocols,omitempty"`
 	// HandshakeTimeout is the timeout for connection handshake.
 	HandshakeTimeout int `json:"handshake_timeout,omitempty"`
-	// Messages are optional messages to send after connection.
-	Messages []WSMessage `json:"messages,omitempty"`
-}
-
-// WSMessage represents a single WebSocket message.
-type WSMessage struct {
-	Type string `json:"type"` // "text" or "binary"
-	Data string `json:"data"`
+	// ConnectionID names this connection for later send/receive/disconnect.
+	// If empty the executor assigns one.
+	ConnectionID string `json:"connection_id,omitempty"`
 }
 
 func (a WSConnectAction) GetActionType() ActionType { return ActionWSConnect }
