@@ -511,6 +511,99 @@ func TestReceiveSerializedPerConnection(t *testing.T) {
 	}
 }
 
+// newWSTestServerCapture starts a WS server that records each upgrade
+// request's raw query string; returns the ws url and a getter for the most
+// recent query. Tests use it to observe exactly what the executor dialed
+// (server-side) without relying on any value reported in WSResult.
+func newWSTestServerCapture(t *testing.T) (string, func() string) {
+	t.Helper()
+	var mu sync.Mutex
+	var queries []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		queries = append(queries, r.URL.RawQuery)
+		mu.Unlock()
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
+		_, _, _ = conn.Read(r.Context())
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	return wsURL, func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		if len(queries) == 0 {
+			return ""
+		}
+		return queries[len(queries)-1]
+	}
+}
+
+// TestConnectInjectsQueryToken proves the resolved raw token reaches the
+// dialed url when strategy=query, and that the secret never leaks into
+// WSResult.URL (the result carries the pre-injection url).
+func TestConnectInjectsQueryToken(t *testing.T) {
+	wsURL, latestQuery := newWSTestServerCapture(t)
+	p := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "web"}}
+	idx := &WSProtocolIndex{
+		ByHost:      map[string]*project.Protocol{hostOf(t, wsURL): p},
+		ActorTokens: map[string]string{"web": "JWT-VALUE"},
+	}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL + "?type=web", ConnectionID: "c1", CredentialRef: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	// The DIALED url carries the token (observable via the captured upgrade query).
+	if !strings.Contains(latestQuery(), "token=JWT-VALUE") {
+		t.Fatalf("query missing injected token: %s", latestQuery())
+	}
+	// The RESULT url is the pre-injection url (no secret).
+	if strings.Contains(ws.URL, "JWT-VALUE") {
+		t.Fatalf("result url leaks token: %s", ws.URL)
+	}
+}
+
+// TestConnectStripsLLMSuppliedToken proves that any value the LLM emitted at
+// auth.param is stripped before the resolved token is injected — exactly one
+// correct credential reaches the server.
+func TestConnectStripsLLMSuppliedToken(t *testing.T) {
+	wsURL, latestQuery := newWSTestServerCapture(t)
+	p := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "web"}}
+	idx := &WSProtocolIndex{
+		ByHost:      map[string]*project.Protocol{hostOf(t, wsURL): p},
+		ActorTokens: map[string]string{"web": "REAL"},
+	}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL + "?type=web&token=LLM-WRONG", ConnectionID: "c1", CredentialRef: "web"})
+	q := latestQuery()
+	if strings.Contains(q, "LLM-WRONG") {
+		t.Fatalf("LLM-supplied token not stripped: %s", q)
+	}
+	if !strings.Contains(q, "token=REAL") {
+		t.Fatalf("resolved token not injected: %s", q)
+	}
+}
+
+// TestConnectFailsWhenAuthUnresolvable proves a declared auth whose actor has
+// no resolved token fails the connect with a non-secret error BEFORE dialing.
+func TestConnectFailsWhenAuthUnresolvable(t *testing.T) {
+	wsURL, _ := newWSTestServerCapture(t)
+	p := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "ghost"}}
+	idx := &WSProtocolIndex{ByHost: map[string]*project.Protocol{hostOf(t, wsURL): p}, ActorTokens: map[string]string{"web": "X"}}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
+	if res.Success() {
+		t.Fatalf("want failure for unresolvable auth, got %+v", res)
+	}
+}
+
 // TestReceiveMatchesByTypePath proves that when a service declares
 // type_path: data.event, the executor matches incoming messages by the nested
 // routing key (not the M0 top-level "type" field). Without protocol-aware
