@@ -4,10 +4,10 @@ import "testing"
 
 func TestWSResultEvidenceIncludesMatchedAndSeen(t *testing.T) {
 	r := WSResult{
-		OK:            true,
-		URL:           "ws://x/ws",
+		OK:             true,
+		URL:            "ws://x/ws",
 		MatchedMessage: `{"type":"permission:response","payload":{"approved":true}}`,
-		SeenMessages:  []string{`{"type":"heartbeat"}`},
+		SeenMessages:   []string{`{"type":"heartbeat"}`},
 	}
 	ev := r.Evidence()
 	if ev.Type != "ws_messages" {

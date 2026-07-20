@@ -7,8 +7,8 @@ import (
 
 // WSResult represents a WebSocket operation result.
 type WSResult struct {
-	OK       bool          `json:"success"`
-	URL      string        `json:"url"`
+	OK  bool   `json:"success"`
+	URL string `json:"url"`
 	// MatchedMessage is the message that satisfied a WSReceive match (empty for
 	// connect/send/disconnect).
 	MatchedMessage string `json:"matched_message,omitempty"`

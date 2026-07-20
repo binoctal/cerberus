@@ -31,7 +31,7 @@ func newWSTestServer(t *testing.T, handler func(conn *websocket.Conn)) string {
 			t.Errorf("accept: %v", err)
 			return
 		}
-		defer conn.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
 		handler(conn)
 	})
 	srv := httptest.NewServer(mux)
@@ -103,13 +103,16 @@ func TestWSConnectSendsHeaders(t *testing.T) {
 	seen := make(chan string, 1)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		select { case seen <- r.Header.Get("X-Test-Auth"): default: }
+		select {
+		case seen <- r.Header.Get("X-Test-Auth"):
+		default:
+		}
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
 			t.Errorf("accept: %v", err)
 			return
 		}
-		defer conn.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		_, _, _ = conn.Read(ctx)
@@ -120,9 +123,9 @@ func TestWSConnectSendsHeaders(t *testing.T) {
 
 	ex := newWSExecutor()
 	res := ex.Execute(context.Background(), types.WSConnectAction{
-		URL:           url,
-		ConnectionID:  "c1",
-		Headers:       map[string]string{"X-Test-Auth": "secret"},
+		URL:          url,
+		ConnectionID: "c1",
+		Headers:      map[string]string{"X-Test-Auth": "secret"},
 	})
 	if !res.Success() {
 		t.Fatalf("connect failed: %+v", res)
