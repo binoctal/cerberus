@@ -11,6 +11,8 @@ import (
 	"log"
 	"net/http"
 	"sync"
+
+	"github.com/coder/websocket"
 )
 
 // server is the in-memory dogfood target. Tokens issued by /login are held
@@ -52,11 +54,61 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"token": tok})
 }
 
-// routes wires the HTTP endpoints. Task 1 registers only /login; Task 2 adds
-// the WebSocket /realtime (and lenient /) routes.
+// handleWS accepts a WebSocket, validates the ?token= query against issued
+// tokens, sends devices:sync unconditionally, then replies device:ack to any
+// device:command. ?type= flavors the ack role (default "web").
+func (s *server) handleWS(w http.ResponseWriter, r *http.Request) {
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	if err != nil {
+		return
+	}
+	defer func() { _ = c.CloseNow() }()
+
+	s.mu.Lock()
+	ok := s.tokens[r.URL.Query().Get("token")]
+	s.mu.Unlock()
+	if !ok {
+		_ = c.Close(websocket.StatusPolicyViolation, "invalid token")
+		return
+	}
+	role := r.URL.Query().Get("type")
+	if role == "" {
+		role = "web"
+	}
+
+	ctx := r.Context()
+	syncMsg, _ := json.Marshal(map[string]any{"type": "devices:sync", "devices": []any{}})
+	if err := c.Write(ctx, websocket.MessageText, syncMsg); err != nil {
+		return
+	}
+	for {
+		_, data, err := c.Read(ctx)
+		if err != nil {
+			return
+		}
+		var msg map[string]any
+		if json.Unmarshal(data, &msg) != nil {
+			continue
+		}
+		if msg["type"] == "device:command" {
+			ack, _ := json.Marshal(map[string]any{
+				"type":    "device:ack",
+				"payload": map[string]any{"approved": true, "role": role},
+			})
+			if err := c.Write(ctx, websocket.MessageText, ack); err != nil {
+				return
+			}
+		}
+	}
+}
+
+// routes wires the HTTP endpoints: POST /login issues tokens; /realtime and
+// the lenient / both upgrade to the WebSocket handler.
 func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("/realtime", s.handleWS)
+	mux.HandleFunc("/", s.handleWS) // lenient: accept WS upgrade at root too
 	return mux
 }
 
