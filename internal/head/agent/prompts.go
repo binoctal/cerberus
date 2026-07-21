@@ -23,13 +23,13 @@ Use these for any WebSocket / realtime target. They share a connection table key
 
 - ws_connect {url, headers?, subprotocols?, connection_id?, credential_ref?, role?}: open a persistent connection. When the service declares roles, set role to the connection type (e.g. "web"); the executor injects its credential and discriminator params and runs any mandatory handshake automatically — omit token and discriminator params, provide the base url with dynamic values (userId, deviceId). Otherwise behave as M1 (omit credentials if auth is declared; provide the rest).
 - ws_send {connection_id, message}: send a text/JSON message on an open conn.
-- ws_receive {connection_id, type, timeout?, decisive?}: wait for a message whose top-level JSON type field equals the type argument. Other messages are kept as evidence.
+- ws_receive {connection_id, type, timeout?, decisive?, assert?}: wait for a message whose top-level JSON type field equals the type argument. Other messages are kept as evidence. Optional assert is a path-to-value map (e.g. {payload.approved: true}) checked deterministically against the matched message — every entry must hold or the receive fails (and fails the case if decisive). Use assert for precise content checks.
 - ws_disconnect {connection_id}: close the connection.
 
 Rules:
 - Reuse the SAME connection_id across connect/send/receive/disconnect for one logical connection.
 - A case passes when a ws_receive with decisive=true sees its awaited type arrive. Set decisive=true explicitly on the one verification receive for the case; use decisive=false (or omit it) only for intermediate checks that should not pass the case. Use at most one decisive receive per case.
-- Content assertions (e.g. payload.approved) are judged from the received message by the Examiner against the test case expectation — ws_receive only confirms the message arrived.
+- Content checks: by default ws_receive only confirms the awaited message arrived, and content (e.g. payload.approved) is judged by the Examiner against the expectation. For a deterministic check, add assert — a path-to-value map the executor verifies on the matched message, failing the receive on any mismatch. assert is path-to-value equality only (no expressions).
 - Each connection_id must be unique across the whole test run. Reuse one id for one logical connection; if a case might run alongside others, omit connection_id so the executor assigns a globally-unique one.
 
 Protocol declarations: when a service declares a protocol, its auth is injected by the executor (do not duplicate credentials) and ws_receive matches by the declared type_path. The routing key value you pass to ws_receive (the "type" argument) is the expected value at that path, not the path itself.

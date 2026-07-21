@@ -34,9 +34,62 @@ headers, or subprotocols as the target requires. When the service declares a
 | `type` | string | yes | Wait for a message whose top-level `type` matches |
 | `timeout` | int | no | Seconds (default 10) |
 | `decisive` | bool | no | Set true on the receive that should pass the case; defaults to false (intermediate) |
+| `assert` | map[string]any | no | Path-to-value equality checks on the matched message (see [Field assertions](#field-assertions)) |
 
 Non-matching messages are kept as evidence. At most one `decisive=true`
 receive per case.
+
+#### Field assertions
+
+`assert` optionally declares deterministic, executor-side content checks on the
+matched message — precise, immediate, and not deferred to the Examiner LLM.
+Each key is a dotted JSON object path (e.g. `payload.approved`); each value is
+the expected scalar (`bool`, `string`, `number`, or `null`).
+
+```yaml
+ws_receive:
+  connection_id: conn1
+  type: approval
+  assert:
+    payload.approved: true
+    payload.role: admin
+```
+
+**Evaluation.** After the routing-key match succeeds (M1 behavior, unchanged),
+the executor walks each path in the matched JSON message and compares the leaf
+to the expected value. **All entries must hold** for the receive to succeed.
+Go map iteration is non-deterministic, so entries are evaluated in **sorted
+path order** — the error message names the lexicographically-first failing
+path, so multi-assertion failures are reproducible.
+
+**Failure semantics.** On the first failing entry, the receive returns
+`OK=false` with an error of the form
+`receive: assert <path>: expected <v>, got <actual-or-missing>`. The matched
+message is still returned as `MatchedMessage` (evidence preserved), and any
+non-matching messages accumulated so far remain in `SeenMessages`. For a
+`decisive` receive, a failing assert fails the decisive verification step —
+the case fails, exactly as a decisive receive that times out.
+
+**Constrained equality (no evaluator).** `assert` is path-to-value equality
+only. No `!=`, `>`, `contains`, boolean logic, array indexing, or wildcards
+(M0 Constraint 3 preserved). A path that is absent or that traverses a
+non-object node reports `got <missing>`; an explicit JSON `null` expected
+value asserts the field is present-and-null (a distinct case from absent).
+
+**Numeric normalization.** JSON decodes all numbers to `float64`, so an
+expected `5` (YAML/JSON int) and an actual `5` (decoded float) compare equal
+— `valueEqual` compares numeric operands as `float64`. No other coercion is
+applied (`"5"` and `5` do not match).
+
+**M1 fallback.** An absent or empty `assert` is byte-identical to M1: the
+receive is arrival-only, and content is judged by the Examiner against the
+free-text case expectation. Soft/non-failing observation is achieved by
+omitting `assert` — there is no separate "warn" mode.
+
+Design rationale and rejected alternatives (action-side vs. Examiner-side,
+`ws_assert` vs. `assert` on `ws_receive`, array paths, `null` semantics) are
+in the M2 field-assertions design spec:
+[`cerberus-docs/superpowers/specs/2026-07-21-ws-field-assertions-design.md`](../superpowers/specs/2026-07-21-ws-field-assertions-design.md).
 
 ### `ws_disconnect`
 | Field | Type | Required | Description |
@@ -61,8 +114,9 @@ case ends (normal exit, timeout, or cancellation). Parallel cases are isolated.
   Configurable type-field paths, auth injection, and framing selection are
   declarable via the [Protocol declaration](#protocol-declaration) (M1).
 - Roles and the per-role mandatory handshake are declarable via
-  [Protocol declaration > Roles](#roles) (M2). Field-level assertions and
-  `text`/`binary` framing remain deferred.
+  [Protocol declaration > Roles](#roles) (M2). Field-level `assert` checks on
+  `ws_receive` are documented under [Field assertions](#field-assertions)
+  (M2); `text`/`binary` framing remains deferred.
 
 ## Protocol Declaration
 

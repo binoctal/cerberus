@@ -35,3 +35,11 @@ func TestSteerPromptMentionsRoles(t *testing.T) {
 		}
 	}
 }
+
+func TestSteerPromptMentionsAssert(t *testing.T) {
+	for _, want := range []string{"assert", "deterministic"} {
+		if !contains(promptSteerSystem, want) {
+			t.Fatalf("steer prompt missing %q", want)
+		}
+	}
+}
