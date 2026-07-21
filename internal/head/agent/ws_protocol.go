@@ -8,32 +8,46 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
-// extractTypePath returns the routing key at the dotted path within a JSON
-// message. An empty path means top-level "type" (M0 behavior). Returns
-// ("", false) if the message is not a JSON object, the path is absent, or the
-// leaf is not a string — so the M0 fallback path reproduces messageType
-// semantics exactly (a non-string type field does not match).
-func extractTypePath(data []byte, path string) (string, bool) {
+// extractPath walks a dotted path through a JSON message and returns the leaf
+// value. An empty path returns the top-level "type" field's value (M0 routing
+// semantics, shared with extractTypePath). Returns (value, true) when the path
+// resolves to a present leaf — including a JSON null, which is a present nil —
+// and (nil, false) if the message is not a JSON object, the path traverses a
+// non-object, or the leaf key is absent.
+func extractPath(data []byte, path string) (any, bool) {
 	if path == "" {
 		path = "type"
 	}
 	var obj map[string]any
 	if err := json.Unmarshal(data, &obj); err != nil {
-		return "", false
+		return nil, false
 	}
 	cur := any(obj)
 	for _, key := range strings.Split(path, ".") {
 		m, ok := cur.(map[string]any)
 		if !ok {
-			return "", false
+			return nil, false
 		}
 		next, exists := m[key]
 		if !exists {
-			return "", false
+			return nil, false
 		}
 		cur = next
 	}
-	s, ok := cur.(string)
+	return cur, true
+}
+
+// extractTypePath returns the routing key at the dotted path within a JSON
+// message as a string. Empty path means top-level "type" (M0 behavior). Returns
+// ("", false) if the message is not a JSON object, the path is absent, or the
+// leaf is not a string — so the M0 fallback reproduces messageType semantics
+// exactly (a non-string type field does not match).
+func extractTypePath(data []byte, path string) (string, bool) {
+	v, ok := extractPath(data, path)
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
 	return s, ok
 }
 
