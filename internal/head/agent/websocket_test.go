@@ -1083,3 +1083,50 @@ func TestReceiveAssertRejectedUnderTextFraming(t *testing.T) {
 		t.Fatalf("err: %q", ws.Err)
 	}
 }
+
+// TestConnectRoleHandshakeTextFraming proves D5: the roles handshake loop matches
+// await_type via the framing-aware predicate, so a text-framed protocol with a
+// mandatory handshake still completes. The non-matching "WELCOME" frame must
+// accumulate into SeenMessages, and "READY" must satisfy await_type by exact
+// whole-frame equality (not JSON type_path).
+func TestConnectRoleHandshakeTextFraming(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte("WELCOME"))
+		_ = conn.Write(ctx, websocket.MessageText, []byte("READY"))
+		_, _, _ = conn.Read(ctx)
+	})
+	p := &project.Protocol{Framing: "text", Roles: map[string]*project.ProtocolRole{
+		"web": {Handshake: &project.RoleHandshake{AwaitType: "READY", Timeout: 2}},
+	}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, p))
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: url, ConnectionID: "c1", Role: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	if !strings.Contains(strings.Join(ws.SeenMessages, ""), "WELCOME") {
+		t.Fatalf("non-matching handshake frame not captured: %v", ws.SeenMessages)
+	}
+}
+
+// TestConnectRoleHandshakeBinaryFraming proves the handshake loop honors binary
+// framing: await_type is base64, matched by exact whole-frame bytes.
+func TestConnectRoleHandshakeBinaryFraming(t *testing.T) {
+	ready := []byte{0x01, 0x02}
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageBinary, ready)
+		_, _, _ = conn.Read(ctx)
+	})
+	p := &project.Protocol{Framing: "binary", Roles: map[string]*project.ProtocolRole{
+		"web": {Handshake: &project.RoleHandshake{AwaitType: base64.StdEncoding.EncodeToString(ready), Timeout: 2}},
+	}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, p))
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: url, ConnectionID: "c1", Role: "web"})
+	if !res.Success() {
+		t.Fatalf("binary handshake should complete: %+v", res)
+	}
+}

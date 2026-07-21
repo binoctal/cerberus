@@ -223,17 +223,18 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 		}
 		entry.readMu.Lock()
 		matched := false
+		hsFraming := framingOf(entry)
+		path := "type"
+		if proto.TypePath != "" {
+			path = proto.TypePath
+		}
 		for {
 			_, data, rerr := entry.conn.Read(hsCtx)
 			if rerr != nil {
 				break // timeout or peer close
 			}
-			seen = append(seen, string(data))
-			path := "type"
-			if proto.TypePath != "" {
-				path = proto.TypePath
-			}
-			if t, ok := extractTypePath(data, path); ok && t == role.Handshake.AwaitType {
+			seen = append(seen, frameForResult(hsFraming, data))
+			if matchType(hsFraming, data, role.Handshake.AwaitType, path) {
 				matched = true
 				break
 			}
