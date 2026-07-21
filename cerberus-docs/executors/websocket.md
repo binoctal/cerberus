@@ -201,7 +201,9 @@ protocol:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `roles.<name>.credential_ref` | string | — | Names an entry in `actors[]` whose resolved raw token is injected for this role. Overrides `protocol.auth.credential_ref` for this connection. |
-| `roles.<name>.params` | map[string]string | — | Discriminator query params applied (strip-then-inject) to the dial url. Must not include `protocol.auth.param` (token-slot collision is rejected by validation). |
+| `roles.<name>.params` | map[string]string | — | Discriminator query params applied (strip-then-inject) to the dial url. Must not include `protocol.auth.param` when `auth.strategy` is `query` (token-slot collision is rejected by validation). |
+| `roles.<name>.headers` | map[string]string | — | Discriminator dial headers strip-then-injected (delete-then-set). Must not include `auth.param` when `auth.strategy` is `header`. |
+| `roles.<name>.subprotocols` | []string | — | Discriminator subprotocol names offered (strip-then-injected: remove-then-append). Must not include `auth.param` when `auth.strategy` is `subprotocol`. |
 | `roles.<name>.handshake` | object | — | Optional mandatory post-connect exchange. When set, the executor auto-awaits `await_type` (matched at `protocol.type_path`) before the connect returns success. |
 | `roles.<name>.handshake.await_type` | string | — | Routing-key value to wait for. Required when `handshake` is set. |
 | `roles.<name>.handshake.timeout` | int | — | Seconds to wait; must be > 0 (validation) so a mandatory handshake cannot hang a case indefinitely. |
@@ -220,7 +222,10 @@ dial); (2) resolves the effective credential as `role.credential_ref` →
 LLM-supplied value at `auth.param` and inject the resolved raw token; (4)
 strip-then-injects each of `role.params` into the url query (delete then set,
 so an LLM-supplied `?type=web` is normalized to exactly the role's value);
-and (5) after dial, if the role declares a `handshake`, runs an internal
+and (5) strip-then-injects each of `role.headers` (delete-then-set) and each
+entry of `role.subprotocols` (remove-then-append) onto the dial — normalizing
+any LLM-supplied value at those slots to exactly the role's; and (6) after
+dial, if the role declares a `handshake`, runs an internal
 receive loop (guarded by the connection's `readMu`, matching via
 `extractTypePath(data, type_path)`) until `await_type` arrives or `timeout`
 elapses. Non-matching messages during the handshake are accumulated as
