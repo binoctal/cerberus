@@ -110,7 +110,9 @@ case ends (normal exit, timeout, or cancellation). Parallel cases are isolated.
 ## Notes
 
 - Without a `protocol:` block, matching is by top-level JSON `type` only (M0).
-  Field-level assertions are judged by the Examiner from the received message.
+  Content is judged by the Examiner by default, or checked deterministically via
+  `assert` on `ws_receive` (see [Field assertions](#field-assertions), M2) —
+  `assert` works with or without a protocol declaration.
   Configurable type-field paths, auth injection, and framing selection are
   declarable via the [Protocol declaration](#protocol-declaration) (M1).
 - Roles and the per-role mandatory handshake are declarable via
