@@ -905,3 +905,95 @@ func TestReceiveAssertMultipleReportsFirstSorted(t *testing.T) {
 		t.Fatalf("should not report 'z' (sorted-first is 'a'): %q", ws.Err)
 	}
 }
+
+// capturedFrame records the opcode and payload of one frame read by a test
+// server, used to prove doSend wrote the right WS frame type.
+type capturedFrame struct {
+	mt   websocket.MessageType
+	data []byte
+}
+
+func TestSendBinaryFrameOpcodeAndPayload(t *testing.T) {
+	got := make(chan capturedFrame, 1)
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if mt, data, err := conn.Read(ctx); err == nil {
+			got <- capturedFrame{mt, data}
+		}
+		_, _, _ = conn.Read(ctx) // block until close
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "binary"}))
+	ctx := context.Background()
+	if !ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect failed")
+	}
+	// "hello" base64 = "aGVsbG8="
+	res := ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: "aGVsbG8="})
+	if !res.Success() {
+		t.Fatalf("send failed: %+v", res)
+	}
+	select {
+	case f := <-got:
+		if f.mt != websocket.MessageBinary {
+			t.Fatalf("opcode = %v, want MessageBinary", f.mt)
+		}
+		if string(f.data) != "hello" {
+			t.Fatalf("payload = %q, want %q", f.data, "hello")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not observe the frame")
+	}
+}
+
+func TestSendTextFrameOpcode(t *testing.T) {
+	got := make(chan capturedFrame, 1)
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if mt, data, err := conn.Read(ctx); err == nil {
+			got <- capturedFrame{mt, data}
+		}
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "text"}))
+	ctx := context.Background()
+	if !ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect failed")
+	}
+	if !ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: "PING"}).Success() {
+		t.Fatal("send failed")
+	}
+	select {
+	case f := <-got:
+		if f.mt != websocket.MessageText {
+			t.Fatalf("opcode = %v, want MessageText", f.mt)
+		}
+		if string(f.data) != "PING" {
+			t.Fatalf("payload = %q, want PING", f.data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not observe the frame")
+	}
+}
+
+func TestSendBinaryInvalidBase64Fails(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "binary"}))
+	ctx := context.Background()
+	if !ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect failed")
+	}
+	res := ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: "@@@@"})
+	ws, ok := res.(types.WSResult)
+	if !ok || ws.OK {
+		t.Fatalf("want base64 error, got %+v", res)
+	}
+	if !strings.Contains(ws.Err, "base64") {
+		t.Fatalf("err should mention base64: %q", ws.Err)
+	}
+}

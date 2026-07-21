@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -430,6 +431,19 @@ func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, st
 	conn := entry.conn
 	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+	// Binary framing: the message is base64-encoded bytes; decode and write a
+	// binary frame. json/text framing: write the message string as a text frame
+	// (json and text sends are byte-identical on the wire).
+	if framingOf(entry) == "binary" {
+		decoded, err := base64.StdEncoding.DecodeString(a.Message)
+		if err != nil {
+			return types.WSResult{OK: false, Err: "send: message is not valid base64", Latency: time.Since(start)}
+		}
+		if err := conn.Write(writeCtx, websocket.MessageBinary, decoded); err != nil {
+			return types.WSResult{OK: false, Err: fmt.Sprintf("write: %v", err), Latency: time.Since(start)}
+		}
+		return types.WSResult{OK: true, Latency: time.Since(start)}
+	}
 	if err := conn.Write(writeCtx, websocket.MessageText, []byte(a.Message)); err != nil {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("write: %v", err), Latency: time.Since(start)}
 	}
