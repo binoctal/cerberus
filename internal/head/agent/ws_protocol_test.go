@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/base64"
 	"reflect"
 	"testing"
 
@@ -87,5 +88,55 @@ func TestExtractPath(t *testing.T) {
 				t.Fatalf("extractPath(%q) = %#v, want %#v", tc.path, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestMatchType(t *testing.T) {
+	jsonMsg := []byte(`{"type":"go"}`)
+	binWant := base64.StdEncoding.EncodeToString([]byte{0x00, 0xff})
+	cases := []struct {
+		name     string
+		framing  string
+		data     []byte
+		want     string
+		typePath string
+		expect   bool
+	}{
+		{"json match", "json", jsonMsg, "go", "type", true},
+		{"json no match", "json", jsonMsg, "other", "type", false},
+		{"empty framing = json", "", jsonMsg, "go", "type", true},
+		{"text exact match", "text", []byte("READY"), "READY", "", true},
+		{"text no match", "text", []byte("READY"), "PENDING", "", false},
+		{"binary match", "binary", []byte{0x00, 0xff}, binWant, "", true},
+		{"binary no match", "binary", []byte{0x00, 0xff}, base64.StdEncoding.EncodeToString([]byte{0x01}), "", false},
+		{"binary invalid want no match", "binary", []byte{0x00}, "@@@@", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := matchType(tc.framing, tc.data, tc.want, tc.typePath); got != tc.expect {
+				t.Fatalf("matchType(%q,...) = %v, want %v", tc.framing, got, tc.expect)
+			}
+		})
+	}
+}
+
+func TestFrameForResult(t *testing.T) {
+	if got := frameForResult("binary", []byte{0x00, 0xff}); got != base64.StdEncoding.EncodeToString([]byte{0x00, 0xff}) {
+		t.Fatalf("binary frameForResult = %q", got)
+	}
+	if got := frameForResult("text", []byte("hi")); got != "hi" {
+		t.Fatalf("text frameForResult = %q", got)
+	}
+	if got := frameForResult("", []byte("hi")); got != "hi" {
+		t.Fatalf("empty framing frameForResult = %q", got)
+	}
+}
+
+func TestFramingOf(t *testing.T) {
+	if got := framingOf(&wsEntry{}); got != "" {
+		t.Fatalf("nil protocol framing = %q, want empty", got)
+	}
+	if got := framingOf(&wsEntry{protocol: &project.Protocol{Framing: "binary"}}); got != "binary" {
+		t.Fatalf("framing = %q, want binary", got)
 	}
 }

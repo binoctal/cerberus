@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/url"
 	"strings"
@@ -49,6 +51,45 @@ func extractTypePath(data []byte, path string) (string, bool) {
 	}
 	s, ok := v.(string)
 	return s, ok
+}
+
+// framingOf returns the effective wire framing for a connection. Empty (no
+// protocol, or a protocol with no framing) means json — the M0/M1 default.
+func framingOf(entry *wsEntry) string {
+	if entry.protocol != nil {
+		return entry.protocol.Framing
+	}
+	return ""
+}
+
+// matchType reports whether a received frame satisfies the awaited type under
+// the connection's framing. json routes by type_path; text matches the whole
+// frame text exactly; binary matches the whole frame bytes exactly (want is
+// base64). A binary want that is not valid base64 never matches.
+func matchType(framing string, data []byte, want, typePath string) bool {
+	switch framing {
+	case "text":
+		return string(data) == want
+	case "binary":
+		got, err := base64.StdEncoding.DecodeString(want)
+		if err != nil {
+			return false
+		}
+		return bytes.Equal(got, data)
+	default: // "" or "json"
+		t, ok := extractTypePath(data, typePath)
+		return ok && t == want
+	}
+}
+
+// frameForResult renders received bytes for a WSResult string field under the
+// connection's framing. binary frames are base64-encoded; text/json frames are
+// the raw UTF-8 text.
+func frameForResult(framing string, data []byte) string {
+	if framing == "binary" {
+		return base64.StdEncoding.EncodeToString(data)
+	}
+	return string(data)
 }
 
 // WSProtocolIndex gives the WS executor the per-host protocol declaration and
