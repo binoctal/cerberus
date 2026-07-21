@@ -150,6 +150,15 @@ services:
 | `auth.param` | string | — | Query-param name, header name, or subprotocol name. Required when `auth` is set. |
 | `auth.credential_ref` | string | — | Names an entry in `actors[]` whose resolved raw token is injected at `auth.param`. Must name a real actor. |
 
+### Inline or referenced
+
+The protocol declaration may be written **inline** on the service (`protocol:`),
+or **referenced** by name (`protocol_ref: <name>`) from a standalone file
+`.cerberus/protocols/<name>.yaml` loaded at config time. The two are mutually
+exclusive. A referenced file is a YAML serialization of the same `Protocol`
+fields documented here (framing, type_path, auth, roles) and behaves identically
+once loaded. See the [project configuration reference](../configuration/project.md).
+
 ### Executor-authoritative auth (strip-then-inject)
 
 When `protocol.auth` is declared, the executor is authoritative over credentials

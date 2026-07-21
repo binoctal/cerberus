@@ -110,6 +110,49 @@ actors:
     credentials: {}
 ```
 
+## WebSocket protocol
+
+A service may declare its WebSocket protocol facts so the executor injects auth,
+matches by the declared routing field, and frames messages deterministically
+(see [WebSocket executor](../executors/websocket.md)). Declare it **inline**:
+
+```yaml
+services:
+  - name: rt
+    url: http://localhost:8787
+    protocol:
+      framing: json
+      type_path: type
+      auth: { strategy: query, param: token, credential_ref: web-actor }
+```
+
+…or **by reference** to a standalone, shareable file under
+`.cerberus/protocols/<name>.yaml`:
+
+```yaml
+services:
+  - name: rt
+    url: http://localhost:8787
+    protocol_ref: open-agents
+```
+
+```yaml
+# .cerberus/protocols/open-agents.yaml — version-controlled, shareable across projects
+framing: json
+type_path: type
+auth:
+  strategy: query
+  param: token
+  credential_ref: web-actor
+roles:
+  web: { credential_ref: web-actor, params: { type: web } }
+```
+
+`protocol` and `protocol_ref` are mutually exclusive. The reference is a plain
+name (no path separators or `..`); the file is loaded at config-load time. Full
+field semantics (framing, type_path, auth, roles, handshake, assertions) are in
+the [WebSocket executor doc](../executors/websocket.md).
+
 ## Validation
 
 Cerberus validates the config on load and reports all issues:
