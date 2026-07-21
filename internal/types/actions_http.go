@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // HTTPAction represents an HTTP API request.
@@ -227,6 +228,13 @@ type WSReceiveAction struct {
 	// Timeout in seconds for the matching message to arrive.
 	Timeout  int  `json:"timeout,omitempty"`
 	Decisive bool `json:"decisive,omitempty"`
+	// Assert optionally declares field-level equality checks evaluated against the
+	// matched message after type matching. Each key is a dotted JSON object path
+	// (e.g. "payload.approved"); each value is the expected value. All must hold
+	// for the receive to succeed; a failed assertion fails the receive. Empty
+	// means no assertions (M1 arrival-only behavior). Constrained equality only
+	// — no expression engine.
+	Assert map[string]any `json:"assert,omitempty"`
 }
 
 func (a WSReceiveAction) GetActionType() ActionType { return ActionWSReceive }
@@ -237,6 +245,11 @@ func (a WSReceiveAction) Validate() error {
 	}
 	if a.Type == "" {
 		return fmt.Errorf("type is required")
+	}
+	for k := range a.Assert {
+		if strings.TrimSpace(k) == "" {
+			return fmt.Errorf("assert path key must be non-empty")
+		}
 	}
 	return nil
 }

@@ -110,3 +110,31 @@ func TestWSConnectActionRoleRoundTrip(t *testing.T) {
 		t.Fatalf("role round-trip lost: %+v", got)
 	}
 }
+
+func TestWSReceiveActionAssertRoundTrip(t *testing.T) {
+	envelope, err := MarshalAction(&WSReceiveAction{
+		ConnectionID: "c1", Type: "approval",
+		Assert: map[string]any{"payload.approved": true},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got, err := UnmarshalAction(envelope)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	r, ok := got.(WSReceiveAction)
+	if !ok {
+		t.Fatalf("type: %+v", got)
+	}
+	if r.Assert["payload.approved"] != true {
+		t.Fatalf("assert round-trip lost: %+v", r.Assert)
+	}
+}
+
+func TestWSReceiveActionValidateRejectsEmptyAssertKey(t *testing.T) {
+	a := WSReceiveAction{ConnectionID: "c1", Type: "x", Assert: map[string]any{"": true}}
+	if err := a.Validate(); err == nil {
+		t.Fatal("empty assert path key should be rejected")
+	}
+}
