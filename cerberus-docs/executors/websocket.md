@@ -178,9 +178,9 @@ resolvable token, `ws_connect` fails with a non-secret error and does not dial.
 
 A service with multiple distinct connection types (e.g. a `web` client and a
 `bridge` device on the same realtime endpoint) may declare named **roles**
-under `protocol.roles`. A role bundles three per-connection-type facts the
-executor owns: the credential (`credential_ref`), discriminator query
-`params`, and an optional mandatory `handshake`. The LLM only names the role
+under `protocol.roles`. A role bundles the credential (`credential_ref`),
+discriminator facts (`params`/`headers`/`subprotocols`), and an optional
+mandatory `handshake`. The LLM only names the role
 on `ws_connect`; the executor expands the bundle.
 
 ```yaml
@@ -212,7 +212,7 @@ protocol:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `role` | string | no | Names a declared protocol role. When set, the executor expands the role's credential, discriminator params, and handshake; `credential_ref` on the action is ignored. |
+| `role` | string | no | Names a declared protocol role. When set, the executor expands the role's credential, discriminator params/headers/subprotocols, and handshake; `credential_ref` on the action is ignored. |
 
 **Executor expansion (strip-then-inject + auto-handshake):** when `role` is set,
 the executor (1) resolves the role (unknown role, or a role on a service

@@ -34,7 +34,7 @@ Rules:
 
 Protocol declarations: when a service declares a protocol, its auth is injected by the executor (do not duplicate credentials), ws_receive matches by the declared type_path (json framing; for text/binary framing it matches the whole frame — see below), and framing selects the wire frame type. Under binary framing, encode ws_send message and ws_receive type as base64 (standard padding). The routing key value you pass to ws_receive (the "type" argument) is the expected value at that path, not the path itself.
 
-Roles: a service may declare named roles (web, bridge, ...). A role bundles its credential, discriminator query params, and an optional mandatory handshake (auto-awaited after connect). Use ws_connect with role when the target declares roles.`
+Roles: a service may declare named roles (web, bridge, ...). A role bundles its credential, discriminator params/headers/subprotocols, and an optional mandatory handshake (auto-awaited after connect). Use ws_connect with role when the target declares roles.`
 
 const promptSteerOutput = `Respond with JSON:
 {
