@@ -1,0 +1,24 @@
+project:
+  name: ws-realtime-dogfood
+services:
+  - name: realtime
+    url: http://localhost:8787
+    protocol_ref: open-agents
+actors:
+  - name: web-actor
+    credentials:
+      email: web@dogfood.local
+      password: dogfood-web
+    auth:
+      login:
+        method: POST
+        path: /login
+        body: { email: "{email}", password: "{password}" }
+      token_from: token
+      inject_as: "Authorization: Bearer {token}"
+settings:
+  max_duration: 8m
+  confidence_threshold: 0.7
+  ai_budget:
+    session_total_tokens: 60000
+    per_call_limit: 10000

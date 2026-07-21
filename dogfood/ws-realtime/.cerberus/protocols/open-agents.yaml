@@ -1,0 +1,14 @@
+framing: json
+type_path: type
+auth:
+  strategy: query
+  param: token
+  credential_ref: web-actor
+roles:
+  web:
+    credential_ref: web-actor
+    params:
+      type: web
+    handshake:
+      await_type: devices:sync
+      timeout: 5

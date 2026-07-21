@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 func TestServer_Login(t *testing.T) {
@@ -131,4 +133,31 @@ type ackShape struct {
 		Approved bool   `json:"approved"`
 		Role     string `json:"role"`
 	} `json:"payload"`
+}
+
+func TestProjectConfig_Loads(t *testing.T) {
+	cfg, err := project.LoadFromFile(".cerberus/project.yaml")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := len(cfg.Services); got != 1 || cfg.Services[0].Name != "realtime" {
+		t.Fatalf("services=%+v", cfg.Services)
+	}
+	svc := cfg.Services[0]
+	if svc.Protocol == nil {
+		t.Fatal("protocol_ref not resolved into svc.Protocol")
+	}
+	if svc.Protocol.Framing != "json" {
+		t.Fatalf("framing=%q want json", svc.Protocol.Framing)
+	}
+	if svc.Protocol.Auth == nil || svc.Protocol.Auth.Param != "token" || svc.Protocol.Auth.CredentialRef != "web-actor" {
+		t.Fatalf("auth=%+v", svc.Protocol.Auth)
+	}
+	web := svc.Protocol.Roles["web"]
+	if web == nil || web.Handshake == nil || web.Handshake.AwaitType != "devices:sync" {
+		t.Fatalf("web role/handshake=%+v", web)
+	}
+	if len(cfg.Actors) != 1 || cfg.Actors[0].Name != "web-actor" {
+		t.Fatalf("actors=%+v", cfg.Actors)
+	}
 }
