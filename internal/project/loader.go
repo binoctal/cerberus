@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"dario.cat/mergo"
 	"gopkg.in/yaml.v3"
@@ -12,7 +13,7 @@ import (
 
 var envVarRE = regexp.MustCompile(`\$\{([^}]+)\}`)
 
-func LoadFromYAML(data []byte) (*Config, error) {
+func LoadFromYAML(data []byte, baseDir string) (*Config, error) {
 	interpolated := envVarRE.ReplaceAllFunc(data, func(match []byte) []byte {
 		varName := string(match[2 : len(match)-1])
 		if val := os.Getenv(varName); val != "" {
@@ -27,6 +28,9 @@ func LoadFromYAML(data []byte) (*Config, error) {
 	}
 
 	applyDefaults(&cfg)
+	if err := resolveProtocolRefs(&cfg, baseDir); err != nil {
+		return nil, err
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -39,7 +43,7 @@ func LoadFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("read project config: %w", err)
 	}
 
-	cfg, err := LoadFromYAML(data)
+	cfg, err := LoadFromYAML(data, filepath.Dir(path))
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +68,12 @@ func LoadFromFile(path string) (*Config, error) {
 			}
 			// Re-apply defaults in case overlay zeroed fields that had defaults.
 			applyDefaults(cfg)
+			// Re-resolve protocol_ref in case the overlay introduced one; base
+			// refs were already resolved (and cleared) by LoadFromYAML, so this
+			// is a no-op for them.
+			if err := resolveProtocolRefs(cfg, filepath.Dir(path)); err != nil {
+				return nil, err
+			}
 			if err := cfg.Validate(); err != nil {
 				return nil, err
 			}
@@ -72,6 +82,51 @@ func LoadFromFile(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// resolveProtocolRefs loads each service's referenced protocol description
+// file (.cerberus/protocols/<name>.yaml under baseDir) into svc.Protocol. It is
+// called after applyDefaults and before Validate. Inline protocol and
+// protocol_ref are mutually exclusive. baseDir == "" means files cannot be
+// resolved (a protocol_ref then errors). On success the ref is cleared so the
+// function is idempotent (the env-overlay re-validation path re-runs it).
+func resolveProtocolRefs(cfg *Config, baseDir string) error {
+	for i := range cfg.Services {
+		svc := &cfg.Services[i]
+		if svc.ProtocolRef == "" {
+			continue
+		}
+		if svc.Protocol != nil {
+			return fmt.Errorf("services[%d]: protocol and protocol_ref are mutually exclusive", i)
+		}
+		if baseDir == "" {
+			return fmt.Errorf("services[%d]: protocol_ref %q requires loading from a project directory", i, svc.ProtocolRef)
+		}
+		if err := checkProtocolRefName(svc.ProtocolRef); err != nil {
+			return fmt.Errorf("services[%d]: protocol_ref %q: %w", i, svc.ProtocolRef, err)
+		}
+		path := filepath.Join(baseDir, ".cerberus", "protocols", svc.ProtocolRef+".yaml")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("services[%d]: protocol_ref %q: %w", i, svc.ProtocolRef, err)
+		}
+		var p Protocol
+		if err := yaml.Unmarshal(data, &p); err != nil {
+			return fmt.Errorf("services[%d]: protocol_ref %q: parse: %w", i, svc.ProtocolRef, err)
+		}
+		svc.Protocol = &p
+		svc.ProtocolRef = ""
+	}
+	return nil
+}
+
+// checkProtocolRefName rejects a protocol_ref that could escape the protocols
+// directory (path traversal). The ref must be a plain name.
+func checkProtocolRefName(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
+		return fmt.Errorf("must be a plain name (no path separators or parent traversal)")
+	}
+	return nil
 }
 
 func applyDefaults(cfg *Config) {

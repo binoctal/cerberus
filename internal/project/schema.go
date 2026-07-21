@@ -24,6 +24,10 @@ type Service struct {
 	// Protocol optionally declares this service's WebSocket protocol facts.
 	// When nil, the WS executor falls back to M0 behavior.
 	Protocol *Protocol `yaml:"protocol,omitempty"`
+	// ProtocolRef optionally names a standalone protocol description file
+	// (.cerberus/protocols/<name>.yaml) loaded as this service's Protocol.
+	// Mutually exclusive with Protocol (inline). Empty means use Protocol (or none).
+	ProtocolRef string `yaml:"protocol_ref,omitempty"`
 }
 
 type Actor struct {

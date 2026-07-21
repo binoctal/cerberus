@@ -113,7 +113,7 @@ services:
 settings:
   confidence_threshold: 0.8
 `
-	cfg, err := project.LoadFromYAML([]byte(yaml))
+	cfg, err := project.LoadFromYAML([]byte(yaml), "")
 	require.NoError(t, err)
 	assert.Equal(t, "smoke-app", cfg.Project.Name)
 	assert.Equal(t, "http://localhost:8080", cfg.Services[0].URL)

@@ -83,7 +83,7 @@ databases:
   - name: main
     url: "${DATABASE_URL}"
 `
-	cfg, err := LoadFromYAML([]byte(input))
+	cfg, err := LoadFromYAML([]byte(input), "")
 	require.NoError(t, err)
 	assert.Equal(t, "admin@test.dev", cfg.Actors[0].Credentials.Email)
 	assert.Equal(t, "secret123", cfg.Actors[0].Credentials.Password)

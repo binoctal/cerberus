@@ -120,3 +120,158 @@ services:
 	require.NoError(t, err)
 	assert.Equal(t, "https://staging.example.com", cfg.Services[0].URL)
 }
+
+func writeProtocolFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".cerberus", "protocols"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".cerberus", "protocols", name+".yaml"), []byte(content), 0644))
+}
+
+func TestLoadFromFile_ProtocolRefResolves(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: open-agents
+`), 0644))
+	writeProtocolFile(t, dir, "open-agents", "framing: json\ntype_path: data.event\n")
+
+	cfg, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Services[0].Protocol)
+	assert.Equal(t, "json", cfg.Services[0].Protocol.Framing)
+	assert.Equal(t, "data.event", cfg.Services[0].Protocol.TypePath)
+	// ProtocolRef cleared after resolution (idempotent re-resolution).
+	assert.Equal(t, "", cfg.Services[0].ProtocolRef)
+}
+
+func TestLoadFromFile_ProtocolInlineUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol: { framing: text, type_path: type }
+`), 0644))
+	cfg, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Services[0].Protocol)
+	assert.Equal(t, "text", cfg.Services[0].Protocol.Framing)
+	assert.Equal(t, "", cfg.Services[0].ProtocolRef)
+}
+
+func TestLoadFromFile_ProtocolRefMutuallyExclusive(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol: { framing: json }
+    protocol_ref: x
+`), 0644))
+	_, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
+}
+
+func TestLoadFromFile_ProtocolRefMissingFile(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: ghost
+`), 0644))
+	_, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ghost")
+}
+
+func TestLoadFromFile_ProtocolRefUnparseable(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: bad
+`), 0644))
+	// Invalid YAML: a mapping value nested under a scalar.
+	writeProtocolFile(t, dir, "bad", "framing: json: oops\n")
+	_, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parse")
+}
+
+func TestLoadFromFile_ProtocolRefPathTraversal(t *testing.T) {
+	for _, ref := range []string{"../../etc/passwd", "a/b", ".."} {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: "`+ref+`"
+`), 0644))
+		_, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+		require.Error(t, err, "ref %q should be rejected", ref)
+		assert.Contains(t, err.Error(), "protocol_ref")
+	}
+}
+
+func TestLoadFromYAML_BaseDirEmptyProtocolRef(t *testing.T) {
+	_, err := LoadFromYAML([]byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: x
+`), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "project directory")
+}
+
+func TestResolveProtocolRefs_Idempotent(t *testing.T) {
+	dir := t.TempDir()
+	writeProtocolFile(t, dir, "p", "framing: json\n")
+	cfg := &Config{Services: []Service{{Name: "rt", URL: "http://x", ProtocolRef: "p"}}}
+	require.NoError(t, resolveProtocolRefs(cfg, dir))
+	require.NotNil(t, cfg.Services[0].Protocol)
+	assert.Equal(t, "", cfg.Services[0].ProtocolRef)
+	// Re-running must be a no-op (no false "mutually exclusive" error).
+	require.NoError(t, resolveProtocolRefs(cfg, dir))
+}
+
+// TestLoadFromFile_ProtocolRefSurvivesEnvOverlay is a regression guard: a base
+// protocol_ref (resolved by the initial LoadFromYAML) stays resolved through the
+// env-overlay merge + re-validation. It also exercises the env branch's
+// defensive resolveProtocolRefs re-run (idempotent for already-resolved refs).
+func TestLoadFromFile_ProtocolRefSurvivesEnvOverlay(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: p
+settings:
+  confidence_threshold: 0.8
+`), 0644))
+	writeProtocolFile(t, dir, "p", "framing: json\n")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.staging.yaml"), []byte(`
+settings:
+  confidence_threshold: 0.95
+`), 0644))
+	t.Setenv("CERBERUS_ENV", "staging")
+
+	cfg, err := LoadFromFile(filepath.Join(dir, "project.yaml"))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Services[0].Protocol)
+	assert.Equal(t, "json", cfg.Services[0].Protocol.Framing)
+	assert.InDelta(t, 0.95, cfg.Settings.ConfidenceThreshold, 0.01)
+}
