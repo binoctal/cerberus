@@ -785,3 +785,123 @@ func TestInjectAuthQueryBadURLFails(t *testing.T) {
 		t.Fatalf("injectAuth: error leaks resolved token: %s", err.Error())
 	}
 }
+
+func TestReceiveAssertPass(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"approval","payload":{"approved":true}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "approval",
+		Assert: map[string]any{"payload.approved": true},
+	})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.Success() {
+		t.Fatalf("receive failed: %+v", res)
+	}
+	if !strings.Contains(ws.MatchedMessage, "approval") {
+		t.Fatalf("matched message not returned: %s", ws.MatchedMessage)
+	}
+}
+
+func TestReceiveAssertValueMismatchFails(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"approval","payload":{"approved":false}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "approval",
+		Assert: map[string]any{"payload.approved": true},
+	})
+	ws, ok := res.(types.WSResult)
+	if ok && ws.Success() {
+		t.Fatalf("receive should fail on assertion mismatch: %+v", res)
+	}
+	if !strings.Contains(ws.Err, "payload.approved") || !strings.Contains(ws.Err, "true") || !strings.Contains(ws.Err, "false") {
+		t.Fatalf("err should name path/expected/actual: %q", ws.Err)
+	}
+	if !strings.Contains(ws.MatchedMessage, "approval") {
+		t.Fatalf("matched message should still be evidence on assert failure: %s", ws.MatchedMessage)
+	}
+}
+
+func TestReceiveAssertMissingPathFails(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"x"}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "x",
+		Assert: map[string]any{"payload.approved": true},
+	})
+	ws, _ := res.(types.WSResult)
+	if ws.Success() {
+		t.Fatalf("absent assert path should fail: %+v", res)
+	}
+	if !strings.Contains(ws.Err, "payload.approved") || !strings.Contains(ws.Err, "<missing>") {
+		t.Fatalf("err should report missing path: %q", ws.Err)
+	}
+}
+
+func TestReceiveAssertNumericNormalization(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"x","n":5}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
+	// Expected int 5 must match the JSON-decoded float64 5.
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "x",
+		Assert: map[string]any{"n": 5},
+	})
+	if !res.Success() {
+		t.Fatalf("numeric assert should pass with normalization: %+v", res)
+	}
+}
+
+func TestReceiveAssertMultipleReportsFirstSorted(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"x","a":1,"z":1}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: "c1"})
+	// Both fail; sorted order reports "a" before "z".
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "x",
+		Assert: map[string]any{"z": 99, "a": 99},
+	})
+	ws, _ := res.(types.WSResult)
+	if ws.Success() {
+		t.Fatalf("assertions should fail: %+v", res)
+	}
+	// Both fail; sorted order reports "a" before "z".
+	if !strings.Contains(ws.Err, "assert a") {
+		t.Fatalf("should report the sorted-first failing path 'a': %q", ws.Err)
+	}
+	if strings.Contains(ws.Err, "assert z") {
+		t.Fatalf("should not report 'z' (sorted-first is 'a'): %q", ws.Err)
+	}
+}

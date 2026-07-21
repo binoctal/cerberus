@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -350,6 +352,61 @@ func removeString(ss []string, s string) []string {
 	return out
 }
 
+// checkAsserts evaluates field-level assertions against data in sorted path
+// order (deterministic error reporting). On the first failure it returns the
+// path, expected value, and actual ("<missing>" for an absent key); otherwise
+// ok=true. Empty asserts is a no-op (M1 behavior).
+func checkAsserts(data []byte, asserts map[string]any) (path string, expected, actual any, ok bool) {
+	if len(asserts) == 0 {
+		return "", nil, nil, true
+	}
+	paths := make([]string, 0, len(asserts))
+	for k := range asserts {
+		paths = append(paths, k)
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		exp := asserts[p]
+		got, found := extractPath(data, p)
+		if !found {
+			return p, exp, "<missing>", false
+		}
+		if !valueEqual(got, exp) {
+			return p, exp, got, false
+		}
+	}
+	return "", nil, nil, true
+}
+
+// valueEqual reports whether actual equals expected, with numeric
+// normalization: JSON decodes all numbers to float64, so an expected integer 5
+// and an actual float64 5 compare equal. Other types use reflect.DeepEqual.
+func valueEqual(actual, expected any) bool {
+	if af, ok := numericFloat(actual); ok {
+		if bf, ok := numericFloat(expected); ok {
+			return af == bf
+		}
+	}
+	return reflect.DeepEqual(actual, expected)
+}
+
+// numericFloat returns v as a float64 when it is a JSON/YAML numeric type.
+func numericFloat(v any) (float64, bool) {
+	switch x := v.(type) {
+	case float64:
+		return x, true
+	case float32:
+		return float64(x), true
+	case int:
+		return float64(x), true
+	case int32:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	}
+	return 0, false
+}
+
 func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconnectAction, start time.Time) types.ExecutorResult {
 	key := caseNamespace(ctx, a.ConnectionID)
 	e.mu.Lock()
@@ -412,6 +469,19 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 			return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", err), SeenMessages: seen, Latency: time.Since(start)}
 		}
 		if t, ok := extractTypePath(data, path); ok && t == a.Type {
+			// Type matched. Evaluate field-level assertions (if any) against this
+			// message in sorted path order; the first failure fails the receive
+			// with a precise message. The matched message is returned as evidence
+			// either way. No asserts → M1 arrival-only behavior.
+			if p, exp, act, ok := checkAsserts(data, a.Assert); !ok {
+				return types.WSResult{
+					OK:             false,
+					Err:            fmt.Sprintf("receive: assert %s: expected %v, got %v", p, exp, act),
+					MatchedMessage: string(data),
+					SeenMessages:   seen,
+					Latency:        time.Since(start),
+				}
+			}
 			return types.WSResult{OK: true, MatchedMessage: string(data), SeenMessages: seen, Latency: time.Since(start)}
 		}
 		seen = append(seen, string(data))
