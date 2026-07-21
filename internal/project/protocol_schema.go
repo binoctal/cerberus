@@ -4,8 +4,10 @@ package project
 // facts for a service. A nil Protocol on a Service means "fall back to M0
 // behavior" (top-level type matching, json framing, no auto auth).
 type Protocol struct {
-	// Framing is the wire framing. M1 supports "json" only (the default when
-	// empty); "text"/"binary" are reserved for M2 and rejected by validation.
+	// Framing is the wire framing: "json" (the default when empty), "text", or
+	// "binary". json routes receive by type_path over text frames; text matches a
+	// whole-frame string exactly; binary matches whole-frame bytes exactly with
+	// the message/type carried as base64. See the WS framing design spec.
 	Framing string `yaml:"framing,omitempty"`
 	// TypePath is the dotted path to the message-routing key; default "type".
 	TypePath string `yaml:"type_path,omitempty"`

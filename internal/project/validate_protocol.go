@@ -2,9 +2,8 @@ package project
 
 import "fmt"
 
-// validProtocolFraming is the set of framing values M1 supports. M2 may add
-// "text"/"binary".
-var validProtocolFraming = map[string]bool{"": true, "json": true}
+// validProtocolFraming is the set of framing values the WS executor supports.
+var validProtocolFraming = map[string]bool{"": true, "json": true, "text": true, "binary": true}
 
 // validProtocolAuthStrategy is the set of auth placement strategies.
 var validProtocolAuthStrategy = map[string]bool{"query": true, "header": true, "subprotocol": true}
@@ -17,7 +16,7 @@ func ValidateProtocol(p *Protocol, actors []Actor) error {
 		return nil
 	}
 	if !validProtocolFraming[p.Framing] {
-		return fmt.Errorf("protocol.framing %q is not supported in M1 (use \"json\")", p.Framing)
+		return fmt.Errorf("protocol.framing %q must be json, text, or binary", p.Framing)
 	}
 	if p.Auth != nil {
 		if !validProtocolAuthStrategy[p.Auth.Strategy] {
