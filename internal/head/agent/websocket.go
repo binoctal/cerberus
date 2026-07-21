@@ -461,12 +461,26 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	entry.readMu.Lock()
 	defer entry.readMu.Unlock()
 	conn, connCtx := entry.conn, entry.ctx
-	// type_path selects the routing key for this connection's protocol. Empty
-	// (no protocol, or protocol with no type_path) falls back to M0's
-	// top-level "type" field via extractTypePath's default.
+	framing := framingOf(entry)
+	// type_path selects the routing key for json-framed protocols. Unused under
+	// text/binary (matched by whole-frame equality) but read so the json path
+	// stays identical to M1.
 	path := "type"
 	if entry.protocol != nil && entry.protocol.TypePath != "" {
 		path = entry.protocol.TypePath
+	}
+	// assert path-walks JSON, so it is defined only for json framing. Under
+	// text/binary the exact-match type already pins the frame; an assert is a
+	// case-authoring error caught here (no read, no dial effect).
+	if framing != "" && framing != "json" && len(a.Assert) > 0 {
+		return types.WSResult{OK: false, Err: "receive: assert requires json framing", Latency: time.Since(start)}
+	}
+	// A binary type that is not valid base64 can never match; fail fast with a
+	// clear error instead of waiting out the timeout.
+	if framing == "binary" {
+		if _, err := base64.StdEncoding.DecodeString(a.Type); err != nil {
+			return types.WSResult{OK: false, Err: "receive: type is not valid base64", Latency: time.Since(start)}
+		}
 	}
 	timeout := time.Duration(a.Timeout) * time.Second
 	if timeout <= 0 {
@@ -482,22 +496,24 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 			// Peer close or timeout: no matching message arrived.
 			return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", err), SeenMessages: seen, Latency: time.Since(start)}
 		}
-		if t, ok := extractTypePath(data, path); ok && t == a.Type {
-			// Type matched. Evaluate field-level assertions (if any) against this
-			// message in sorted path order; the first failure fails the receive
-			// with a precise message. The matched message is returned as evidence
-			// either way. No asserts → M1 arrival-only behavior.
-			if p, exp, act, ok := checkAsserts(data, a.Assert); !ok {
-				return types.WSResult{
-					OK:             false,
-					Err:            fmt.Sprintf("receive: assert %s: expected %v, got %v", p, exp, act),
-					MatchedMessage: string(data),
-					SeenMessages:   seen,
-					Latency:        time.Since(start),
+		if matchType(framing, data, a.Type, path) {
+			// Matched. For json framing, evaluate field-level assertions (if any)
+			// in sorted path order; the first failure fails the receive with a
+			// precise message. The matched frame is evidence either way. No
+			// asserts (or non-json framing) → arrival-only success.
+			if framing == "" || framing == "json" {
+				if p, exp, act, ok := checkAsserts(data, a.Assert); !ok {
+					return types.WSResult{
+						OK:             false,
+						Err:            fmt.Sprintf("receive: assert %s: expected %v, got %v", p, exp, act),
+						MatchedMessage: frameForResult(framing, data),
+						SeenMessages:   seen,
+						Latency:        time.Since(start),
+					}
 				}
 			}
-			return types.WSResult{OK: true, MatchedMessage: string(data), SeenMessages: seen, Latency: time.Since(start)}
+			return types.WSResult{OK: true, MatchedMessage: frameForResult(framing, data), SeenMessages: seen, Latency: time.Since(start)}
 		}
-		seen = append(seen, string(data))
+		seen = append(seen, frameForResult(framing, data))
 	}
 }

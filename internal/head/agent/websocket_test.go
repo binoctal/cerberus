@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -995,5 +996,90 @@ func TestSendBinaryInvalidBase64Fails(t *testing.T) {
 	}
 	if !strings.Contains(ws.Err, "base64") {
 		t.Fatalf("err should mention base64: %q", ws.Err)
+	}
+}
+
+func TestReceiveTextExactMatch(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte("PENDING"))
+		_ = conn.Write(ctx, websocket.MessageText, []byte("READY"))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "text"}))
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "READY", Timeout: 2})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("receive failed: %+v", res)
+	}
+	if ws.MatchedMessage != "READY" {
+		t.Fatalf("matched = %q, want READY (whole-frame exact)", ws.MatchedMessage)
+	}
+	if !strings.Contains(strings.Join(ws.SeenMessages, ""), "PENDING") {
+		t.Fatalf("non-match not captured in seen: %v", ws.SeenMessages)
+	}
+}
+
+func TestReceiveBinaryExactMatch(t *testing.T) {
+	want := []byte{0x00, 0xff, 0x10}
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageBinary, []byte{0x01, 0x02}) // non-match
+		_ = conn.Write(ctx, websocket.MessageBinary, want)
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "binary"}))
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: base64.StdEncoding.EncodeToString(want), Timeout: 2})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("receive failed: %+v", res)
+	}
+	if ws.MatchedMessage != base64.StdEncoding.EncodeToString(want) {
+		t.Fatalf("matched = %q, want base64 of %x", ws.MatchedMessage, want)
+	}
+}
+
+func TestReceiveBinaryInvalidTypeFails(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx) // fast-fail happens before any read
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "binary"}))
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "@@@@", Timeout: 2})
+	ws, ok := res.(types.WSResult)
+	if !ok || ws.OK {
+		t.Fatalf("want fast error, got %+v", res)
+	}
+	if !strings.Contains(ws.Err, "base64") {
+		t.Fatalf("err should mention base64: %q", ws.Err)
+	}
+}
+
+func TestReceiveAssertRejectedUnderTextFraming(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte("READY"))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, &project.Protocol{Framing: "text"}))
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+	res := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "READY", Assert: map[string]any{"x": 1}, Timeout: 2})
+	ws, ok := res.(types.WSResult)
+	if !ok || ws.OK {
+		t.Fatalf("want assert-rejected error, got %+v", res)
+	}
+	if !strings.Contains(ws.Err, "assert requires json framing") {
+		t.Fatalf("err: %q", ws.Err)
 	}
 }
