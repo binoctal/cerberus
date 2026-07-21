@@ -25,13 +25,13 @@ headers, or subprotocols as the target requires. When the service declares a
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `connection_id` | string | yes | Connection from `ws_connect` |
-| `message` | string | yes | Message to send |
+| `message` | string | yes | Message to send. Under `binary` framing this is base64 (standard padding); decoded bytes are written as a binary frame. Under `json`/`text` (or no protocol) it is written as-is as a text frame. |
 
 ### `ws_receive`
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `connection_id` | string | yes | Connection to read from |
-| `type` | string | yes | Wait for a message whose top-level `type` matches |
+| `type` | string | yes | The awaited message. Under `json`/no-protocol: the value at `type_path` (top-level `type` by default). Under `text`: the whole frame must equal this string. Under `binary`: base64 (standard padding) of the exact expected bytes. |
 | `timeout` | int | no | Seconds (default 10) |
 | `decisive` | bool | no | Set true on the receive that should pass the case; defaults to false (intermediate) |
 | `assert` | map[string]any | no | Path-to-value equality checks on the matched message (see [Field assertions](#field-assertions)) |
@@ -117,8 +117,8 @@ case ends (normal exit, timeout, or cancellation). Parallel cases are isolated.
   declarable via the [Protocol declaration](#protocol-declaration) (M1).
 - Roles and the per-role mandatory handshake are declarable via
   [Protocol declaration > Roles](#roles) (M2). Field-level `assert` checks on
-  `ws_receive` are documented under [Field assertions](#field-assertions)
-  (M2); `text`/`binary` framing remains deferred.
+  `ws_receive` are documented under [Field assertions](#field-assertions) (M2).
+  `text`/`binary` framing is documented under [Framing](#framing) (M2).
 
 ## Protocol Declaration
 
@@ -143,7 +143,7 @@ services:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `framing` | string | `json` | Wire framing. M1 supports `json` only; `text`/`binary` are reserved for M2 and rejected by validation. |
+| `framing` | string | `json` | Wire framing: `json` (default), `text`, or `binary`. See [Framing](#framing). |
 | `type_path` | string | `type` | Dotted path to the message-routing key (e.g. `type`, `data.event`). No array indexing or JSONPath. Empty also means top-level `type`. |
 | `auth` | object | — | Optional. Declares where credentials go and which actor supplies them. |
 | `auth.strategy` | string | — | `query` (url query param), `header` (dial header), or `subprotocol` (negotiated subprotocol entry). |
@@ -250,13 +250,48 @@ declaration). Design rationale and rejected alternatives are in the M2 design
 spec:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-realtime-engine-m2-roles-design.md`](../superpowers/specs/2026-07-21-ws-realtime-engine-m2-roles-design.md).
 
+### Framing
+
+`protocol.framing` declares the wire framing for the connection. It bundles
+three facts the executor derives and acts on deterministically; the LLM only
+authors the `message`/`type` content in the declared form.
+
+| framing | send | receive match | `assert` |
+|---|---|---|---|
+| `json` (default) | text frame, message as-is | value at `type_path` equals `type` | path→value on the matched JSON |
+| `text` | text frame, message as-is | whole frame text equals `type` (exact) | rejected (json-only) |
+| `binary` | binary frame, `message` is base64 → bytes | whole frame bytes equal base64-decoded `type` (exact) | rejected (json-only) |
+
+**Binary codec.** A JSON string cannot carry arbitrary bytes, so binary content
+travels as base64 (`encoding/base64.StdEncoding`, standard padding) in the
+string-typed `message` (send), `type` (receive match target), and
+`MatchedMessage`/`SeenMessages` (receive result). An invalid-base64 `message`
+on send, or `type` on receive, fails fast with a clear non-secret error (the
+receive error fires before any read, rather than timing out).
+
+**Matching is exact equality only.** `text` matches the whole frame string;
+`binary` matches the whole frame bytes. There is no substring/prefix/regex
+predicate (that would be an expression engine — M0 Constraint 3). When the full
+frame cannot be predicted ahead (a computed binary response, a variable text
+payload), exact-match is not usable as `type`; fall back to a non-decisive
+`ws_receive` and let the Examiner judge content — the same fallback used for
+unpredictable JSON field values. Scan-and-filter is preserved in all framings:
+non-matching frames still accumulate into `SeenMessages`.
+
+`assert` is JSON-only; under `text`/`binary` a receive with a non-empty `assert`
+fails immediately with `receive: assert requires json framing`.
+
+Design rationale (why exact-match over receive-next, why base64 over hex) and
+the dogfooding recourse are in the M2 framing design spec:
+[`cerberus-docs/superpowers/specs/2026-07-21-ws-framing-design.md`](../superpowers/specs/2026-07-21-ws-framing-design.md).
+
 ### M0 fallback
 
 A service without a `protocol:` block behaves exactly as M0: `ws_receive`
-matches top-level `type`, framing is JSON, and auth is **not** auto-injected
-(the LLM puts credentials into url/headers/subprotocols itself). A nil
-`protocol` is the zero-config default; a declared protocol is a strict
-enhancement, never a replacement.
+matches top-level `type`, framing is JSON (text frames), and auth is **not**
+auto-injected (the LLM puts credentials into url/headers/subprotocols itself).
+A declared `text`/`binary` framing is a strict enhancement, never a
+replacement.
 
 ### Per-case namespacing & receive serialization
 
