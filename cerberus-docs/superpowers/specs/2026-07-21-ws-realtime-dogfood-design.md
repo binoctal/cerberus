@@ -53,6 +53,26 @@ be observed against a real target.
 - The auth chain (`auth_setup.go` → `ws_protocol.go:129` → `injectAuth`) is wired to run
   before execution.
 
+### Verified frictions (second-pass review — these reshape the run strategy)
+
+- **Role discovery is unsolved.** The steer LLM receives only
+  `formatResultContext(tc, prevResult, attempt)` + the service base URL + the case
+  Target/Expectation (`executor_steer.go:15,20,29`). The protocol declaration (roles,
+  framing, `handshake.await_type`) is **not** injected into the steer context — so the
+  LLM cannot know the role name `web` or that the handshake is `devices:sync`.
+  `websocket.md` flags this as an open question; the dogfood confirms it. **Consequence:**
+  roles are not usable in practice without goal-hinting. The run strategy therefore uses
+  the **M1 fallback path (no role) as primary** and a **goal-hinted role run as a secondary
+  stretch** to exercise the M2 role-expansion logic. The gap itself is the M3-2 trigger.
+- **The steer prompt's action-type enum excludes `ws_*`.** `prompts.go` describes the WS
+  primitives (lines 21-37) but the RULES action-type list (line 7) and the output JSON
+  schema `action.type` enum (line 43) list only `api_request|navigate|wait|…` — no
+  `ws_connect/ws_send/ws_receive/ws_disconnect`. A compliant LLM may therefore never emit
+  `ws_*`. The parser accepts them; the prompt discourages them. Per the F1 decision, the
+  dogfood runs **as-is first**; if the LLM does not emit `ws_*`, that is **Finding #0**
+  (prompt defect) and the enum is fixed on a branch
+  (`feat/ws-realtime-engine-dogfood-promptenum`) before re-running.
+
 ## Goal
 
 Run `cerberus run` end-to-end against a minimal, self-authored WS target that mirrors
@@ -64,6 +84,9 @@ open-agents' shape (HTTP login issues a token; WS endpoint validates it), using 
 - M3-2 signal: Steer LLM orchestration quality and run-to-run drift.
 - M3-3 signal: the blank-page cost of hand-authoring the protocol declaration.
 - Any real-run integration bug (auth chain, protocol_ref loading, executor wiring).
+- Explicitly: whether the two verified frictions above (role discovery, prompt enum) block
+  WS orchestration in practice — each is a first-class observation / candidate finding, not
+  an assumption of success.
 
 ## Non-Goals
 
@@ -123,6 +146,15 @@ Tier-1 declares only the `web` role + `web-actor`. `ValidateProtocol` rejects a 
 `credential_ref` names no real actor, so declaring `bridge` would force a `bridge-actor`
 the primary goal never exercises. `bridge` is added with scenario C / Tier-2.
 
+### D7 — Two run paths (M1 primary, M2 stretch) and run-as-is for the prompt defect
+
+Because role discovery is unsolved (verified friction above), the **primary run uses the
+M1 fallback path** — `ws_connect` with no `role`, relying on `protocol.auth` injection,
+routing, and `assert`. A **secondary, goal-hinted run** explicitly tells the LLM the role
+name and that the handshake is automatic, to exercise the M2 role-expansion + auto-handshake
+engine logic. And per the F1 decision, the first run is **as-is** (no prompt pre-fix); the
+`ws_*`-enum gap is surfaced as Finding #0 if it blocks orchestration, then fixed on a branch.
+
 ## Architecture
 
 ### Layout
@@ -151,10 +183,11 @@ One port (`:8787`, matching the docs' example URL; overridable via flag). Pure
   path-mismatch deadlock). `websocket.Accept` with `InsecureSkipVerify: true` (non-browser
   client; local dogfood).
 - On connect: read query `token`; reject (close `4001`) if absent or not in the issued map.
-  Read query `type`; if `web`, immediately send `{"type":"devices:sync","devices":[]}` (the
-  handshake the engine auto-awaits).
+  **Unconditionally** send `{"type":"devices:sync","devices":[]}` right after upgrade (so the
+  M1 no-role path still sees it as evidence and the M2 role path auto-awaits it). Read query
+  `type` only to flavor the ack's `role` field (default `web`).
 - Read loop: parse JSON; switch on `type`:
-  - `device:command` → send `{"type":"device:ack","payload":{"approved":true,"role":"<type>"}}`.
+  - `device:command` → send `{"type":"device:ack","payload":{"approved":true,"role":"<type-or-web>"}}`.
   - anything else → ignore (accumulate as seen evidence on the engine side).
 
 This single flow exercises: auth-flow login → raw-token, query strip-then-inject, `type`
@@ -221,15 +254,22 @@ required fields at plan time). LLM credentials/model inherit from `.claude/setti
 
 1. `make build`.
 2. Terminal 1: `go run ./dogfood/ws-realtime` (serves `:8787`).
-3. Terminal 2:
+3. Terminal 2, **primary (M1 path)**:
    ```
    ./build/cerberus run \
      --config dogfood/ws-realtime/.cerberus/project.yaml \
      --dir dogfood/ws-realtime \
      --goal "As a web client, connect to the realtime service WebSocket at /realtime, send a {type: device:command} message, and verify the server replies with a {type: device:ack} whose payload.approved is true."
    ```
-4. **Repeat the run 2–3 times with the identical goal** and diff the per-run Steer
-   action traces (steer-attempt logs / session report) to observe run-to-run drift.
+4. **Secondary (M2 path, goal-hinted)** — same config, different goal:
+   `"... connect with role 'web' (the server auto-completes a devices:sync handshake after connect), send {type: device:command}, and verify {type: device:ack} with payload.approved true."`
+5. **Drift:** repeat the primary goal 2–3 times. **Use a fresh runtime DB per drift run**
+   (`rm -rf dogfood/ws-realtime/.cerberus/runtime/` between runs) so reflexion recall does
+   not confound the drift measurement. Diff per-run Steer action traces (steer-attempt logs
+   / session report).
+6. If the primary run shows the LLM never emits `ws_*` (Finding #0), branch
+   `feat/ws-realtime-engine-dogfood-promptenum`, add `ws_*` to `prompts.go` RULES (line 7)
+   and output schema (line 43), and re-run before drawing engine conclusions.
 
 ## Observations → Signal Mapping
 
@@ -239,28 +279,38 @@ required fields at plan time). LLM credentials/model inherit from `.claude/setti
 | `auth:` login → raw-token → query strip-then-inject, secret hygiene | M1 chain, never before run live |
 | `role: web` discrimination + `devices:sync` auto-handshake | M2 roles/handshake |
 | send `device:command` → receive `device:ack` + `assert payload.approved` | M0/M1 routing + M2 field-assert |
-| Steer LLM emits the correct `ws_connect{role}`→`ws_send`→`ws_receive{decisive,assert}` | M0 orchestration quality |
+| Steer LLM emits `ws_*` at all (vs the enum gap) | **Finding #0 candidate** — prompt defect; M0 orchestration |
+| Steer LLM sequences `ws_connect`→`ws_send`→`ws_receive{decisive,assert}` | M0 orchestration quality |
+| Roles unusable without goal-hinting (protocol decl not in steer context) | **M3-2 trigger** (role discovery / deterministic case skeleton) |
 | Steer action-sequence differences across runs | **M3-2 drift signal** (trigger evidence) |
 | Effort to hand-author `open-agents.yaml` from the target's contract | **M3-3 blank-page signal** (trigger evidence) |
 | Reusing the same `protocol_ref` artifact at Tier-2 (later) | M3-1 reuse signal |
 
 ## Risks & Contingencies
 
-- **R1 — Scout/Steer do not choose WS.** This is itself Finding #1 (the dogfood's value is
-  observing it, not assuming success). Contingency: sharpen the goal; if Scout emits no
-  WS-targeting case at all, investigate whether cases can be seeded (out of scope to
-  pre-build; record as a finding).
-- **R2 — Steer re-receives the handshake.** The auto-handshake consumes `devices:sync`
+- **R1 — Steer never emits `ws_*` (Finding #0).** Root cause is the verified prompt defect:
+  `ws_*` is absent from the steer action-type enum (`prompts.go:7,43`) despite the primitives
+  section. Per D7/F1 this is surfaced as-is, then fixed on a branch and re-run. If even with
+  the enum fixed Scout emits no WS-targeting case, investigate case seeding (record as a finding).
+- **R2 — Roles unusable without goal-hinting.** Confirmed: the protocol declaration is not in
+  the steer context. The primary run therefore does not depend on roles; the secondary run
+  goal-hints them. The inability to use roles unaided is the M3-2 trigger signal, recorded as
+  a finding, not a blocker.
+- **R3 — Steer re-receives the handshake.** The auto-handshake consumes `devices:sync`
   into `SeenMessages`; a `ws_receive devices:sync` afterward times out. The goal is worded
   to avoid implying manual handshake receipt. Whether the model respects the steer prompt's
   "handshake runs automatically" hint is an observation.
-- **R3 — coder/websocket `Accept` origin check rejects the non-browser dial.** Mitigation:
+- **R4 — coder/websocket `Accept` origin check rejects the non-browser dial.** Mitigation:
   `InsecureSkipVerify: true` on the server (local dogfood).
-- **R4 — Multi-run token cost.** 2–3 runs ≈ 2–3× the per-run budget; size accordingly and
+- **R5 — Drift confounded by reflexion recall.** The persistent runtime DB carries L1/L3
+  memory across runs. Mitigation: fresh runtime DB per drift run (Run Procedure step 5).
+- **R6 — Multi-run token cost.** 2–3 runs ≈ 2–3× the per-run budget; size accordingly and
   stop after the drift signal is clear.
-- **Residual micro-verifies (plan stage, one line each):** `auth_setup` mutates the same
-  `cfg.Actors` slice `BuildWSProtocolIndex` reads (aliasing); `loadProjectConfig` routes
-  through `LoadFromFile` (path-based, not `LoadFromYAML(data,"")`).
+- **Confirmed-OK (no change):** `auth_setup` mutates the same `cfg.Actors` slice
+  `BuildWSProtocolIndex` reads (aliasing safe, `auth_setup.go:24`); `loadProjectConfig` routes
+  through `LoadFromFile` (path-based baseDir); actor→service login falls back to the first
+  service (`auth_setup.go:86`), so `web-actor` logs into `realtime` (`service: realtime`
+  optional but may be set for explicitness).
 
 Any engine defect surfaced → standard cycle (branch `feat/ws-realtime-engine-dogfood-<area>`
 → spec → plan → TDD → opus final review → local ff-merge → `make check` → update roadmap
