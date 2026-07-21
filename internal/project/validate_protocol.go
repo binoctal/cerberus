@@ -51,9 +51,28 @@ func ValidateProtocol(p *Protocol, actors []Actor) error {
 				return fmt.Errorf("roles[%q].credential_ref %q does not match any actor", name, role.CredentialRef)
 			}
 		}
-		for k := range role.Params {
-			if p.Auth != nil && k == p.Auth.Param {
-				return fmt.Errorf("roles[%q].params[%q] collides with auth.param (token slot)", name, k)
+		if p.Auth != nil {
+			// A role must not occupy the auth token slot on the carrier auth
+			// uses; on other carriers the same name is harmless (different slot).
+			switch p.Auth.Strategy {
+			case "query":
+				for k := range role.Params {
+					if k == p.Auth.Param {
+						return fmt.Errorf("roles[%q].params[%q] collides with auth.param (token slot)", name, k)
+					}
+				}
+			case "header":
+				for k := range role.Headers {
+					if k == p.Auth.Param {
+						return fmt.Errorf("roles[%q].headers[%q] collides with auth.param (token slot)", name, k)
+					}
+				}
+			case "subprotocol":
+				for _, s := range role.Subprotocols {
+					if s == p.Auth.Param {
+						return fmt.Errorf("roles[%q].subprotocols[%q] collides with auth.param (token slot)", name, s)
+					}
+				}
 			}
 		}
 		if role.Handshake != nil {

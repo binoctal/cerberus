@@ -69,6 +69,16 @@ func TestValidateProtocolRoles(t *testing.T) {
 			wantErr: "await_type"},
 		{name: "handshake timeout zero", p: &Protocol{Roles: map[string]*ProtocolRole{"web": {Handshake: &RoleHandshake{AwaitType: "x", Timeout: 0}}}},
 			wantErr: "timeout"},
+		{name: "role headers ok (no auth)", p: &Protocol{Roles: map[string]*ProtocolRole{"web": {Headers: map[string]string{"X-Role": "web"}}}},
+			wantErr: ""},
+		{name: "role subprotocols ok (no auth)", p: &Protocol{Roles: map[string]*ProtocolRole{"web": {Subprotocols: []string{"web.v1"}}}},
+			wantErr: ""},
+		{name: "role header collides with auth.param (header strategy)", p: &Protocol{Auth: &ProtocolAuth{Strategy: "header", Param: "X-Role"}, Roles: map[string]*ProtocolRole{"web": {Headers: map[string]string{"X-Role": "web"}}}},
+			wantErr: "auth.param"},
+		{name: "role subprotocol collides with auth.param (subprotocol strategy)", p: &Protocol{Auth: &ProtocolAuth{Strategy: "subprotocol", Param: "token"}, Roles: map[string]*ProtocolRole{"web": {Subprotocols: []string{"token"}}}},
+			wantErr: "auth.param"},
+		{name: "role header ok when auth strategy differs", p: &Protocol{Auth: &ProtocolAuth{Strategy: "query", Param: "token"}, Roles: map[string]*ProtocolRole{"web": {Headers: map[string]string{"token": "x"}}}},
+			wantErr: ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

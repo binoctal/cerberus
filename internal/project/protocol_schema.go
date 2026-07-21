@@ -29,15 +29,23 @@ type ProtocolAuth struct {
 }
 
 // ProtocolRole declares a named connection type's credential, discriminator
-// query params, and optional mandatory handshake. The executor expands a
-// ws_connect that names this role.
+// facts, and optional mandatory handshake. The executor expands a ws_connect
+// that names this role.
 type ProtocolRole struct {
 	// CredentialRef names the actor whose resolved raw token is injected for
 	// this role (overrides protocol.auth.credential_ref).
 	CredentialRef string `yaml:"credential_ref"`
 	// Params are discriminator query params strip-then-injected onto the dial
-	// url. Must not include protocol.auth.param (the token slot).
+	// url. Must not include protocol.auth.param when auth.strategy is query
+	// (the token slot).
 	Params map[string]string `yaml:"params,omitempty"`
+	// Headers are discriminator dial headers strip-then-injected (delete-then-
+	// set). Must not include protocol.auth.param when auth.strategy is header.
+	Headers map[string]string `yaml:"headers,omitempty"`
+	// Subprotocols are discriminator subprotocol names offered (strip-then-
+	// injected: remove-then-append). Must not include protocol.auth.param when
+	// auth.strategy is subprotocol.
+	Subprotocols []string `yaml:"subprotocols,omitempty"`
 	// Handshake is the optional mandatory post-connect exchange.
 	Handshake *RoleHandshake `yaml:"handshake,omitempty"`
 }
