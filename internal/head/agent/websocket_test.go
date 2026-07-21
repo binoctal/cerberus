@@ -1130,3 +1130,95 @@ func TestConnectRoleHandshakeBinaryFraming(t *testing.T) {
 		t.Fatalf("binary handshake should complete: %+v", res)
 	}
 }
+
+// TestConnectRoleHeadersInjected proves a role's declared header is
+// strip-then-injected onto the dial: any LLM-supplied value at the same key is
+// removed and exactly the role's value reaches the server.
+func TestConnectRoleHeadersInjected(t *testing.T) {
+	seen := make(chan string, 1)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seen <- r.Header.Get("X-Role"):
+		default:
+		}
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			t.Errorf("accept: %v", err)
+			return
+		}
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
+		_, _, _ = conn.Read(r.Context())
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"web": {Headers: map[string]string{"X-Role": "web"}},
+	}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, wsURL, p))
+	// LLM also supplies X-Role (wrong) — must be stripped to the role's value.
+	res := ex.Execute(context.Background(), types.WSConnectAction{
+		URL: wsURL, ConnectionID: "c1", Role: "web",
+		Headers: map[string]string{"X-Role": "LLM-WRONG"},
+	})
+	if !res.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	select {
+	case h := <-seen:
+		if h != "web" {
+			t.Fatalf("server saw X-Role=%q, want %q (LLM value not stripped)", h, "web")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server never observed the role header")
+	}
+}
+
+// TestConnectRoleSubprotocolsInjected proves a role's declared subprotocol is
+// offered, and an LLM-supplied duplicate is stripped (offered exactly once).
+func TestConnectRoleSubprotocolsInjected(t *testing.T) {
+	seen := make(chan string, 1)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seen <- r.Header.Get("Sec-WebSocket-Protocol"):
+		default:
+		}
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			t.Errorf("accept: %v", err)
+			return
+		}
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
+		_, _, _ = conn.Read(r.Context())
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"web": {Subprotocols: []string{"web.v1"}},
+	}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, wsURL, p))
+	// LLM also offers web.v1 (duplicate) — must be stripped to exactly one offer.
+	res := ex.Execute(context.Background(), types.WSConnectAction{
+		URL: wsURL, ConnectionID: "c1", Role: "web",
+		Subprotocols: []string{"web.v1"},
+	})
+	if !res.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	select {
+	case offered := <-seen:
+		if !strings.Contains(offered, "web.v1") {
+			t.Fatalf("role subprotocol not offered: %q", offered)
+		}
+		if c := strings.Count(offered, "web.v1"); c != 1 {
+			t.Fatalf("role subprotocol offered %d times, want 1 (LLM duplicate not stripped): %q", c, offered)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server never observed offered subprotocols")
+	}
+}

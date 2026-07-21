@@ -183,6 +183,25 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	for k, v := range roleParams {
 		dialURL = setQueryParam(dialURL, k, v)
 	}
+	// Role discriminator headers and subprotocols (strip-then-inject). Guarded
+	// on role != nil because role is only resolved when a.Role != ""; without a
+	// role there is nothing to inject. roleParams above is a nil map in that
+	// case (range is a no-op), but role.Headers would deref a nil pointer.
+	if role != nil {
+		// Headers: remove any LLM-supplied value at this key, then set the
+		// role's. opts.HTTPHeader already carries a.Headers, so this normalizes
+		// to exactly the role's value. Headers never appear in WSResult.URL, so
+		// preInjectionURL is unaffected.
+		for k, v := range role.Headers {
+			opts.HTTPHeader.Del(k)
+			opts.HTTPHeader.Set(k, v)
+		}
+		// Subprotocols: remove any LLM-supplied entry at this name, then append
+		// the role's (exactly one offer reaches the server).
+		for _, s := range role.Subprotocols {
+			opts.Subprotocols = append(removeString(opts.Subprotocols, s), s)
+		}
+	}
 	// After role-param injection, recompute preInjectionURL from the final dial
 	// url so the result reflects what was actually dialed (role params present,
 	// token stripped via auth.param). No-op for non-role connects.
