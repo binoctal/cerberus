@@ -147,6 +147,31 @@ services:
 	assert.Equal(t, "", cfg.Services[0].ProtocolRef)
 }
 
+// TestLoadFromFile_ProtocolRefResolvesAtCerberusConfigLocation guards the
+// documented/default config layout: <root>/.cerberus/project.yaml with
+// protocols under <root>/.cerberus/protocols/. The config's own directory is
+// .cerberus, so protocol_ref must resolve relative to the project root (one
+// level up), not the config directory — otherwise the path doubles to
+// .cerberus/.cerberus/protocols/.
+func TestLoadFromFile_ProtocolRefResolvesAtCerberusConfigLocation(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".cerberus"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".cerberus", "project.yaml"), []byte(`
+project: { name: app }
+services:
+  - name: rt
+    url: "http://localhost:8787"
+    protocol_ref: open-agents
+`), 0644))
+	writeProtocolFile(t, dir, "open-agents", "framing: json\ntype_path: type\n")
+
+	cfg, err := LoadFromFile(filepath.Join(dir, ".cerberus", "project.yaml"))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Services[0].Protocol)
+	assert.Equal(t, "json", cfg.Services[0].Protocol.Framing)
+	assert.Equal(t, "", cfg.Services[0].ProtocolRef)
+}
+
 func TestLoadFromFile_ProtocolInlineUnchanged(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "project.yaml"), []byte(`

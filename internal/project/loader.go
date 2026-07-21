@@ -43,14 +43,25 @@ func LoadFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("read project config: %w", err)
 	}
 
-	cfg, err := LoadFromYAML(data, filepath.Dir(path))
+	// baseDir for protocol_ref resolution is the project root: the directory
+	// that contains .cerberus/. The documented/default config location is
+	// <root>/.cerberus/project.yaml, whose own directory is .cerberus, not the
+	// root — so resolve one level up when the config sits directly inside a
+	// .cerberus directory. A config at <root>/project.yaml keeps baseDir=root.
+	configDir := filepath.Dir(path)
+	baseDir := configDir
+	if filepath.Base(configDir) == ".cerberus" {
+		baseDir = filepath.Dir(configDir)
+	}
+
+	cfg, err := LoadFromYAML(data, baseDir)
 	if err != nil {
 		return nil, err
 	}
 
 	// Environment overlay: CERBERUS_ENV=staging → project.staging.yaml
 	if env := os.Getenv("CERBERUS_ENV"); env != "" {
-		envPath := filepath.Join(filepath.Dir(path), "project."+env+".yaml")
+		envPath := filepath.Join(configDir, "project."+env+".yaml")
 		if envData, err := os.ReadFile(envPath); err == nil {
 			var overlay Config
 			interpolated := envVarRE.ReplaceAllFunc(envData, func(match []byte) []byte {
@@ -71,7 +82,7 @@ func LoadFromFile(path string) (*Config, error) {
 			// Re-resolve protocol_ref in case the overlay introduced one; base
 			// refs were already resolved (and cleared) by LoadFromYAML, so this
 			// is a no-op for them.
-			if err := resolveProtocolRefs(cfg, filepath.Dir(path)); err != nil {
+			if err := resolveProtocolRefs(cfg, baseDir); err != nil {
 				return nil, err
 			}
 			if err := cfg.Validate(); err != nil {
