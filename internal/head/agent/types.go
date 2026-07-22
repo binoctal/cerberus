@@ -20,21 +20,34 @@ const (
 
 // TestCase represents a single testable operation.
 type TestCase struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Target      string  `json:"target"`
-	Method      string  `json:"method,omitempty"`
-	Action      string  `json:"action,omitempty"`
-	Expectation string  `json:"expectation,omitempty"`
-	Priority    float64 `json:"priority,omitempty"`
-	DependsOn   Deps    `json:"depends_on,omitempty"`
-	Language    string  `json:"language,omitempty"`
-	Background  bool    `json:"background,omitempty"`
-	WaitFor     string  `json:"wait_for,omitempty"`
-	Cleanup     bool    `json:"cleanup,omitempty"`
-	Severity    string  `json:"severity,omitempty"` // "low", "medium", "high", "critical" (from invariant)
-	Service     string  `json:"service,omitempty"`
-	Body        string  `json:"body,omitempty"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Target      string     `json:"target"`
+	Method      string     `json:"method,omitempty"`
+	Action      string     `json:"action,omitempty"`
+	Expectation string     `json:"expectation,omitempty"`
+	Priority    float64    `json:"priority,omitempty"`
+	DependsOn   Deps       `json:"depends_on,omitempty"`
+	Language    string     `json:"language,omitempty"`
+	Background  bool       `json:"background,omitempty"`
+	WaitFor     string     `json:"wait_for,omitempty"`
+	Cleanup     bool       `json:"cleanup,omitempty"`
+	Severity    string     `json:"severity,omitempty"` // "low", "medium", "high", "critical" (from invariant)
+	Service     string     `json:"service,omitempty"`
+	Body        string     `json:"body,omitempty"`
+	Steps       []TestStep `json:"steps,omitempty"` // Deterministic multi-step WebSocket flow
+}
+
+// TestStep is a single step in a deterministic WebSocket flow.
+// When a TestCase has non-empty Steps, the deterministic multi-step path runs
+// the steps and Action/Body are ignored for execution.
+type TestStep struct {
+	Action       string         `json:"action"`            // ws_connect, ws_send, ws_receive, ws_close
+	ConnectionID string         `json:"connection_id"`     // Identifies the WS connection
+	Role         string         `json:"role,omitempty"`    // Optional: role name (e.g., "web", "device")
+	Message      string         `json:"message,omitempty"` // For ws_send: JSON payload to send
+	Type         string         `json:"type,omitempty"`    // For ws_receive: expected message type
+	Asserts      map[string]any `json:"asserts,omitempty"` // For ws_receive: field assertions
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.
