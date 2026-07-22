@@ -4,7 +4,7 @@ package agent
 const promptSteerSystem = `You are a test execution agent. You observe the current state and decide the next action.
 
 RULES:
-- Choose ONE action type: api_request, navigate, wait, process_exec, file_read, file_write, mcp_call, code_analyze.
+- Choose ONE action type: api_request, navigate, wait, process_exec, file_read, file_write, mcp_call, code_analyze, ws_connect, ws_send, ws_receive, ws_disconnect.
 - Be specific: use exact URLs, endpoints, and paths from the context.
 - If the response shows an error, choose a recovery action.
 - Never fabricate data. Only reference information visible in the observation.
@@ -40,7 +40,7 @@ const promptSteerOutput = `Respond with JSON:
 {
   "reasoning": "why this action",
   "action": {
-    "type": "api_request|navigate|wait|process_exec|file_read|file_write|file_exists|file_glob|mcp_call|code_analyze|code_lint|code_symbols",
+    "type": "api_request|navigate|wait|process_exec|file_read|file_write|file_exists|file_glob|mcp_call|code_analyze|code_lint|code_symbols|ws_connect|ws_send|ws_receive|ws_disconnect",
     "payload": { ... type-specific fields ... }
   }
 }
@@ -67,7 +67,7 @@ const promptRecoverOutput = `Respond with JSON:
 {
   "diagnosis": "root cause of failure",
   "action": {
-    "type": "api_request|navigate|wait|process_exec|file_read|file_write|file_exists|file_glob|mcp_call|code_analyze|code_lint|code_symbols",
+    "type": "api_request|navigate|wait|process_exec|file_read|file_write|file_exists|file_glob|mcp_call|code_analyze|code_lint|code_symbols|ws_connect|ws_send|ws_receive|ws_disconnect",
     "payload": { ... type-specific fields ... }
   },
   "skip": false
