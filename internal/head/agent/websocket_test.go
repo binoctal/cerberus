@@ -190,6 +190,63 @@ func TestWSConnectAutoIDsUnique(t *testing.T) {
 	}
 }
 
+// TestWSConnectEchoesAutoConnectionID verifies that when ConnectionID is
+// omitted, doConnect echoes the auto-assigned id back in WSResult.ConnectionID
+// (so the Steer LLM can reuse it on ws_send/ws_receive instead of guessing and
+// hitting an instant "unknown connection_id" failure — the 2026-07-21 dogfood's
+// Finding 4). An explicit ConnectionID is echoed verbatim. Run with -race.
+func TestWSConnectEchoesAutoConnectionID(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx) // block until test ends
+	})
+
+	ex := newWSExecutor()
+	ctx := context.Background()
+
+	// Omitted ConnectionID -> auto-assigned id, echoed in the result.
+	r1, ok := ex.Execute(ctx, types.WSConnectAction{URL: url}).(types.WSResult)
+	if !ok {
+		t.Fatalf("connect result not WSResult")
+	}
+	if !r1.Success() {
+		t.Fatalf("connect failed: %+v", r1)
+	}
+	if r1.ConnectionID == "" {
+		t.Fatal("auto-assigned ConnectionID not echoed in WSResult (Steer LLM cannot reuse it)")
+	}
+
+	// A second omitted-id connect mints a distinct id, also echoed.
+	r2, ok := ex.Execute(ctx, types.WSConnectAction{URL: url}).(types.WSResult)
+	if !ok {
+		t.Fatalf("connect result not WSResult")
+	}
+	if r2.ConnectionID == "" || r2.ConnectionID == r1.ConnectionID {
+		t.Fatalf("second auto id not distinct/echoed: %q vs %q", r2.ConnectionID, r1.ConnectionID)
+	}
+
+	// An explicit ConnectionID is echoed verbatim.
+	r3, ok := ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "mine"}).(types.WSResult)
+	if !ok {
+		t.Fatalf("connect result not WSResult")
+	}
+	if r3.ConnectionID != "mine" {
+		t.Fatalf("explicit ConnectionID not echoed: %q", r3.ConnectionID)
+	}
+
+	// The echoed auto id is usable: a receive on it must not fail with
+	// "unknown connection_id" (it times out instead, proving the connection was
+	// found). Timeout=1 keeps the test fast.
+	recv, ok := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: r1.ConnectionID, Type: "anything", Timeout: 1}).(types.WSResult)
+	if !ok {
+		t.Fatalf("receive result not WSResult")
+	}
+	if strings.Contains(recv.Err, "unknown connection_id") {
+		t.Fatalf("echoed auto id not usable on receive: %v", recv.Err)
+	}
+}
+
 func TestWSSendReusesConnection(t *testing.T) {
 	url := newWSTestServer(t, func(conn *websocket.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

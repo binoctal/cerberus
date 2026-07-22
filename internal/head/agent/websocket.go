@@ -272,7 +272,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", role.Handshake.AwaitType), SeenMessages: seen, Latency: time.Since(start)}
 		}
 	}
-	return types.WSResult{OK: true, URL: preInjectionURL, SeenMessages: seen, Latency: time.Since(start)}
+	return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: seen, Latency: time.Since(start)}
 }
 
 // injectAuth resolves the declared credential for the already-resolved actor,

@@ -42,9 +42,14 @@ type WSResult struct {
 	// SeenMessages are non-matching messages observed while WSReceive scanned.
 	SeenMessages []string `json:"seen_messages,omitempty"`
 	// Messages is the legacy combined list (kept for back-compat readers).
-	Messages []string      `json:"messages,omitempty"`
-	Latency  time.Duration `json:"duration"`
-	Err      string        `json:"error,omitempty"`
+	Messages []string `json:"messages,omitempty"`
+	// ConnectionID is the id ws_connect used or auto-assigned (empty for
+	// send/receive/disconnect). Echoed so the Steer LLM can reuse an
+	// auto-assigned id on ws_send/ws_receive instead of failing with
+	// "unknown connection_id" (2026-07-21 dogfood Finding 4).
+	ConnectionID string        `json:"connection_id,omitempty"`
+	Latency      time.Duration `json:"duration"`
+	Err          string        `json:"error,omitempty"`
 }
 
 func (r WSResult) Success() bool           { return r.OK }
@@ -58,7 +63,11 @@ func (r WSResult) Summary() string {
 	if r.MatchedMessage != "" {
 		matched = 1
 	}
-	return fmt.Sprintf("ws %s %s (matched=%d seen=%d, %s)", status, redactSecretQuery(r.URL), matched, len(r.SeenMessages), r.Latency)
+	conn := ""
+	if r.ConnectionID != "" {
+		conn = fmt.Sprintf(" connection_id=%s", r.ConnectionID)
+	}
+	return fmt.Sprintf("ws %s %s%s (matched=%d seen=%d, %s)", status, redactSecretQuery(r.URL), conn, matched, len(r.SeenMessages), r.Latency)
 }
 func (r WSResult) Evidence() EvidenceData {
 	var all []string
