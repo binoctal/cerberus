@@ -206,6 +206,7 @@ func TestWsTypesNamedInGoalDirection(t *testing.T) {
 		{"brace template no verb includes", "{type: device:command}", []string{"device:command"}},
 		{"mixed send and verify", "send devices:sync and verify device:ack", []string{"device:ack"}},
 		{"emit verb excludes", "emit status:update then verify status:ack", []string{"status:ack"}},
+		{"publishes inflection excludes", "publishes status:update then verify status:ok", []string{"status:ok"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
