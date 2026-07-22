@@ -82,7 +82,8 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 }
 
 // appendExecutorCases detects the project type and appends non-HTTP test
-// cases (build, test, lint, code analysis) to the plan.
+// cases (build, test, lint, code analysis) plus WS connect/receive cases
+// (when any service declares a protocol) to the plan.
 func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string) {
 	rootDir := s.config.Code.Root
 	if rootDir == "" {
@@ -90,6 +91,7 @@ func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string) {
 	}
 	info := DetectProjectType(rootDir)
 	cases := GenerateExecutorCases(info, goal)
+	cases = append(cases, WSCases(s.config, goal)...)
 	if len(cases) > 0 {
 		s.logger.Info("appended executor cases",
 			zap.String("project_type", string(info.Type)),
