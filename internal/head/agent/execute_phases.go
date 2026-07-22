@@ -58,6 +58,11 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		}
 	}()
 
+	// Phase 0: Deterministic multi-step WS case (no Steer LLM).
+	if len(se.tc.Steps) > 0 {
+		return se.runSteps()
+	}
+
 	// Phase 1: Try rule engine (zero tokens).
 	if result := se.tryRuleEngine(); result != nil {
 		return *result
