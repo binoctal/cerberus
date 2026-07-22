@@ -41,7 +41,11 @@ RULES:
 - Include both positive tests (expect success) and negative tests (expect failure for invalid input).
 - For POST/PUT/PATCH methods, include a "body" field with a JSON request body.
 - Omit "body" for GET/DELETE requests.
-- If a service defines a body_template, use it as a base and vary the values for different test cases.`
+- If a service defines a body_template, use it as a base and vary the values for different test cases.
+- WebSocket: if a service declares a protocol with roles, WS connect and receive cases are generated automatically from those roles. Do not duplicate them; focus your cases on HTTP and other surfaces.`
+
+// The WebSocket bullet in promptPlanSystem is provisional (M3-2 Scout WS cases);
+// tune its wording against a real target via dogfooding.
 
 const promptPlanSystemLocal = `You are a test planning agent for a LOCAL CODEBASE. There is NO running HTTP service, so do NOT generate http_request/api_request test cases.
 

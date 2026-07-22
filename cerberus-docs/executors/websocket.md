@@ -299,6 +299,18 @@ Design rationale (why exact-match over receive-next, why base64 over hex) and
 the dogfooding recourse are in the M2 framing design spec:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-framing-design.md`](../superpowers/specs/2026-07-21-ws-framing-design.md).
 
+### Scout-generated cases (M3-2)
+
+When a service declares a `protocol:` with roles, Scout auto-generates WS test
+cases from it: one `ws_connect` setup per declared role plus a decisive
+`ws_receive` per verification point (the role's handshake `await_type` and any
+routing type named in the goal), linked by `DependsOn`. The Steer LLM still
+orchestrates the actual connect/send/receive within each case (skeleton + fill),
+so declaring a protocol makes Scout ask for the WS scenario deterministically
+instead of relying on the Steer LLM to improvise it each run. Design and trigger
+rationale:
+[`cerberus-docs/superpowers/specs/2026-07-21-ws-scout-cases-design.md`](../superpowers/specs/2026-07-21-ws-scout-cases-design.md).
+
 ### M0 fallback
 
 A service without a `protocol:` block behaves exactly as M0: `ws_receive`
