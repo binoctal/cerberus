@@ -1,7 +1,7 @@
 # WebSocket Realtime Engine (M3-2) — Scout-Generated WS Cases (Design)
 
 **Date:** 2026-07-21
-**Status:** Design (brainstormed; **PROVISIONAL — implementation deferred pending dogfooding signals**, per the M3 proposal trigger conditions)
+**Status:** Design (brainstormed; **ACTIVE — greenlit by the 2026-07-21 WS Tier-1 dogfood**: Finding 3 — Steer-LLM WS orchestration drift (`ws_*` vs `api_request` for the same target in one session) + breakage (connect×2, no send) — is the trigger the M3 proposal required)
 **Scope:** `internal/head/scout/` (WS case generation from protocol declarations; planning-prompt WS awareness), `internal/head/agent/` (no change in the skeleton scope), `cerberus-docs/`
 **Depends on:** M0–M2 (WS executor + protocol declaration), M3-1 (standalone protocol files)
 **Proposal:** `cerberus-docs/superpowers/specs/2026-07-20-ws-realtime-engine-m3-proposal.md`

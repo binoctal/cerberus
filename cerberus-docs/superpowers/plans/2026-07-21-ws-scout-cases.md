@@ -1,6 +1,6 @@
 # WebSocket Realtime Engine (M3-2) — Scout-Generated WS Cases Implementation Plan
 
-> **STATUS: PROVISIONAL — DO NOT EXECUTE until dogfooding greenlights (per the M3 proposal trigger conditions and the design spec's Status note).** This plan is written to be reviewable and ready. The LLM-prompt content (Task 3) is explicitly provisional and must be tuned against a real target. Tasks 1–2 (the deterministic generator + wiring) are fully specified and testable without an LLM.
+> **STATUS: ACTIVE — greenlit by the 2026-07-21 WS Tier-1 dogfood.** The dogfood's Finding 3 is the trigger the M3 proposal required: against the same `/realtime` target in one session, the Steer LLM used `ws_*` for tc-001 but `api_request` (HTTP 426 death-loop) for tc-002/tc-004, and mis-sequenced the one WS case it started (connect×2, no send, receive instant-fail). Scout today emits no WS cases, so every run re-derives WS orchestration at runtime. The LLM-prompt content (Task 3) remains provisional — tune against a real target. Tasks 1–2 (the deterministic generator + wiring) are fully specified and testable without an LLM. (Skeleton scope, D2: this reduces but does not remove Steer-LLM orchestration — full determinism via `Steps`+`matchWSRules` remains deferred.)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
