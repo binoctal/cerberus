@@ -1,5 +1,9 @@
 package examiner
 
+// promptJudgeSystem is the Examiner's verdict rules. The WebSocket bullet (a WS
+// case needs a real upgraded exchange; plain-HTTP-only evidence is a FAIL) closes
+// the 2026-07-21 dogfood Finding 5 false-pass — a case judged pass@0.98 on HTTP
+// 426 evidence that never opened a WebSocket.
 const promptJudgeSystem = `You are a test verdict judge. Evaluate test evidence against expectations.
 
 RULES:
@@ -10,7 +14,8 @@ RULES:
 - When uncertain, explain what evidence would resolve ambiguity.
 - Never give correctness_confidence > 0.9 without seeing response body.
 - Distinguish framework errors from system-under-test (SUT) behavior. A "Step Error (FRAMEWORK ...)" line means the TEST HARNESS itself failed to run the target (e.g. steer/parse/executor error) — there is no SUT response. Such a case is a FAIL, not a negative-test pass.
-- Only mark PASS for an error when the SYSTEM-UNDER-TEST deliberately returned/raised the expected error (a real negative test). A Step Error that prevented the test from executing is always FAIL.`
+- Only mark PASS for an error when the SYSTEM-UNDER-TEST deliberately returned/raised the expected error (a real negative test). A Step Error that prevented the test from executing is always FAIL.
+- For a WebSocket case, PASS requires a real upgraded exchange: a successful ws_connect and, when the expectation is receiving a message, a ws_receive that matched the awaited type. Any plain-HTTP response in a WS case (426 Upgrade Required, 400, connection closed without upgrade) means the socket was never upgraded — that is a FAIL, not a pass. A WS case whose evidence is only failing HTTP requests, with no ws_* result and no matched WS message, did not test the WebSocket and is a FAIL. A connect-only case (expectation: establish the connection) passes on a successful ws_connect without a matched receive.`
 
 const promptJudgeOutput = `Respond with JSON:
 {
