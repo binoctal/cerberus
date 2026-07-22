@@ -310,12 +310,30 @@ cases from it: one `ws_connect` setup per declared role plus a decisive
 `ws_connect` setup case's connection is not shared with the receive cases — each
 case connects independently within its own Steer loop. Sharing one connection
 across a connect→send→receive sequence requires a single multi-step case (the
-deferred `TestCase.Steps` path; see the M3-2 design spec's Open Questions). The
+`TestCase.Steps` path; see [Deterministic multi-step cases](#deterministic-multi-step-cases-steps) below). The
 Steer LLM still orchestrates the actual connect/send/receive within each case
 (skeleton + fill), so declaring a protocol makes Scout ask for the WS scenario
 deterministically instead of relying on the Steer LLM to improvise it each run. Design and trigger
 rationale:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-scout-cases-design.md`](../superpowers/specs/2026-07-21-ws-scout-cases-design.md).
+
+### Deterministic multi-step cases (Steps)
+
+A `TestCase` may carry ordered `Steps` (`connect → send → receive → assert`)
+that execute **deterministically** — the Steer LLM does not improvise the action
+sequence. Each step is a declarative `ws_connect`/`ws_send`/`ws_receive`
+(`ws_disconnect`) carrying a `connection_id`; steps citing the same
+`connection_id` share one connection (the per-case `<caseID>:<connection_id>`
+table entry — see [Per-case namespacing](#per-case-namespacing--receive-serialization)).
+The first failed step short-circuits the case; the decisive verdict is the final
+`ws_receive`'s field assertions (constrained dotted-path → value, no expression
+engine). Scout emits a `Steps` case when the goal pairs a client-sent type with
+a following receive type — e.g. "send `device:command`, verify `device:ack`
+approved=true" ⇒ `ws_connect` (role) → `ws_send {type:device:command}` →
+`ws_receive device:ack` asserting `payload.approved=true`, all on one connection.
+Goals without such an exchange keep the connect + receive-case form above.
+Coexistence: non-`Steps` cases (HTTP, process, ad-hoc WS) are unchanged. Design:
+[`cerberus-docs/superpowers/specs/2026-07-23-ws-deterministic-steps-design.md`](../superpowers/specs/2026-07-23-ws-deterministic-steps-design.md).
 
 ### M0 fallback
 
