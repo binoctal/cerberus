@@ -3,6 +3,8 @@ package scout
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -24,7 +26,10 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 		if svc.Protocol == nil || len(svc.Protocol.Roles) == 0 {
 			continue
 		}
-		for roleName, role := range svc.Protocol.Roles {
+		// Iterate roles in sorted name order so the returned slice is
+		// deterministic across runs regardless of map iteration order.
+		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+			role := svc.Protocol.Roles[roleName]
 			connectID := wsCaseID(svc.Name, roleName, "connect")
 			cases = append(cases, agent.TestCase{
 				ID:          connectID,
