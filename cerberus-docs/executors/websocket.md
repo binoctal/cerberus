@@ -304,10 +304,16 @@ the dogfooding recourse are in the M2 framing design spec:
 When a service declares a `protocol:` with roles, Scout auto-generates WS test
 cases from it: one `ws_connect` setup per declared role plus a decisive
 `ws_receive` per verification point (the role's handshake `await_type` and any
-routing type named in the goal), linked by `DependsOn`. The Steer LLM still
-orchestrates the actual connect/send/receive within each case (skeleton + fill),
-so declaring a protocol makes Scout ask for the WS scenario deterministically
-instead of relying on the Steer LLM to improvise it each run. Design and trigger
+routing type named in the goal), linked by `DependsOn`. The `DependsOn` is
+**ordering-only**: WebSocket connections are namespaced per case (see
+[Per-case namespacing](#per-case-namespacing--receive-serialization)), so the
+`ws_connect` setup case's connection is not shared with the receive cases — each
+case connects independently within its own Steer loop. Sharing one connection
+across a connect→send→receive sequence requires a single multi-step case (the
+deferred `TestCase.Steps` path; see the M3-2 design spec's Open Questions). The
+Steer LLM still orchestrates the actual connect/send/receive within each case
+(skeleton + fill), so declaring a protocol makes Scout ask for the WS scenario
+deterministically instead of relying on the Steer LLM to improvise it each run. Design and trigger
 rationale:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-scout-cases-design.md`](../superpowers/specs/2026-07-21-ws-scout-cases-design.md).
 

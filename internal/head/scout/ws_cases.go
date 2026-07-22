@@ -17,6 +17,15 @@ import (
 // handshake await_type, plus any routing type named in the goal). Returns nil
 // when no service declares a protocol. The agent Steer LLM orchestrates the
 // actual connect/send/receive; these cases seed the plan with WS intent.
+//
+// Connection-isolation note: WebSocket connections are namespaced per case
+// (<caseID>:<connectionID>, see WebSocketExecutor.caseNamespace), so the
+// ws_connect setup case's connection is NOT shared with the dependent receive
+// cases — each case connects independently within its own Steer loop. The
+// DependsOn link is therefore ordering-only (the connect case runs first), not
+// a connection-sharing dependency. Sharing one connection across a
+// connect->send->receive sequence requires a single multi-step case (the
+// deferred TestCase.Steps path; see the M3-2 design spec Open Questions).
 func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 	if cfg == nil {
 		return nil
