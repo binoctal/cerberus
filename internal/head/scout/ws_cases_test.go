@@ -190,3 +190,45 @@ func assertBodyRole(t *testing.T, body, want string) {
 	require.NoError(t, json.Unmarshal([]byte(body), &b))
 	assert.Equal(t, want, b["role"])
 }
+
+// TestWsTypesNamedInGoalDirection pins the send-verb direction heuristic: a
+// colon token immediately preceded by a send-verb is client-sent and excluded;
+// tokens without a send-verb context default to receive (included).
+func TestWsTypesNamedInGoalDirection(t *testing.T) {
+	tests := []struct {
+		name string
+		goal string
+		want []string
+	}{
+		{"send verb excludes following token", "send device:command, verify device:ack", []string{"device:ack"}},
+		{"verify keeps token", "verify device:ack", []string{"device:ack"}},
+		{"no verb defaults to include", "device:command", []string{"device:command"}},
+		{"brace template no verb includes", "{type: device:command}", []string{"device:command"}},
+		{"mixed send and verify", "send devices:sync and verify device:ack", []string{"device:ack"}},
+		{"emit verb excludes", "emit status:update then verify status:ack", []string{"status:ack"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ElementsMatch(t, tc.want, wsTypesNamedInGoal(tc.goal))
+		})
+	}
+}
+
+// TestWSCasesSendVerbTokenNotReceive is the behavioral proof for #2: a
+// verb-phrased goal must not produce a ws_receive case for a client-sent type.
+func TestWSCasesSendVerbTokenNotReceive(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 5}},
+		}},
+	}}}
+	cases := WSCases(cfg, "send device:command, verify device:ack")
+	types := bodyTypes(filterAction(cases, "ws_receive"))
+	// device:command is client-sent (send-verb) -> NOT a receive target.
+	assert.NotContains(t, types, "device:command",
+		"a client-sent type (send device:command) must not become a ws_receive case")
+	// device:ack (verify) and devices:sync (handshake await_type) remain.
+	assert.Contains(t, types, "device:ack")
+	assert.Contains(t, types, "devices:sync")
+}

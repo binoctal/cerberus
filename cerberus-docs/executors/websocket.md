@@ -304,7 +304,7 @@ the dogfooding recourse are in the M2 framing design spec:
 When a service declares a `protocol:` with roles, Scout auto-generates WS test
 cases from it: one `ws_connect` setup per declared role plus a decisive
 `ws_receive` per verification point (the role's handshake `await_type` and any
-routing type named in the goal), linked by `DependsOn`. The `DependsOn` is
+**receive-directed** routing type named in the goal), linked by `DependsOn`. A type whose immediately preceding word in the goal is a send-verb (`send`/`emit`/`publish`) is treated as client-sent and not turned into a receive case; tokens without a send-verb context default to receive. Provisional — tune via dogfooding. The `DependsOn` is
 **ordering-only**: WebSocket connections are namespaced per case (see
 [Per-case namespacing](#per-case-namespacing--receive-serialization)), so the
 `ws_connect` setup case's connection is not shared with the receive cases — each

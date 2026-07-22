@@ -85,12 +85,25 @@ func wsDecisiveTypes(role *project.ProtocolRole, goal string) []string {
 	return types
 }
 
+// wsSendVerbs are goal verbs that mark the following colon token as something
+// the CLIENT sends (not a receive target). A token whose immediately preceding
+// word is one of these is excluded from ws_receive generation. Provisional —
+// tune via dogfooding.
+var wsSendVerbs = map[string]bool{
+	"send": true, "sends": true, "sending": true,
+	"emit": true, "emits": true,
+	"publish": true, "publishes": true,
+}
+
 // wsTypesNamedInGoal finds candidate routing-type tokens in the goal text. A
 // simple heuristic: colon-bearing tokens (e.g. "permission:response") are
-// common WS routing keys. Provisional — tune via dogfooding.
+// common WS routing keys. A token immediately preceded by a send-verb (see
+// wsSendVerbs) is client-sent and excluded; tokens without such context default
+// to receive (included). Deterministic; no LLM. Provisional — tune via dogfooding.
 func wsTypesNamedInGoal(goal string) []string {
 	var out []string
-	for _, field := range strings.Fields(goal) {
+	fields := strings.Fields(goal)
+	for i, field := range fields {
 		// Strip punctuation incl. braces so a goal template like
 		// "{type: device:command}" yields "device:command", not
 		// "device:command}" or "{type:".
@@ -98,9 +111,19 @@ func wsTypesNamedInGoal(goal string) []string {
 		if f == "type:" {
 			continue // the default routing-key field name, not a type value
 		}
-		if strings.Contains(f, ":") && !contains(out, f) {
-			out = append(out, f)
+		if !strings.Contains(f, ":") {
+			continue
 		}
+		if contains(out, f) {
+			continue
+		}
+		// Direction: a token immediately preceded by a send-verb is something
+		// the CLIENT sends, so it is not a receive target — skip it. Tokens
+		// without a send-verb context default to receive (existing behavior).
+		if i > 0 && wsSendVerbs[strings.ToLower(strings.Trim(fields[i-1], ".,;:\"'(){}"))] {
+			continue
+		}
+		out = append(out, f)
 	}
 	return out
 }
