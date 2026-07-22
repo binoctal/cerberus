@@ -207,6 +207,7 @@ func TestWsTypesNamedInGoalDirection(t *testing.T) {
 		{"mixed send and verify", "send devices:sync and verify device:ack", []string{"device:ack"}},
 		{"emit verb excludes", "emit status:update then verify status:ack", []string{"status:ack"}},
 		{"publishes inflection excludes", "publishes status:update then verify status:ok", []string{"status:ok"}},
+		{"parenthesized send verb excludes", "(send device:command) then verify device:ack", []string{"device:ack"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -226,10 +227,37 @@ func TestWSCasesSendVerbTokenNotReceive(t *testing.T) {
 	}}}
 	cases := WSCases(cfg, "send device:command, verify device:ack")
 	types := bodyTypes(filterAction(cases, "ws_receive"))
+	// Exactly two receives: the handshake await_type devices:sync and the
+	// goal-named device:ack — device:command must not add a third.
+	require.Len(t, types, 2,
+		"exactly devices:sync + device:ack receives; no spurious client-sent case")
 	// device:command is client-sent (send-verb) -> NOT a receive target.
 	assert.NotContains(t, types, "device:command",
 		"a client-sent type (send device:command) must not become a ws_receive case")
 	// device:ack (verify) and devices:sync (handshake await_type) remain.
 	assert.Contains(t, types, "device:ack")
 	assert.Contains(t, types, "devices:sync")
+}
+
+// TestWSCasesCollidingTypesDedupToOneCase pins the cross-source ID-collision
+// fix: two decisive types that sanitize to the same case ID (a handshake
+// await_type "devices-sync" and a goal-named "devices:sync" both -> "devices-sync")
+// must dedup to a single receive case rather than emitting two cases with one ID
+// (which would corrupt the DependsOn graph). The handshake spelling wins because
+// it is added first.
+func TestWSCasesCollidingTypesDedupToOneCase(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "devices-sync", Timeout: 5}},
+		}},
+	}}}
+	// Goal names the same routing type with a colon; sanitizeTypeID collapses
+	// "devices-sync" and "devices:sync" to one case ID.
+	cases := WSCases(cfg, "verify devices:sync")
+	receives := filterAction(cases, "ws_receive")
+	require.Len(t, receives, 1,
+		"colliding types must dedup to one case, not duplicate the sanitized ID")
+	assert.Equal(t, []string{"devices-sync"}, bodyTypes(receives),
+		"handshake spelling (added first) wins on collision")
 }

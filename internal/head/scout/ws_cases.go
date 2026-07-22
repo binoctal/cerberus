@@ -72,15 +72,31 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 // wsDecisiveTypes returns the routing types to assert on for a role: the
 // handshake await_type (if any) plus any type literally named in the goal that
 // is not already included. Deterministic; no LLM.
+//
+// Types are deduped by their sanitized case-ID form: two routing types that
+// collapse to the same ID (e.g. "devices-sync" and "devices:sync" both -> the
+// ID segment "devices-sync") must not both become receive cases, or they would
+// share one case ID and corrupt the DependsOn graph. The first-seen spelling
+// wins (handshake await_type is added before goal-named types).
 func wsDecisiveTypes(role *project.ProtocolRole, goal string) []string {
 	var types []string
-	if role != nil && role.Handshake != nil && role.Handshake.AwaitType != "" {
-		types = append(types, role.Handshake.AwaitType)
+	seen := make(map[string]bool)
+	add := func(t string) {
+		if t == "" {
+			return
+		}
+		id := sanitizeTypeID(t)
+		if seen[id] {
+			return
+		}
+		seen[id] = true
+		types = append(types, t)
+	}
+	if role != nil && role.Handshake != nil {
+		add(role.Handshake.AwaitType)
 	}
 	for _, t := range wsTypesNamedInGoal(goal) {
-		if !contains(types, t) {
-			types = append(types, t)
-		}
+		add(t)
 	}
 	return types
 }
@@ -114,7 +130,7 @@ func wsTypesNamedInGoal(goal string) []string {
 		if !strings.Contains(f, ":") {
 			continue
 		}
-		if contains(out, f) {
+		if slices.Contains(out, f) {
 			continue
 		}
 		// Direction: a token immediately preceded by a send-verb is something
@@ -133,6 +149,8 @@ func wsBody(role, typ string) string {
 	if typ != "" {
 		m["type"] = typ
 	}
+	// json.Marshal of a map[string]string cannot fail (strings are always
+	// encodable); the error is intentionally ignored.
 	b, _ := json.Marshal(m)
 	return string(b)
 }
@@ -145,13 +163,4 @@ func wsCaseID(service, role, typ string) string {
 func sanitizeTypeID(typ string) string {
 	r := strings.NewReplacer(":", "-", "/", "-", " ", "-")
 	return r.Replace(typ)
-}
-
-func contains(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }
