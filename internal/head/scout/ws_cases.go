@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -12,20 +13,23 @@ import (
 )
 
 // WSCases generates deterministic WS test cases from a project's declared
-// protocols: for each role on each WS service, one ws_connect setup case plus
-// one decisive ws_receive case per verification-point type (the role's
-// handshake await_type, plus any routing type named in the goal). Returns nil
-// when no service declares a protocol. The agent Steer LLM orchestrates the
-// actual connect/send/receive; these cases seed the plan with WS intent.
+// protocols. Per role on each WS service it emits either:
 //
-// Connection-isolation note: WebSocket connections are namespaced per case
-// (<caseID>:<connectionID>, see WebSocketExecutor.caseNamespace), so the
-// ws_connect setup case's connection is NOT shared with the dependent receive
-// cases — each case connects independently within its own Steer loop. The
-// DependsOn link is therefore ordering-only (the connect case runs first), not
-// a connection-sharing dependency. Sharing one connection across a
-// connect->send->receive sequence requires a single multi-step case (the
-// deferred TestCase.Steps path; see the M3-2 design spec Open Questions).
+//   - ONE ws_flow Steps case (connect→send→receive sharing one connection_id)
+//     when the goal pairs a client-sent type (send-verb-introduced) with a
+//     following receive type; OR
+//   - today's connect + per-type ws_receive form when no exchange is detected
+//     (receive-only, handshake-only, or unrelated goals). This preserves
+//     connect/handshake coverage.
+//
+// The chosen rule — Steps case for exchanges, separate cases otherwise — keeps
+// the no-exchange path identical to pre-Steps behavior while making the
+// send/receive exchange runnable through runSteps (one connection, deterministic
+// connect/send/receive, Asserts from the goal). Returns nil when no service
+// declares a protocol.
+//
+// Determinism: roles are iterated in sorted name order; the exchange detector
+// picks the first send/receive pair; Asserts are parsed in goal order.
 func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 	if cfg == nil {
 		return nil
@@ -39,6 +43,10 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 		// deterministic across runs regardless of map iteration order.
 		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
 			role := svc.Protocol.Roles[roleName]
+			if ex, ok := wsExchangeFromGoal(goal); ok {
+				cases = append(cases, wsStepsCase(svc, roleName, role, ex))
+				continue
+			}
 			connectID := wsCaseID(svc.Name, roleName, "connect")
 			cases = append(cases, agent.TestCase{
 				ID:          connectID,
@@ -67,6 +75,153 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 		}
 	}
 	return cases
+}
+
+// wsStepsCase builds a deterministic multi-step WS exchange case for a role:
+// connect → send → receive, all sharing one connection_id. The role's handshake
+// await_type is auto-awaited by the executor on the ws_connect step (via the
+// Role field), so no separate handshake step is emitted. Asserts are derived
+// from the goal (path→value map) and may be nil for arrival-only receives.
+func wsStepsCase(svc project.Service, role string, r *project.ProtocolRole, ex wsExchange) agent.TestCase {
+	// One connection per role; the executor namespaces connection-table keys by
+	// <caseID>:<connectionID>, so the same role name is stable within this case
+	// and does not collide with other cases' connections.
+	connID := role
+	timeout := 0
+	if r != nil && r.Handshake != nil && r.Handshake.Timeout > 0 {
+		// Reuse the handshake timeout as the receive-await budget so a slow
+		// server cannot hang the case beyond the role's declared bound.
+		timeout = r.Handshake.Timeout
+	}
+	return agent.TestCase{
+		ID:          wsCaseID(svc.Name, role, "flow-"+sanitizeTypeID(ex.sendType)+"-"+sanitizeTypeID(ex.recvType)),
+		Name:        fmt.Sprintf("%s %s sends %s and receives %s", svc.Name, role, ex.sendType, ex.recvType),
+		Service:     svc.Name,
+		Target:      svc.URL,
+		Action:      "ws_flow",
+		Expectation: fmt.Sprintf("%s role %s sends a %s message and receives a %s reply", svc.Name, role, ex.sendType, ex.recvType),
+		Priority:    0.8,
+		Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: connID, Role: role},
+			{Action: "ws_send", ConnectionID: connID, Message: wsSendBody(ex.sendType)},
+			{Action: "ws_receive", ConnectionID: connID, Type: ex.recvType, Asserts: ex.asserts, Timeout: timeout},
+		},
+	}
+}
+
+// wsSendBody builds the JSON payload for a ws_send step: a {"type": "<typ>"}
+// envelope matching the standard WS routing-key shape. json.Marshal of a
+// one-entry string map cannot fail; the error is intentionally ignored.
+func wsSendBody(typ string) string {
+	b, _ := json.Marshal(map[string]string{"type": typ})
+	return string(b)
+}
+
+// wsExchange describes a client send → server receive exchange parsed from a
+// goal. asserts may be nil (arrival-only receive).
+type wsExchange struct {
+	sendType string
+	recvType string
+	asserts  map[string]any
+}
+
+// wsExchangeFromGoal detects the FIRST client-sent → server-receive exchange in
+// the goal text, reusing the direction heuristic inversely: a colon token
+// immediately preceded by a send-verb (see wsSendVerbs) is the sendType; the
+// next non-send-verb colon token is the recvType; trailing key=value tokens
+// after the recvType become Asserts (parsed by wsParseAsserts). Returns
+// ok=false when the goal has no send-verb-introduced type, or when a send type
+// has no following receive type to pair with (the latter bails to the
+// connect+receive path so the connect/handshake coverage is preserved).
+// Deterministic; no LLM.
+func wsExchangeFromGoal(goal string) (wsExchange, bool) {
+	fields := strings.Fields(goal)
+	// Locate the send type: first colon token preceded by a send-verb.
+	sendIdx := -1
+	sendType := ""
+	for i := 1; i < len(fields); i++ {
+		f := strings.Trim(fields[i], ".,;:\"'(){}")
+		if f == "type:" || !strings.Contains(f, ":") {
+			continue
+		}
+		if wsSendVerbs[strings.ToLower(strings.Trim(fields[i-1], ".,;:\"'(){}"))] {
+			sendIdx = i
+			sendType = f
+			break
+		}
+	}
+	if sendIdx == -1 {
+		return wsExchange{}, false
+	}
+	// Locate the receive type: the next colon token NOT preceded by a send-verb.
+	recvType := ""
+	recvIdx := -1
+	for i := sendIdx + 1; i < len(fields); i++ {
+		f := strings.Trim(fields[i], ".,;:\"'(){}")
+		if f == "type:" || !strings.Contains(f, ":") {
+			continue
+		}
+		if wsSendVerbs[strings.ToLower(strings.Trim(fields[i-1], ".,;:\"'(){}"))] {
+			continue // another client-sent type, not a receive target
+		}
+		recvType = f
+		recvIdx = i
+		break
+	}
+	if recvIdx == -1 {
+		// A send with no paired receive is not a runnable exchange. Bail to
+		// the connect+receive path so connect/handshake coverage is preserved.
+		return wsExchange{}, false
+	}
+	return wsExchange{sendType: sendType, recvType: recvType, asserts: wsParseAsserts(fields[recvIdx+1:])}, true
+}
+
+// wsParseAsserts parses "key=value" tokens into a path→value map. Values are
+// typed (bool, int, float, or string — outer quotes stripped). Keys with no dot
+// are prefixed "payload." to match the typical {type, payload} WS envelope; a
+// key that already contains a dot is used verbatim. Returns nil when no token
+// parses, so the receive is arrival-only. Deterministic.
+func wsParseAsserts(tokens []string) map[string]any {
+	var out map[string]any
+	for _, tok := range tokens {
+		f := strings.Trim(tok, ".,;:\"'(){}")
+		eq := strings.Index(f, "=")
+		if eq <= 0 || eq == len(f)-1 {
+			continue
+		}
+		k := f[:eq]
+		v := f[eq+1:]
+		if k == "" || v == "" {
+			continue
+		}
+		if !strings.Contains(k, ".") {
+			k = "payload." + k
+		}
+		if out == nil {
+			out = make(map[string]any)
+		}
+		out[k] = wsParseAssertValue(v)
+	}
+	return out
+}
+
+// wsParseAssertValue converts a goal assert literal to its typed value: bool
+// for true/false, int for integer numerals, float for decimals, otherwise the
+// string with outer quotes stripped.
+func wsParseAssertValue(s string) any {
+	switch strings.ToLower(s) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	if n, err := strconv.Atoi(s); err == nil {
+		return n
+	}
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return f
+	}
+	return strings.Trim(s, "\"'")
 }
 
 // wsDecisiveTypes returns the routing types to assert on for a role: the

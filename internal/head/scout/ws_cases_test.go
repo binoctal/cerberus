@@ -216,8 +216,12 @@ func TestWsTypesNamedInGoalDirection(t *testing.T) {
 	}
 }
 
-// TestWSCasesSendVerbTokenNotReceive is the behavioral proof for #2: a
-// verb-phrased goal must not produce a ws_receive case for a client-sent type.
+// TestWSCasesSendVerbTokenNotReceive is the behavioral proof for the direction
+// heuristic: a verb-phrased goal pairs the send type with the following receive
+// type as ONE deterministic Steps case. The client-sent type (send device:command)
+// must NOT become a ws_receive target — it is the ws_send step's message type.
+// The handshake await_type is auto-awaited on the connect step (via the role),
+// so it does not add a separate ws_receive case.
 func TestWSCasesSendVerbTokenNotReceive(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{
 		Name: "rt", URL: "http://x",
@@ -226,17 +230,201 @@ func TestWSCasesSendVerbTokenNotReceive(t *testing.T) {
 		}},
 	}}}
 	cases := WSCases(cfg, "send device:command, verify device:ack")
-	types := bodyTypes(filterAction(cases, "ws_receive"))
-	// Exactly two receives: the handshake await_type devices:sync and the
-	// goal-named device:ack — device:command must not add a third.
-	require.Len(t, types, 2,
-		"exactly devices:sync + device:ack receives; no spurious client-sent case")
-	// device:command is client-sent (send-verb) -> NOT a receive target.
-	assert.NotContains(t, types, "device:command",
-		"a client-sent type (send device:command) must not become a ws_receive case")
-	// device:ack (verify) and devices:sync (handshake await_type) remain.
-	assert.Contains(t, types, "device:ack")
-	assert.Contains(t, types, "devices:sync")
+	// Exchange: ONE Steps case, no separate ws_connect/ws_receive cases.
+	require.Len(t, cases, 1, "exchange should produce exactly one Steps case")
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 3, "exchange must be connect/send/receive")
+
+	// device:command is the ws_send step's message type, NOT a receive target.
+	assert.Equal(t, "ws_send", c.Steps[1].Action)
+	var sendMsg map[string]string
+	require.NoError(t, json.Unmarshal([]byte(c.Steps[1].Message), &sendMsg))
+	assert.Equal(t, "device:command", sendMsg["type"],
+		"device:command is the client-sent type carried on ws_send")
+
+	// Exactly one receive — the goal-named device:ack — and it lives INSIDE the
+	// Steps case. device:command must not appear as a receive type.
+	assert.Equal(t, "ws_receive", c.Steps[2].Action)
+	assert.Equal(t, "device:ack", c.Steps[2].Type,
+		"device:ack is the receive type")
+	assert.NotEqual(t, "device:command", c.Steps[2].Type,
+		"a client-sent type (send device:command) must not become a ws_receive target")
+	assert.Empty(t, filterAction(cases, "ws_receive"),
+		"exchange has no separate ws_receive cases — the receive is a Step")
+}
+
+// TestWSCasesEmitsStepsForExchange pins the canonical send→receive exchange
+// shape: goal "send device:command, verify device:ack approved=true" yields
+// exactly ONE ws_flow case with connect/send/receive steps sharing one
+// connection_id, Target = svc.URL, and Asserts derived from "approved=true"
+// as {"payload.approved": true}. The role's handshake await_type is read on
+// the connect step (no separate handshake case).
+func TestWSCasesEmitsStepsForExchange(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 5}},
+		}},
+	}}}
+	cases := WSCases(cfg, "send device:command, verify device:ack approved=true")
+	require.Len(t, cases, 1, "exchange should produce exactly one Steps case")
+	c := cases[0]
+
+	assert.Equal(t, "ws_flow", c.Action)
+	assert.Equal(t, "rt", c.Service)
+	assert.Equal(t, "http://x", c.Target, "case must carry the service URL")
+	assert.NotEmpty(t, c.ID)
+
+	require.Len(t, c.Steps, 3, "exchange must be connect/send/receive")
+
+	// Step 1: connect with the role (handshake await_type auto-awaited).
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "web", c.Steps[0].Role)
+	connID := c.Steps[0].ConnectionID
+	require.NotEmpty(t, connID)
+
+	// Step 2: send the client-sent type, sharing the connect's connection.
+	assert.Equal(t, "ws_send", c.Steps[1].Action)
+	assert.Equal(t, connID, c.Steps[1].ConnectionID, "send must share connect's connection_id")
+	var msg map[string]string
+	require.NoError(t, json.Unmarshal([]byte(c.Steps[1].Message), &msg))
+	assert.Equal(t, "device:command", msg["type"], "send message carries the client-sent type")
+
+	// Step 3: receive the server-reply type with derived Asserts.
+	assert.Equal(t, "ws_receive", c.Steps[2].Action)
+	assert.Equal(t, connID, c.Steps[2].ConnectionID, "receive must share connect's connection_id")
+	assert.Equal(t, "device:ack", c.Steps[2].Type)
+	assert.Equal(t, map[string]any{"payload.approved": true}, c.Steps[2].Asserts,
+		`approved=true -> {"payload.approved": true}`)
+
+	// No legacy separate-case shape leaks through.
+	assert.Empty(t, filterAction(cases, "ws_connect"), "no separate ws_connect case (folded into Steps)")
+	assert.Empty(t, filterAction(cases, "ws_receive"), "no separate ws_receive case (folded into Steps)")
+}
+
+// TestWSCasesConnectOnlyWhenNoExchange pins the chosen no-exchange rule: a goal
+// without a send-verb → receive-type pair keeps today's separate connect +
+// per-type ws_receive case form (connect/handshake coverage preserved). This is
+// the documented fallback for receive-only, handshake-only, or unrelated goals.
+func TestWSCasesConnectOnlyWhenNoExchange(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "ready", Timeout: 5}},
+		}},
+	}}}
+	// Receive-only goal: no send verb -> no exchange -> today's form.
+	cases := WSCases(cfg, "verify status:ok")
+
+	assert.Empty(t, filterAction(cases, "ws_flow"),
+		"no exchange -> no Steps case (today's connect+receive form is used)")
+
+	connects := filterAction(cases, "ws_connect")
+	require.Len(t, connects, 1)
+	assert.Equal(t, "http://x", connects[0].Target)
+
+	receives := filterAction(cases, "ws_receive")
+	// Handshake await_type "ready" + goal-named "status:ok".
+	assert.ElementsMatch(t, []string{"ready", "status:ok"}, bodyTypes(receives))
+	for _, r := range receives {
+		assert.Contains(t, []string(r.DependsOn), connects[0].ID,
+			"receive case must depend on the connect case")
+	}
+}
+
+// TestWSExchangeFromGoal is the unit test for the exchange detector: a
+// send-verb immediately preceding a colon token marks the send type; the next
+// non-send colon token is the receive type; trailing key=value tokens become
+// Asserts (key prefixed with "payload." when it has no dot). Deterministic.
+func TestWSExchangeFromGoal(t *testing.T) {
+	tests := []struct {
+		name    string
+		goal    string
+		ok      bool
+		send    string
+		recv    string
+		asserts map[string]any
+	}{
+		{
+			name:    "exchange with assert",
+			goal:    "send device:command, verify device:ack approved=true",
+			ok:      true,
+			send:    "device:command",
+			recv:    "device:ack",
+			asserts: map[string]any{"payload.approved": true},
+		},
+		{
+			name: "exchange no assert",
+			goal: "send device:command, verify device:ack",
+			ok:   true,
+			send: "device:command",
+			recv: "device:ack",
+			// asserts is nil (arrival-only).
+		},
+		{
+			name:    "emit verb exchange",
+			goal:    "emit status:update then verify status:ack count=2",
+			ok:      true,
+			send:    "status:update",
+			recv:    "status:ack",
+			asserts: map[string]any{"payload.count": 2},
+		},
+		{
+			name: "publishes verb exchange",
+			goal: "publishes sync:tick verify sync:tock",
+			ok:   true,
+			send: "sync:tick",
+			recv: "sync:tock",
+		},
+		{
+			name: "no send verb no exchange",
+			goal: "verify device:ack",
+			ok:   false,
+		},
+		{
+			name: "send verb without receive pair no exchange",
+			goal: "send device:command only",
+			ok:   false,
+		},
+		{
+			name: "brace template send not exchange (no following receive)",
+			goal: "send a {type: device:command} message",
+			ok:   false,
+		},
+		{
+			name:    "string assert value",
+			goal:    "send a:b verify c:d name=\"hello\"",
+			ok:      true,
+			send:    "a:b",
+			recv:    "c:d",
+			asserts: map[string]any{"payload.name": "hello"},
+		},
+		{
+			name:    "already-dotted assert key not prefixed",
+			goal:    "send a:b verify c:d meta.flag=true",
+			ok:      true,
+			send:    "a:b",
+			recv:    "c:d",
+			asserts: map[string]any{"meta.flag": true},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ex, ok := wsExchangeFromGoal(tc.goal)
+			require.Equal(t, tc.ok, ok, "ok mismatch")
+			if !ok {
+				return
+			}
+			assert.Equal(t, tc.send, ex.sendType)
+			assert.Equal(t, tc.recv, ex.recvType)
+			if tc.asserts == nil {
+				assert.Nil(t, ex.asserts, "arrival-only receive must have nil Asserts")
+			} else {
+				assert.Equal(t, tc.asserts, ex.asserts)
+			}
+		})
+	}
 }
 
 // TestWSCasesCollidingTypesDedupToOneCase pins the cross-source ID-collision
