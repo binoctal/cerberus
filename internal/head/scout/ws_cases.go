@@ -35,6 +35,7 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 				ID:          connectID,
 				Name:        fmt.Sprintf("%s %s connects", svc.Name, roleName),
 				Service:     svc.Name,
+				Target:      svc.URL,
 				Action:      "ws_connect",
 				Background:  true,
 				Body:        wsBody(roleName, ""),
@@ -46,6 +47,7 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 					ID:          wsCaseID(svc.Name, roleName, typ),
 					Name:        fmt.Sprintf("%s %s receives %s", svc.Name, roleName, typ),
 					Service:     svc.Name,
+					Target:      svc.URL,
 					Action:      "ws_receive",
 					Body:        wsBody(roleName, typ),
 					Expectation: fmt.Sprintf("%s role %s receives a %s message", svc.Name, roleName, typ),
@@ -80,7 +82,13 @@ func wsDecisiveTypes(role *project.ProtocolRole, goal string) []string {
 func wsTypesNamedInGoal(goal string) []string {
 	var out []string
 	for _, field := range strings.Fields(goal) {
-		f := strings.Trim(field, ".,;:\"'()")
+		// Strip punctuation incl. braces so a goal template like
+		// "{type: device:command}" yields "device:command", not
+		// "device:command}" or "{type:".
+		f := strings.Trim(field, ".,;:\"'(){}")
+		if f == "type:" {
+			continue // the default routing-key field name, not a type value
+		}
 		if strings.Contains(f, ":") && !contains(out, f) {
 			out = append(out, f)
 		}

@@ -37,6 +37,9 @@ func TestWSCasesEmitsConnectAndDecisiveReceives(t *testing.T) {
 	assert.Equal(t, "rt", connects[0].Service)
 	assert.True(t, connects[0].Background)
 	assertBodyRole(t, connects[0].Body, "bridge")
+	// Target must be the service URL so target_validate does not deprioritize
+	// the case (empty target -> skipped, never executed — 2026-07-22 verify run).
+	assert.Equal(t, "http://x", connects[0].Target)
 
 	receives := filterAction(cases, "ws_receive")
 	// handshake await_type "devices:sync" + goal-named "permission:response"
@@ -127,6 +130,37 @@ func TestWSCasesIDFormat(t *testing.T) {
 		}
 	}
 	t.Fatal("no ws_receive case with sanitized devices-sync ID found")
+}
+
+// TestWSCasesTargetSetAndGoalTemplateBraces covers two 2026-07-22 verify-run
+// findings: (1) WS cases carry Target = the service URL so they survive
+// target_validate (empty target was deprioritized -> skipped -> never run);
+// (2) the goal-token heuristic strips braces, so "{type: device:command}" yields
+// the routing type "device:command" (not "device:command}") and does not emit a
+// spurious "type:" case.
+func TestWSCasesTargetSetAndGoalTemplateBraces(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://localhost:8787",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 5}},
+		}},
+	}}}
+	cases := WSCases(cfg, "send a {type: device:command} message")
+
+	// Every generated case targets the service URL (so it is not deprioritized).
+	for _, c := range cases {
+		assert.Equal(t, "http://localhost:8787", c.Target, "case %q missing service URL target", c.ID)
+	}
+
+	// Brace handling: the goal template yields the routing type "device:command",
+	// not "device:command}", and no spurious "type:" receive.
+	receives := filterAction(cases, "ws_receive")
+	types := bodyTypes(receives)
+	assert.Contains(t, types, "device:command", "brace-stripped goal type must be device:command")
+	for _, ty := range types {
+		assert.NotEqual(t, "type:", ty, "the default routing-key field name must not become a receive type")
+		assert.NotContains(t, ty, "}", "goal type must not carry a stray brace")
+	}
 }
 
 func filterAction(cs []agent.TestCase, action string) []agent.TestCase {
