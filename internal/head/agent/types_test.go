@@ -30,7 +30,7 @@ func TestTestCaseStepsRoundTrip(t *testing.T) {
 			{Action: "ws_connect", ConnectionID: "c1", Role: "web"},
 			{Action: "ws_send", ConnectionID: "c1", Message: `{"type":"device:command"}`},
 			{Action: "ws_receive", ConnectionID: "c1", Type: "device:ack",
-				Asserts: map[string]any{"payload.approved": true}},
+				Asserts: map[string]any{"payload.approved": true}, Timeout: 5},
 		},
 	}
 	b, err := json.Marshal(in)
