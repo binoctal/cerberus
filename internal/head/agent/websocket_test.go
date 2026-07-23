@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +16,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/escalation"
@@ -1365,5 +1368,226 @@ func TestWSReceiveAfterPeerCloseReturnsError(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("receive hung after peer close (pump did not exit / done not observed)")
+	}
+}
+
+// TestWSParallelDifferentConnections closes the opus-review M2 gap: there was no
+// explicit test for concurrent cases on DIFFERENT connections running in parallel
+// (same-conn serialization is covered by TestReceiveSerializedPerConnection). N
+// goroutines each open their OWN connection (distinct id) and run
+// connect→send→receive against an echo server, concurrently, for many iterations.
+//
+// A server-side barrier forces all N connections to be accepted simultaneously
+// before any echoes proceed: a sequential open would leave the first handler
+// stuck at the barrier forever (the test would time out, not pass). Under -race
+// this also proves each connection's own pump + readMu keeps frame reads
+// corruption-free across parallel connections.
+func TestWSParallelDifferentConnections(t *testing.T) {
+	const n = 8
+	const iters = 20
+
+	// wsBarrier synchronizes one iteration's batch of connections: every handler
+	// signals arrived, then blocks on release until all N are open concurrently.
+	type wsBarrier struct {
+		arrived chan struct{}
+		release chan struct{}
+	}
+	var barrierMu sync.Mutex
+	var cur *wsBarrier
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		barrierMu.Lock()
+		b := cur
+		barrierMu.Unlock()
+		b.arrived <- struct{}{}
+		select {
+		case <-b.release:
+		case <-ctx.Done():
+			return
+		}
+		// Echo loop: write back exactly what was read so receive can match.
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			if err := conn.Write(ctx, mt, data); err != nil {
+				return
+			}
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	for iter := 0; iter < iters; iter++ {
+		b := &wsBarrier{arrived: make(chan struct{}, n), release: make(chan struct{})}
+		barrierMu.Lock()
+		cur = b
+		barrierMu.Unlock()
+
+		ex := newWSExecutor()
+		ctx, cancel := context.WithCancel(context.Background())
+
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			go func(i int) {
+				defer wg.Done()
+				id := fmt.Sprintf("c%d", i)
+				// assert (not require) inside a goroutine: it records failure
+				// without calling runtime.Goexit, so wg.Done still runs and the
+				// barrier wait below is not left deadlocked on a failed worker.
+				if !assert.True(t,
+					ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: id}).Success(),
+					"iter %d: connect %s failed", iter, id) {
+					return
+				}
+				if !assert.True(t,
+					ex.Execute(ctx, types.WSSendAction{
+						ConnectionID: id, Message: fmt.Sprintf(`{"type":"ping-%d"}`, i),
+					}).Success(),
+					"iter %d: send %s failed", iter, id) {
+					return
+				}
+				assert.True(t,
+					ex.Execute(ctx, types.WSReceiveAction{
+						ConnectionID: id, Type: fmt.Sprintf("ping-%d", i), Timeout: 3,
+					}).Success(),
+					"iter %d: receive %s failed", iter, id)
+			}(i)
+		}
+
+		// Wait for all N connections to arrive at the barrier (proves they are
+		// open concurrently), then release them to echo.
+		for i := 0; i < n; i++ {
+			select {
+			case <-b.arrived:
+			case <-time.After(3 * time.Second):
+				t.Fatalf("iter %d: only %d/%d connections arrived concurrently (no parallelism)", iter, i, n)
+			}
+		}
+		close(b.release)
+		wg.Wait()
+		cancel() // tear down every connection (pumps + watchers exit) before next iter
+	}
+}
+
+// TestWSPumpNoGoroutineLeak proves the read pump (and the ctx-cancel watcher
+// store starts alongside it) exits when its owning case context is cancelled —
+// no goroutine leak across a batch of connections. It runs N connects (each
+// starts a pump + a watcher), cancels every case context, and polls the
+// goroutine count back down to near-baseline. A bounded polling wait (not a
+// single fixed sleep) keeps it stable on slow/scheduling-loaded hosts.
+func TestWSPumpNoGoroutineLeak(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			_ = conn.Write(ctx, mt, data)
+		}
+	})
+
+	// Baseline AFTER the server is up so its listener goroutine is already
+	// counted; a GC settles any transient runtime goroutines.
+	runtime.GC()
+	baseline := runtime.NumGoroutine()
+
+	const n = 20
+	ex := newWSExecutor()
+	cancels := make([]context.CancelFunc, n)
+	for i := 0; i < n; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancels[i] = cancel
+		id := fmt.Sprintf("c%d", i)
+		require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: id}).Success(),
+			"connect %d failed", i)
+	}
+
+	// Sanity: each connect started a pump + a watcher (+ a server-side handler),
+	// so the count must have risen well above baseline.
+	require.Greater(t, runtime.NumGoroutine(), baseline,
+		"pumps/watchers did not start")
+
+	// Cancel every case context. Each watcher closes its conn (pump's Read
+	// errors → pump exits) and deletes the entry; the server-side handler exits
+	// on the client close. All spawned goroutines should drain back to baseline.
+	for _, c := range cancels {
+		c()
+	}
+
+	// Poll until the count returns to near-baseline, with a bounded deadline.
+	// The +2 slack absorbs runtime/scheduler noise; the deadline bounds the wait
+	// so a real leak fails fast instead of hanging.
+	const slack = 2
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if runtime.NumGoroutine() <= baseline+slack {
+			return // pass
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("goroutine leak: baseline=%d, allowed<=%d, now=%d",
+		baseline, baseline+slack, runtime.NumGoroutine())
+}
+
+// TestWSReceiveAfterPeerCloseAllConsumersError extends
+// TestWSReceiveAfterPeerCloseReturnsError: after the peer closes, EVERY
+// subsequent receive on that connection must return the pump error promptly
+// (none may hang). Because consumers serialize on readMu, this also confirms the
+// closed `done` channel wakes each queued consumer in turn. Run under -race.
+func TestWSReceiveAfterPeerCloseAllConsumersError(t *testing.T) {
+	peerClosed := make(chan struct{})
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		select {
+		case <-peerClosed:
+		case <-ctx.Done():
+			return
+		}
+		_ = conn.Close(websocket.StatusNormalClosure, "peer done")
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(),
+		"connect failed")
+
+	// Trigger the peer close; the pump observes it and exits (done closed).
+	close(peerClosed)
+
+	// Fire several receives concurrently. They serialize on readMu; each must
+	// observe the pump exit and return an error (not hang).
+	const n = 4
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			r := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "anything", Timeout: 5})
+			if r.Success() {
+				errs <- fmt.Errorf("receive after peer close should fail, got success: %+v", r)
+				return
+			}
+			errs <- nil
+		}()
+	}
+	for i := 0; i < n; i++ {
+		select {
+		case e := <-errs:
+			assert.NoError(t, e)
+		case <-time.After(3 * time.Second):
+			t.Fatal("receive hung after peer close (pump exit not observed by all consumers)")
+		}
 	}
 }
