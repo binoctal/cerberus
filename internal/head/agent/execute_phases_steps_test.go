@@ -264,3 +264,47 @@ func TestRunStepsRoleProtocol(t *testing.T) {
 		require.False(t, result.Result.Success(), "connect result should be a failure")
 	})
 }
+
+// TestRunStepsMultiConnection proves a single Steps case can orchestrate TWO
+// connections (web + bridge) and relay frames across them. The in-process relay
+// server forwards web<->bridge frames (modeling a broker/DO). The web role
+// carries an OPTIONAL handshake that times out but leaves the connection alive,
+// so step 6 receiving on c-web also proves optional-handshake-survival across a
+// multi-connection case. accepts==2 proves the two steps opened two DISTINCT
+// connections in one case (not one shared connection).
+func TestRunStepsMultiConnection(t *testing.T) {
+	wsURL, accepts := newWSRelayServer(t)
+
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{
+			"web": {
+				Params:    map[string]string{"type": "web"},
+				Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Optional: true, Timeout: 1},
+			},
+			"bridge": {
+				Params: map[string]string{"type": "bridge"},
+			},
+		}}
+	wsIdx := protocolIndexForURL(t, wsURL, p)
+
+	tc := &TestCase{
+		ID:     "tc-multi-conn",
+		Target: wsURL,
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+			{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+			{Action: "ws_send", ConnectionID: "c-web", Message: `{"type":"echo:web"}`},
+			{Action: "ws_receive", ConnectionID: "c-bridge", Type: "echo:web", Timeout: 2},
+			{Action: "ws_send", ConnectionID: "c-bridge", Message: `{"type":"echo:bridge"}`},
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "echo:bridge", Timeout: 2},
+		},
+	}
+
+	se := newStepExecutionWithIdx(t, tc, wsIdx)
+	result := se.runSteps()
+
+	require.Equal(t, StepPassed, result.Status, "multi-connection relay case should pass")
+	require.Len(t, result.Evidence, 6, "one evidence entry per step")
+	require.Equal(t, int32(2), accepts.Load(),
+		"the case must open two distinct connections (accepts=%d)", accepts.Load())
+}

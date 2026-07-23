@@ -47,6 +47,67 @@ func newWSTestServer(t *testing.T, handler func(conn *websocket.Conn)) string {
 	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
 }
 
+// newWSRelayServer starts an httptest server whose /ws path accepts multiple
+// connections, identifies each by its ?type= query param (web|bridge), and
+// relays every frame from one connection to the other — modeling a broker / DO
+// that forwards web<->bridge. It returns the ws:// URL and an accept counter.
+// Race-clean: the hub map is guarded by mu; forwarding looks up the peer under
+// the lock, then writes outside it. Used by the multi-connection Steps test.
+func newWSRelayServer(t *testing.T) (string, *atomic.Int32) {
+	t.Helper()
+	var accepts atomic.Int32
+	var mu sync.Mutex
+	hub := map[string]*websocket.Conn{} // role -> conn
+
+	// forward writes data to the connection whose role differs from fromRole
+	// (the single peer in a two-role relay). No peer yet -> drop (the test only
+	// sends after both connections are up).
+	forward := func(fromRole string, mt websocket.MessageType, data []byte) {
+		mu.Lock()
+		var target *websocket.Conn
+		for role, c := range hub {
+			if role != fromRole {
+				target = c
+				break
+			}
+		}
+		mu.Unlock()
+		if target == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = target.Write(ctx, mt, data)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		accepts.Add(1)
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			t.Errorf("accept: %v", err)
+			return
+		}
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
+		role := r.URL.Query().Get("type")
+		mu.Lock()
+		hub[role] = conn
+		mu.Unlock()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			forward(role, mt, data)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws", &accepts
+}
+
 func newWSExecutor() *WebSocketExecutor {
 	return NewWebSocketExecutor(zap.NewNop(), nil)
 }
