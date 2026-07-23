@@ -37,12 +37,24 @@ func caseNamespace(ctx context.Context, connectionID string) string {
 	return v + ":" + connectionID
 }
 
-// wsEntry is a persisted WebSocket connection owned by a case context.
+// wsMsg is one inbound WebSocket frame buffered by the read pump.
+type wsMsg struct {
+	data   []byte
+	binary bool
+}
+
+// wsEntry is a persisted WebSocket connection owned by a case context. The read
+// pump goroutine owns conn.Read (single reader); consumers (handshake/receive)
+// drain the msgs channel under readMu — they never call conn.Read directly, so
+// concurrent reads are structurally impossible.
 type wsEntry struct {
 	conn     *websocket.Conn
 	ctx      context.Context   // per-case ctx; cancellation closes the conn
-	readMu   sync.Mutex        // serializes concurrent Reads on this conn
 	protocol *project.Protocol // service protocol resolved at connect; nil = M0
+	msgs     chan wsMsg        // buffered (256); pump pushes every inbound frame
+	pumpErr  error             // set when the pump exits (read error / ctx done)
+	done     chan struct{}     // closed when the pump has exited
+	readMu   sync.Mutex        // serializes channel consumption (one consumer at a time)
 }
 
 // WebSocketExecutor handles persistent WebSocket connections and primitives.
@@ -101,9 +113,22 @@ func wsURL(u string) string {
 }
 
 func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.Context, proto *project.Protocol) {
+	entry := &wsEntry{
+		conn:     conn,
+		ctx:      ctx,
+		protocol: proto,
+		msgs:     make(chan wsMsg, 256),
+		done:     make(chan struct{}),
+	}
 	e.mu.Lock()
-	e.conns[id] = &wsEntry{conn: conn, ctx: ctx, protocol: proto}
+	e.conns[id] = entry
 	e.mu.Unlock()
+	// Read pump: a single goroutine owns conn.Read for the life of the entry.
+	// It reads with entry.ctx only (NO timeout context) so a consumer's read
+	// deadline never reaches conn.Read and therefore never closes the connection
+	// — the coder/websocket read-timeout-closes-conn bug this pump fixes.
+	// Consumers (handshake/receive) drain msgs under readMu with their own timeout.
+	go entry.readPump()
 	// Close the connection when the owning case context is cancelled.
 	go func() {
 		<-ctx.Done()
@@ -112,6 +137,78 @@ func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.C
 		delete(e.conns, id)
 		e.mu.Unlock()
 	}()
+}
+
+// readPump is the single reader for this connection. It owns conn.Read for the
+// lifetime of the entry: NO other goroutine may call conn.Read (it would
+// corrupt the frame stream). It reads with entry.ctx only — never a timeout
+// context — so a frame arrival or ctx cancellation is the only thing that
+// unblocks it; a consumer's timeout cannot close the connection. Each frame is
+// pushed to the buffered msgs channel (back-pressure: the pump blocks on send
+// when full, never drops). On read error (peer close or ctx cancel) it sets
+// pumpErr and closes done so consumers detect the dead connection. Lifecycle
+// closure stays with the ctx-cancel cleanup goroutine + doDisconnect.
+func (entry *wsEntry) readPump() {
+	defer close(entry.done)
+	for {
+		mt, data, err := entry.conn.Read(entry.ctx)
+		if err != nil {
+			entry.pumpErr = err
+			return
+		}
+		select {
+		case entry.msgs <- wsMsg{data: data, binary: mt == websocket.MessageBinary}:
+		case <-entry.ctx.Done():
+			return
+		}
+	}
+}
+
+// readMatching consumes frames from entry's pump until one satisfies match, the
+// timeout elapses, or the pump exits. It is the single consumer entry point:
+// entry.readMu serializes consumption so at most one consumer drains msgs per
+// connection at a time (preserving today's per-conn receive serialization).
+//
+// Returns the matched frame (valid only when status == "matched"), the
+// human-readable non-matching frames seen, and a status:
+//   - "matched": a frame satisfied match.
+//   - "timeout": no match before the deadline; the connection is STILL ALIVE
+//     (the pump keeps running). The caller returns OK:false without closing the
+//     conn, so a later send/receive on the same connection_id can succeed.
+//   - "closed": the pump exited (peer close / ctx cancel); entry.pumpErr holds
+//     the cause.
+func readMatching(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration) (matched wsMsg, seen []string, status string) {
+	entry.readMu.Lock()
+	defer entry.readMu.Unlock()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		// Drain already-buffered frames without blocking.
+		draining := true
+		for draining {
+			select {
+			case m := <-entry.msgs:
+				if match(m) {
+					return m, seen, "matched"
+				}
+				seen = append(seen, frameForResult(framingOf(entry), m.data))
+			default:
+				draining = false
+			}
+		}
+		// No buffered match; wait for a new frame, the timeout, or pump exit.
+		select {
+		case m := <-entry.msgs:
+			if match(m) {
+				return m, seen, "matched"
+			}
+			seen = append(seen, frameForResult(framingOf(entry), m.data))
+		case <-timer.C:
+			return matched, seen, "timeout"
+		case <-entry.done:
+			return matched, seen, "closed"
+		}
+	}
 }
 
 func (e *WebSocketExecutor) lookup(id string) (*wsEntry, bool) {
@@ -227,50 +324,41 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	e.store(key, conn, ctx, proto)
 	// Auto-handshake (role with handshake declared). The handshake is
 	// non-decisive: a match means "connection ready", not "case passed", so
-	// ws_connect stays an intermediate step. The Read loop is guarded by the
-	// entry's readMu alone (mirroring doReceive); only the timeout cleanup
-	// takes e.mu, never both at once. The Read runs against a fresh timeout
-	// context derived from role.Handshake.Timeout, independent of the case ctx.
+	// ws_connect stays an intermediate step. readMatching drains the pump under
+	// the entry's readMu; only the timeout-failure cleanup takes e.mu, never
+	// both at once (readMatching has returned and released readMu before e.mu).
 	var seen []string
 	if role != nil && role.Handshake != nil {
-		hsTimeout := time.Duration(role.Handshake.Timeout) * time.Second
-		hsCtx, hsCancel := context.WithTimeout(ctx, hsTimeout)
 		entry, ok := e.lookup(key)
 		if !ok {
-			hsCancel()
 			return types.WSResult{OK: false, URL: preInjectionURL, Err: "ws handshake: connection vanished", Latency: time.Since(start)}
 		}
-		entry.readMu.Lock()
-		matched := false
 		hsFraming := framingOf(entry)
 		path := "type"
 		if proto.TypePath != "" {
 			path = proto.TypePath
 		}
-		for {
-			_, data, rerr := entry.conn.Read(hsCtx)
-			if rerr != nil {
-				break // timeout or peer close
-			}
-			seen = append(seen, frameForResult(hsFraming, data))
-			if matchType(hsFraming, data, role.Handshake.AwaitType, path) {
-				matched = true
-				break
-			}
-		}
-		entry.readMu.Unlock()
-		hsCancel()
-		if !matched {
-			// Mandatory handshake did not complete: close + remove the
-			// connection so a subsequent ws_send on this id fails as unknown.
+		awaitType := role.Handshake.AwaitType
+		hsTimeout := time.Duration(role.Handshake.Timeout) * time.Second
+		matched, hsSeen, hsStatus := readMatching(entry, func(m wsMsg) bool {
+			return matchType(hsFraming, m.data, awaitType, path)
+		}, hsTimeout)
+		if hsStatus != "matched" {
+			// Mandatory handshake did not complete (timeout or peer close):
+			// close + remove the connection so a subsequent ws_send on this id
+			// fails as unknown. Closing the conn stops the pump (its Read errors
+			// out); the ctx-cancel cleanup goroutine is a redundant safety net.
 			e.mu.Lock()
 			if ent, ok := e.conns[key]; ok {
 				_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake timeout")
 				delete(e.conns, key)
 			}
 			e.mu.Unlock()
-			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", role.Handshake.AwaitType), SeenMessages: seen, Latency: time.Since(start)}
+			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
 		}
+		// The matched handshake frame is also evidence: the old loop appended
+		// every frame (including the match) to seen before checking the match.
+		seen = append(hsSeen, frameForResult(hsFraming, matched.data))
 	}
 	return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: seen, Latency: time.Since(start)}
 }
@@ -475,12 +563,6 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	if !ok {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
 	}
-	// coder/websocket forbids concurrent Read on one conn (it would corrupt
-	// the frame stream). Serialize Reads per connection via readMu — different
-	// connections still run in parallel because each entry has its own mutex.
-	entry.readMu.Lock()
-	defer entry.readMu.Unlock()
-	conn, connCtx := entry.conn, entry.ctx
 	framing := framingOf(entry)
 	// type_path selects the routing key for json-framed protocols. Unused under
 	// text/binary (matched by whole-frame equality) but read so the json path
@@ -506,34 +588,35 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
-	readCtx, cancel := context.WithTimeout(connCtx, timeout)
-	defer cancel()
-
-	var seen []string
-	for {
-		_, data, err := conn.Read(readCtx)
-		if err != nil {
-			// Peer close or timeout: no matching message arrived.
-			return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", err), SeenMessages: seen, Latency: time.Since(start)}
-		}
-		if matchType(framing, data, a.Type, path) {
-			// Matched. For json framing, evaluate field-level assertions (if any)
-			// in sorted path order; the first failure fails the receive with a
-			// precise message. The matched frame is evidence either way. No
-			// asserts (or non-json framing) → arrival-only success.
-			if framing == "" || framing == "json" {
-				if p, exp, act, ok := checkAsserts(data, a.Assert); !ok {
-					return types.WSResult{
-						OK:             false,
-						Err:            fmt.Sprintf("receive: assert %s: expected %v, got %v", p, exp, act),
-						MatchedMessage: frameForResult(framing, data),
-						SeenMessages:   seen,
-						Latency:        time.Since(start),
-					}
+	matched, seen, status := readMatching(entry, func(m wsMsg) bool {
+		return matchType(framing, m.data, a.Type, path)
+	}, timeout)
+	switch status {
+	case "matched":
+		data := matched.data
+		// For json framing, evaluate field-level assertions (if any) in sorted
+		// path order; the first failure fails the receive with a precise message.
+		// The matched frame is evidence either way. No asserts (or non-json
+		// framing) → arrival-only success.
+		if framing == "" || framing == "json" {
+			if p, exp, act, ok := checkAsserts(data, a.Assert); !ok {
+				return types.WSResult{
+					OK:             false,
+					Err:            fmt.Sprintf("receive: assert %s: expected %v, got %v", p, exp, act),
+					MatchedMessage: frameForResult(framing, data),
+					SeenMessages:   seen,
+					Latency:        time.Since(start),
 				}
 			}
-			return types.WSResult{OK: true, MatchedMessage: frameForResult(framing, data), SeenMessages: seen, Latency: time.Since(start)}
 		}
-		seen = append(seen, frameForResult(framing, data))
+		return types.WSResult{OK: true, MatchedMessage: frameForResult(framing, data), SeenMessages: seen, Latency: time.Since(start)}
+	case "timeout":
+		// No matching frame within the deadline. The connection is STILL ALIVE
+		// (the pump keeps running): return OK:false without closing, so a later
+		// send/receive on the same connection_id can succeed.
+		return types.WSResult{OK: false, Err: fmt.Sprintf("receive: timed out awaiting %q", a.Type), SeenMessages: seen, Latency: time.Since(start)}
+	default: // "closed"
+		// The pump exited (peer close or ctx cancel); the connection is dead.
+		return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", entry.pumpErr), SeenMessages: seen, Latency: time.Since(start)}
 	}
 }

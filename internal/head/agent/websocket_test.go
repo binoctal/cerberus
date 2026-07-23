@@ -1279,3 +1279,91 @@ func TestConnectRoleSubprotocolsInjected(t *testing.T) {
 		t.Fatal("server never observed offered subprotocols")
 	}
 }
+
+// TestWSReceiveTimeoutLeavesConnectionAlive is the headline proof of the
+// per-connection read pump: a ws_receive that times out (no matching frame)
+// does NOT close the connection. A subsequent ws_send + ws_receive on the SAME
+// connection_id must succeed. Under the old "read with a timeout context" model,
+// coder/websocket registered context.AfterFunc(ctx, func(){ c.close() }) on the
+// read, so the timeout closed the conn and the post-timeout send failed.
+func TestWSReceiveTimeoutLeavesConnectionAlive(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		// Echo loop: the server sends nothing unsolicited, so the first receive
+		// (awaiting "anything") times out. It only writes back what the client
+		// sends, proving the conn survives the receive-timeout.
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			if err := conn.Write(ctx, mt, data); err != nil {
+				return
+			}
+		}
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+
+	if !ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect failed")
+	}
+
+	// First receive times out: server sends nothing, so no frame matches.
+	r1 := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "anything", Timeout: 1})
+	if r1.Success() {
+		t.Fatalf("first receive should time out, got success: %+v", r1)
+	}
+
+	// Headline assertion: the connection is STILL ALIVE. A post-timeout send +
+	// receive on the SAME connection_id must succeed.
+	if !ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: `{"type":"echo"}`}).Success() {
+		t.Fatal("send after receive-timeout failed (conn closed by read-timeout)")
+	}
+	r2 := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "echo", Timeout: 2})
+	ws, ok := r2.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("receive after receive-timeout failed (conn not alive): %+v", r2)
+	}
+}
+
+// TestWSReceiveAfterPeerCloseReturnsError proves the pump-exit path: when the
+// peer closes the connection mid-case, the pump goroutine exits (sets pumpErr,
+// closes done), and a subsequent ws_receive returns an error promptly rather
+// than hanging on a dead channel.
+func TestWSReceiveAfterPeerCloseReturnsError(t *testing.T) {
+	peerClose := make(chan struct{})
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		// Wait for the test to signal, then close (peer close from client's view).
+		select {
+		case <-peerClose:
+		case <-ctx.Done():
+			return
+		}
+		_ = conn.Close(websocket.StatusNormalClosure, "peer done")
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	if !ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success() {
+		t.Fatal("connect failed")
+	}
+
+	// Close the peer connection, then a receive must return an error (not hang).
+	close(peerClose)
+
+	done := make(chan types.ExecutorResult, 1)
+	go func() {
+		done <- ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "anything", Timeout: 5})
+	}()
+	select {
+	case r := <-done:
+		if r.Success() {
+			t.Fatalf("receive after peer close should fail, got success: %+v", r)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("receive hung after peer close (pump did not exit / done not observed)")
+	}
+}
