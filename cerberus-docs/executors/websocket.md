@@ -336,6 +336,26 @@ Goals without such an exchange keep the connect + receive-case form above.
 Coexistence: non-`Steps` cases (HTTP, process, ad-hoc WS) are unchanged. Design:
 [`cerberus-docs/superpowers/specs/2026-07-23-ws-deterministic-steps-design.md`](../superpowers/specs/2026-07-23-ws-deterministic-steps-design.md).
 
+### Multi-connection orchestration
+
+A `Steps` case may cite more than one `connection_id` (and more than one `role`).
+Each distinct id is a distinct connection: the executor's connection table is
+keyed by `<caseID>:<connectionID>`, and `runSteps` runs every step under the same
+case context, so steps that name different ids open and use separate sockets
+within one case. This expresses cross-socket relay scenarios — e.g. connect a
+`web` client and a `bridge` client to the same `/ws/{userId}` endpoint, send from
+`web`, and receive the broker-relayed reply on `web` (or `bridge`).
+
+The relay is transparent to the executor: `ws_receive` matches by `type` (+ field
+asserts) exactly as on a single connection. cerberus does not need to know a
+message was relayed. No executor, `runSteps`, `stepToAction`, `TestStep`, or
+protocol-schema change is required to orchestrate multiple connections; an
+optional `role` handshake (`optional: true`) keeps a connection usable across a
+peer-gated welcome that never arrives. Design:
+[`cerberus-docs/superpowers/specs/2026-07-23-ws-f1-multi-connection-design.md`](../superpowers/specs/2026-07-23-ws-f1-multi-connection-design.md);
+real-traffic validation:
+[`cerberus-docs/technical/dogfood/2026-07-23-ws-f1-multi-connection-dogfood.md`](../technical/dogfood/2026-07-23-ws-f1-multi-connection-dogfood.md).
+
 ### M0 fallback
 
 A service without a `protocol:` block behaves exactly as M0: `ws_receive`

@@ -8,8 +8,9 @@ import (
 )
 
 // stepToAction converts a declarative TestStep into the typed WS action the
-// shared executor already dispatches. The connect step dials tc.Target; role
-// drives protocol auth + handshake exactly as a Steer-emitted ws_connect does.
+// shared executor already dispatches. Every step carries its own connection_id,
+// so a case may address several connections. The connect step dials tc.Target;
+// role drives protocol auth + handshake exactly as a Steer-emitted ws_connect.
 func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 	switch s.Action {
 	case "ws_connect":
@@ -26,10 +27,13 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 }
 
 // runSteps executes a deterministic multi-step WS case: each step runs via the
-// shared executor under the case context (caseIDKey already set by executeStep),
-// so steps citing the same connection_id share one connection. The first failed
-// step short-circuits the case. The decisive verdict is the final ws_receive
-// assert; a completed chain is a real upgraded exchange for the Examiner.
+// shared executor under the case context (caseIDKey already set by executeStep).
+// Steps citing the SAME connection_id share one connection; steps citing
+// DIFFERENT connection_ids open distinct connections in the same case (the table
+// is keyed <caseID>:<connectionID>), enabling multi-connection / cross-socket
+// relay orchestration. The first failed step short-circuits the case. The
+// decisive verdict is the final ws_receive assert; a completed chain is a real
+// upgraded exchange for the Examiner.
 func (se *stepExecution) runSteps() StepResult {
 	r := se.loop
 	var evidence []Evidence
