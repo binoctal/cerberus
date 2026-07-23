@@ -159,6 +159,9 @@ func (entry *wsEntry) readPump() {
 		select {
 		case entry.msgs <- wsMsg{data: data, binary: mt == websocket.MessageBinary}:
 		case <-entry.ctx.Done():
+			// ctx cancel while the channel is full: record the cause so a
+			// racing consumer doesn't format a misleading "receive: <nil>".
+			entry.pumpErr = entry.ctx.Err()
 			return
 		}
 	}
