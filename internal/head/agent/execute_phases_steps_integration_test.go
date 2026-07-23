@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // TestRunStepsMultiConnectionOpenAgents dogfoods cerberus's multi-connection
@@ -51,7 +52,12 @@ func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 			"web": {
 				CredentialRef: "web-actor",
 				Params:        map[string]string{"type": "web"},
-				Handshake:     &project.RoleHandshake{AwaitType: "devices:sync", Optional: true, Timeout: 2},
+				// device:online is the peer-join signal the DO pushes to web when a
+				// bridge connects (discovered via dogfood; the Tier-2 doc's
+				// "devices:sync" was inaccurate for this dev build). Optional: a lone
+				// web client gets silence, so the connect-time await times out and
+				// the connection stays usable (the signal arrives once bridge joins).
+				Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2},
 			},
 			"bridge": {
 				CredentialRef: "bridge-actor",
@@ -76,8 +82,8 @@ func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 		Steps: []TestStep{
 			{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
 			{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
-			// Relay signal: the DO pushes devices:sync to web once bridge joins.
-			{Action: "ws_receive", ConnectionID: "c-web", Type: "devices:sync", Timeout: 3},
+			// Relay signal: the DO pushes device:online to web once bridge joins.
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
 			// Best-effort request/reply across the relay.
 			{Action: "ws_send", ConnectionID: "c-web", Message: `{"type":"session:start"}`},
 			{Action: "ws_receive", ConnectionID: "c-web", Type: "session:created", Timeout: 3},
@@ -88,6 +94,16 @@ func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 	result := se.runSteps()
 	for _, ev := range result.Evidence {
 		t.Logf("step evidence: %s", ev.Content)
+	}
+	// Dogfood diagnostics: log the actual frames the final step observed, so a
+	// run surfaces real wire content (types discovered at run time) not just counts.
+	if ws, ok := result.Result.(types.WSResult); ok {
+		for i, sm := range ws.SeenMessages {
+			t.Logf("observed frame[%d]: %s", i, sm)
+		}
+		if ws.MatchedMessage != "" {
+			t.Logf("matched frame: %s", ws.MatchedMessage)
+		}
 	}
 
 	// HARD capability assertion: both connects succeeded. Evidence is appended

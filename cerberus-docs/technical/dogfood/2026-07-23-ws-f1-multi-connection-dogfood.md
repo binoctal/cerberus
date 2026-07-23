@@ -28,10 +28,20 @@ ws_connect: ws ok ws://localhost:8989/ws/user_…?type=web            connection
 ws_connect: ws ok ws://localhost:8989/ws/user_…?deviceId=…&type=bridge connection_id=c-bridge (20ms)
 ```
 
-The `web` connect's optional handshake awaits `devices:sync`; it times out after
-2 s and the connection stays alive (F2 + read-pump), exactly as in the unit test.
-The case reaches the third step (the hard capability assertion
-`len(Evidence) >= 3` holds), proving both connects succeeded.
+The `web` connect's optional handshake awaits the peer-join signal; it times out
+after 2 s (a lone web client gets silence) and the connection stays alive
+(F2 + read-pump), exactly as in the unit test. Once the bridge connects, the DO
+relays the peer-join signal to `web`, which the third step MATCHES:
+
+```
+ws_receive: ws ok   (matched=1)   # device:online relayed bridge-join -> web
+ws_send:     ws ok                 # session:start sent from web
+ws_receive: ws error (seen=1)      # server rejected the minimal session:start (Finding 4)
+```
+
+So the cross-socket relay is proven end-to-end on real traffic (bridge-join → DO →
+`web` receives the relayed `device:online`), and the hard capability assertion
+(`len(Evidence) >= 3`, both connects) holds.
 
 ## Findings (open-agents specifics discovered at run time)
 
@@ -50,23 +60,36 @@ The case reaches the third step (the hard capability assertion
    param alongside the auth token. `web` needs none of this — `demo_token` is a
    dev backdoor accepted for any userId.
 
-3. **The relay pushes a frame to `web` on bridge-join, but not `devices:sync`.**
-   The `ws_receive` awaiting `devices:sync` timed out with `seen=1`: exactly one
-   frame arrived on the web socket after the bridge connected, but it did not
-   match the `devices:sync` type. cerberus observed the relay deliver a frame to
-   `web`; the exact type/shape of that peer-join signal in this dev build differs
-   from the Tier-2 description (or routes differently) and was not captured (the
-   test logs match/seen counts, not frame contents). Pinning it down is follow-up
-   dogfood work and partly F4 (batching/type-alias) territory.
+3. **The relay peer-join signal is `device:online`, not `devices:sync`.** When
+   the bridge connects, the DO pushes
+   `{"type":"device:online","payload":{"deviceId":...,"deviceName":...},"timestamp":...}`
+   to the web socket. The Tier-2 doc's `devices:sync` was inaccurate for this dev
+   build — the real signal is `device:online` (singular, per joined device). With
+   the test awaiting `device:online`, the receive MATCHES (`matched=1`): the
+   cross-socket relay is proven end-to-end (bridge-join → DO → web receives the
+   relayed signal). The test logs observed frames (`SeenMessages`) so future
+   dogfood runs surface the actual wire content, not just match/seen counts.
+
+4. **`session:start` needs a richer payload.** Sending the minimal
+   `{"type":"session:start"}` is rejected:
+   `{"type":"error","payload":{"code":"MESSAGE_PROCESSING_ERROR","message":"Failed to process message"}}`.
+   The real `session:start` requires protocol-specific fields (session config).
+   This is open-agents protocol detail — exactly the message-body understanding
+   the Steer/Scout LLM (or M3-3) supplies at run time, not a cerberus concern. The
+   test logs it as a best-effort finding and still passes on the capability
+   assertion (both connects + the relay signal).
 
 ## Conclusion
 
 - cerberus's multi-connection orchestration works on a real, undocumented
   multi-party relay target: one `Steps` case opened a `web` and a `bridge` socket
-  to the same Durable Object and observed the relay push a frame across them.
+  to the same Durable Object, and the relayed peer-join signal (`device:online`)
+  was MATCHED on `web` — the cross-socket relay is proven end-to-end.
 - The deterministic unit test (`TestRunStepsMultiConnection`) is the mechanical
   proof; this integration run is the real-traffic confirmation.
-- The open-agents relay's exact message vocabulary (the peer-join signal type,
-  `session:*` request/reply) remains a best-effort dogfood area — exactly the
-  kind of protocol understanding the Steer/Scout LLM (or M3-3 `protocol infer`)
-  is meant to supply at run time, not something to bake into the executor.
+- What remains open-agents-protocol-specific (not cerberus): the `session:start`
+  message body (Finding 4) and the rest of the `session:*` request/reply
+  vocabulary. That is exactly the kind of protocol understanding the Steer/Scout
+  LLM (or M3-3 `protocol infer`) supplies at run time, not something to bake into
+  the executor. F3 (dynamic `/ws/{userId}`) and F4 (batching/type-alias) are
+  still deferred; neither blocked this relay proof.
