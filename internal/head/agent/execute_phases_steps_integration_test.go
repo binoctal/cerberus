@@ -5,6 +5,8 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -35,11 +37,12 @@ func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 	}
 
 	// Provision a user + bridge device. demo_token (dev backdoor) authenticates
-	// the web socket for any userId; the device token authenticates bridge.
+	// the web socket for any userId; the bridge socket authenticates with the
+	// device id + token (the Worker DB-validates type=bridge&deviceId&token).
 	// Both connect to /ws/<userId> so they share one UserRoom DO (the relay).
-	userId, deviceToken, err := devSetup(base)
+	userId, deviceId, deviceToken, err := devSetup(base)
 	require.NoError(t, err, "POST /api/dev/setup")
-	t.Logf("provisioned userId=%s deviceToken=%s", userId, deviceToken)
+	t.Logf("provisioned userId=%s deviceId=%s deviceToken=%s", userId, deviceId, deviceToken)
 
 	p := &project.Protocol{
 		TypePath: "type",
@@ -52,7 +55,10 @@ func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 			},
 			"bridge": {
 				CredentialRef: "bridge-actor",
-				Params:        map[string]string{"type": "bridge"},
+				// deviceId + token are both required: the Worker DB-validates
+				// type=bridge connections as devices WHERE id=? AND user_id=?
+				// AND device_token=? (worker.ts:359-367), discovered via dogfood.
+				Params: map[string]string{"type": "bridge", "deviceId": deviceId},
 			},
 		},
 	}
@@ -116,22 +122,39 @@ func reachable(base string) bool {
 	return true
 }
 
-// devSetup POSTs /api/dev/setup and returns the provisioned userId + deviceToken
-// (response.config.{userId,deviceToken}).
-func devSetup(base string) (userId, deviceToken string, err error) {
-	resp, err := http.Post(base+"/api/dev/setup", "application/json", strings.NewReader(`{}`))
+// devSetup POSTs /api/dev/setup and returns the provisioned userId, deviceId,
+// and deviceToken (response.config.{userId,deviceId,deviceToken}). The dev
+// server's CSRF middleware requires an Origin header (discovered during
+// dogfooding), so one is set. A non-2xx response surfaces its body for a clear
+// failure (over a bare decode error), and the request is bound to a timeout
+// like reachable.
+func devSetup(base string) (userId, deviceId, deviceToken string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/dev/setup", strings.NewReader(`{}`))
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", base)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", "", "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return "", "", "", fmt.Errorf("dev setup: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
 	var out struct {
 		Config struct {
 			UserId      string `json:"userId"`
+			DeviceId    string `json:"deviceId"`
 			DeviceToken string `json:"deviceToken"`
 		} `json:"config"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return out.Config.UserId, out.Config.DeviceToken, nil
+	return out.Config.UserId, out.Config.DeviceId, out.Config.DeviceToken, nil
 }
