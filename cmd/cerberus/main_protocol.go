@@ -155,6 +155,9 @@ func readInputs(path string) ([]protocoldiscover.SourceFile, error) {
 		}
 		out = append(out, protocoldiscover.SourceFile{Path: e.Name(), Content: string(data)})
 	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no readable text files under %s", path)
+	}
 	return out, nil
 }
 

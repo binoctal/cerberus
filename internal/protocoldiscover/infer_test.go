@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
+	"unicode/utf8"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestInfer_ReturnsValidatedProtocol(t *testing.T) {
@@ -47,7 +50,7 @@ func TestInfer_InvalidCredentialRefFailsValidation(t *testing.T) {
 	})
 	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid")
+	assert.Contains(t, err.Error(), "does not match any actor")
 }
 
 // TestInfer_RolesPopulated exercises the roles mapping path. Without the
@@ -115,4 +118,24 @@ func mockDriverRaw(t *testing.T, resp string) *ai.Driver {
 	t.Helper()
 	mock := llm.NewMockClient(map[string]string{"default": resp})
 	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+}
+
+// TestTruncateContent_RuneSafe guards against byte-slicing a multi-byte rune at
+// the truncation point: the output must remain valid UTF-8. "世界" is 2 runes /
+// 6 bytes; byte-slicing at an odd boundary would split the second rune.
+func TestTruncateContent_RuneSafe(t *testing.T) {
+	s := strings.Repeat("世界", 10) // 20 runes, 60 bytes
+	out := truncateContent(s, 5)
+	if !utf8.ValidString(out) {
+		t.Errorf("truncated output is not valid UTF-8: %q", out)
+	}
+	// The rune prefix before the marker must be exactly 5 runes.
+	marker := strings.Index(out, "\n…[truncated]")
+	if marker < 0 {
+		t.Fatalf("missing truncation marker in %q", out)
+	}
+	prefix := out[:marker]
+	if got := utf8.RuneCountInString(prefix); got != 5 {
+		t.Errorf("prefix rune count = %d, want 5", got)
+	}
 }

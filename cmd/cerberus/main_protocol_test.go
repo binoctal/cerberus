@@ -164,6 +164,31 @@ func TestRunProtocolInfer_NoProtocolIsNotError(t *testing.T) {
 	}
 }
 
+// TestRunProtocolInfer_EmptyFromDirErrors guards against an empty --from dir
+// silently proceeding to an LLM call with no signal: readInputs must error
+// before Infer is reached, so the driver is never contacted.
+func TestRunProtocolInfer_EmptyFromDirErrors(t *testing.T) {
+	workDir := t.TempDir()
+	writeProtocolProjectYAML(t, workDir, protocolFixture)
+	emptyDir := filepath.Join(workDir, "empty")
+	if err := os.MkdirAll(emptyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	opts := protocolInferOpts{
+		Name:    "ws",
+		From:    "empty",
+		DryRun:  true,
+		confirm: func(string) bool { return true },
+	}
+	err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolJSON), opts)
+	if err == nil {
+		t.Fatal("want error for empty --from dir, got nil")
+	}
+	if !strings.Contains(err.Error(), "no readable text files") {
+		t.Errorf("error should mention 'no readable text files', got: %v", err)
+	}
+}
+
 // Ensure the package compiles against protocoldiscover's public surface.
 var _ = protocoldiscover.ErrNoProtocol
 

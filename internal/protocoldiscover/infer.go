@@ -156,10 +156,13 @@ func buildInferPrompt(serviceName string, inputs []SourceFile) string {
 }
 
 // truncateContent caps an input file's contribution to the prompt so a single
-// huge doc cannot blow the context budget.
+// huge doc cannot blow the context budget. n is a rune count (not bytes) so the
+// cut never splits a multi-byte UTF-8 sequence, which would yield malformed
+// output at the truncation point.
 func truncateContent(s string, n int) string {
-	if len(s) <= n {
+	r := []rune(s)
+	if len(r) <= n {
 		return s
 	}
-	return s[:n] + "\n…[truncated]"
+	return string(r[:n]) + "\n…[truncated]"
 }
