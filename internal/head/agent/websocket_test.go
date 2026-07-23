@@ -805,6 +805,85 @@ func TestConnectRoleHandshakeTimeoutFailsAndCleansUp(t *testing.T) {
 	}
 }
 
+// TestConnectRoleHandshakeOptionalSucceedsOnTimeout is the headline proof of F2
+// (optional/best-effort handshake): a role whose handshake is Optional:true
+// SUCCEEDS even when the awaited message never arrives within the timeout — and
+// the connection STAYS USABLE. A follow-up ws_send + ws_receive on the SAME
+// connection_id must succeed, proving the pump kept the conn alive across the
+// handshake timeout (readMu released, entry not deleted, pump still running).
+// This mirrors TestWSReceiveTimeoutLeavesConnectionAlive but for the handshake
+// path, which historically closed+deleted the conn on any non-match.
+func TestConnectRoleHandshakeOptionalSucceedsOnTimeout(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		// Echo loop: server sends nothing unsolicited, so the optional handshake
+		// awaiting "devices:sync" times out. It only writes back what the client
+		// sends, proving the conn survived the handshake-timeout.
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			if err := conn.Write(ctx, mt, data); err != nil {
+				return
+			}
+		}
+	})
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 1, Optional: true}}}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, p))
+	ctx := context.Background()
+
+	res := ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1", Role: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("optional handshake should succeed on timeout, got %+v", res)
+	}
+	if ws.ConnectionID != "c1" {
+		t.Fatalf("connection id not echoed: %q", ws.ConnectionID)
+	}
+
+	// Headline: the connection is STILL ALIVE. A post-handshake send + receive
+	// on the SAME connection_id must succeed (conn kept under the pump).
+	if !ex.Execute(ctx, types.WSSendAction{ConnectionID: "c1", Message: `{"type":"echo"}`}).Success() {
+		t.Fatal("send after optional-handshake-timeout failed (conn was closed/deleted)")
+	}
+	recv := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "echo", Timeout: 2})
+	if !recv.Success() {
+		t.Fatalf("receive after optional-handshake-timeout failed (conn not alive): %+v", recv)
+	}
+}
+
+// TestConnectRoleHandshakeOptionalCapturesWhenPresent proves the best-effort
+// path still CAPTURES the awaited message when it does arrive: connect returns
+// OK:true and SeenMessages contains the awaited type (plus any non-matching
+// frames seen first). Optional only changes the timeout outcome, not the match.
+func TestConnectRoleHandshakeOptionalCapturesWhenPresent(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"hello"}`))
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"devices:sync"}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 2, Optional: true}}}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, wsURL, p))
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: wsURL, ConnectionID: "c1", Role: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("optional handshake should succeed when message arrives, got %+v", res)
+	}
+	joined := strings.Join(ws.SeenMessages, "")
+	if !strings.Contains(joined, "devices:sync") {
+		t.Fatalf("awaited handshake message not captured in evidence: %v", ws.SeenMessages)
+	}
+	if !strings.Contains(joined, "hello") {
+		t.Fatalf("non-matching preamble not captured in evidence: %v", ws.SeenMessages)
+	}
+}
+
 // TestInjectAuthQueryBadURLFails locks in the M1 bad-url guard that Task 4
 // regressed: with strategy=query, a malformed dial url must fail fast inside
 // injectAuth with "ws auth: bad url" rather than silently falling back through

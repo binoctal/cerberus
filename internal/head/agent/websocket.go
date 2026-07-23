@@ -346,11 +346,26 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 		matched, hsSeen, hsStatus := readMatching(entry, func(m wsMsg) bool {
 			return matchType(hsFraming, m.data, awaitType, path)
 		}, hsTimeout)
-		if hsStatus != "matched" {
-			// Mandatory handshake did not complete (timeout or peer close):
-			// close + remove the connection so a subsequent ws_send on this id
-			// fails as unknown. Closing the conn stops the pump (its Read errors
-			// out); the ctx-cancel cleanup goroutine is a redundant safety net.
+		switch hsStatus {
+		case "matched":
+			// The matched handshake frame is also evidence: the old loop appended
+			// every frame (including the match) to seen before checking the match.
+			seen = append(hsSeen, frameForResult(hsFraming, matched.data))
+		case "timeout":
+			if role.Handshake.Optional {
+				// Best-effort handshake: the awaited message did not arrive within
+				// the timeout, but the connection is STILL ALIVE (the read pump
+				// keeps running; readMatching released readMu on return). Succeed
+				// without closing so a later ws_send/ws_receive on the same
+				// connection_id works — peer-gated handshakes (e.g. open-agents'
+				// devices:sync) only arrive when a bridge is online. Non-matching
+				// frames seen while waiting are returned as evidence.
+				return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: hsSeen, Latency: time.Since(start)}
+			}
+			// Mandatory handshake timed out: close + remove the connection so a
+			// subsequent ws_send on this id fails as unknown. Closing the conn
+			// stops the pump (its Read errors out); the ctx-cancel cleanup
+			// goroutine is a redundant safety net.
 			e.mu.Lock()
 			if ent, ok := e.conns[key]; ok {
 				_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake timeout")
@@ -358,10 +373,18 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 			}
 			e.mu.Unlock()
 			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
+		default: // "closed"
+			// The pump exited (peer close or ctx cancel) before the handshake
+			// completed. The connection is dead regardless of optional/mandatory:
+			// close + remove it so a subsequent ws_send fails as unknown.
+			e.mu.Lock()
+			if ent, ok := e.conns[key]; ok {
+				_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake closed")
+				delete(e.conns, key)
+			}
+			e.mu.Unlock()
+			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: connection closed awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
 		}
-		// The matched handshake frame is also evidence: the old loop appended
-		// every frame (including the match) to seen before checking the match.
-		seen = append(hsSeen, frameForResult(hsFraming, matched.data))
 	}
 	return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: seen, Latency: time.Since(start)}
 }

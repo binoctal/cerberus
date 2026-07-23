@@ -57,4 +57,9 @@ type RoleHandshake struct {
 	// Timeout is seconds to wait; must be > 0 (validation) so a mandatory
 	// handshake cannot hang a case indefinitely.
 	Timeout int `yaml:"timeout,omitempty"`
+	// Optional makes the handshake best-effort: when true, a timeout still
+	// succeeds the connect (the connection stays usable via the read pump).
+	// Default false = mandatory: a timeout fails the connect and tears down the
+	// connection. An optional handshake still requires await_type and timeout>0.
+	Optional bool `yaml:"optional,omitempty"`
 }
