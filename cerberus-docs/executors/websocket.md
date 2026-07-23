@@ -213,9 +213,10 @@ protocol:
 | `roles.<name>.params` | map[string]string | — | Discriminator query params applied (strip-then-inject) to the dial url. Must not include `protocol.auth.param` when `auth.strategy` is `query` (token-slot collision is rejected by validation). |
 | `roles.<name>.headers` | map[string]string | — | Discriminator dial headers strip-then-injected (delete-then-set). Must not include `auth.param` when `auth.strategy` is `header`. |
 | `roles.<name>.subprotocols` | []string | — | Discriminator subprotocol names offered (strip-then-injected: remove-then-append). Must not include `auth.param` when `auth.strategy` is `subprotocol`. |
-| `roles.<name>.handshake` | object | — | Optional mandatory post-connect exchange. When set, the executor auto-awaits `await_type` (matched at `protocol.type_path`) before the connect returns success. |
+| `roles.<name>.handshake` | object | — | Optional post-connect exchange. When set, the executor auto-awaits `await_type` (matched at `protocol.type_path`) before the connect returns success. |
 | `roles.<name>.handshake.await_type` | string | — | Routing-key value to wait for. Required when `handshake` is set. |
-| `roles.<name>.handshake.timeout` | int | — | Seconds to wait; must be > 0 (validation) so a mandatory handshake cannot hang a case indefinitely. |
+| `roles.<name>.handshake.timeout` | int | — | Seconds to wait; must be > 0 (validation) so the await cannot hang a case indefinitely. |
+| `roles.<name>.handshake.optional` | bool | false | Best-effort: when true, a connect SUCCEEDS even if `await_type` never arrives within `timeout` (the awaited message, when it does arrive, is still captured). For peer-gated handshakes (a welcome sent only when some peer is online). Default false = mandatory (timeout fails the connect). |
 
 `ws_connect` gains a `role` field:
 
