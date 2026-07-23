@@ -99,6 +99,23 @@ Launch an interactive TUI dashboard for monitoring sessions.
 cerberus dashboard
 ```
 
+### `cerberus protocol infer`
+
+Draft a WebSocket protocol declaration from docs/message examples for human
+review. The draft is never trusted implicitly — review it, edit, and wire
+`protocol_ref:` onto the service yourself.
+
+```bash
+cerberus protocol infer --name open-agents --from docs/realtime.md --service rt --dry-run
+```
+
+| Flag        | Default | Description                                                       |
+|-------------|---------|-------------------------------------------------------------------|
+| `--name`    |         | Protocol file name (`.cerberus/protocols/<name>.yaml`; plain name, required) |
+| `--from`    |         | Doc/example file or dir to infer from (required)                  |
+| `--service` | first   | Service the protocol targets                                      |
+| `--dry-run` | false   | Print the draft without writing                                   |
+
 ### `cerberus version`
 
 Print version information.

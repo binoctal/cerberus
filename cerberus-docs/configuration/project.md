@@ -153,6 +153,11 @@ name (no path separators or `..`); the file is loaded at config-load time. Full
 field semantics (framing, type_path, auth, roles, handshake, assertions) are in
 the [WebSocket executor doc](../executors/websocket.md).
 
+To draft a declaration from the target's docs or message examples, run
+`cerberus protocol infer` — it writes `.cerberus/protocols/<name>.yaml` as a
+**draft for human review** (never trusted implicitly; review, edit, and wire
+`protocol_ref:` yourself). See [CLI](../cli.md).
+
 ## Validation
 
 Cerberus validates the config on load and reports all issues:
