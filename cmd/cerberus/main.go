@@ -29,6 +29,7 @@ func main() {
 		selftestCmd(),
 		discoverCmd(),
 		authCmd(),
+		protocolCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

@@ -113,7 +113,7 @@ func resolveProtocolRefs(cfg *Config, baseDir string) error {
 		if baseDir == "" {
 			return fmt.Errorf("services[%d]: protocol_ref %q requires loading from a project directory", i, svc.ProtocolRef)
 		}
-		if err := checkProtocolRefName(svc.ProtocolRef); err != nil {
+		if err := CheckProtocolRefName(svc.ProtocolRef); err != nil {
 			return fmt.Errorf("services[%d]: protocol_ref %q: %w", i, svc.ProtocolRef, err)
 		}
 		path := filepath.Join(baseDir, ".cerberus", "protocols", svc.ProtocolRef+".yaml")
@@ -131,9 +131,10 @@ func resolveProtocolRefs(cfg *Config, baseDir string) error {
 	return nil
 }
 
-// checkProtocolRefName rejects a protocol_ref that could escape the protocols
-// directory (path traversal). The ref must be a plain name.
-func checkProtocolRefName(name string) error {
+// CheckProtocolRefName rejects a protocol_ref that could escape the protocols
+// directory (path traversal). The ref must be a plain name. Exported so the
+// `protocol infer` CLI can validate --name against the same rule before write.
+func CheckProtocolRefName(name string) error {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
 		return fmt.Errorf("must be a plain name (no path separators or parent traversal)")
 	}
