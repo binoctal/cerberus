@@ -350,9 +350,15 @@ replacement.
   LLM-supplied `connection_id` (e.g. `"conn1"`) never collide. Auto-generated
   ids (`ws-<seq>`) remain globally unique. Case exit (normal, timeout, or
   cancellation) closes only that case's connections.
-- **Serialization:** concurrent `ws_receive` calls on the same connection
-  serialize through a per-connection read mutex (`coder/websocket` forbids
-  concurrent `Read` on one conn). Different connections still run in parallel.
+- **Read pump & serialization:** each connection runs a background **read pump**
+  — a single goroutine that owns `conn.Read` (`coder/websocket` forbids
+  concurrent `Read` on one conn) and buffers inbound frames onto a channel.
+  `ws_receive` and the connect handshake consume from that channel, serialized
+  per-connection via a read mutex, so concurrent receives on one connection take
+  turns while different connections run in parallel. Because consumers read the
+  buffer (not `conn.Read` with a timeout), a `ws_receive` that times out **no
+  longer closes the connection** — a later send/receive on the same
+  `connection_id` still works.
 
 ### Secret hygiene
 
