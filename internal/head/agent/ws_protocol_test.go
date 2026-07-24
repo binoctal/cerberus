@@ -203,3 +203,23 @@ func TestFramingOf(t *testing.T) {
 		t.Fatalf("framing = %q, want binary", got)
 	}
 }
+
+// TestBuildWSProtocolIndex_StaticToken proves the static-Token fallback: an
+// actor with only Credentials.Token (no Auth flow / RawToken) still yields an
+// ActorTokens entry, a flow-resolved RawToken wins over the static Token, and
+// an actor with neither leaves ActorTokens untouched (backwards-compat).
+func TestBuildWSProtocolIndex_StaticToken(t *testing.T) {
+	cfg := &project.Config{
+		Services: []project.Service{{Name: "s", URL: "ws://h/ws", Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}}}}},
+		Actors: []project.Actor{
+			{Name: "static", Credentials: project.CredentialRef{Token: "demo_token"}},
+			{Name: "flowed", Credentials: project.CredentialRef{Token: "FALLBACK", RawToken: "FLOW"}},
+			{Name: "none", Credentials: project.CredentialRef{}},
+		},
+	}
+	idx := BuildWSProtocolIndex(cfg)
+	require.Equal(t, "demo_token", idx.ActorTokens["static"], "static Token used when no RawToken")
+	require.Equal(t, "FLOW", idx.ActorTokens["flowed"], "RawToken wins over static Token")
+	_, ok := idx.ActorTokens["none"]
+	require.False(t, ok, "no token + no flow ⇒ no ActorTokens entry")
+}

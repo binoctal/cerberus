@@ -42,6 +42,10 @@ type CredentialRef struct {
 	Email    string            `yaml:"email"`
 	Password string            `yaml:"password"`
 	Headers  map[string]string `yaml:"headers,omitempty"`
+	// Token is a static WS auth token (API key / dev backdoor) used when the actor
+	// has no auth flow. A flow-resolved RawToken takes precedence. Loaded from YAML
+	// (credentials.yaml, gitignored) — same secret hygiene as password.
+	Token string `yaml:"token,omitempty"`
 	// RawToken is the unformatted token cached at session setup (populated by
 	// auth setup when the actor has an Auth flow). Runtime-only; not loaded
 	// from YAML. Used by WS query/header/subprotocol auth injection.

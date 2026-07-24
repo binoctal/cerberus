@@ -139,8 +139,12 @@ func BuildWSProtocolIndex(cfg *project.Config) *WSProtocolIndex {
 		return nil
 	}
 	for _, a := range cfg.Actors {
-		if a.Credentials.RawToken != "" {
-			idx.ActorTokens[a.Name] = a.Credentials.RawToken
+		token := a.Credentials.RawToken
+		if token == "" {
+			token = a.Credentials.Token // static fallback (no flow / flow failed)
+		}
+		if token != "" {
+			idx.ActorTokens[a.Name] = token
 		}
 		// F3: url-param -> captured value, used to resolve {param} placeholders
 		// in the dial URL at connect time. Only stashed when non-empty so a
