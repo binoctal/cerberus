@@ -356,6 +356,13 @@ peer-gated welcome that never arrives. Design:
 real-traffic validation:
 [`cerberus-docs/technical/dogfood/2026-07-23-ws-f1-multi-connection-dogfood.md`](../technical/dogfood/2026-07-23-ws-f1-multi-connection-dogfood.md).
 
+Scout can auto-generate such a case: for a goal describing a multi-party relay, it
+emits a `ws_relay` case (action `ws_relay`; body `{roles:[...], steps:[{do, role,
+type, assert?}]}`). `augmentPlan` deterministically expands it into the
+multi-connection `Steps` case above (connect each role in order, then the ordered
+send/receive) and skips `WSCases`' single-role cases for the covered roles. Design:
+[`cerberus-docs/superpowers/specs/2026-07-24-ws-scout-relay-generation-design.md`](../superpowers/specs/2026-07-24-ws-scout-relay-generation-design.md).
+
 ### M0 fallback
 
 A service without a `protocol:` block behaves exactly as M0: `ws_receive`

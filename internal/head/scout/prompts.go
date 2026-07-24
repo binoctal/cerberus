@@ -42,7 +42,8 @@ RULES:
 - For POST/PUT/PATCH methods, include a "body" field with a JSON request body.
 - Omit "body" for GET/DELETE requests.
 - If a service defines a body_template, use it as a base and vary the values for different test cases.
-- WebSocket: if a service declares a protocol with roles, WS connect and receive cases are generated automatically from those roles. Do not duplicate them; focus your cases on HTTP and other surfaces.`
+- WebSocket: if a service declares a protocol with roles, WS connect and receive cases are generated automatically from those roles. Do not duplicate them; focus your cases on HTTP and other surfaces.
+- WebSocket relay: if a goal describes a multi-party relay (two or more protocol roles exchanging messages through a broker, e.g. "web sends X and receives the relayed Y while bridge is connected"), emit ONE ws_relay case per exchange with the service, an ordered roles list (the peer-join signal receiver first), and an ordered steps list of {do: send|receive, role, type, assert?}. Do not also emit single-role ws_connect/ws_receive cases for roles the relay covers.`
 
 // The WebSocket bullet in promptPlanSystem is provisional (M3-2 Scout WS cases);
 // tune its wording against a real target via dogfooding.
