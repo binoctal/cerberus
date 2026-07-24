@@ -319,18 +319,23 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// {param} (no captured value) fails clearly here instead of producing a
 	// silent wrong dial. The actor is the credentialRef already resolved above
 	// (role.CredentialRef → a.CredentialRef → proto.Auth.CredentialRef).
-	resolved, perr := resolveURLParams(dialURL, e.pathParamsFor(credentialRef))
+	params := e.pathParamsFor(credentialRef)
+	resolved, perr := resolveURLParams(dialURL, params)
 	if perr != nil {
 		return types.WSResult{OK: false, URL: preInjectionURL, Err: perr.Error(), Latency: time.Since(start)}
 	}
 	dialURL = resolved
-	// recompute preInjectionURL from the templated dialURL so the echoed URL
-	// reflects the real path (userId present). Only the auth token is scrubbed —
-	// a path id like userId is the endpoint, not a secret.
-	if ap := maybeAuthParam(proto); ap != "" {
-		preInjectionURL = stripQuery(dialURL, ap)
-	} else {
-		preInjectionURL = dialURL
+	// recompute preInjectionURL only when path params actually templated the URL
+	// (len(params) > 0). Without this gate the no-auth/no-role echo would drift
+	// (e.g. http:// → ws://) beyond F3's scope; when there are no params, dialURL
+	// is unchanged and the earlier preInjectionURL (or a.URL) stands. Only the
+	// auth token is scrubbed — a path id like userId is the endpoint, not a secret.
+	if len(params) > 0 {
+		if ap := maybeAuthParam(proto); ap != "" {
+			preInjectionURL = stripQuery(dialURL, ap)
+		} else {
+			preInjectionURL = dialURL
+		}
 	}
 	conn, _, err := websocket.Dial(ctx, dialURL, opts)
 	if err != nil {
@@ -502,6 +507,11 @@ func (e *WebSocketExecutor) pathParamsFor(actor string) map[string]string {
 // through url.Parse+String, which percent-encodes "{" and "}" in the path. By
 // the time templating runs (after that injection) the placeholder is normally
 // in its encoded form, but a URL that skipped query injection stays raw.
+//
+// Captured values are substituted AS-IS (no URL encoding): they must be
+// path-safe identifiers (e.g. a userId). A value containing '/', '?', '#', '&',
+// '%', or spaces would malform the URL — the auth-flow capture is intended for
+// ids, not arbitrary URL segments (no expression encoder, by design).
 func resolveURLParams(rawURL string, params map[string]string) (string, error) {
 	out := rawURL
 	for name, val := range params {

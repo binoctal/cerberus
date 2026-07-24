@@ -146,7 +146,13 @@ func BuildWSProtocolIndex(cfg *project.Config) *WSProtocolIndex {
 		// in the dial URL at connect time. Only stashed when non-empty so a
 		// legacy config (no auth flow / no path_params) leaves the index untouched.
 		if len(a.Credentials.PathParams) > 0 {
-			idx.ActorPathParams[a.Name] = a.Credentials.PathParams
+			// Shallow copy so the index owns its map (defensive against the
+			// actor's Credentials mutating after indexing).
+			m := make(map[string]string, len(a.Credentials.PathParams))
+			for k, v := range a.Credentials.PathParams {
+				m[k] = v
+			}
+			idx.ActorPathParams[a.Name] = m
 		}
 	}
 	return idx
