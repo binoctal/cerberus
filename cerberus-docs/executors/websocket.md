@@ -382,7 +382,11 @@ Scout ALSO emits a relay case **deterministically** (no LLM) when the protocol h
 handshake is a peer-gated signal that arrives only when a peer connects. In that
 case Scout emits a multi-connection `Steps` case: connect the receiver role first,
 then its peers, then receive the signal. The redundant single-connection receive of
-that signal (which would time out without the peer) is suppressed. Design:
+that signal (which would time out without the peer) is suppressed, as are the
+single-connection connect cases for every role the relay connects (receiver + peers):
+the connect already runs inside the relay `Steps`, and the lone single-conn form would
+route through the Steer planner unreliably. A goal send→receive exchange
+(`wsStepsCase`) is still emitted for any role. Design:
 [`cerberus-docs/superpowers/specs/2026-07-24-ws-deterministic-relay-detector-design.md`](../superpowers/specs/2026-07-24-ws-deterministic-relay-detector-design.md).
 
 ### M0 fallback
