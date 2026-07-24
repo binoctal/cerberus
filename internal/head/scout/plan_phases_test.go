@@ -32,7 +32,7 @@ func TestAppendExecutorCases_AppendsWSCasesWhenProtocolDeclared(t *testing.T) {
 	s := &Scout{config: cfg, logger: zap.NewNop()}
 	plan := &agent.TestPlan{}
 
-	s.appendExecutorCases(plan, "bridge receives permission:response")
+	s.appendExecutorCases(plan, "bridge receives permission:response", nil)
 
 	var connects, receives, others []agent.TestCase
 	for _, c := range plan.Cases {
@@ -66,7 +66,7 @@ func TestAppendExecutorCases_NoWSCasesWhenNoProtocolDeclared(t *testing.T) {
 	s := &Scout{config: cfg, logger: zap.NewNop()}
 	plan := &agent.TestPlan{}
 
-	s.appendExecutorCases(plan, "test the API")
+	s.appendExecutorCases(plan, "test the API", nil)
 
 	for _, c := range plan.Cases {
 		assert.NotEqual(t, "ws_connect", c.Action, "no ws_connect case without a declared protocol")

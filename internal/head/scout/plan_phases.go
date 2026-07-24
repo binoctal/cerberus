@@ -47,9 +47,16 @@ func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *p
 	return s.directPlan(ctx, goal, model)
 }
 
-// augmentPlan appends executor-specific test cases (process, code, file).
+// augmentPlan expands LLM-authored ws_relay intents into multi-connection Steps
+// cases, then appends executor-specific cases (process, code, WS). Covered roles
+// (already connected by a relay) are passed so WSCases does not redundantly
+// re-connect them.
 func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string) {
-	s.appendExecutorCases(plan, goal)
+	covered := expandWSRelayCases(s.config, plan)
+	if len(covered) > 0 {
+		s.logger.Info("expanded ws_relay cases", zap.Int("covered_services", len(covered)))
+	}
+	s.appendExecutorCases(plan, goal, covered)
 }
 
 // Plan generates a TestPlan from the goal and project model.
@@ -84,14 +91,14 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 // appendExecutorCases detects the project type and appends non-HTTP test
 // cases (build, test, lint, code analysis) plus WS connect/receive cases
 // (when any service declares a protocol) to the plan.
-func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string) {
+func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string, covered map[string]map[string]bool) {
 	rootDir := s.config.Code.Root
 	if rootDir == "" {
 		rootDir = "."
 	}
 	info := DetectProjectType(rootDir)
 	cases := GenerateExecutorCases(info, goal)
-	cases = append(cases, WSCases(s.config, goal)...)
+	cases = append(cases, WSCasesCovered(s.config, goal, covered)...)
 	if len(cases) > 0 {
 		s.logger.Info("appended executor cases",
 			zap.String("project_type", string(info.Type)),

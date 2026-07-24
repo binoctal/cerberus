@@ -12,7 +12,13 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
-// WSCases generates deterministic WS test cases from a project's declared
+// WSCases generates WS test cases for cfg/goal with no roles covered. It is
+// kept for compatibility (existing callers/tests); new code calls WSCasesCovered.
+func WSCases(cfg *project.Config, goal string) []agent.TestCase {
+	return WSCasesCovered(cfg, goal, nil)
+}
+
+// WSCasesCovered generates deterministic WS test cases from a project's declared
 // protocols. Per role on each WS service it emits either:
 //
 //   - ONE ws_flow Steps case (connect→send→receive sharing one connection_id)
@@ -30,7 +36,7 @@ import (
 //
 // Determinism: roles are iterated in sorted name order; the exchange detector
 // picks the first send/receive pair; Asserts are parsed in goal order.
-func WSCases(cfg *project.Config, goal string) []agent.TestCase {
+func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[string]bool) []agent.TestCase {
 	if cfg == nil {
 		return nil
 	}
@@ -42,6 +48,9 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 		// Iterate roles in sorted name order so the returned slice is
 		// deterministic across runs regardless of map iteration order.
 		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+			if covered[svc.Name][roleName] {
+				continue // role covered by an expanded ws_relay; skip its cases
+			}
 			role := svc.Protocol.Roles[roleName]
 			if ex, ok := wsExchangeFromGoal(goal); ok {
 				cases = append(cases, wsStepsCase(svc, roleName, role, ex))

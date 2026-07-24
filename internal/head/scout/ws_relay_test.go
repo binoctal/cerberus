@@ -105,3 +105,19 @@ func TestExpandWSRelayCases_NilSafe(t *testing.T) {
 	require.Empty(t, expandWSRelayCases(nil, &agent.TestPlan{}))
 	require.Empty(t, expandWSRelayCases(&project.Config{}, nil))
 }
+
+// TestWSCasesCovered_NilEqualsWSCases asserts backwards compatibility:
+// covered=nil reproduces the old WSCases output exactly, and a covered role is
+// skipped (no cases emitted for it).
+func TestWSCasesCovered_NilEqualsWSCases(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+	require.Equal(t, WSCases(cfg, "send device:command receive device:ack"),
+		WSCasesCovered(cfg, "send device:command receive device:ack", nil))
+
+	// Covered role is skipped.
+	got := WSCasesCovered(cfg, "send device:command receive device:ack",
+		map[string]map[string]bool{"rt": {"web": true}})
+	for _, c := range got {
+		require.NotContains(t, c.ID, "-web-", "web role covered -> no web cases emitted")
+	}
+}
