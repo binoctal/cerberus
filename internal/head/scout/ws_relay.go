@@ -88,6 +88,9 @@ func expandOneRelayCase(svcByName map[string]*project.Service, c agent.TestCase)
 	// step roles can be checked against it.
 	declared := map[string]*project.ProtocolRole{}
 	for _, r := range intent.Roles {
+		if _, dup := declared[r]; dup {
+			return expandedRelay{}, false // duplicate role; roles must be distinct
+		}
 		role := svc.Protocol.Roles[r]
 		if role == nil {
 			return expandedRelay{}, false

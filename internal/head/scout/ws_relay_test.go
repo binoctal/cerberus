@@ -75,6 +75,7 @@ func TestExpandWSRelayCases_DropsInvalid(t *testing.T) {
 	}{
 		{"bad json", `not json`},
 		{"fewer than 2 roles", `{"roles":["web"],"steps":[]}`},
+		{"duplicate role", `{"roles":["web","web"],"steps":[]}`},
 		{"unknown role", `{"roles":["web","ghost"],"steps":[]}`},
 		{"unknown service", `{"roles":["web","bridge"],"steps":[]}`}, // service mismatch handled below
 		{"empty type", `{"roles":["web","bridge"],"steps":[{"do":"send","role":"web","type":""}]}`},
