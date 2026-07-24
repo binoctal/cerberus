@@ -108,8 +108,9 @@ func frameForResult(framing string, data []byte) string {
 // the resolved raw credential tokens for actors referenced by those protocols.
 // A nil index means "no service declares a protocol" → M0 behavior everywhere.
 type WSProtocolIndex struct {
-	ByHost      map[string]*project.Protocol // host (url.Host) -> protocol
-	ActorTokens map[string]string            // actor name -> cached raw token
+	ByHost          map[string]*project.Protocol // host (url.Host) -> protocol
+	ActorTokens     map[string]string            // actor name -> cached raw token
+	ActorPathParams map[string]map[string]string // actor -> {url-param: value} (F3)
 }
 
 // BuildWSProtocolIndex builds the index from config. Returns nil when no
@@ -127,8 +128,9 @@ func BuildWSProtocolIndex(cfg *project.Config) *WSProtocolIndex {
 		}
 		if idx == nil {
 			idx = &WSProtocolIndex{
-				ByHost:      make(map[string]*project.Protocol),
-				ActorTokens: make(map[string]string),
+				ByHost:          make(map[string]*project.Protocol),
+				ActorTokens:     make(map[string]string),
+				ActorPathParams: make(map[string]map[string]string),
 			}
 		}
 		idx.ByHost[u.Host] = svc.Protocol
@@ -139,6 +141,12 @@ func BuildWSProtocolIndex(cfg *project.Config) *WSProtocolIndex {
 	for _, a := range cfg.Actors {
 		if a.Credentials.RawToken != "" {
 			idx.ActorTokens[a.Name] = a.Credentials.RawToken
+		}
+		// F3: url-param -> captured value, used to resolve {param} placeholders
+		// in the dial URL at connect time. Only stashed when non-empty so a
+		// legacy config (no auth flow / no path_params) leaves the index untouched.
+		if len(a.Credentials.PathParams) > 0 {
+			idx.ActorPathParams[a.Name] = a.Credentials.PathParams
 		}
 	}
 	return idx

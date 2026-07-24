@@ -56,6 +56,41 @@ func TestBuildWSProtocolIndex(t *testing.T) {
 	}
 }
 
+// TestBuildWSProtocolIndexActorPathParams proves F3: an actor with captured
+// Credentials.PathParams is reflected into ActorPathParams so doConnect can
+// resolve {param} placeholders in the dial URL. An actor without path params
+// is omitted entirely (no empty map stashed), preserving legacy behavior.
+func TestBuildWSProtocolIndexActorPathParams(t *testing.T) {
+	cfg := &project.Config{
+		Services: []project.Service{{
+			Name: "rt", URL: "http://localhost:8787",
+			Protocol: &project.Protocol{TypePath: "data.event"},
+		}},
+		Actors: []project.Actor{
+			{Name: "web", Credentials: project.CredentialRef{RawToken: "JWT"}},
+			{Name: "bridge", Credentials: project.CredentialRef{
+				RawToken:   "BRIDGE-JWT",
+				PathParams: map[string]string{"userId": "user_1", "tenant": "acme"},
+			}},
+		},
+	}
+	idx := BuildWSProtocolIndex(cfg)
+	if idx == nil {
+		t.Fatal("index is nil")
+	}
+	if got, want := idx.ActorPathParams["bridge"]["userId"], "user_1"; got != want {
+		t.Fatalf("ActorPathParams[bridge][userId] = %q, want %q (full: %+v)", got, want, idx.ActorPathParams)
+	}
+	if got, want := idx.ActorPathParams["bridge"]["tenant"], "acme"; got != want {
+		t.Fatalf("ActorPathParams[bridge][tenant] = %q, want %q", got, want)
+	}
+	// An actor without path params must NOT appear (no empty-map stash) so the
+	// "no path params" legacy path stays a clean nil-map lookup.
+	if _, ok := idx.ActorPathParams["web"]; ok {
+		t.Fatalf("ActorPathParams[web] should be absent, got %+v", idx.ActorPathParams["web"])
+	}
+}
+
 func TestBuildWSProtocolIndexNilWhenNoProtocols(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{Name: "x", URL: "http://x"}}}
 	if idx := BuildWSProtocolIndex(cfg); idx != nil {

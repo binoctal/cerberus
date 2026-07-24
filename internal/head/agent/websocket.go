@@ -312,6 +312,26 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 			preInjectionURL = dialURL
 		}
 	}
+	// F3: resolve {param} placeholders in the dial url from the resolved
+	// actor's captured path params. Placed AFTER role-param injection (and its
+	// preInjectionURL recompute) and BEFORE websocket.Dial so (a) role query
+	// params are already on the URL when we template the path and (b) a leftover
+	// {param} (no captured value) fails clearly here instead of producing a
+	// silent wrong dial. The actor is the credentialRef already resolved above
+	// (role.CredentialRef → a.CredentialRef → proto.Auth.CredentialRef).
+	resolved, perr := resolveURLParams(dialURL, e.pathParamsFor(credentialRef))
+	if perr != nil {
+		return types.WSResult{OK: false, URL: preInjectionURL, Err: perr.Error(), Latency: time.Since(start)}
+	}
+	dialURL = resolved
+	// recompute preInjectionURL from the templated dialURL so the echoed URL
+	// reflects the real path (userId present). Only the auth token is scrubbed —
+	// a path id like userId is the endpoint, not a secret.
+	if ap := maybeAuthParam(proto); ap != "" {
+		preInjectionURL = stripQuery(dialURL, ap)
+	} else {
+		preInjectionURL = dialURL
+	}
 	conn, _, err := websocket.Dial(ctx, dialURL, opts)
 	if err != nil {
 		return types.WSResult{OK: false, URL: preInjectionURL, Err: err.Error(), Latency: time.Since(start)}
@@ -459,6 +479,57 @@ func (e *WebSocketExecutor) tokenFor(actor string) (string, bool) {
 	}
 	t, ok := e.idx.ActorTokens[actor]
 	return t, ok && t != ""
+}
+
+// pathParamsFor returns the resolved actor's captured url-param -> value map,
+// or nil. A nil index or unknown actor yields nil (the no-placeholders path:
+// resolveURLParams returns rawURL unchanged, preserving M0 behavior).
+func (e *WebSocketExecutor) pathParamsFor(actor string) map[string]string {
+	if e.idx == nil {
+		return nil
+	}
+	return e.idx.ActorPathParams[actor]
+}
+
+// resolveURLParams substitutes {name} placeholders in rawURL from params.
+// After substitution, any leftover placeholder means a placeholder with no
+// captured value: that is a hard error (clear failure over a silent wrong dial)
+// naming the first unresolved placeholder. Empty params / no placeholders ⇒
+// rawURL unchanged (backwards-compat with pre-F3 configs).
+//
+// Both the raw "{name}" and the percent-encoded "%7Bname%7D" forms are
+// recognized: setQueryParam during auth/role-param injection runs the URL
+// through url.Parse+String, which percent-encodes "{" and "}" in the path. By
+// the time templating runs (after that injection) the placeholder is normally
+// in its encoded form, but a URL that skipped query injection stays raw.
+func resolveURLParams(rawURL string, params map[string]string) (string, error) {
+	out := rawURL
+	for name, val := range params {
+		out = strings.ReplaceAll(out, "{"+name+"}", val)
+		out = strings.ReplaceAll(out, "%7B"+name+"%7D", val)
+	}
+	if rest := unresolvedURLPlaceholder(out); rest != "" {
+		return "", fmt.Errorf("ws connect: unresolved URL param %s", rest)
+	}
+	return out, nil
+}
+
+// unresolvedURLPlaceholder returns the first leftover placeholder in s — raw
+// "{...}" or percent-encoded "%7B...%7D" — or "" when none. The raw form is
+// checked first to keep the common-case error message readable.
+func unresolvedURLPlaceholder(s string) string {
+	for _, form := range []struct{ open, close string }{{"{", "}"}, {"%7B", "%7D"}} {
+		i := strings.Index(s, form.open)
+		if i < 0 {
+			continue
+		}
+		tail := s[i+len(form.open):]
+		j := strings.Index(tail, form.close)
+		if j > 0 {
+			return s[i : i+len(form.open)+j+len(form.close)]
+		}
+	}
+	return ""
 }
 
 // stripQuery returns rawURL with the named query parameter removed. It is the

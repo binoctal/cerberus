@@ -1752,3 +1752,204 @@ func TestWSReceiveAliasesMatch(t *testing.T) {
 	})
 	require.True(t, res.Success(), "receive should match the alias type; got %+v", res)
 }
+
+// newWSTestServerCapturePath starts an httptest WS server that records every
+// dialed request's URL.Path into a captured slice. The handler is registered
+// at "/" (root) so any templated sub-path under it (e.g. /ws/user_1) reaches
+// the same acceptor. It returns the ws:// URL base (no path) and a function
+// returning the most-recent captured path. Used by F3 templating tests.
+func newWSTestServerCapturePath(t *testing.T) (string, func() string) {
+	t.Helper()
+	var mu sync.Mutex
+	var paths []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
+		_, _, _ = conn.Read(r.Context())
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	return wsURL, func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		if len(paths) == 0 {
+			return ""
+		}
+		return paths[len(paths)-1]
+	}
+}
+
+// TestConnectTemplatedURL proves F3: a service URL containing a {userId}
+// placeholder is substituted from the resolved actor's captured path params
+// BEFORE the dial. Server-side observation confirms the substituted path is
+// the one actually reached; WSResult.URL reflects the real (templated) path
+// with the auth token still stripped — the userId is the endpoint, not secret.
+func TestConnectTemplatedURL(t *testing.T) {
+	wsURL, latestPath := newWSTestServerCapturePath(t)
+	// Service URL declares a {userId} path segment.
+	dialedURL := wsURL + "/{userId}?type=web"
+	p := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "web"}}
+	idx := &WSProtocolIndex{
+		ByHost:          map[string]*project.Protocol{hostOf(t, wsURL): p},
+		ActorTokens:     map[string]string{"web": "JWT-VALUE"},
+		ActorPathParams: map[string]map[string]string{"web": {"userId": "user_1"}},
+	}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: dialedURL, ConnectionID: "c1", CredentialRef: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	// Server-side assertion: the dial reached the substituted path. (wsURL has
+	// no path of its own — the test server registers on "/" — so the dialed
+	// path is exactly the templated "/user_1".)
+	if got, want := latestPath(), "/user_1"; got != want {
+		t.Fatalf("dialed path = %q, want %q", got, want)
+	}
+	// WSResult.URL must show the substituted path (userId present) with the
+	// auth token stripped (no JWT-VALUE leak). The placeholder may have been
+	// percent-encoded (%7B) by an earlier setQueryParam round-trip — neither
+	// form is acceptable.
+	if !strings.Contains(ws.URL, "/user_1") {
+		t.Fatalf("WSResult.URL missing substituted path: %s", ws.URL)
+	}
+	if strings.Contains(ws.URL, "{userId}") || strings.Contains(ws.URL, "%7BuserId%7D") {
+		t.Fatalf("WSResult.URL still has unresolved placeholder: %s", ws.URL)
+	}
+	if strings.Contains(ws.URL, "JWT-VALUE") {
+		t.Fatalf("WSResult.URL leaks auth token: %s", ws.URL)
+	}
+}
+
+// TestConnectTemplatedURLUnresolved proves that a {param} placeholder with no
+// captured value fails the connect clearly (named, before dial) rather than
+// silently dialing a literal {param} URL. The echoed URL is secret-free.
+func TestConnectTemplatedURLUnresolved(t *testing.T) {
+	wsURL, latestPath := newWSTestServerCapturePath(t)
+	dialedURL := wsURL + "/{userId}?type=web"
+	p := &project.Protocol{Auth: &project.ProtocolAuth{Strategy: "query", Param: "token", CredentialRef: "web"}}
+	// No ActorPathParams entry for "web": userId is declared in the URL but never
+	// captured by the auth flow.
+	idx := &WSProtocolIndex{
+		ByHost:      map[string]*project.Protocol{hostOf(t, wsURL): p},
+		ActorTokens: map[string]string{"web": "JWT-VALUE"},
+	}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: dialedURL, ConnectionID: "c1", CredentialRef: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok {
+		t.Fatalf("result type %T, want WSResult", res)
+	}
+	if ws.OK {
+		t.Fatalf("want unresolved-param failure, got success: %+v", ws)
+	}
+	// Error names the unresolved placeholder so the LLM can fix the URL. The
+	// placeholder may appear in raw "{userId}" or percent-encoded "%7BuserId%7D"
+	// form depending on whether an earlier setQueryParam round-trip ran.
+	if !strings.Contains(ws.Err, "unresolved URL param") {
+		t.Fatalf("error missing \"unresolved URL param\": %q", ws.Err)
+	}
+	if !strings.Contains(ws.Err, "{userId}") && !strings.Contains(ws.Err, "%7BuserId%7D") {
+		t.Fatalf("error does not name the unresolved placeholder: %q", ws.Err)
+	}
+	// Never dialed: no server-side accept.
+	if latestPath() != "" {
+		t.Fatalf("unresolved param should not dial, server saw path %q", latestPath())
+	}
+	// WSResult.URL is secret-free (token stripped) — the placeholder may remain
+	// (we never resolved it) but the JWT must not leak.
+	if strings.Contains(ws.URL, "JWT-VALUE") {
+		t.Fatalf("unresolved-param WSResult.URL leaks token: %s", ws.URL)
+	}
+}
+
+// TestResolveURLParams covers the substitution + unresolved-check logic
+// directly: raw "{name}" and percent-encoded "%7Bname%7D" forms (the latter
+// is what an earlier setQueryParam round-trip leaves in the path); leftover
+// raw vs encoded placeholder; no-params / no-placeholders backwards-compat.
+func TestResolveURLParams(t *testing.T) {
+	cases := []struct {
+		name    string
+		rawURL  string
+		params  map[string]string
+		want    string
+		wantErr string
+	}{
+		{
+			name:   "raw placeholder substituted",
+			rawURL: "ws://h/{userId}/session",
+			params: map[string]string{"userId": "user_1"},
+			want:   "ws://h/user_1/session",
+		},
+		{
+			name:   "encoded placeholder substituted",
+			rawURL: "ws://h/%7BuserId%7D/session?type=web",
+			params: map[string]string{"userId": "user_1"},
+			want:   "ws://h/user_1/session?type=web",
+		},
+		{
+			name:   "multiple placeholders all substituted",
+			rawURL: "ws://h/%7Btenant%7D/%7BuserId%7D",
+			params: map[string]string{"userId": "u1", "tenant": "acme"},
+			want:   "ws://h/acme/u1",
+		},
+		{
+			name:    "leftover raw placeholder errors",
+			rawURL:  "ws://h/{ghost}",
+			params:  map[string]string{"userId": "u1"},
+			wantErr: "unresolved URL param {ghost}",
+		},
+		{
+			name:    "leftover encoded placeholder errors",
+			rawURL:  "ws://h/%7Bghost%7D?type=web",
+			params:  map[string]string{"userId": "u1"},
+			wantErr: "unresolved URL param %7Bghost%7D",
+		},
+		{
+			name:   "no params + no placeholders is true backwards-compat",
+			rawURL: "ws://h/session/123?type=web",
+			params: nil,
+			want:   "ws://h/session/123?type=web",
+		},
+		{
+			name:    "no params + placeholder is an authoring error (not silent dial)",
+			rawURL:  "ws://h/%7BuserId%7D",
+			params:  nil,
+			wantErr: "unresolved URL param",
+		},
+		{
+			name:   "params but no placeholders leaves url unchanged",
+			rawURL: "ws://h/session/123?type=web",
+			params: map[string]string{"userId": "u1"},
+			want:   "ws://h/session/123?type=web",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveURLParams(tc.rawURL, tc.params)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("want error containing %q, got nil (result %q)", tc.wantErr, got)
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("error %q does not contain %q", err.Error(), tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v (result %q)", err, got)
+			}
+			if got != tc.want {
+				t.Fatalf("resolveURLParams(%q) = %q, want %q", tc.rawURL, got, tc.want)
+			}
+		})
+	}
+}
