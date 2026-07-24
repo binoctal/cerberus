@@ -129,6 +129,15 @@ deterministically — the LLM keeps orchestrating (which connection, when, what
 message content) but no longer re-infers auth placement, the routing field, or
 the wire framing on every run.
 
+**Dynamic URL path params.** A service `url` may contain `{param}` placeholders
+(e.g. `ws://h/ws/{userId}`) that are resolved at connect time from fields the
+connecting role's auth flow captured from its login response. Declare the
+captures on the actor's `auth.path_params` as `{url-param: response-dot-path}`
+(same dot-path syntax as `token_from`, e.g. `{userId: "config.userId"}`); at
+connect, the role's `credential_ref` actor supplies the values. An unresolved
+placeholder (no captured value) fails the connect with a clear error. Values are
+substituted as-is (path-safe ids only).
+
 ```yaml
 services:
   - name: open-agents-realtime
