@@ -320,17 +320,18 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// silent wrong dial. The actor is the credentialRef already resolved above
 	// (role.CredentialRef → a.CredentialRef → proto.Auth.CredentialRef).
 	params := e.pathParamsFor(credentialRef)
+	beforeTemplate := dialURL
 	resolved, perr := resolveURLParams(dialURL, params)
 	if perr != nil {
 		return types.WSResult{OK: false, URL: preInjectionURL, Err: perr.Error(), Latency: time.Since(start)}
 	}
 	dialURL = resolved
-	// recompute preInjectionURL only when path params actually templated the URL
-	// (len(params) > 0). Without this gate the no-auth/no-role echo would drift
-	// (e.g. http:// → ws://) beyond F3's scope; when there are no params, dialURL
-	// is unchanged and the earlier preInjectionURL (or a.URL) stands. Only the
+	// recompute preInjectionURL only when templating actually changed the URL
+	// (dialURL != beforeTemplate). Gating on the URL change — not on the presence
+	// of params — avoids drifting the no-auth/no-role echo (e.g. http:// → ws://)
+	// when an actor declares path_params but the URL has no placeholder. Only the
 	// auth token is scrubbed — a path id like userId is the endpoint, not a secret.
-	if len(params) > 0 {
+	if dialURL != beforeTemplate {
 		if ap := maybeAuthParam(proto); ap != "" {
 			preInjectionURL = stripQuery(dialURL, ap)
 		} else {
