@@ -154,3 +154,26 @@ func TestAugmentPlanComposition_RelayExpansion(t *testing.T) {
 		require.NotContains(t, c.ID, "-bridge-")
 	}
 }
+
+// TestExpandWSRelayCases_ReceiveAliases: a relay receive step carrying aliases
+// is assembled onto the ws_receive step's Aliases (F4 match-set pass-through).
+func TestExpandWSRelayCases_ReceiveAliases(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+	body, _ := json.Marshal(map[string]any{
+		"roles": []string{"web", "bridge"},
+		"steps": []map[string]any{{
+			"do": "receive", "role": "web", "type": "session:output",
+			"aliases": []string{"session:output-batch"},
+		}},
+	})
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{Action: "ws_relay", Service: "rt", Body: string(body)},
+	}}
+	expandWSRelayCases(cfg, plan)
+	// step 0,1 = connects; step 2 = the receive with aliases.
+	require.GreaterOrEqual(t, len(plan.Cases[0].Steps), 3)
+	recv := plan.Cases[0].Steps[2]
+	require.Equal(t, "ws_receive", recv.Action)
+	require.Equal(t, "session:output", recv.Type)
+	require.Equal(t, []string{"session:output-batch"}, recv.Aliases)
+}

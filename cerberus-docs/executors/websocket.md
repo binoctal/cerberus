@@ -35,6 +35,7 @@ headers, or subprotocols as the target requires. When the service declares a
 | `timeout` | int | no | Seconds (default 10) |
 | `decisive` | bool | no | Set true on the receive that should pass the case; defaults to false (intermediate) |
 | `assert` | map[string]any | no | Path-to-value equality checks on the matched message (see [Field assertions](#field-assertions)) |
+| `aliases` | []string | no | Additional routing types that also satisfy the receive — a frame matching `type` OR any `aliases` succeeds; for protocols that emit one message under several wire types (e.g. `session:output` vs `session:output-batch`). Asserts apply to whichever frame matched. |
 
 Non-matching messages are kept as evidence. At most one `decisive=true`
 receive per case.

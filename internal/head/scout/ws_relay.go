@@ -20,10 +20,11 @@ type relayIntent struct {
 }
 
 type relayStep struct {
-	Do     string         `json:"do"`   // "send" | "receive"
-	Role   string         `json:"role"` // a connection named in Roles
-	Type   string         `json:"type"` // message routing type
-	Assert map[string]any `json:"assert"`
+	Do      string         `json:"do"`      // "send" | "receive"
+	Role    string         `json:"role"`    // a connection named in Roles
+	Type    string         `json:"type"`    // message routing type
+	Aliases []string       `json:"aliases"` // receive only: additional matching types
+	Assert  map[string]any `json:"assert"`
 }
 
 // expandWSRelayCases expands every ws_relay case in plan.Cases into a
@@ -117,7 +118,7 @@ func expandOneRelayCase(svcByName map[string]*project.Service, c agent.TestCase)
 		case "receive":
 			steps = append(steps, agent.TestStep{
 				Action: "ws_receive", ConnectionID: st.Role, Type: st.Type,
-				Asserts: st.Assert, Timeout: relayRecvTimeout(declared[st.Role]),
+				Aliases: st.Aliases, Asserts: st.Assert, Timeout: relayRecvTimeout(declared[st.Role]),
 			})
 		}
 	}
