@@ -121,3 +121,35 @@ func TestWSCasesCovered_NilEqualsWSCases(t *testing.T) {
 		require.NotContains(t, c.ID, "-web-", "web role covered -> no web cases emitted")
 	}
 }
+
+// TestAugmentPlanComposition_RelayExpansion validates the augmentPlan
+// composition end-to-end (no LLM): expandWSRelayCases turns a ws_relay case
+// into a multi-connection Steps case, and the covered map it returns makes
+// WSCasesCovered skip single-role cases for the covered roles. This is the
+// deterministic core of Scout relay generation; LLM output quality is validated
+// separately on a real target.
+func TestAugmentPlanComposition_RelayExpansion(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+	body, _ := json.Marshal(map[string]any{
+		"roles": []string{"web", "bridge"},
+		"steps": []map[string]any{{"do": "receive", "role": "web", "type": "device:online"}},
+	})
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{Action: "ws_relay", Service: "rt", Body: string(body), Name: "relay"},
+	}}
+
+	covered := expandWSRelayCases(cfg, plan)
+
+	// The ws_relay case became a multi-connection Steps case.
+	require.Len(t, plan.Cases, 1, "ws_relay replaced in place")
+	require.NotEmpty(t, plan.Cases[0].Steps)
+	require.Equal(t, "ws_connect", plan.Cases[0].Steps[0].Action)
+	require.Equal(t, "web", plan.Cases[0].Steps[0].ConnectionID)
+	require.True(t, covered["rt"]["web"] && covered["rt"]["bridge"])
+
+	// WSCasesCovered with the real covered map emits no web/bridge cases.
+	for _, c := range WSCasesCovered(cfg, "receive devices:sync", covered) {
+		require.NotContains(t, c.ID, "-web-")
+		require.NotContains(t, c.ID, "-bridge-")
+	}
+}
