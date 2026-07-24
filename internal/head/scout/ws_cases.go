@@ -52,7 +52,7 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		// role below (not just the receiver). Coexist with LLM ws_relay (A1): when
 		// a receiver role is already covered by an LLM relay case, the
 		// deterministic relay is redundant and is dropped.
-		relayCases, relayCovered := wsRelayCases(svc)
+		relayCases, relayCovered, _ := wsRelayCases(svc)
 		svcCovered := covered[svc.Name]
 		for _, rc := range relayCases {
 			// The receiver role is the first step's Role (A-first connect order).
@@ -69,6 +69,23 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 				relaySignals[typ] = true
 			}
 		}
+		// Finding-2: only EMITTED relay cases open sockets. A relay case is
+		// dropped above when its receiver is LLM-covered (A1 coexistence), so the
+		// peers of a dropped case are NOT connected by any relay and must still
+		// emit their own connect. Build relayConnected from emitted cases only
+		// (deterministic — iterates the sorted relayCases slice). Mirrors the
+		// relayCovered → relaySignals filter directly above.
+		relayConnected := map[string]bool{}
+		for _, rc := range relayCases {
+			if svcCovered[rc.Steps[0].Role] {
+				continue
+			}
+			for _, s := range rc.Steps {
+				if s.Action == "ws_connect" {
+					relayConnected[s.Role] = true
+				}
+			}
+		}
 		// Iterate roles in sorted name order so the returned slice is
 		// deterministic across runs regardless of map iteration order.
 		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
@@ -81,6 +98,15 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 			role := svc.Protocol.Roles[roleName]
 			if ex, ok := wsExchangeFromGoal(goal); ok {
 				cases = append(cases, wsStepsCase(svc, roleName, role, ex))
+				continue
+			}
+			// Finding-2: the deterministic relay case already connects this role
+			// (receiver or peer). Its single-conn connect+receive form is
+			// redundant (the connect runs in the relay Steps) and, routed through
+			// Steer, unreliable. Skip the whole form — a dependent receive would
+			// otherwise dangle without its connect. goal-exchange wsStepsCase
+			// above is preserved.
+			if relayConnected[roleName] {
 				continue
 			}
 			connectID := wsCaseID(svc.Name, roleName, "connect")
@@ -121,15 +147,17 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 
 // wsRelayCases emits deterministic multi-connection relay Steps cases for the
 // peer-join signals in a service's protocol: each role with an OPTIONAL handshake
-// (await_type T) receives T when a peer connects. Returns the cases plus the
-// (role → set(signalType)) pairs they cover, so the per-role loop can skip the
-// redundant single-connection receive (which would time out without the peer).
-// Pure; no LLM. Deterministic (sorted roles).
-func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]bool) {
+// (await_type T) receives T when a peer connects. Returns the cases, the
+// (role → set(signalType)) pairs they cover (so the per-role loop can skip the
+// redundant single-connection receive), and connectedRoles — every role a relay
+// case opens a socket for (receiver + peers), so the per-role loop can skip the
+// redundant single-connection connect form. Pure; no LLM. Deterministic (sorted).
+func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]bool, map[string]bool) {
 	var cases []agent.TestCase
 	covered := map[string]map[string]bool{}
+	connectedRoles := map[string]bool{}
 	if svc.Protocol == nil || len(svc.Protocol.Roles) < 2 {
-		return cases, covered
+		return cases, covered, connectedRoles
 	}
 	names := slices.Sorted(maps.Keys(svc.Protocol.Roles))
 	for _, aName := range names {
@@ -162,8 +190,15 @@ func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]
 			covered[aName] = map[string]bool{}
 		}
 		covered[aName][signal] = true
+		// Finding-2: this relay case opens a socket for the receiver and every
+		// peer, so WSCasesCovered can skip their redundant single-conn
+		// connect+receive form (the connect runs in this relay case's Steps).
+		connectedRoles[aName] = true
+		for _, p := range peers {
+			connectedRoles[p] = true
+		}
 	}
-	return cases, covered
+	return cases, covered, connectedRoles
 }
 
 // wsStepsCase builds a deterministic multi-step WS exchange case for a role:

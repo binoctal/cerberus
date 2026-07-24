@@ -459,7 +459,7 @@ func TestWSRelayCases(t *testing.T) {
 	}}
 	svc := project.Service{Name: "rt", URL: "ws://h/ws", Protocol: p}
 
-	cases, covered := wsRelayCases(svc)
+	cases, covered, connected := wsRelayCases(svc)
 	require.Len(t, cases, 1, "one relay case for web's optional handshake")
 	c := cases[0]
 	require.Equal(t, "ws-rt-relay-web-signal-device-online", c.ID)
@@ -475,6 +475,22 @@ func TestWSRelayCases(t *testing.T) {
 	require.Equal(t, "web", c.Steps[2].ConnectionID)
 	require.Equal(t, 2, c.Steps[2].Timeout)
 	require.True(t, covered["web"]["device:online"])
+	// Finding-2: the relay case connects the receiver (web) AND its peer (bridge).
+	require.True(t, connected["web"], "receiver is connected by the relay")
+	require.True(t, connected["bridge"], "peer is connected by the relay")
+}
+
+// ≥3 roles: the receiver and ALL peers land in connectedRoles.
+func TestWSRelayCases_MultiPeer(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":    {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge": {},
+		"app":    {},
+	}}
+	_, _, connected := wsRelayCases(project.Service{Name: "rt", Protocol: p})
+	for _, role := range []string{"web", "bridge", "app"} {
+		require.True(t, connected[role], "%s connected by the relay", role)
+	}
 }
 
 // No emission when the trigger is absent.
@@ -490,9 +506,10 @@ func TestWSRelayCases_NoTrigger(t *testing.T) {
 			case "no handshake":
 				p = &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}, "bridge": {}}}
 			}
-			cases, covered := wsRelayCases(project.Service{Name: "rt", Protocol: p})
+			cases, covered, connected := wsRelayCases(project.Service{Name: "rt", Protocol: p})
 			require.Empty(t, cases)
 			require.Empty(t, covered)
+			require.Empty(t, connected)
 		})
 	}
 }
@@ -519,6 +536,33 @@ func TestWSCasesCovered_RelaySuppressesReceive(t *testing.T) {
 			require.NotContains(t, c.ID, "device-online", "redundant single-conn signal receive suppressed")
 		}
 	}
+}
+
+// Finding-2: when the deterministic relay case connects a role (receiver or
+// peer), WSCasesCovered suppresses the redundant single-conn connect case for
+// it — the connect runs inside the relay case's Steps, and the lone single-conn
+// form would route through Steer and fail. goal-exchange wsStepsCase is still
+// emitted (it precedes the connectedRoles check).
+func TestWSCasesCovered_RelaySuppressesConnect(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":    {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge": {},
+	}}
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: p}}}
+	cases := WSCases(cfg, "verify web receives device:online")
+
+	// The relay case is present.
+	var hasRelay bool
+	for _, c := range cases {
+		if c.Action == "ws_flow" && len(c.Steps) > 1 {
+			hasRelay = true
+		}
+	}
+	require.True(t, hasRelay, "deterministic relay case emitted")
+
+	// No single-conn connect case for the roles the relay connects (web+bridge).
+	connects := filterAction(cases, "ws_connect")
+	require.Empty(t, connects, "relay covers web+bridge; no redundant single-conn connect")
 }
 
 // TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver: when an LLM ws_relay
