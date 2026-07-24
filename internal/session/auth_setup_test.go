@@ -192,3 +192,63 @@ func TestResolveActorAuth_DriverNilDegrades(t *testing.T) {
 		t.Fatal("nil driver must not set Auth")
 	}
 }
+
+// F3: declared path_params are captured into Credentials.PathParams so the
+// WS connect layer can template {name} placeholders in the service URL.
+func TestResolveActorAuth_StoresPathParams(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"token":"T","config":{"userId":"user_1"}}`)
+	}))
+	defer srv.Close()
+
+	s := &Session{
+		Config: &project.Config{
+			Services: []project.Service{{Name: "api", URL: srv.URL}},
+			Actors: []project.Actor{{
+				Name:    "u",
+				Service: "api",
+				Auth: &project.AuthFlow{
+					Login:      project.AuthLogin{Method: "POST", Path: "/login"},
+					TokenFrom:  "token",
+					InjectAs:   "Authorization: Bearer {token}",
+					PathParams: map[string]string{"userId": "config.userId"},
+				},
+			}},
+		},
+		Logger: zap.NewNop(),
+	}
+	s.resolveActorAuth(context.Background())
+
+	pp := s.Config.Actors[0].Credentials.PathParams
+	if pp["userId"] != "user_1" {
+		t.Fatalf("Credentials.PathParams[userId] = %q, want user_1", pp["userId"])
+	}
+}
+
+// Backwards-compat: an auth flow without path_params leaves Credentials.PathParams nil.
+func TestResolveActorAuth_NoPathParamsLeavesNil(t *testing.T) {
+	srv := newAuthLoginServer(t, "T")
+	defer srv.Close()
+
+	s := &Session{
+		Config: &project.Config{
+			Services: []project.Service{{Name: "api", URL: srv.URL}},
+			Actors: []project.Actor{{
+				Name:    "u",
+				Service: "api",
+				Auth: &project.AuthFlow{
+					Login:     project.AuthLogin{Method: "POST", Path: "/login"},
+					TokenFrom: "token",
+					InjectAs:  "Authorization: Bearer {token}",
+				},
+			}},
+		},
+		Logger: zap.NewNop(),
+	}
+	s.resolveActorAuth(context.Background())
+
+	if s.Config.Actors[0].Credentials.PathParams != nil {
+		t.Fatalf("Credentials.PathParams = %v, want nil when none declared", s.Config.Actors[0].Credentials.PathParams)
+	}
+}

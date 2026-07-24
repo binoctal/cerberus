@@ -46,6 +46,10 @@ type CredentialRef struct {
 	// auth setup when the actor has an Auth flow). Runtime-only; not loaded
 	// from YAML. Used by WS query/header/subprotocol auth injection.
 	RawToken string `yaml:"-" json:"-"`
+	// PathParams holds url-param -> value captured by the auth flow (F3).
+	// Runtime-only; never loaded from YAML. Used at WS connect to resolve
+	// {name} placeholders in the service URL.
+	PathParams map[string]string `yaml:"-" json:"-"`
 }
 
 type Database struct {

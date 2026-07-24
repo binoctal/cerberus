@@ -7,6 +7,11 @@ type AuthFlow struct {
 	Login     AuthLogin `yaml:"login"`
 	TokenFrom string    `yaml:"token_from"` // dot-path into response JSON (e.g. "token", "data.accessToken")
 	InjectAs  string    `yaml:"inject_as"`  // header template, "{token}" substituted (e.g. "Authorization: Bearer {token}")
+	// PathParams captures additional fields from the login response for URL
+	// templating: url-param name -> response JSON dot-path (same syntax as
+	// token_from). At WS connect, {name} placeholders in the service URL are
+	// substituted from these. Empty ⇒ no path params (backwards-compatible).
+	PathParams map[string]string `yaml:"path_params,omitempty"`
 }
 
 // AuthLogin describes the single login HTTP request.

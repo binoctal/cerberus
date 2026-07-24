@@ -3,8 +3,14 @@ package project
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// pathParamNameRE constrains path_params keys to identifier-like names so
+// they can only ever name a single {placeholder} in a URL path. Dot-path
+// VALUES are unconstrained (resolved at runtime against the login response).
+var pathParamNameRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // ValidateAuthFlow checks an AuthFlow's structural completeness: required
 // fields (login.method, login.path, token_from, inject_as) are non-empty and
@@ -29,6 +35,13 @@ func ValidateAuthFlow(af *AuthFlow) error {
 	}
 	if !strings.Contains(af.InjectAs, ":") {
 		return fmt.Errorf("inject_as %q must be a 'Name: Value' header", af.InjectAs)
+	}
+	// path_params keys must be identifier-like (a single {placeholder} name);
+	// dot-path values are unconstrained (resolved at runtime).
+	for name := range af.PathParams {
+		if !pathParamNameRE.MatchString(name) {
+			return fmt.Errorf("path_params: key %q is not a valid param name (must match %s)", name, pathParamNameRE.String())
+		}
 	}
 	return nil
 }

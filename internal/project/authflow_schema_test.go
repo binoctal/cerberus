@@ -222,3 +222,115 @@ func TestSettingsAuthAbsentByDefault(t *testing.T) {
 		t.Fatal("DiscoverFallback must default to false (opt-in)")
 	}
 }
+
+func TestAuthFlowPathParamsYAMLRoundTrip(t *testing.T) {
+	in := []byte(`
+actors:
+  - name: test-user
+    credentials: {email: a@b.c}
+    auth:
+      login: {method: POST, path: /login}
+      token_from: token
+      inject_as: "Authorization: Bearer {token}"
+      path_params:
+        userId: config.userId
+        tenantId: data.tenant
+`)
+	var cfg Config
+	if err := yaml.Unmarshal(in, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	pp := cfg.Actors[0].Auth.PathParams
+	if len(pp) != 2 {
+		t.Fatalf("want 2 path params, got %d (%v)", len(pp), pp)
+	}
+	if pp["userId"] != "config.userId" {
+		t.Fatalf("userId = %q", pp["userId"])
+	}
+	if pp["tenantId"] != "data.tenant" {
+		t.Fatalf("tenantId = %q", pp["tenantId"])
+	}
+
+	// Re-marshal and parse again to confirm round-trip stability.
+	out, err := yaml.Marshal(&cfg)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var cfg2 Config
+	if err := yaml.Unmarshal(bytes.TrimSpace(out), &cfg2); err != nil {
+		t.Fatalf("re-unmarshal: %v", err)
+	}
+	if cfg2.Actors[0].Auth.PathParams["userId"] != "config.userId" {
+		t.Fatalf("round-trip userId = %q", cfg2.Actors[0].Auth.PathParams["userId"])
+	}
+}
+
+func TestAuthFlowPathParamsAbsentByDefault(t *testing.T) {
+	// Backwards-compat: no path_params declared ⇒ nil map.
+	in := []byte(`
+actors:
+  - name: u
+    credentials: {email: a@b.c}
+    auth:
+      login: {method: POST, path: /login}
+      token_from: token
+      inject_as: "Authorization: Bearer {token}"
+`)
+	var cfg Config
+	if err := yaml.Unmarshal(in, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if cfg.Actors[0].Auth.PathParams != nil {
+		t.Fatalf("PathParams = %v, want nil when absent", cfg.Actors[0].Auth.PathParams)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("absent path_params must validate, got %v", err)
+	}
+}
+
+func TestValidateAuthFlowPathParamsBadName(t *testing.T) {
+	cases := []struct {
+		name string
+		key  string
+	}{
+		{name: "empty", key: ""},
+		{name: "starts with digit", key: "1userId"},
+		{name: "contains dash", key: "user-id"},
+		{name: "contains space", key: "user id"},
+		{name: "contains brace", key: "{userId}"},
+		{name: "contains dot", key: "user.id"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			af := &AuthFlow{
+				Login:      AuthLogin{Method: "POST", Path: "/login"},
+				TokenFrom:  "token",
+				InjectAs:   "Authorization: Bearer {token}",
+				PathParams: map[string]string{tc.key: "config.x"},
+			}
+			err := ValidateAuthFlow(af)
+			if err == nil {
+				t.Fatal("want validation error for bad path_params key, got nil")
+			}
+			if !strings.Contains(err.Error(), "path_params") {
+				t.Fatalf("error should reference path_params, got %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateAuthFlowPathParamsGoodNames(t *testing.T) {
+	af := &AuthFlow{
+		Login:     AuthLogin{Method: "POST", Path: "/login"},
+		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
+		PathParams: map[string]string{
+			"userId":   "config.userId",
+			"_tenant":  "data.t",
+			"a1_b2":    "x",
+			"TenantID": "t",
+		},
+	}
+	if err := ValidateAuthFlow(af); err != nil {
+		t.Fatalf("valid path_params keys must validate, got %v", err)
+	}
+}

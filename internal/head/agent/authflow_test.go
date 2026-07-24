@@ -114,12 +114,15 @@ func TestResolveAuthHeader_TopLevelToken(t *testing.T) {
 		TokenFrom: "token",
 		InjectAs:  "Authorization: Bearer {token}",
 	}}
-	name, value, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if name != "Authorization" || value != "Bearer JWT-123" {
-		t.Fatalf("got %q=%q", name, value)
+	if res.HeaderName != "Authorization" || res.HeaderValue != "Bearer JWT-123" {
+		t.Fatalf("got %q=%q", res.HeaderName, res.HeaderValue)
+	}
+	if res.PathParams != nil {
+		t.Fatalf("PathParams = %v, want nil when none declared", res.PathParams)
 	}
 }
 
@@ -132,12 +135,12 @@ func TestResolveAuthHeader_DotPathToken(t *testing.T) {
 		TokenFrom: "data.accessToken",
 		InjectAs:  "X-Token: {token}",
 	}}
-	name, value, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if name != "X-Token" || value != "xyz" {
-		t.Fatalf("got %q=%q", name, value)
+	if res.HeaderName != "X-Token" || res.HeaderValue != "xyz" {
+		t.Fatalf("got %q=%q", res.HeaderName, res.HeaderValue)
 	}
 }
 
@@ -159,7 +162,7 @@ func TestResolveAuthHeader_EmailPasswordInterpolation(t *testing.T) {
 			InjectAs:  "Authorization: Bearer {token}",
 		},
 	}
-	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -180,7 +183,7 @@ func TestResolveAuthHeader_Non2xxDegrades(t *testing.T) {
 		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
-	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err == nil {
 		t.Fatal("want error on non-2xx, got nil")
 	}
@@ -194,7 +197,7 @@ func TestResolveAuthHeader_MissingTokenFieldDegrades(t *testing.T) {
 		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
-	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err == nil {
 		t.Fatal("want error when token field missing, got nil")
 	}
@@ -214,7 +217,7 @@ func TestResolveAuthHeader_ErrorNeverContainsToken(t *testing.T) {
 		TokenFrom: "missing", // mismatch → extraction error
 		InjectAs:  "Authorization: Bearer {token}",
 	}}
-	_, _, _, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	_, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err == nil {
 		t.Fatal("want error")
 	}
@@ -230,11 +233,75 @@ func TestResolveAuthHeaderReturnsRawToken(t *testing.T) {
 		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
 		TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
 	}}
-	_, _, raw, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if raw != "JWT-RAW" {
-		t.Fatalf("raw token = %q, want JWT-RAW", raw)
+	if res.RawToken != "JWT-RAW" {
+		t.Fatalf("raw token = %q, want JWT-RAW", res.RawToken)
+	}
+}
+
+// F3: declared path_params are captured from the same login response.
+
+func TestResolveAuthHeader_CapturesPathParams(t *testing.T) {
+	srv := newLoginServer(t, 200, `{"token":"T","config":{"userId":"user_1","tenant":"acme"}}`, nil)
+	defer srv.Close()
+	actor := project.Actor{Auth: &project.AuthFlow{
+		Login:      project.AuthLogin{Method: "POST", Path: "/login"},
+		TokenFrom:  "token",
+		InjectAs:   "Authorization: Bearer {token}",
+		PathParams: map[string]string{"userId": "config.userId", "tenant": "config.tenant"},
+	}}
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.PathParams["userId"] != "user_1" {
+		t.Fatalf("userId = %q, want user_1", res.PathParams["userId"])
+	}
+	if res.PathParams["tenant"] != "acme" {
+		t.Fatalf("tenant = %q, want acme", res.PathParams["tenant"])
+	}
+}
+
+func TestResolveAuthHeader_PathParamAbsentDotPathIsEmpty(t *testing.T) {
+	// Declared path param whose dot-path is absent in the response yields ""
+	// (non-fatal); auth still succeeds.
+	srv := newLoginServer(t, 200, `{"token":"T","config":{"userId":"user_1"}}`, nil)
+	defer srv.Close()
+	actor := project.Actor{Auth: &project.AuthFlow{
+		Login:      project.AuthLogin{Method: "POST", Path: "/login"},
+		TokenFrom:  "token",
+		InjectAs:   "Authorization: Bearer {token}",
+		PathParams: map[string]string{"userId": "config.userId", "missing": "config.nope"},
+	}}
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.PathParams["userId"] != "user_1" {
+		t.Fatalf("userId = %q, want user_1", res.PathParams["userId"])
+	}
+	if res.PathParams["missing"] != "" {
+		t.Fatalf("absent dot-path should yield \"\", got %q", res.PathParams["missing"])
+	}
+}
+
+func TestResolveAuthHeader_NoPathParamsDeclaresNil(t *testing.T) {
+	// Backwards-compat: no path_params declared ⇒ nil map (old behavior).
+	srv := newLoginServer(t, 200, `{"token":"T"}`, nil)
+	defer srv.Close()
+	actor := project.Actor{Auth: &project.AuthFlow{
+		Login:     project.AuthLogin{Method: "POST", Path: "/login"},
+		TokenFrom: "token",
+		InjectAs:  "Authorization: Bearer {token}",
+	}}
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.PathParams != nil {
+		t.Fatalf("PathParams = %v, want nil when none declared", res.PathParams)
 	}
 }
