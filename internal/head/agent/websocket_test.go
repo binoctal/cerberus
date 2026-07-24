@@ -1731,3 +1731,24 @@ func TestWSReceiveAfterPeerCloseAllConsumersError(t *testing.T) {
 		}
 	}
 }
+
+func TestWSReceiveAliasesMatch(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		// Server emits the BATCHED form, not the primary the client awaits. Write
+		// it right after accept; the client's read pump buffers it whenever it
+		// arrives, so no handshake/read ordering is needed.
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"session:output-batch","payload":{"lines":["x"]}}`))
+		_, _, _ = conn.Read(ctx) // block until close
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	_ = ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}) // establish
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "session:output", Aliases: []string{"session:output-batch"},
+		Assert: map[string]any{"payload.lines": []any{"x"}}, Timeout: 2,
+	})
+	require.True(t, res.Success(), "receive should match the alias type; got %+v", res)
+}

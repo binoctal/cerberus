@@ -225,6 +225,10 @@ func (a WSSendAction) Validate() error {
 type WSReceiveAction struct {
 	ConnectionID string `json:"connection_id"`
 	Type         string `json:"type"`
+	// Aliases are additional routing types that also satisfy this receive. A frame
+	// whose type_path is Type OR any Aliases matches. Empty ⇒ single-type
+	// behavior. Asserts apply to whichever frame matched.
+	Aliases []string `json:"aliases,omitempty"`
 	// Timeout in seconds for the matching message to arrive.
 	Timeout  int  `json:"timeout,omitempty"`
 	Decisive bool `json:"decisive,omitempty"`

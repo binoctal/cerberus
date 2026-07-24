@@ -13,6 +13,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // newStepExecution builds a stepExecution wired to a real MultiExecutor (which
@@ -307,4 +308,16 @@ func TestRunStepsMultiConnection(t *testing.T) {
 	require.Len(t, result.Evidence, 6, "one evidence entry per step")
 	require.Equal(t, int32(2), accepts.Load(),
 		"the case must open two distinct connections (accepts=%d)", accepts.Load())
+}
+
+func TestStepToActionReceiveAliases(t *testing.T) {
+	action, err := stepToAction(&TestCase{Target: "ws://x"}, TestStep{
+		Action: "ws_receive", ConnectionID: "c1", Type: "session:output",
+		Aliases: []string{"session:output-batch"}, Timeout: 2,
+	})
+	require.NoError(t, err)
+	wr, ok := action.(types.WSReceiveAction)
+	require.True(t, ok)
+	require.Equal(t, "session:output", wr.Type)
+	require.Equal(t, []string{"session:output-batch"}, wr.Aliases)
 }

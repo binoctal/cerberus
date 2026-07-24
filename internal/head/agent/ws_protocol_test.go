@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExtractTypePath(t *testing.T) {
@@ -118,6 +119,29 @@ func TestMatchType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMatchAnyType(t *testing.T) {
+	const frame = `{"type":"session:output-batch","payload":{"lines":["hi"]}}`
+	tests := []struct {
+		name  string
+		types []string
+		want  bool
+	}{
+		{"primary match", []string{"session:output-batch"}, true},
+		{"alias match primary absent", []string{"session:output", "session:output-batch"}, true},
+		{"alias match order independent", []string{"session:output-batch", "session:output"}, true},
+		{"no match", []string{"session:output", "device:ack"}, false},
+		{"empty set never matches", nil, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, matchAnyType("", []byte(frame), tc.types, "type"))
+		})
+	}
+	// Backwards-compat: matchAnyType over a 1-element set == matchType.
+	require.Equal(t, matchType("", []byte(frame), "session:output-batch", "type"),
+		matchAnyType("", []byte(frame), []string{"session:output-batch"}, "type"))
 }
 
 func TestFrameForResult(t *testing.T) {

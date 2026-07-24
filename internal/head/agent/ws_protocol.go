@@ -82,6 +82,18 @@ func matchType(framing string, data []byte, want, typePath string) bool {
 	}
 }
 
+// matchAnyType reports whether a received frame matches ANY of types under the
+// connection's framing. It is matchType over a set; the empty set never matches.
+// Used by ws_receive with aliases (e.g. session:output vs session:output-batch).
+func matchAnyType(framing string, data []byte, types []string, typePath string) bool {
+	for _, t := range types {
+		if matchType(framing, data, t, typePath) {
+			return true
+		}
+	}
+	return false
+}
+
 // frameForResult renders received bytes for a WSResult string field under the
 // connection's framing. binary frames are base64-encoded; text/json frames are
 // the raw UTF-8 text.

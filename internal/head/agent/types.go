@@ -47,6 +47,7 @@ type TestStep struct {
 	Role         string         `json:"role,omitempty"`          // Optional: role name (e.g., "web", "device")
 	Message      string         `json:"message,omitempty"`       // For ws_send: JSON payload to send
 	Type         string         `json:"type,omitempty"`          // For ws_receive: expected message type
+	Aliases      []string       `json:"aliases,omitempty"`       // ws_receive: additional matching types
 	Asserts      map[string]any `json:"asserts,omitempty"`       // For ws_receive: field assertions
 	Timeout      int            `json:"timeout,omitempty"`       // ws_receive: seconds (0 ⇒ executor default)
 }

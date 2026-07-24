@@ -614,8 +614,9 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
+	want := append([]string{a.Type}, a.Aliases...)
 	matched, seen, status := readMatching(entry, func(m wsMsg) bool {
-		return matchType(framing, m.data, a.Type, path)
+		return matchAnyType(framing, m.data, want, path)
 	}, timeout)
 	switch status {
 	case "matched":
