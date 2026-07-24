@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/project"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 func TestExtractTypePath(t *testing.T) {
@@ -142,6 +143,9 @@ func TestMatchAnyType(t *testing.T) {
 	// Backwards-compat: matchAnyType over a 1-element set == matchType.
 	require.Equal(t, matchType("", []byte(frame), "session:output-batch", "type"),
 		matchAnyType("", []byte(frame), []string{"session:output-batch"}, "type"))
+	// Binary framing: an invalid-base64 alias never matches and does not panic
+	// (OR safe — matchType returns false on decode error).
+	require.False(t, matchAnyType("binary", []byte{0x00, 0x01}, []string{"@@@@"}, ""))
 }
 
 func TestFrameForResult(t *testing.T) {
