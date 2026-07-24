@@ -74,10 +74,11 @@ func TestExpandWSRelayCases_DropsInvalid(t *testing.T) {
 		body string
 	}{
 		{"bad json", `not json`},
-		{"fewer than 2 roles", `{"roles":["web"],"steps":[]}`},
-		{"duplicate role", `{"roles":["web","web"],"steps":[]}`},
-		{"unknown role", `{"roles":["web","ghost"],"steps":[]}`},
-		{"unknown service", `{"roles":["web","bridge"],"steps":[]}`}, // service mismatch handled below
+		{"fewer than 2 roles", `{"roles":["web"],"steps":[{"do":"receive","role":"web","type":"x"}]}`},
+		{"no steps", `{"roles":["web","bridge"],"steps":[]}`},
+		{"duplicate role", `{"roles":["web","web"],"steps":[{"do":"receive","role":"web","type":"x"}]}`},
+		{"unknown role", `{"roles":["web","ghost"],"steps":[{"do":"receive","role":"web","type":"x"}]}`},
+		{"unknown service", `{"roles":["web","bridge"],"steps":[{"do":"receive","role":"web","type":"x"}]}`}, // service mismatch handled below
 		{"empty type", `{"roles":["web","bridge"],"steps":[{"do":"send","role":"web","type":""}]}`},
 		{"step role not in roles", `{"roles":["web","bridge"],"steps":[{"do":"send","role":"ghost","type":"x"}]}`},
 		{"bad do", `{"roles":["web","bridge"],"steps":[{"do":"push","role":"web","type":"x"}]}`},

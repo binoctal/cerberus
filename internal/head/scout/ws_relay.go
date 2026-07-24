@@ -84,6 +84,9 @@ func expandOneRelayCase(svcByName map[string]*project.Service, c agent.TestCase)
 	if len(intent.Roles) < 2 {
 		return expandedRelay{}, false
 	}
+	if len(intent.Steps) == 0 {
+		return expandedRelay{}, false // a relay must have at least one send/receive
+	}
 	// Every named role must be declared by this ONE protocol; collect the set so
 	// step roles can be checked against it.
 	declared := map[string]*project.ProtocolRole{}

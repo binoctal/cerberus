@@ -49,7 +49,10 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		// deterministic across runs regardless of map iteration order.
 		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
 			if covered[svc.Name][roleName] {
-				continue // role covered by an expanded ws_relay; skip its cases
+				// Role-level skip: a ws_relay already connects this role, so
+				// suppress ALL of WSCases' forms for it (connect, connect+receive,
+				// and the ws_flow exchange) to avoid opening redundant sockets.
+				continue
 			}
 			role := svc.Protocol.Roles[roleName]
 			if ex, ok := wsExchangeFromGoal(goal); ok {
