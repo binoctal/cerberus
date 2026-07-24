@@ -188,7 +188,11 @@ JWT and a bridge device token) without role abstraction.
 The injected value is the actor's resolved **raw token** — the unformatted value
 extracted at session setup (the same value used for `{token}` substitution),
 cached alongside the formatted HTTP header so repeated connects do not re-run
-the login. `InjectAs` formatting stays HTTP-only; a WS protocol that needs a
+the login. An actor may also declare a static `credentials.token` (in
+credentials.yaml); when the actor has no auth flow (or the flow resolved no token),
+the static token is used instead — a flow-resolved token always wins. This lets a
+static-token / dev-backdoor target (e.g. an API key, or open-agents' web
+`demo_token`) authenticate without a contrived login flow. `InjectAs` formatting stays HTTP-only; a WS protocol that needs a
 formatted header value (e.g. `Authorization: Bearer …`) is not expressible in
 M1 and lands with roles in M2. If the named actor is missing or has no
 resolvable token, `ws_connect` fails with a non-secret error and does not dial.
