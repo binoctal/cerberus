@@ -449,3 +449,74 @@ func TestWSCasesCollidingTypesDedupToOneCase(t *testing.T) {
 	assert.Equal(t, []string{"devices-sync"}, bodyTypes(receives),
 		"handshake spelling (added first) wins on collision")
 }
+
+// wsRelayCases emits a relay case for an optional-handshake role in a ≥2-role
+// protocol; connect the receiver first, then peers, then receive the signal.
+func TestWSRelayCases(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":    {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge": {},
+	}}
+	svc := project.Service{Name: "rt", URL: "ws://h/ws", Protocol: p}
+
+	cases, covered := wsRelayCases(svc)
+	require.Len(t, cases, 1, "one relay case for web's optional handshake")
+	c := cases[0]
+	require.Equal(t, "ws-rt-relay-web-signal-device-online", c.ID)
+	require.Equal(t, "ws://h/ws", c.Target)
+	require.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 3)
+	require.Equal(t, "ws_connect", c.Steps[0].Action) // web (receiver) first
+	require.Equal(t, "web", c.Steps[0].ConnectionID)
+	require.Equal(t, "ws_connect", c.Steps[1].Action) // bridge (peer)
+	require.Equal(t, "bridge", c.Steps[1].ConnectionID)
+	require.Equal(t, "ws_receive", c.Steps[2].Action)
+	require.Equal(t, "device:online", c.Steps[2].Type)
+	require.Equal(t, "web", c.Steps[2].ConnectionID)
+	require.Equal(t, 2, c.Steps[2].Timeout)
+	require.True(t, covered["web"]["device:online"])
+}
+
+// No emission when the trigger is absent.
+func TestWSRelayCases_NoTrigger(t *testing.T) {
+	for _, name := range []string{"single role", "mandatory handshake", "no handshake"} {
+		t.Run(name, func(t *testing.T) {
+			var p *project.Protocol
+			switch name {
+			case "single role":
+				p = &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {Handshake: &project.RoleHandshake{AwaitType: "x", Optional: true}}}}
+			case "mandatory handshake":
+				p = &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {Handshake: &project.RoleHandshake{AwaitType: "x"}}, "bridge": {}}}
+			case "no handshake":
+				p = &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}, "bridge": {}}}
+			}
+			cases, covered := wsRelayCases(project.Service{Name: "rt", Protocol: p})
+			require.Empty(t, cases)
+			require.Empty(t, covered)
+		})
+	}
+}
+
+// WSCasesCovered suppresses the redundant single-conn receive of a covered signal.
+func TestWSCasesCovered_RelaySuppressesReceive(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":    {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge": {},
+	}}
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: p}}}
+	got := WSCases(cfg, "verify web receives device:online")
+	// A relay case is present.
+	var relay *agent.TestCase
+	for i := range got {
+		if got[i].Action == "ws_flow" && len(got[i].Steps) > 1 {
+			relay = &got[i]
+		}
+	}
+	require.NotNil(t, relay, "deterministic relay case emitted")
+	// No separate single-conn ws_receive device:online case (it is covered by the relay).
+	for _, c := range got {
+		if c.Action == "ws_receive" {
+			require.NotContains(t, c.ID, "device-online", "redundant single-conn signal receive suppressed")
+		}
+	}
+}

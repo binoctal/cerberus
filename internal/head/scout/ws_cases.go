@@ -45,6 +45,30 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		if svc.Protocol == nil || len(svc.Protocol.Roles) == 0 {
 			continue
 		}
+		// Deterministic peer-join relay cases: a role with an OPTIONAL handshake
+		// receives its signal when a peer connects. These are protocol-derivable
+		// (no LLM). A peer-join signal times out on ANY lone connection, so the
+		// redundant single-conn receive of a covered type is suppressed for every
+		// role below (not just the receiver). Coexist with LLM ws_relay (A1): when
+		// a receiver role is already covered by an LLM relay case, the
+		// deterministic relay is redundant and is dropped.
+		relayCases, relayCovered := wsRelayCases(svc)
+		svcCovered := covered[svc.Name]
+		for _, rc := range relayCases {
+			// The receiver role is the first step's Role (A-first connect order).
+			if !svcCovered[rc.Steps[0].Role] {
+				cases = append(cases, rc)
+			}
+		}
+		relaySignals := map[string]bool{}
+		for receiver, types := range relayCovered {
+			if svcCovered[receiver] {
+				continue
+			}
+			for typ := range types {
+				relaySignals[typ] = true
+			}
+		}
 		// Iterate roles in sorted name order so the returned slice is
 		// deterministic across runs regardless of map iteration order.
 		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
@@ -72,6 +96,12 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 				Priority:    0.5,
 			})
 			for _, typ := range wsDecisiveTypes(role, goal) {
+				if relaySignals[typ] {
+					// The deterministic relay case already receives this
+					// peer-join signal across connections; a single-conn
+					// receive would time out, so skip it.
+					continue
+				}
 				cases = append(cases, agent.TestCase{
 					ID:          wsCaseID(svc.Name, roleName, typ),
 					Name:        fmt.Sprintf("%s %s receives %s", svc.Name, roleName, typ),
@@ -87,6 +117,53 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		}
 	}
 	return cases
+}
+
+// wsRelayCases emits deterministic multi-connection relay Steps cases for the
+// peer-join signals in a service's protocol: each role with an OPTIONAL handshake
+// (await_type T) receives T when a peer connects. Returns the cases plus the
+// (role → set(signalType)) pairs they cover, so the per-role loop can skip the
+// redundant single-connection receive (which would time out without the peer).
+// Pure; no LLM. Deterministic (sorted roles).
+func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]bool) {
+	var cases []agent.TestCase
+	covered := map[string]map[string]bool{}
+	if svc.Protocol == nil || len(svc.Protocol.Roles) < 2 {
+		return cases, covered
+	}
+	names := slices.Sorted(maps.Keys(svc.Protocol.Roles))
+	for _, aName := range names {
+		a := svc.Protocol.Roles[aName]
+		if a == nil || a.Handshake == nil || !a.Handshake.Optional || a.Handshake.AwaitType == "" {
+			continue
+		}
+		var peers []string
+		for _, p := range names {
+			if p != aName {
+				peers = append(peers, p)
+			}
+		}
+		signal := a.Handshake.AwaitType
+		steps := []agent.TestStep{{Action: "ws_connect", ConnectionID: aName, Role: aName}}
+		for _, p := range peers {
+			steps = append(steps, agent.TestStep{Action: "ws_connect", ConnectionID: p, Role: p})
+		}
+		steps = append(steps, agent.TestStep{
+			Action: "ws_receive", ConnectionID: aName, Type: signal, Timeout: a.Handshake.Timeout,
+		})
+		cases = append(cases, agent.TestCase{
+			ID:      "ws-" + svc.Name + "-relay-" + aName + "-signal-" + sanitizeTypeID(signal),
+			Name:    fmt.Sprintf("%s %s receives relayed %s on peer join", svc.Name, aName, signal),
+			Service: svc.Name, Target: svc.URL, Action: "ws_flow",
+			Expectation: fmt.Sprintf("%s role %s receives %s relayed when a peer connects", svc.Name, aName, signal),
+			Priority:    0.8, Steps: steps,
+		})
+		if covered[aName] == nil {
+			covered[aName] = map[string]bool{}
+		}
+		covered[aName][signal] = true
+	}
+	return cases, covered
 }
 
 // wsStepsCase builds a deterministic multi-step WS exchange case for a role:
