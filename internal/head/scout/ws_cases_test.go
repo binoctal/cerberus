@@ -520,3 +520,30 @@ func TestWSCasesCovered_RelaySuppressesReceive(t *testing.T) {
 		}
 	}
 }
+
+// TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver: when an LLM ws_relay
+// already covers the receiver role (the covered map), the deterministic relay
+// case for that role is dropped (no double-coverage) and its signal is not
+// suppressed for the per-role loop. Deviation #2 (coexistence with A1).
+func TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":    {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge": {},
+	}}
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: p}}}
+	got := WSCasesCovered(cfg, "verify web receives device:online",
+		map[string]map[string]bool{"rt": {"web": true}})
+	// No deterministic relay case (web is covered by an LLM ws_relay).
+	for _, c := range got {
+		require.NotContains(t, c.ID, "relay-web-signal", "deterministic relay dropped when LLM covers the receiver")
+	}
+	// web is covered at the role level → no web cases at all; bridge still connects.
+	var sawBridgeConnect bool
+	for _, c := range got {
+		require.NotContains(t, c.ID, "-web-", "web fully skipped (LLM-covered)")
+		if c.Action == "ws_connect" && strings.Contains(c.ID, "-bridge-") {
+			sawBridgeConnect = true
+		}
+	}
+	require.True(t, sawBridgeConnect, "uncovered bridge role still connects")
+}
