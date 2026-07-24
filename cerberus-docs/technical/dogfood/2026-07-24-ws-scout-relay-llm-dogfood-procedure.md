@@ -129,3 +129,17 @@ deterministic relay detector in `WSCases` for the derivable case (a 2-role proto
 + a goal naming a relayed type ⇒ emit a multi-connection `Steps` case without the
 LLM — the F1 fork-3 "deterministic" option, revisited). The probe is committed as a
 reusable live diagnostic to re-check after either change.
+
+### Resolution (2026-07-24): option (b) — deterministic detector
+
+Option (b) was implemented: `wsRelayCases` deterministically emits a
+multi-connection relay `Steps` case when a ≥2-role protocol has a role with an
+**optional** handshake (a peer-gated signal). Re-running
+`TestScoutRelayEmission_Live` with the same GLM key now shows the relay case
+emitted **without any LLM** — e.g. `ws-realtime-relay-web-signal-device-online`
+(`ws_flow`: connect `web` → connect `bridge` → receive `device:online` on `web`),
+and the redundant single-connection receive of that signal is suppressed. The GLM
+LLM-emission gap is closed for the protocol-derivable peer-join relay. The LLM
+`ws_relay` (A1) path remains for richer, type-transform relays when a capable model
+emits them. Design:
+[`cerberus-docs/superpowers/specs/2026-07-24-ws-deterministic-relay-detector-design.md`](../superpowers/specs/2026-07-24-ws-deterministic-relay-detector-design.md).

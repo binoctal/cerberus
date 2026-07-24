@@ -373,6 +373,14 @@ multi-connection `Steps` case above (connect each role in order, then the ordere
 send/receive) and skips `WSCases`' single-role cases for the covered roles. Design:
 [`cerberus-docs/superpowers/specs/2026-07-24-ws-scout-relay-generation-design.md`](../superpowers/specs/2026-07-24-ws-scout-relay-generation-design.md).
 
+Scout ALSO emits a relay case **deterministically** (no LLM) when the protocol has
+≥2 roles and one role has an **optional** handshake (`optional: true`) — an optional
+handshake is a peer-gated signal that arrives only when a peer connects. In that
+case Scout emits a multi-connection `Steps` case: connect the receiver role first,
+then its peers, then receive the signal. The redundant single-connection receive of
+that signal (which would time out without the peer) is suppressed. Design:
+[`cerberus-docs/superpowers/specs/2026-07-24-ws-deterministic-relay-detector-design.md`](../superpowers/specs/2026-07-24-ws-deterministic-relay-detector-design.md).
+
 ### M0 fallback
 
 A service without a `protocol:` block behaves exactly as M0: `ws_receive`
