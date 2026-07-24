@@ -641,7 +641,11 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 		// No matching frame within the deadline. The connection is STILL ALIVE
 		// (the pump keeps running): return OK:false without closing, so a later
 		// send/receive on the same connection_id can succeed.
-		return types.WSResult{OK: false, Err: fmt.Sprintf("receive: timed out awaiting %q", a.Type), SeenMessages: seen, Latency: time.Since(start)}
+		errMsg := fmt.Sprintf("receive: timed out awaiting %q", a.Type)
+		if len(a.Aliases) > 0 {
+			errMsg = fmt.Sprintf("%s (aliases: %v)", errMsg, a.Aliases)
+		}
+		return types.WSResult{OK: false, Err: errMsg, SeenMessages: seen, Latency: time.Since(start)}
 	default: // "closed"
 		// The pump exited (peer close or ctx cancel); the connection is dead.
 		return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", entry.pumpErr), SeenMessages: seen, Latency: time.Since(start)}
