@@ -2,93 +2,59 @@ package scout
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 
-	"go.uber.org/zap"
-
-	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/project"
 )
 
-// evaluate scores each candidate using AI (70%) + deterministic coverage (30%).
-func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, model *project.ProjectModel) ([]PlanCandidate, error) {
-	endpointSummary := formatEndpointsForEval(model)
-
-	// Score all candidates in parallel.
-	var wg sync.WaitGroup
-	results := make([]PlanCandidate, len(candidates))
-	var failCount int64
+// evaluate scores candidates deterministically (no LLM). Signals: endpoint
+// coverage, invariant coverage, page coverage, action diversity, goal overlap.
+// Fail-safe: if the top score is below floorScore, returns an error instead of
+// silently ranking near-random candidates (the analogue of the old "all AI
+// scores failed" systemic signal).
+//
+// goal is consumed by the goal-overlap signal; it is already in Plan's scope.
+func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, model *project.ProjectModel, goal string) ([]PlanCandidate, error) {
+	_ = ctx // no LLM call anymore; retained for signature stability.
 
 	for i := range candidates {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			c := candidates[idx]
-
-			// Deterministic coverage score (30%).
-			c.Coverage = t.coverageScore(&c, model)
-
-			// AI quality score (70%).
-			aiScore, err := t.aiScore(ctx, &c, endpointSummary)
-			if err != nil {
-				t.logger.Warn("tot ai score failed", zap.Error(err))
-				atomic.AddInt64(&failCount, 1)
-				aiScore = 5.0 // Mid-range fallback.
-			}
-			c.AIScore = aiScore
-
-			// Combined: AI 70% + coverage 30%.
-			c.Score = (aiScore / 10.0 * 0.7) + (c.Coverage * 0.3)
-
-			results[idx] = c
-		}(i)
+		c := candidates[i]
+		c.Score = t.deterministicScore(&c, model, goal)
+		c.Coverage = t.coverageScore(&c, model)
+		c.AIScore = 0 // legacy field; deterministic replacement
+		candidates[i] = c
 	}
-	wg.Wait()
-
-	// If every candidate's AI score failed, the ranking rests on coverage alone
-	// (30% signal) — surface it as a systemic failure instead of silently
-	// returning a near-random ordering.
-	if len(candidates) > 0 && int(failCount) == len(candidates) {
-		return results, fmt.Errorf("tot evaluate: all %d candidates failed AI scoring; ranking is coverage-only", failCount)
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].Score > candidates[j].Score })
+	if len(candidates) > 0 && candidates[0].Score < floorScore {
+		return candidates, fmt.Errorf("tot evaluate: top score %.3f below floor %.3f; nothing actionable", candidates[0].Score, floorScore)
 	}
-	return results, nil
+	return candidates, nil
 }
 
-// aiScore asks the LLM to rate a strategy on a 1-10 scale.
-func (t *ToTPlanner) aiScore(ctx context.Context, c *PlanCandidate, endpointSummary string) (float64, error) {
-	casesJSON, _ := json.Marshal(c.Cases)
-	task := fmt.Sprintf(`Rate this test strategy on a scale of 1-10.
+// floorScore is the minimum deterministic score for a candidate to be
+// considered actionable. Below this the ranking is treated as noise and
+// evaluate surfaces an error instead of returning near-random orderings.
+const floorScore = 0.10
 
-Focus on STRATEGY QUALITY:
-- Risk focus: targets high-risk, high-impact areas?
-- Completeness: covers happy path AND error cases AND edge cases?
-- Diversity: tests different types of failures?
-- Efficiency: can be executed within time constraints?
-
-Known endpoints (for coverage reference):
-%s
-
-Strategy: %s
-Cases: %s
-
-Output ONLY: {"score": N, "reasoning": "brief explanation"}`,
-		endpointSummary, c.Description, string(casesJSON))
-
-	prompt := ai.NewPrompt().
-		System("You are a test strategy evaluator. Rate strategies objectively.").
-		Task(task).
-		Output(`{"score": 7, "reasoning": "explanation"}`).
-		Build()
-
-	var out EvaluateOutput
-	if err := t.evaluateDriver.Decide(ctx, prompt, &out); err != nil {
-		return 5.0, err
-	}
-	return out.Score, nil
+// deterministicScore combines five deterministic signals into a 0..1 score:
+//
+//	0.30 endpoint coverage   — how many known API endpoints the cases touch
+//	0.25 invariant coverage  — how many invariant hints the cases reference
+//	0.12 page coverage       — how many navigation pages the cases touch
+//	0.20 action diversity    — breadth of test angles (get/post/error/edge/...)
+//	0.13 goal overlap        — token overlap with the user's stated goal
+//
+// The weights sum to 1.0 and replace the former 70/30 LLM/coverage blend.
+// ToT.propose stays on Decide (deferred to S3); evaluate is now LLM-free.
+func (t *ToTPlanner) deterministicScore(c *PlanCandidate, model *project.ProjectModel, goal string) float64 {
+	ep := t.coverageScore(c, model)      // 0.30
+	inv := t.invariantCoverage(c, model) // 0.25
+	pg := t.pageCoverage(c, model)       // 0.12
+	div := t.actionDiversity(c)          // 0.20
+	goalOL := t.goalOverlap(c, goal)     // 0.13
+	return 0.30*ep + 0.25*inv + 0.12*pg + 0.20*div + 0.13*goalOL
 }
 
 // coverageScore computes a deterministic endpoint coverage score [0, 1].

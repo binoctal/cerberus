@@ -60,12 +60,6 @@ type StrategyProposal struct {
 	Cases       []string `json:"cases"`
 }
 
-// EvaluateOutput is the LLM response for an Evaluate call.
-type EvaluateOutput struct {
-	Score     float64 `json:"score"`
-	Reasoning string  `json:"reasoning"`
-}
-
 // ToTPlanner uses Tree-of-Thought beam search for deep test planning.
 type ToTPlanner struct {
 	proposeDriver  *ai.Driver // strategy generation (SONNET tier)
@@ -144,7 +138,7 @@ func (t *ToTPlanner) Plan(ctx context.Context, goal string, model *project.Proje
 		}
 
 		// Phase 2: Evaluate — score each proposal.
-		scored, err := t.evaluate(ctx, expanded, model)
+		scored, err := t.evaluate(ctx, expanded, model, goal)
 		if err != nil {
 			t.logger.Warn("tot evaluate failed, stopping search", zap.Error(err))
 			return t.bestToPlan(candidates, goal, baseURL), nil

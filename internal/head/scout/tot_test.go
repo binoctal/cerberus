@@ -15,6 +15,27 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
+func TestDeterministicScore_RanksCoveringCandidateHigher(t *testing.T) {
+	model := &project.ProjectModel{API: project.APIModel{Endpoints: []project.EndpointDef{{Method: "GET", Path: "/users"}}}}
+	model.InvariantHints = []project.InvariantHint{{ID: "inv1", Description: "users must be unique"}}
+	high := &PlanCandidate{Cases: []string{"GET /users", "check inv1 users must be unique"}}
+	low := &PlanCandidate{Cases: []string{"check something unrelated"}}
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
+	hs := planner.deterministicScore(high, model, "test users")
+	ls := planner.deterministicScore(low, model, "test users")
+	assert.Greater(t, hs, ls, "candidate covering endpoints+invariants must score higher")
+}
+
+func TestDeterministicScore_FloorTriggersFailSafe(t *testing.T) {
+	// "x" matches no endpoint/invariant/page/goal token → score ≈0.06 < floor 0.10.
+	model := &project.ProjectModel{API: project.APIModel{Endpoints: []project.EndpointDef{{Method: "GET", Path: "/users"}}}}
+	model.InvariantHints = []project.InvariantHint{{ID: "inv1", Description: "users must be unique"}}
+	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
+	empty := []PlanCandidate{{Cases: []string{"x"}}}
+	_, err := planner.evaluate(context.Background(), empty, model, "test users")
+	assert.Error(t, err)
+}
+
 func TestToTPlanner_BuildProposeTask_MemoryInjected(t *testing.T) {
 	planner := NewToTPlanner(nil, nil, DefaultToTConfig(), zap.NewNop())
 	parent := PlanCandidate{Description: "cover auth endpoints"}
@@ -32,11 +53,9 @@ func TestToTPlanner_BuildProposeTask_MemoryInjected(t *testing.T) {
 }
 
 func TestToTPlanner_SingleStep(t *testing.T) {
-	// MockClient returns proposals then evaluations.
-	// Since MockClient returns same response for all calls, we need a response
-	// that works for both propose and evaluate.
-	// Propose expects ProposeOutput, evaluate expects EvaluateOutput.
-	// We'll use a propose response — evaluate will fail and use fallback score.
+	// MockClient returns proposals; evaluate is now deterministic (no LLM).
+	// Propose expects ProposeOutput; evaluate no longer consumes an LLM
+	// response, so the single mock response only needs to satisfy propose.
 	proposeOut := ProposeOutput{
 		Strategies: []StrategyProposal{
 			{Description: "Happy path tests", Cases: []string{"GET /api/v1/users returns 200", "POST /api/v1/users returns 201"}},

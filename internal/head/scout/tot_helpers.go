@@ -2,6 +2,7 @@ package scout
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -65,16 +66,75 @@ func formatModelForToT(model *project.ProjectModel) string {
 	return b.String()
 }
 
-// formatEndpointsForEval creates a compact endpoint list for evaluation prompts.
-func formatEndpointsForEval(model *project.ProjectModel) string {
-	if len(model.API.Endpoints) == 0 {
-		return "(no known endpoints)"
+// invariantCoverage returns the fraction of model.InvariantHints referenced
+// by the candidate's cases (matched by ID or Description, case-insensitive).
+// With no invariants modeled, returns 0.5 (neutral — neither rewarded nor
+// penalized) so the invariant signal does not dominate when absent.
+func (t *ToTPlanner) invariantCoverage(c *PlanCandidate, model *project.ProjectModel) float64 {
+	if len(model.InvariantHints) == 0 {
+		return 0.5
 	}
-	var parts []string
-	for _, ep := range model.API.Endpoints {
-		parts = append(parts, ep.Method+" "+ep.Path)
+	text := strings.ToLower(strings.Join(c.Cases, " "))
+	matched := 0
+	for _, inv := range model.InvariantHints {
+		if strings.Contains(text, strings.ToLower(inv.ID)) || strings.Contains(text, strings.ToLower(inv.Description)) {
+			matched++
+		}
 	}
-	return strings.Join(parts, ", ")
+	return float64(matched) / float64(len(model.InvariantHints))
+}
+
+// pageCoverage returns the fraction of model.Navigation.Pages referenced by
+// the candidate's cases (matched by Path). Returns 0.5 when no pages are
+// modeled (neutral default, same rationale as invariantCoverage).
+func (t *ToTPlanner) pageCoverage(c *PlanCandidate, model *project.ProjectModel) float64 {
+	if len(model.Navigation.Pages) == 0 {
+		return 0.5
+	}
+	text := strings.ToLower(strings.Join(c.Cases, " "))
+	matched := 0
+	for _, pg := range model.Navigation.Pages {
+		if strings.Contains(text, strings.ToLower(pg.Path)) {
+			matched++
+		}
+	}
+	return float64(matched) / float64(len(model.Navigation.Pages))
+}
+
+// actionDiversity rewards cases that span distinct test angles. It scans each
+// case for keywords (get/post/error/edge/boundary/invariant/ws) and returns
+// min(distinct_count/4, 1.0) — saturating at 4 distinct angles.
+func (t *ToTPlanner) actionDiversity(c *PlanCandidate) float64 {
+	set := map[string]bool{}
+	for _, cs := range c.Cases {
+		l := strings.ToLower(cs)
+		for _, k := range []string{"get", "post", "error", "edge", "boundary", "invariant", "ws"} {
+			if strings.Contains(l, k) {
+				set[k] = true
+			}
+		}
+	}
+	return math.Min(float64(len(set))/4.0, 1.0) // saturate at 4 distinct angles
+}
+
+// goalOverlap returns the fraction of goal tokens (length > 2) that appear in
+// the candidate's cases. Empty/whitespace goal yields 0.5 (neutral).
+func (t *ToTPlanner) goalOverlap(c *PlanCandidate, goal string) float64 {
+	if goal == "" {
+		return 0.5
+	}
+	text := strings.ToLower(strings.Join(c.Cases, " "))
+	toks := strings.Fields(strings.ToLower(goal))
+	if len(toks) == 0 {
+		return 0.5
+	}
+	matched := 0
+	for _, tk := range toks {
+		if len(tk) > 2 && strings.Contains(text, tk) {
+			matched++
+		}
+	}
+	return float64(matched) / float64(len(toks))
 }
 
 // truncateName truncates a string to maxLen, adding "..." if needed.
