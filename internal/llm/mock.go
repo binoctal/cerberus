@@ -8,11 +8,22 @@ import (
 )
 
 type MockClient struct {
-	responses map[string]string
+	responses     map[string]string
+	toolResponses map[string][]ToolCall
 }
 
 func NewMockClient(responses map[string]string) *MockClient {
 	return &MockClient{responses: responses}
+}
+
+// SetToolResponse presets a tool_use response for a given prompt key. When
+// Complete matches this key it returns the tool calls (Content empty,
+// StopReason "tool_use") instead of a text response.
+func (m *MockClient) SetToolResponse(key string, calls []ToolCall) {
+	if m.toolResponses == nil {
+		m.toolResponses = map[string][]ToolCall{}
+	}
+	m.toolResponses[key] = calls
 }
 
 func (m *MockClient) Complete(ctx context.Context, req Request) (*Response, error) {
@@ -23,6 +34,19 @@ func (m *MockClient) Complete(ctx context.Context, req Request) (*Response, erro
 		}
 		return contents
 	}(), " "))
+
+	if calls, ok := m.toolResponses[key]; ok {
+		return &Response{
+			Content:    "",
+			ToolCalls:  calls,
+			StopReason: "tool_use",
+			Usage: TokenUsage{
+				InputTokens:  len(req.Messages) * 10,
+				OutputTokens: 0,
+				TotalTokens:  len(req.Messages) * 10,
+			},
+		}, nil
+	}
 
 	content, ok := m.responses[key]
 	if !ok {
@@ -77,6 +101,9 @@ func (m *MockClient) Stream(ctx context.Context, req Request) (<-chan StreamEven
 
 func (m *MockClient) matchKey(input string) string {
 	if _, ok := m.responses[input]; ok {
+		return input
+	}
+	if _, ok := m.toolResponses[input]; ok {
 		return input
 	}
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(input)))[:8]
