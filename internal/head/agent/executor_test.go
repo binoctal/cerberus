@@ -149,10 +149,12 @@ func TestReActLoop_MaxAttemptsExhausted(t *testing.T) {
 	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
 		Method: "GET", URL: server.URL + "/fail",
 	})})
-	// Production Recovery still uses the legacy Decide+JSON path (migrated in
-	// T3). The mock's "default" tool response suits steer but not recovery, so
-	// install a no-op recovery double to keep this loop-exhaustion test scoped
-	// to the steer path; production recovery coverage lives in recovery_test.go.
+	// Install a no-op recovery double to keep this loop-exhaustion test scoped
+	// to the steer path: production recovery now also consumes the mock's
+	// "default" tool response (S3 migrated it to DecideWithTools), which would
+	// make this test exercise the recovery action /fail → fail path. The
+	// no-op keeps attempts==MaxSteerAttempts deterministic; recovery's own
+	// behavior is covered in recovery_test.go.
 	loop.recovery = &fixedRecovery{skip: false}
 	sessionID := createTestSession(t, s)
 

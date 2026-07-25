@@ -45,37 +45,61 @@ func (rc *Recovery) SetProject(name string) {
 }
 
 // Recover decides what to do after a failed action.
-// Returns a RecoverDecision with the next action or skip flag.
+//
+// Returns a RecoverDecision that is now mutually exclusive under S3's
+// tool-calling path: {Skip: true} carries a nil Action (the case is abandoned
+// — finalized as StepSkipped), while {Action: <assembled>} carries Skip=false
+// (the loop's tryRecovery runs the recovered action). Pre-S3 the two fields
+// could both be set (Skip short-circuited in tryRecovery); S3 makes the
+// exclusivity explicit because the LLM now emits either an action tool call OR
+// a `skip` tool call OR nothing at all — never both.
+//
+// Three terminal states:
+//   - transient LLM error (budget, network)  → RecoverDecision{Skip: true}, nil
+//     err (graceful skip — pre-S3 behavior preserved)
+//   - zero tool calls (drift)                → RecoverDecision{Skip: true}
+//   - first tool call is `skip`              → RecoverDecision{Skip: true}
+//   - first tool call is an action tool      → assembleAction →
+//     RecoverDecision{Action: <assembled>, Skip: false}
+//   - action assembly fails (should not happen post-schema) → RecoverDecision{Skip: true}
+//
+// The legacy `Diagnosis` field on RecoverOutput is gone — tool calls carry no
+// diagnosis text. The trade-off (lost recovery rationale in logs) is accepted,
+// paralleling S2's ToT `reasoning` removal.
 func (rc *Recovery) Recover(ctx context.Context, tc TestCase, result types.ExecutorResult, attempt int) (RecoverDecision, error) {
 	recoverCtx := rc.buildRecoverContext(ctx, tc, result, attempt)
 
 	prompt := ai.NewPrompt().
 		System(promptRecoverSystem).
 		Context(recoverCtx).
-		Task(fmt.Sprintf("Failed action on target: %s\nError: %s\nAttempt: %d/%d",
+		Task(fmt.Sprintf("Failed action on target: %s\nError: %s\nAttempt: %d/%d\nEmit one action tool call to retry, or the `skip` tool to abandon this target.",
 			tc.Target, result.Summary(), attempt, rc.config.MaxSteerAttempts)).
-		Output(promptRecoverOutput).
 		Build()
 
-	var out RecoverOutput
-	if err := rc.driver.Decide(ctx, prompt, &out); err != nil {
-		rc.logger.Warn("recover parse failed, skipping", zap.Error(err))
-		return RecoverDecision{Skip: true}, nil
-	}
-
-	action, err := actionFromEnvelope(out.Envelope, tc.Target, rc.logger)
+	res, err := rc.driver.DecideWithTools(ctx, prompt, recoveryTools())
 	if err != nil {
-		rc.logger.Warn("recover action unmarshal failed, skipping", zap.Error(err))
+		rc.logger.Warn("recover call failed, skipping", zap.Error(err))
 		return RecoverDecision{Skip: true}, nil
 	}
-
+	if len(res.ToolCalls) == 0 {
+		rc.logger.Warn("recover: zero tool calls (drift), skipping")
+		return RecoverDecision{Skip: true}, nil
+	}
+	first := res.ToolCalls[0]
+	if first.Name == "skip" {
+		rc.logger.Info("recover decision", zap.String("tool", "skip"))
+		return RecoverDecision{Skip: true}, nil
+	}
+	action, aErr := assembleAction(first)
+	if aErr != nil {
+		rc.logger.Warn("recover: action assemble failed, skipping", zap.Error(aErr))
+		return RecoverDecision{Skip: true}, nil
+	}
 	rc.logger.Info("recover decision",
-		zap.String("diagnosis", out.Diagnosis),
-		zap.Bool("skip", out.Skip),
+		zap.String("tool", first.Name),
 		zap.String("action_type", string(action.GetActionType())),
 	)
-
-	return RecoverDecision{Action: action, Skip: out.Skip}, nil
+	return RecoverDecision{Action: action}, nil
 }
 
 // buildRecoverContext assembles context including L3 procedural memory.

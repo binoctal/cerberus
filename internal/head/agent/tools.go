@@ -2,10 +2,13 @@ package agent
 
 import "github.com/binoctal/cerberus/internal/llm"
 
-// actionTools returns the action tool surface for the Agent head's two
-// DecideWithTools call sites (steer and Recovery.Recover). One tool per
-// LLM-reachable ActionType; the schema of each mirrors the corresponding
-// TypedAction struct fields in internal/types/actions_*.go.
+// actionTools returns the action tool surface for the Agent head's
+// DecideWithTools call sites. One tool per LLM-reachable ActionType; the
+// schema of each mirrors the corresponding TypedAction struct fields in
+// internal/types/actions_*.go.
+//
+// Used by steer (executor_steer.go). Recovery.Recover uses recoveryTools()
+// instead, which appends a `skip` control tool to this surface.
 //
 // Excluded (rule-engine/phase-0 domain, never LLM-chosen in steer):
 //   - ws_* (built from TestCase.Steps in execute_phases.go)
@@ -13,9 +16,11 @@ import "github.com/binoctal/cerberus/internal/llm"
 //   - db_* / graphql_query (built in rules_file_other.go / database.go)
 //   - process_build (constructed from TestStep.Action == "process_build")
 //
-// The `skip` control tool is intentionally NOT in this surface: it is added by
-// Task 3 when Recovery is wired. Keep this list alphabetically ordered by
-// family so additions are easy to audit against the spec.
+// The `skip` control tool is intentionally NOT in this surface: steer must not
+// be able to abandon a target. Recovery.Recover appends skip via
+// recoveryTools() so the abandon decision is scoped to the recovery path only.
+// Keep this list alphabetically ordered by family so additions are easy to
+// audit against the spec.
 func actionTools() []llm.Tool {
 	return []llm.Tool{
 		// --- HTTP ---
@@ -159,4 +164,21 @@ func objSchema(required []any, props map[string]any) map[string]any {
 		s["required"] = required
 	}
 	return s
+}
+
+// recoveryTools returns the action tool surface plus a dedicated `skip`
+// control tool used only by Recovery.Recover. Steer must not be able to skip a
+// target (only the recovery path can decide a target is unrecoverable), so
+// `skip` lives here rather than in actionTools(). assembleAction also rejects
+// `skip` — Recover inspects call.Name == "skip" directly and never delegates
+// the skip signal to assembleAction.
+//
+// The `skip` tool carries an empty schema (no required props, no fields): the
+// decision is binary and needs no payload.
+func recoveryTools() []llm.Tool {
+	return append(actionTools(), llm.Tool{
+		Name:        "skip",
+		Description: "Abandon this target — it is unrecoverable.",
+		InputSchema: objSchema(nil, map[string]any{}),
+	})
 }

@@ -112,13 +112,6 @@ type SteerOutput struct {
 	Envelope  types.ActionEnvelope `json:"action"`
 }
 
-// RecoverOutput is the structured JSON the LLM returns for a Recover decision.
-type RecoverOutput struct {
-	Diagnosis string               `json:"diagnosis"`
-	Envelope  types.ActionEnvelope `json:"action,omitempty"`
-	Skip      bool                 `json:"skip"`
-}
-
 // ReActConfig holds tunable parameters for the ReAct loop.
 type ReActConfig struct {
 	MaxSteerAttempts   int           `json:"max_steer_attempts"`

@@ -35,9 +35,14 @@ func TestRecovery_RecallsByEmbeddingAndRecordsUsage(t *testing.T) {
 	_, err = s.StoreProceduralWithType(ctx, "test-memory-name", "post /api/v1/* returned 401", "retry auth", "test-project", "auth", "failure", vec, emb.ModelName())
 	require.NoError(t, err)
 
-	driver := ai.NewDriver(llm.NewMockClient(map[string]string{
-		"default": `{"diagnosis":"d","action":{"type":"api_request","payload":{"method":"GET","url":"/x"}},"skip":false}`,
-	}), ai.NewTokenBudget(1000, 100))
+	// S3: Recovery uses DecideWithTools. Preset an `api_request` tool call so
+	// Recover assembles an action (the decision shape is irrelevant to this
+	// test — only that recovery runs and exercises the L3 recall path).
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("default", []llm.ToolCall{{Name: "api_request", Input: map[string]any{
+		"method": "GET", "url": "/x",
+	}}})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(1000, 100))
 	rec := agent.NewRecovery(driver, s, agent.DefaultReActConfig(), zap.NewNop(), emb)
 	rec.SetSessionID("sess-9")
 	rec.SetProject("test-project")
@@ -68,9 +73,11 @@ func TestRecovery_HighThresholdSuppressesRecall(t *testing.T) {
 
 	cfg := agent.DefaultReActConfig()
 	cfg.ProceduralRecallThreshold = 0.99 // only near-exact matches pass
-	driver := ai.NewDriver(llm.NewMockClient(map[string]string{
-		"default": `{"diagnosis":"d","action":{"type":"api_request","payload":{"method":"GET","url":"/x"}},"skip":false}`,
-	}), ai.NewTokenBudget(1000, 100))
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("default", []llm.ToolCall{{Name: "api_request", Input: map[string]any{
+		"method": "GET", "url": "/x",
+	}}})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(1000, 100))
 	rec := agent.NewRecovery(driver, s, cfg, zap.NewNop(), emb)
 	rec.SetSessionID("sess-hi")
 	rec.SetProject("test-project")

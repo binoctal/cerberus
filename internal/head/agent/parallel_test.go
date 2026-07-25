@@ -262,10 +262,12 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 	httpExec := BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
-	// Steer uses DecideWithTools and consumes the mock's "default" tool
-	// response, but production Recovery (T3 Pending) still uses the legacy
-	// Decide+JSON path. Install a no-op recovery double so this cascade test
-	// stays scoped to dependency-skip behavior; recovery has its own coverage.
+	// Install a no-op recovery double so this cascade test stays scoped to
+	// dependency-skip behavior. Production recovery is now also
+	// DecideWithTools-driven (S3), so without this override it would consume
+	// the mock's "default" tool response (navigate to "/", 500) and exercise
+	// recovery-fails-then-cascade — a different shape than the test asserts.
+	// Recovery coverage lives in recovery_test.go.
 	loop2.recovery = &fixedRecovery{skip: false}
 
 	plan := &TestPlan{
