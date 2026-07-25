@@ -31,7 +31,7 @@
 - Consumes: `llm.ToolCall` (existing), `llm.Request`, `llm.Response`.
 - Produces: `(*MockClient) SetToolResponse(key string, calls []ToolCall)`; `Complete` returns `ToolCalls` when the matched key is in `toolResponses`.
 
-- [ ] **Step 1: Write the failing tests (RED)**
+- [x] **Step 1: Write the failing tests (RED)**
 
 Append to `internal/llm/mock_test.go`:
 
@@ -77,12 +77,12 @@ func TestMockClient_MatchKeyConsultsToolResponses(t *testing.T) {
 
 Add `"context"` to the test file's imports if not present.
 
-- [ ] **Step 2: Run tests to verify RED**
+- [x] **Step 2: Run tests to verify RED**
 
 Run: `go test ./internal/llm/ -run 'TestMockClient_SetToolResponse|TestMockClient_MatchKeyConsultsToolResponses' -v`
 Expected: COMPILE ERROR — `undefined: SetToolResponse` (or FAIL with empty ToolCalls).
 
-- [ ] **Step 3: Add the `toolResponses` field + `SetToolResponse` setter**
+- [x] **Step 3: Add the `toolResponses` field + `SetToolResponse` setter**
 
 In `internal/llm/mock.go`, change the struct + add the setter:
 
@@ -103,7 +103,7 @@ func (m *MockClient) SetToolResponse(key string, calls []ToolCall) {
 }
 ```
 
-- [ ] **Step 4: Make `matchKey` consult `responses ∪ toolResponses`**
+- [x] **Step 4: Make `matchKey` consult `responses ∪ toolResponses`**
 
 Replace `matchKey`:
 
@@ -119,7 +119,7 @@ func (m *MockClient) matchKey(input string) string {
 }
 ```
 
-- [ ] **Step 5: Return tool responses from `Complete`**
+- [x] **Step 5: Return tool responses from `Complete`**
 
 In `Complete`, right after computing `key := m.matchKey(...)`, add the tool branch before the existing text logic:
 
@@ -140,12 +140,12 @@ In `Complete`, right after computing `key := m.matchKey(...)`, add the tool bran
 
 The existing text-response path (default fallback) stays unchanged below it.
 
-- [ ] **Step 6: Run tests to verify GREEN**
+- [x] **Step 6: Run tests to verify GREEN**
 
 Run: `go test ./internal/llm/ -run 'TestMockClient_' -v`
 Expected: PASS (both new tests + existing `TestMockClient_Stream*`).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/llm/mock.go internal/llm/mock_test.go
@@ -169,7 +169,7 @@ Backward-compatible: NewMockClient(map[string]string) unchanged."
 - Consumes: `llm.NewClientWithConfig(llm.ClientConfig{Provider, BaseURL, APIKey, Model})` → `Client`; `Client.Complete(ctx, req)`.
 - Produces: three httptest fixture tests asserting `Response.ToolCalls`.
 
-- [ ] **Step 1: Write the three fixture tests (RED — they pass once fixtures are correct, but lock the parsing contract)**
+- [x] **Step 1: Write the three fixture tests (RED — they pass once fixtures are correct, but lock the parsing contract)**
 
 Create `internal/llm/provider_tool_parse_test.go`:
 
@@ -253,17 +253,17 @@ func TestOpenAIComplete_ToolCallsParse(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests**
+- [x] **Step 2: Run tests**
 
 Run: `go test ./internal/llm/ -run 'TestClaudeComplete_ToolUseParse|TestGeminiComplete_FunctionCallParse|TestOpenAIComplete_ToolCallsParse' -v`
 Expected: PASS (the parsing is already implemented; these lock the contract). If any FAIL, the fixture JSON shape is wrong — fix the fixture to match the provider's actual response struct (see `claude_complete_helpers.go`, `gemini_complete.go:68-86`, `openai_complete.go:58-80`).
 
-- [ ] **Step 3: make check**
+- [x] **Step 3: make check**
 
 Run: `make check`
 Expected: EXIT 0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/llm/provider_tool_parse_test.go
@@ -285,7 +285,7 @@ which had zero coverage despite the parsing being implemented."
 - Consumes: `llm.NewMockClient`, `(*MockClient).SetToolResponse` (Task 1), `ai.NewDriver`, `ai.NewTokenBudget`.
 - Produces: a test confirming `DecideWithTools` surfaces a mock-preset `ToolCall`.
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Append to `internal/ai/driver_test.go` (near `TestDriver_DecideWithTools`):
 
@@ -310,12 +310,12 @@ func TestDriver_DecideWithTools_MockPreset(t *testing.T) {
 
 Ensure `internal/ai/driver_test.go` imports `"context"` and `"github.com/binoctal/cerberus/internal/llm"` (add if missing; the existing `TestDriver_DecideWithTools` likely already imports both — match its import block).
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 Run: `go test ./internal/ai/ -run TestDriver_DecideWithTools_MockPreset -v`
 Expected: PASS.
 
-- [ ] **Step 3: Full make check + commit**
+- [x] **Step 3: Full make check + commit**
 
 Run: `make check`
 Expected: EXIT 0.
