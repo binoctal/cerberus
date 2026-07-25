@@ -49,17 +49,6 @@ type PlanCandidate struct {
 	Coverage    float64  `json:"coverage"` // Deterministic endpoint coverage score
 }
 
-// ProposeOutput is the LLM response for a Propose call.
-type ProposeOutput struct {
-	Strategies []StrategyProposal `json:"strategies"`
-}
-
-// StrategyProposal is a single proposed test strategy.
-type StrategyProposal struct {
-	Description string   `json:"description"`
-	Cases       []string `json:"cases"`
-}
-
 // ToTPlanner uses Tree-of-Thought beam search for deep test planning.
 type ToTPlanner struct {
 	proposeDriver  *ai.Driver // strategy generation (SONNET tier)

@@ -76,6 +76,20 @@ func planTools() []llm.Tool {
 	}
 }
 
+// proposeTools returns the Propose tool surface: propose_strategy surfaces one
+// diverse test strategy each. Multiple calls = multiple candidates, preserving
+// the legacy "strategies array" behavior. The provider schema enforces
+// description+cases, replacing the legacy ProposeOutput JSON.
+func proposeTools() []llm.Tool {
+	return []llm.Tool{
+		{Name: "propose_strategy", Description: "Propose one diverse test strategy.",
+			InputSchema: objSchema([]any{"description", "cases"}, map[string]any{
+				"description": map[string]any{"type": "string"},
+				"cases":       strArrSchema(),
+			})},
+	}
+}
+
 // analyzeTools returns the Analyze tool surface: report_endpoint/report_page
 // surface one discovered API/page each, declare_tech declares the tech stack as
 // a schema-enforced string array. Schemas are hard-enforced by the provider,

@@ -2,7 +2,6 @@ package scout
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -53,18 +52,19 @@ func TestToTPlanner_BuildProposeTask_MemoryInjected(t *testing.T) {
 }
 
 func TestToTPlanner_SingleStep(t *testing.T) {
-	// MockClient returns proposals; evaluate is now deterministic (no LLM).
-	// Propose expects ProposeOutput; evaluate no longer consumes an LLM
-	// response, so the single mock response only needs to satisfy propose.
-	proposeOut := ProposeOutput{
-		Strategies: []StrategyProposal{
-			{Description: "Happy path tests", Cases: []string{"GET /api/v1/users returns 200", "POST /api/v1/users returns 201"}},
-			{Description: "Error handling tests", Cases: []string{"GET /api/v1/users/999 returns 404", "POST /api/v1/users with invalid input returns 422"}},
-		},
-	}
-	proposeJSON, _ := json.Marshal(proposeOut)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(proposeJSON)})
+	// MockClient returns propose_strategy tool calls; evaluate is deterministic
+	// (no LLM). Each tool call becomes one PlanCandidate.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("test all endpoints", []llm.ToolCall{
+		{Name: "propose_strategy", Input: map[string]any{
+			"description": "Happy path tests",
+			"cases":       []any{"GET /api/v1/users returns 200", "POST /api/v1/users returns 201"},
+		}},
+		{Name: "propose_strategy", Input: map[string]any{
+			"description": "Error handling tests",
+			"cases":       []any{"GET /api/v1/users/999 returns 404", "POST /api/v1/users with invalid input returns 422"},
+		}},
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := ToTConfig{BeamWidth: 2, GenerateN: 2, MaxSteps: 1}
@@ -88,15 +88,17 @@ func TestToTPlanner_SingleStep(t *testing.T) {
 }
 
 func TestToTPlanner_MultiStep(t *testing.T) {
-	proposeOut := ProposeOutput{
-		Strategies: []StrategyProposal{
-			{Description: "Comprehensive API test", Cases: []string{"GET /api/v1/users returns list", "POST /api/v1/users creates user"}},
-			{Description: "Edge case tests", Cases: []string{"GET /api/v1/users with pagination", "POST /api/v1/users duplicate email"}},
-		},
-	}
-	proposeJSON, _ := json.Marshal(proposeOut)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(proposeJSON)})
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("deep test", []llm.ToolCall{
+		{Name: "propose_strategy", Input: map[string]any{
+			"description": "Comprehensive API test",
+			"cases":       []any{"GET /api/v1/users returns list", "POST /api/v1/users creates user"},
+		}},
+		{Name: "propose_strategy", Input: map[string]any{
+			"description": "Edge case tests",
+			"cases":       []any{"GET /api/v1/users with pagination", "POST /api/v1/users duplicate email"},
+		}},
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := ToTConfig{BeamWidth: 1, GenerateN: 2, MaxSteps: 2}
@@ -116,7 +118,8 @@ func TestToTPlanner_MultiStep(t *testing.T) {
 }
 
 func TestToTPlanner_ProposeFailure_StopsSearch(t *testing.T) {
-	// Invalid JSON → propose fails → returns best current candidate.
+	// No tool calls (text-only "not json" response) → propose returns zero
+	// candidates → Plan stops the search and returns the best current candidate.
 	mockClient := llm.NewMockClient(map[string]string{"default": "not json"})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
@@ -217,14 +220,13 @@ func TestTruncateName(t *testing.T) {
 func TestScout_DeepPlanMode(t *testing.T) {
 	s := setupTestStore(t) // reuse helper from scout_test.go
 
-	proposeOut := ProposeOutput{
-		Strategies: []StrategyProposal{
-			{Description: "API tests", Cases: []string{"GET /api/users returns 200"}},
-		},
-	}
-	proposeJSON, _ := json.Marshal(proposeOut)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(proposeJSON)})
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("deep test", []llm.ToolCall{
+		{Name: "propose_strategy", Input: map[string]any{
+			"description": "API tests",
+			"cases":       []any{"GET /api/users returns 200"},
+		}},
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := &project.Config{
@@ -255,13 +257,6 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	// and Scout with DeepPlan uses ToT.
 	s := setupTestStore(t)
 
-	proposeOut := ProposeOutput{
-		Strategies: []StrategyProposal{
-			{Description: "ToT plan", Cases: []string{"GET /api returns 200"}},
-		},
-	}
-	proposeJSON, _ := json.Marshal(proposeOut)
-
 	// Direct mode: DecideWithTools returns tool calls.
 	mockDirect := llm.NewMockClient(nil)
 	mockDirect.SetToolResponse("test", []llm.ToolCall{
@@ -279,8 +274,14 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "tc-001", plan.Cases[0].ID) // Direct plan case ID.
 
-	// Deep mode: ToT planner consumes ProposeOutput JSON.
-	mockDeep := llm.NewMockClient(map[string]string{"default": string(proposeJSON)})
+	// Deep mode: ToT planner consumes propose_strategy tool calls.
+	mockDeep := llm.NewMockClient(nil)
+	mockDeep.SetToolResponse("test", []llm.ToolCall{
+		{Name: "propose_strategy", Input: map[string]any{
+			"description": "ToT plan",
+			"cases":       []any{"GET /api returns 200"},
+		}},
+	})
 	driverDeep := ai.NewDriver(mockDeep, ai.NewTokenBudget(500000, 50000))
 
 	scoutDeep := NewScout(driverDeep, s, cfg, zap.NewNop())
