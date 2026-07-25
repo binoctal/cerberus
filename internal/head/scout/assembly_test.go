@@ -65,3 +65,35 @@ func TestAssemblePlan_IDsSequential(t *testing.T) {
 	assert.Equal(t, "tc-001", plan.Cases[0].ID)
 	assert.Equal(t, "tc-002", plan.Cases[1].ID)
 }
+
+func TestAssemblePlan_WSRelaySequence(t *testing.T) {
+	calls := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "bridge gets signal", "service": "ws"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "bridge"}},
+		{Name: "ws_send", Input: map[string]any{"role": "web", "type": "ping"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "bridge", "type": "signal", "assert": map[string]any{"online": true}}},
+	}
+	plan, covered := assemblePlan(calls, "g", "", nil)
+	require.Len(t, plan.Cases, 1)
+	c := plan.Cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 4)
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "web", c.Steps[0].ConnectionID)
+	assert.Equal(t, "ws_connect", c.Steps[1].Action)
+	assert.Equal(t, "bridge", c.Steps[1].ConnectionID)
+	assert.Equal(t, `{"type":"ping"}`, c.Steps[2].Message)
+	assert.Equal(t, "signal", c.Steps[3].Type)
+	assert.Equal(t, map[string]any{"online": true}, c.Steps[3].Asserts)
+	// covered records connected roles per service
+	assert.True(t, covered["ws"]["web"])
+	assert.True(t, covered["ws"]["bridge"])
+}
+
+func TestAssemblePlan_WSDroppedWithoutBeginCase(t *testing.T) {
+	// ws_* before any begin_case: dropped (no open group).
+	calls := []llm.ToolCall{{Name: "ws_connect", Input: map[string]any{"role": "web"}}}
+	plan, _ := assemblePlan(calls, "g", "", nil)
+	assert.Empty(t, plan.Cases)
+}

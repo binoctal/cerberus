@@ -64,6 +64,36 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 				Service: strField(call, "service"),
 			}
 			// ws_* handled in Task 2; high-level-only tests never hit them.
+		case "ws_connect":
+			if open == nil {
+				continue
+			}
+			open.Steps = append(open.Steps, agent.TestStep{
+				Action: "ws_connect", ConnectionID: strField(call, "role"), Role: strField(call, "role"),
+			})
+		case "ws_send":
+			if open == nil {
+				continue
+			}
+			open.Steps = append(open.Steps, agent.TestStep{
+				Action: "ws_send", ConnectionID: strField(call, "role"), Message: wsSendBody(strField(call, "type")),
+			})
+		case "ws_receive":
+			if open == nil {
+				continue
+			}
+			open.Steps = append(open.Steps, agent.TestStep{
+				Action: "ws_receive", ConnectionID: strField(call, "role"),
+				Type: strField(call, "type"), Aliases: strSliceField(call, "aliases"),
+				Asserts: mapField(call, "assert"), Timeout: intField(call, "timeout"),
+			})
+		case "ws_disconnect":
+			if open == nil {
+				continue
+			}
+			open.Steps = append(open.Steps, agent.TestStep{
+				Action: "ws_disconnect", ConnectionID: strField(call, "role"),
+			})
 		}
 	}
 	flush()
@@ -89,7 +119,6 @@ func intField(c llm.ToolCall, k string) int {
 	return 0
 }
 
-//lint:ignore U1000 will be used in Task 2 (ws_* handlers)
 func strSliceField(c llm.ToolCall, k string) []string {
 	arr, ok := c.Input[k].([]any)
 	if !ok {
@@ -104,7 +133,6 @@ func strSliceField(c llm.ToolCall, k string) []string {
 	return out
 }
 
-//lint:ignore U1000 will be used in Task 2 (ws_* handlers)
 func mapField(c llm.ToolCall, k string) map[string]any {
 	if m, ok := c.Input[k].(map[string]any); ok {
 		return m
