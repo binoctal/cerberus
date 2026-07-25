@@ -565,6 +565,38 @@ func TestWSCasesCovered_RelaySuppressesConnect(t *testing.T) {
 	require.Empty(t, connects, "relay covers web+bridge; no redundant single-conn connect")
 }
 
+// Finding-2 follow-up (opus-flagged coverage gap): a relay-connected role still
+// gets its goal-exchange wsStepsCase — the goal-exchange branch precedes the
+// connectedRoles check, so a send→receive exchange is NOT suppressed by the
+// relay. Pins the check order against a regression that moves connectedRoles
+// before the exchange branch.
+func TestWSCasesCovered_RelayConnectedRoleKeepsExchange(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":    {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge": {},
+	}}
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: p}}}
+	// Goal has a send->receive exchange; web+bridge are relay-connected.
+	cases := WSCases(cfg, "send session:start and receive session:created")
+
+	// A goal-exchange wsStepsCase (ws_flow with a ws_send step) is present
+	// despite web being relay-connected.
+	var exchangeCases int
+	for _, c := range cases {
+		if c.Action != "ws_flow" || len(c.Steps) != 3 {
+			continue
+		}
+		for _, st := range c.Steps {
+			if st.Action == "ws_send" {
+				exchangeCases++
+				break
+			}
+		}
+	}
+	require.GreaterOrEqual(t, exchangeCases, 1,
+		"goal-exchange wsStepsCase preserved for a relay-connected role")
+}
+
 // TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver: when an LLM ws_relay
 // already covers the receiver role (the covered map), the deterministic relay
 // case for that role is dropped (no double-coverage) and its signal is not
