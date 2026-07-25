@@ -252,11 +252,19 @@ func TestBuildCoverageContract_LiveGLM(t *testing.T) {
 
 	assert.Equal(t, contract.DepthStandard, c.Depth, "depth must echo the depth parameter")
 	require.NotEmpty(t, c.Scope, "expected declare_scope to populate Scope")
+	require.NotEmpty(t, c.PathTypes, "expected declare_path_types to populate PathTypes")
+	require.NotEmpty(t, c.ErrorScope, "expected declare_error_scope to populate ErrorScope")
+	require.NotEmpty(t, c.Boundaries, "expected declare_boundaries to populate Boundaries")
 	require.NotEmpty(t, c.CoverageGate.Module, "expected set_coverage_gate to populate Module")
 
-	// set_priority's schema forces map[string][]string — confirm at least one
-	// bucket came back as []string (the regression that motivated deleting
-	// Priorities.UnmarshalJSON).
+	// The live probe checks emission of the five structural contract tools
+	// (declare_scope/path_types/error_scope/boundaries, set_coverage_gate).
+	// set_priority is conditional: GLM does not reliably emit it, so a hard
+	// assertion would flake. When Priorities is non-empty, the bucket values
+	// must be []string — but that []string enforcement is governed by the
+	// set_priority schema and covered by the unit test
+	// TestAssembleContract_PrioritiesForcedStringSlice (which deletes the
+	// Priorities.UnmarshalJSON dual-shape patch).
 	if len(c.Priorities) > 0 {
 		for bucket, mods := range c.Priorities {
 			t.Logf("priority[%s] = %v (type %T)", bucket, mods, mods)
