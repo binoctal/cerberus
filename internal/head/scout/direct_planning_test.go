@@ -2,7 +2,6 @@ package scout
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/ai"
-	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -135,150 +133,6 @@ func TestPlan_AttributesByPathPrefix_NoPrefixConfigured(t *testing.T) {
 	require.Equal(t, "", serviceOf(cases, "/api/posts"))
 }
 
-// TestVerifyServiceAttribution_CorrectsMisattribution verifies that the LLM
-// verification layer corrects misattributed service values.
-func TestVerifyServiceAttribution_CorrectsMisattribution(t *testing.T) {
-	services := []project.Service{
-		{Name: "gateway", URL: "http://gw", PathPrefix: []string{"/v1"}},
-		{Name: "admin", URL: "http://admin", PathPrefix: []string{"/api/admin"}},
-	}
-
-	// Prefix attribution would give "gateway" but LLM says this /v1 path is actually admin's concern
-	verifyJSON := `{"corrections":[{"path":"/v1/admin/users","service":"admin"}]}`
-
-	// Create mock driver and logger
-	logger := zap.NewNop()
-	driver := ai.NewDriver(llm.NewMockClient(map[string]string{"default": verifyJSON}), ai.NewTokenBudget(200000, 10000))
-
-	cases := []agent.TestCase{
-		{Target: "/v1/admin/users", Service: "gateway"},
-	}
-
-	out := verifyServiceAttribution(logger, driver, cases, services)
-
-	// Should be corrected from "gateway" to "admin"
-	if len(out) != 1 {
-		t.Fatalf("expected 1 case, got %d", len(out))
-	}
-	if out[0].Service != "admin" {
-		t.Errorf("expected service 'admin', got '%s'", out[0].Service)
-	}
-}
-
-// TestVerifyServiceAttribution_LLMErrorReturnsCasesUnchanged verifies that
-// when the LLM/driver fails, verification is non-blocking and returns cases unchanged.
-func TestVerifyServiceAttribution_LLMErrorReturnsCasesUnchanged(t *testing.T) {
-	services := []project.Service{
-		{Name: "gateway", URL: "http://gw", PathPrefix: []string{"/v1"}},
-	}
-
-	// Mock client that returns an error
-	errorClient := &errorMockClient{err: fmt.Errorf("LLM service unavailable")}
-
-	logger := zap.NewNop()
-	driver := ai.NewDriver(errorClient, ai.NewTokenBudget(200000, 10000))
-
-	cases := []agent.TestCase{
-		{Target: "/v1/test", Service: "gateway"},
-	}
-
-	out := verifyServiceAttribution(logger, driver, cases, services)
-
-	// Should return cases unchanged
-	if len(out) != 1 {
-		t.Fatalf("expected 1 case, got %d", len(out))
-	}
-	if out[0].Service != "gateway" {
-		t.Errorf("expected service 'gateway' unchanged, got '%s'", out[0].Service)
-	}
-}
-
-// errorMockClient is a minimal mock that always returns an error.
-type errorMockClient struct {
-	err error
-}
-
-func (m *errorMockClient) Complete(ctx context.Context, req llm.Request) (*llm.Response, error) {
-	return nil, m.err
-}
-
-func (m *errorMockClient) CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*llm.Response, error) {
-	return nil, m.err
-}
-
-func (m *errorMockClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
-	return nil, m.err
-}
-
-// TestVerifyServiceAttribution_IgnoresUnknownService verifies that corrections
-// targeting unknown services are ignored and the case remains unchanged.
-func TestVerifyServiceAttribution_IgnoresUnknownService(t *testing.T) {
-	services := []project.Service{
-		{Name: "gateway", URL: "http://gw", PathPrefix: []string{"/v1"}},
-		{Name: "admin", URL: "http://admin", PathPrefix: []string{"/api/admin"}},
-	}
-
-	// LLM tries to correct to "unknown_service" which doesn't exist
-	verifyJSON := `{"corrections":[{"path":"/v1/test","service":"unknown_service"}]}`
-
-	logger := zap.NewNop()
-	driver := ai.NewDriver(llm.NewMockClient(map[string]string{"default": verifyJSON}), ai.NewTokenBudget(200000, 10000))
-
-	cases := []agent.TestCase{
-		{Target: "/v1/test", Service: "gateway"},
-	}
-
-	out := verifyServiceAttribution(logger, driver, cases, services)
-
-	// Should return case unchanged (service still "gateway")
-	if len(out) != 1 {
-		t.Fatalf("expected 1 case, got %d", len(out))
-	}
-	if out[0].Service != "gateway" {
-		t.Errorf("expected service 'gateway' unchanged (ignored unknown service), got '%s'", out[0].Service)
-	}
-}
-
-// TestVerifyServiceAttribution_MalformedJSONReturnsCasesUnchanged verifies that
-// malformed JSON responses are handled gracefully and cases remain unchanged.
-func TestVerifyServiceAttribution_MalformedJSONReturnsCasesUnchanged(t *testing.T) {
-	services := []project.Service{
-		{Name: "gateway", URL: "http://gw", PathPrefix: []string{"/v1"}},
-	}
-
-	// Various malformed JSON responses
-	malformedCases := []struct {
-		name string
-		json string
-	}{
-		{"missing corrections key", `{}`},
-		{"empty array", `{"corrections":[]}`},
-		{"malformed JSON", `not valid json`},
-		{"null corrections", `{"corrections":null}`},
-	}
-
-	for _, tc := range malformedCases {
-		t.Run(tc.name, func(t *testing.T) {
-			logger := zap.NewNop()
-			driver := ai.NewDriver(llm.NewMockClient(map[string]string{"default": tc.json}), ai.NewTokenBudget(200000, 10000))
-
-			cases := []agent.TestCase{
-				{Target: "/v1/test", Service: "gateway"},
-			}
-
-			out := verifyServiceAttribution(logger, driver, cases, services)
-
-			// Should return cases unchanged for all malformed inputs
-			if len(out) != 1 {
-				t.Fatalf("expected 1 case, got %d", len(out))
-			}
-			if out[0].Service != "gateway" {
-				t.Errorf("expected service 'gateway' unchanged for %s, got '%s'", tc.name, out[0].Service)
-			}
-		})
-	}
-}
-
 // TestAssemblePlan_BodyFromToolOrTemplate verifies the body-fill contract that
 // TestConvertPlanOutput_BodyFromCaseInfoOrTemplate used to cover: a tool-emitted
 // body is preserved verbatim; an empty body falls back to the attributed
@@ -333,4 +187,22 @@ func TestDirectPlan_ToolCallingAssembly(t *testing.T) {
 	plan, err := sct.Plan(context.Background(), "plan http + ws relay", &project.ProjectModel{})
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(plan.Cases), 2, "http case + ws_flow case (+ executor appends)")
+}
+
+// errorMockClient is a minimal llm.Client mock that always returns an error.
+// Shared with scout_test.go to drive Scout.Plan into its deterministic fallback.
+type errorMockClient struct {
+	err error
+}
+
+func (m *errorMockClient) Complete(ctx context.Context, req llm.Request) (*llm.Response, error) {
+	return nil, m.err
+}
+
+func (m *errorMockClient) CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*llm.Response, error) {
+	return nil, m.err
+}
+
+func (m *errorMockClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
+	return nil, m.err
 }

@@ -42,14 +42,10 @@ RULES:
 - Use standard HTTP methods in the "method" field.
 - Assign priority 1.0 (highest) to explicitly listed endpoints, 0.5 to inferred ones.
 - Include both positive tests (expect success) and negative tests (expect failure for invalid input).
-- For POST/PUT/PATCH methods, include a "body" field with a JSON request body.
+- For POST/PUT/PATCH methods, include a "body".
 - Omit "body" for GET/DELETE requests.
 - If a service defines a body_template, use it as a base and vary the values for different test cases.
-- WebSocket: if a service declares a protocol with roles, WS connect and receive cases are generated automatically from those roles. Do not duplicate them; focus your cases on HTTP and other surfaces.
-- WebSocket relay: if a goal describes a multi-party relay (two or more protocol roles exchanging messages through a broker, e.g. "web sends X and receives the relayed Y while bridge is connected"), emit ONE ws_relay case per exchange with the service, an ordered roles list (the peer-join signal receiver first), and an ordered steps list of {do: send|receive, role, type, assert?}. Do not also emit single-role ws_connect/ws_receive cases for roles the relay covers. A receive step may list aliases (additional matching types, e.g. session:output-batch alongside session:output).`
-
-// The WebSocket bullet in promptPlanSystem is provisional (M3-2 Scout WS cases);
-// tune its wording against a real target via dogfooding.
+- WebSocket: if a service declares a protocol with roles, WS connect and receive cases are generated automatically from those roles. Do not duplicate them; focus your cases on HTTP and other surfaces.`
 
 const promptPlanSystemLocal = `You are a test planning agent for a LOCAL CODEBASE. There is NO running HTTP service, so do NOT generate http_request/api_request test cases.
 
