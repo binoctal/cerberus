@@ -60,9 +60,9 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 		case "begin_case":
 			flush()
 			open = &agent.TestCase{
-				ID: nextID(), Name: strField(call, "name"),
-				Expectation: strField(call, "expectation"), Action: "ws_flow",
-				Service: strField(call, "service"),
+				ID: nextID(), Name: llm.StrField(call, "name"),
+				Expectation: llm.StrField(call, "expectation"), Action: "ws_flow",
+				Service: llm.StrField(call, "service"),
 			}
 			// ws_* handled in Task 2; high-level-only tests never hit them.
 		case "ws_connect":
@@ -70,30 +70,30 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 				continue
 			}
 			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_connect", ConnectionID: strField(call, "role"), Role: strField(call, "role"),
+				Action: "ws_connect", ConnectionID: llm.StrField(call, "role"), Role: llm.StrField(call, "role"),
 			})
 		case "ws_send":
 			if open == nil {
 				continue
 			}
 			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_send", ConnectionID: strField(call, "role"), Message: wsSendBody(strField(call, "type")),
+				Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type")),
 			})
 		case "ws_receive":
 			if open == nil {
 				continue
 			}
 			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_receive", ConnectionID: strField(call, "role"),
-				Type: strField(call, "type"), Aliases: strSliceField(call, "aliases"),
-				Asserts: mapField(call, "assert"), Timeout: intField(call, "timeout"),
+				Action: "ws_receive", ConnectionID: llm.StrField(call, "role"),
+				Type: llm.StrField(call, "type"), Aliases: llm.StrSliceField(call, "aliases"),
+				Asserts: llm.MapField(call, "assert"), Timeout: llm.IntField(call, "timeout"),
 			})
 		case "ws_disconnect":
 			if open == nil {
 				continue
 			}
 			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_disconnect", ConnectionID: strField(call, "role"),
+				Action: "ws_disconnect", ConnectionID: llm.StrField(call, "role"),
 			})
 		}
 	}
@@ -102,51 +102,7 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, covered
 }
 
-// --- field helpers (Input is map[string]any from provider JSON) ---
-
-func strField(c llm.ToolCall, k string) string {
-	if v, ok := c.Input[k].(string); ok {
-		return v
-	}
-	return ""
-}
-func intField(c llm.ToolCall, k string) int {
-	switch v := c.Input[k].(type) {
-	case float64:
-		return int(v)
-	case int:
-		return v
-	}
-	return 0
-}
-
-func strSliceField(c llm.ToolCall, k string) []string {
-	arr, ok := c.Input[k].([]any)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(arr))
-	for _, v := range arr {
-		if s, ok := v.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-func mapField(c llm.ToolCall, k string) map[string]any {
-	if m, ok := c.Input[k].(map[string]any); ok {
-		return m
-	}
-	return nil
-}
-
-func numField(c llm.ToolCall, k string) float64 {
-	if v, ok := c.Input[k].(float64); ok {
-		return v
-	}
-	return 0
-}
+// --- field helpers live in internal/llm/toolfield.go (shared with Agent) ---
 
 // assembleAnalyze converts Analyze tool calls (report_endpoint/report_page/
 // declare_tech) into an AnalyzeOutput. The provider schema enforces string
@@ -158,17 +114,17 @@ func assembleAnalyze(calls []llm.ToolCall) AnalyzeOutput {
 		switch c.Name {
 		case "report_endpoint":
 			out.Endpoints = append(out.Endpoints, EndpointInfo{
-				Method:     strField(c, "method"),
-				Path:       strField(c, "path"),
-				Confidence: numField(c, "confidence"),
+				Method:     llm.StrField(c, "method"),
+				Path:       llm.StrField(c, "path"),
+				Confidence: llm.NumField(c, "confidence"),
 			})
 		case "report_page":
 			out.Pages = append(out.Pages, PageInfo{
-				Path:       strField(c, "path"),
-				Confidence: numField(c, "confidence"),
+				Path:       llm.StrField(c, "path"),
+				Confidence: llm.NumField(c, "confidence"),
 			})
 		case "declare_tech":
-			out.TechStack = strSliceField(c, "stack")
+			out.TechStack = llm.StrSliceField(c, "stack")
 		}
 	}
 	return out
@@ -185,20 +141,20 @@ func assembleContract(calls []llm.ToolCall, depth string, invs []contract.Invari
 	for _, call := range calls {
 		switch call.Name {
 		case "declare_scope":
-			c.Scope = strSliceField(call, "modules")
+			c.Scope = llm.StrSliceField(call, "modules")
 		case "declare_path_types":
-			c.PathTypes = strSliceField(call, "types")
+			c.PathTypes = llm.StrSliceField(call, "types")
 		case "declare_error_scope":
-			c.ErrorScope = strSliceField(call, "scopes")
+			c.ErrorScope = llm.StrSliceField(call, "scopes")
 		case "declare_boundaries":
-			c.Boundaries = strSliceField(call, "boundaries")
+			c.Boundaries = llm.StrSliceField(call, "boundaries")
 		case "set_priority":
-			c.Priorities[strField(call, "bucket")] = strSliceField(call, "modules")
+			c.Priorities[llm.StrField(call, "bucket")] = llm.StrSliceField(call, "modules")
 		case "set_coverage_gate":
 			c.CoverageGate = contract.Gate{
-				Module:          strField(call, "module"),
-				LineThreshold:   numField(call, "line_threshold"),
-				BranchThreshold: numField(call, "branch_threshold"),
+				Module:          llm.StrField(call, "module"),
+				LineThreshold:   llm.NumField(call, "line_threshold"),
+				BranchThreshold: llm.NumField(call, "branch_threshold"),
 			}
 		}
 	}
@@ -208,12 +164,12 @@ func assembleContract(calls []llm.ToolCall, depth string, invs []contract.Invari
 // --- high-level assemblers ---
 
 func assembleHTTP(c llm.ToolCall, nextID func() string, svcs []project.Service) agent.TestCase {
-	method := strings.ToUpper(strField(c, "method"))
-	path := strField(c, "path")
+	method := strings.ToUpper(llm.StrField(c, "method"))
+	path := llm.StrField(c, "path")
 	tc := agent.TestCase{
 		ID: nextID(), Name: fmt.Sprintf("%s %s", method, path), Target: path,
-		Method: method, Body: strField(c, "body"),
-		Expectation: formatHTTPExpectation(c), Service: strField(c, "service"),
+		Method: method, Body: llm.StrField(c, "body"),
+		Expectation: formatHTTPExpectation(c), Service: llm.StrField(c, "service"),
 	}
 	if svc := attributeService(path, svcs); svc != "" {
 		tc.Service = svc // deterministic override (replaces verifyServiceAttribution)
@@ -223,10 +179,10 @@ func assembleHTTP(c llm.ToolCall, nextID func() string, svcs []project.Service) 
 
 func formatHTTPExpectation(c llm.ToolCall) string {
 	var parts []string
-	if s := intField(c, "expect_status"); s != 0 {
+	if s := llm.IntField(c, "expect_status"); s != 0 {
 		parts = append(parts, fmt.Sprintf("status %d", s))
 	}
-	if b := strField(c, "expect_body"); b != "" {
+	if b := llm.StrField(c, "expect_body"); b != "" {
 		parts = append(parts, fmt.Sprintf("body contains %q", b))
 	}
 	if len(parts) == 0 {
@@ -236,29 +192,29 @@ func formatHTTPExpectation(c llm.ToolCall) string {
 }
 
 func assembleInvariant(c llm.ToolCall, nextID func() string) agent.TestCase {
-	desc := strField(c, "description")
-	if id := strField(c, "invariant_id"); id != "" {
+	desc := llm.StrField(c, "description")
+	if id := llm.StrField(c, "invariant_id"); id != "" {
 		desc = id
 	}
 	return agent.TestCase{
-		ID: nextID(), Target: desc, Expectation: strField(c, "assertion"),
-		Severity: strField(c, "severity"),
+		ID: nextID(), Target: desc, Expectation: llm.StrField(c, "assertion"),
+		Severity: llm.StrField(c, "severity"),
 	}
 }
 
 func assembleProcess(c llm.ToolCall, nextID func() string) agent.TestCase {
-	a := strField(c, "action") // build | exec (schema-enforced; test/lint via exec+cmd)
-	return agent.TestCase{ID: nextID(), Action: "process_" + a, Target: strField(c, "cmd"), Expectation: strField(c, "expect")}
+	a := llm.StrField(c, "action") // build | exec (schema-enforced; test/lint via exec+cmd)
+	return agent.TestCase{ID: nextID(), Action: "process_" + a, Target: llm.StrField(c, "cmd"), Expectation: llm.StrField(c, "expect")}
 }
 
 func assembleCode(c llm.ToolCall, nextID func() string) agent.TestCase {
-	return agent.TestCase{ID: nextID(), Action: "code_" + strField(c, "action"), Target: strField(c, "target")}
+	return agent.TestCase{ID: nextID(), Action: "code_" + llm.StrField(c, "action"), Target: llm.StrField(c, "target")}
 }
 
 func assembleFile(c llm.ToolCall, nextID func() string) agent.TestCase {
-	return agent.TestCase{ID: nextID(), Action: "file_" + strField(c, "action"), Target: strField(c, "path"), Body: strField(c, "pattern"), Expectation: strField(c, "expect")}
+	return agent.TestCase{ID: nextID(), Action: "file_" + llm.StrField(c, "action"), Target: llm.StrField(c, "path"), Body: llm.StrField(c, "pattern"), Expectation: llm.StrField(c, "expect")}
 }
 
 func assembleNavigate(c llm.ToolCall, nextID func() string) agent.TestCase {
-	return agent.TestCase{ID: nextID(), Action: "navigate", Target: strField(c, "path"), Expectation: strField(c, "expect")}
+	return agent.TestCase{ID: nextID(), Action: "navigate", Target: llm.StrField(c, "path"), Expectation: llm.StrField(c, "expect")}
 }

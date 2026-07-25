@@ -6,6 +6,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/contract"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
 
@@ -58,7 +59,7 @@ func (s *Scout) SelfAssessContract(ctx context.Context, c *contract.Contract) ([
 	var notes []string
 	for _, call := range res.ToolCalls {
 		if call.Name == "report_contract_gap" {
-			notes = append(notes, strField(call, "note"))
+			notes = append(notes, llm.StrField(call, "note"))
 		}
 	}
 	return notes, nil
