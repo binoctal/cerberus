@@ -47,6 +47,7 @@ func (s *Scout) buildAIPrompt(target TargetInfo) string {
 // config-only model rather than blocking the run.
 func (s *Scout) runAIInference(ctx context.Context, prompt string, configModel *project.ProjectModel) (*project.ProjectModel, error) {
 	res, err := s.driver.DecideWithTools(ctx, prompt, analyzeTools())
+	// Intentional degrade-on-both (drift + transient); see cerberus-docs/technical/decisions/2026-07-25-s2-analyze-drift-degrade.md
 	if err != nil || len(res.ToolCalls) == 0 {
 		s.logger.Warn("AI analysis failed/empty, using config-only model", zap.Error(err))
 		return configModel, nil // Graceful degradation

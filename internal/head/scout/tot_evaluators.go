@@ -17,7 +17,7 @@ import (
 //
 // goal is consumed by the goal-overlap signal; it is already in Plan's scope.
 func (t *ToTPlanner) evaluate(ctx context.Context, candidates []PlanCandidate, model *project.ProjectModel, goal string) ([]PlanCandidate, error) {
-	_ = ctx // no LLM call anymore; retained for signature stability.
+	// ctx retained in signature for S3 trace/plumbing; evaluate is currently synchronous and LLM-free.
 
 	for i := range candidates {
 		c := candidates[i]

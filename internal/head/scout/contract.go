@@ -52,6 +52,9 @@ func (s *Scout) SelfAssessContract(ctx context.Context, c *contract.Contract) ([
 	if err != nil {
 		return nil, fmt.Errorf("self-assess contract: %w", err)
 	}
+	// Zero report_contract_gap calls = LLM found no gaps; notes stay empty. This
+	// is intentionally not an error (unlike BuildCoverageContract's zero-calls
+	// path): self-assess is advisory, absence of gaps is a valid verdict.
 	var notes []string
 	for _, call := range res.ToolCalls {
 		if call.Name == "report_contract_gap" {
