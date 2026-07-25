@@ -24,7 +24,8 @@ type stepExecution struct {
 	// action tool call (drift). When it reaches driftSkipThreshold the loop
 	// finalizes the case as StepSkipped (not StepFailed) so the Examiner can
 	// distinguish LLM drift from a real test failure. Reset to 0 whenever
-	// steer emits a real action.
+	// steer emits a real action. Transient LLM errors neither increment nor
+	// reset the counter — only a real emitted action resets it.
 	consecutiveZeroSteer int
 	// environmentalSeen records whether ANY attempt's result was an environmental
 	// failure (target unreachable). finalizeResult uses it so a case that hit an

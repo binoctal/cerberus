@@ -243,3 +243,23 @@ func TestSteer_TaskContextIncludesServiceBase(t *testing.T) {
 	require.Contains(t, lastPrompt, "use this host for api_request URLs",
 		"the hint must instruct the LLM to use this host for api_request URLs")
 }
+
+// TestSteer_AssembleErrorFallsBackToDrift verifies the defensive drift fallback:
+// when assembleAction fails (e.g., a typo in the tool name from the provider),
+// steer treats it as drift and returns WaitAction + zeroCall=true rather than
+// hard-failing the case. This ensures the loop's consecutive-zero-call escalation
+// still fires on a recoverable glitch.
+func TestSteer_AssembleErrorFallsBackToDrift(t *testing.T) {
+	loop, _, mock := testLoop(t, nil, nil)
+	// Preset a tool call with a bogus name that assembleAction will reject.
+	mock.SetToolResponse("default", []llm.ToolCall{{Name: "api_request_typo", Input: map[string]any{"method": "GET", "url": "/x"}}})
+
+	tc := &TestCase{ID: "tc-3", Name: "bad tool", Target: "/api/x", Expectation: "e"}
+
+	action, zeroCall, err := loop.steer(context.Background(), tc, nil, 1)
+
+	require.NoError(t, err, "assembleAction error must be handled gracefully as drift, not surfaced as an error")
+	assert.True(t, zeroCall, "an unassembleable tool call should be treated as drift")
+	_, isWait := action.(types.WaitAction)
+	assert.True(t, isWait, "drift fallback should be a WaitAction")
+}
