@@ -106,12 +106,6 @@ func (r StepResult) String() string {
 		r.TestCase.ID, r.Status, r.Attempts, r.Duration.Round(time.Millisecond))
 }
 
-// SteerOutput is the structured JSON the LLM returns for a Steer decision.
-type SteerOutput struct {
-	Reasoning string               `json:"reasoning"`
-	Envelope  types.ActionEnvelope `json:"action"`
-}
-
 // ReActConfig holds tunable parameters for the ReAct loop.
 type ReActConfig struct {
 	MaxSteerAttempts   int           `json:"max_steer_attempts"`

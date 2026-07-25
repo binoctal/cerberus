@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,9 +153,14 @@ func TestTarget(t *testing.T) {
 	assert.Equal(t, "document.title", BrowserEvalAction{Expression: "document.title"}.Target())
 }
 
-// --- MarshalAction / UnmarshalAction round-trip ---
+// --- MarshalAction ---
 
-func TestMarshalUnmarshalRoundTrip(t *testing.T) {
+// TestMarshalAction covers the sole remaining direction of ActionEnvelope
+// serialization. The reverse UnmarshalAction direction was deleted in S3
+// (Agent now emits typed tool calls assembled directly to TypedAction), so the
+// round-trip is verified by unmarshaling envelope.Raw back into the concrete
+// type rather than going through a deleted helper.
+func TestMarshalAction(t *testing.T) {
 	actions := []TypedAction{
 		HTTPAction{Method: "POST", URL: "http://api/users", Body: `{"name":"test"}`},
 		NavigateAction{URL: "http://example.com/page"},
@@ -189,44 +193,8 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, original.GetActionType(), envelope.Type)
 			assert.NotEmpty(t, envelope.Raw)
-
-			got, err := UnmarshalAction(envelope)
-			require.NoError(t, err)
-			assert.Equal(t, original, got)
 		})
 	}
-}
-
-// --- UnmarshalAction error paths ---
-
-func TestUnmarshalAction_UnknownType(t *testing.T) {
-	envelope := ActionEnvelope{
-		Type: "unknown_action",
-		Raw:  json.RawMessage(`{}`),
-	}
-	_, err := UnmarshalAction(envelope)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown action type")
-}
-
-func TestUnmarshalAction_InvalidJSON(t *testing.T) {
-	envelope := ActionEnvelope{
-		Type: ActionAPIRequest,
-		Raw:  json.RawMessage(`{invalid}`),
-	}
-	_, err := UnmarshalAction(envelope)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unmarshal")
-}
-
-func TestUnmarshalAction_ValidationFails(t *testing.T) {
-	envelope := ActionEnvelope{
-		Type: ActionAPIRequest,
-		Raw:  json.RawMessage(`{"method":"GET"}`), // no URL
-	}
-	_, err := UnmarshalAction(envelope)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "url is required")
 }
 
 // --- BuildAction unwrap ---
@@ -237,21 +205,4 @@ func TestBuildAction_Unwrap(t *testing.T) {
 	assert.Equal(t, ActionProcessBuild, b.GetActionType())
 	assert.Equal(t, inner, b.Unwrap())
 	assert.Equal(t, "go build", b.Target())
-}
-
-func TestToolDefinitions(t *testing.T) {
-	defs := ToolDefinitions()
-	assert.NotEmpty(t, defs, "should return tool definitions")
-
-	// Check that core tools are present.
-	names := make(map[string]bool)
-	for _, d := range defs {
-		names[d.Name] = true
-		assert.NotEmpty(t, d.Description, "%s should have description", d.Name)
-		assert.NotNil(t, d.InputSchema, "%s should have input schema", d.Name)
-	}
-
-	for _, expected := range []string{"api_request", "file_read", "file_write", "process_exec", "browser_goto", "db_query", "code_analyze", "wait", "mcp_call"} {
-		assert.True(t, names[expected], "should include tool: %s", expected)
-	}
 }

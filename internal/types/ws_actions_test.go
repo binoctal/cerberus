@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+// TestWSReceiveActionRoundTrip verifies the marshal half of the round-trip
+// (UnmarshalAction was deleted in S3 — Agent now emits typed tool calls). We
+// unmarshal envelope.Raw directly into the concrete type to confirm the
+// fields survive the JSON shape Examiner's judge prompt consumes.
 func TestWSReceiveActionRoundTrip(t *testing.T) {
 	envelope, err := MarshalAction(&WSReceiveAction{
 		ConnectionID: "conn-1",
@@ -18,13 +22,9 @@ func TestWSReceiveActionRoundTrip(t *testing.T) {
 	if envelope.Type != ActionWSReceive {
 		t.Fatalf("type = %s, want %s", envelope.Type, ActionWSReceive)
 	}
-	got, err := UnmarshalAction(envelope)
-	if err != nil {
+	var r WSReceiveAction
+	if err := json.Unmarshal(envelope.Raw, &r); err != nil {
 		t.Fatalf("unmarshal: %v", err)
-	}
-	r, ok := got.(WSReceiveAction)
-	if !ok {
-		t.Fatalf("deref type %T, want WSReceiveAction value", got)
 	}
 	if r.ConnectionID != "conn-1" || r.Type != "permission:response" || !r.Decisive {
 		t.Fatalf("round-trip lost fields: %+v", r)
@@ -51,12 +51,12 @@ func TestWSDisconnectActionRoundTrip(t *testing.T) {
 	if envelope.Type != ActionWSDisconnect {
 		t.Fatalf("type = %s, want %s", envelope.Type, ActionWSDisconnect)
 	}
-	got, err := UnmarshalAction(envelope)
-	if err != nil {
+	var d WSDisconnectAction
+	if err := json.Unmarshal(envelope.Raw, &d); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if d, ok := got.(WSDisconnectAction); !ok || d.ConnectionID != "conn-2" {
-		t.Fatalf("round-trip failed: %+v", got)
+	if d.ConnectionID != "conn-2" {
+		t.Fatalf("round-trip failed: %+v", d)
 	}
 }
 
@@ -81,13 +81,9 @@ func TestWSConnectActionCredentialRefRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	got, err := UnmarshalAction(envelope)
-	if err != nil {
+	var c WSConnectAction
+	if err := json.Unmarshal(envelope.Raw, &c); err != nil {
 		t.Fatalf("unmarshal: %v", err)
-	}
-	c, ok := got.(WSConnectAction)
-	if !ok {
-		t.Fatalf("type %T, want WSConnectAction", got)
 	}
 	if c.CredentialRef != "bridge-actor" {
 		t.Fatalf("credential_ref round-trip lost: %+v", c)
@@ -101,13 +97,12 @@ func TestWSConnectActionRoleRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	got, err := UnmarshalAction(envelope)
-	if err != nil {
+	var c WSConnectAction
+	if err := json.Unmarshal(envelope.Raw, &c); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	c, ok := got.(WSConnectAction)
-	if !ok || c.Role != "web" {
-		t.Fatalf("role round-trip lost: %+v", got)
+	if c.Role != "web" {
+		t.Fatalf("role round-trip lost: %+v", c)
 	}
 }
 
@@ -119,13 +114,9 @@ func TestWSReceiveActionAssertRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	got, err := UnmarshalAction(envelope)
-	if err != nil {
+	var r WSReceiveAction
+	if err := json.Unmarshal(envelope.Raw, &r); err != nil {
 		t.Fatalf("unmarshal: %v", err)
-	}
-	r, ok := got.(WSReceiveAction)
-	if !ok {
-		t.Fatalf("type: %+v", got)
 	}
 	if r.Assert["payload.approved"] != true {
 		t.Fatalf("assert round-trip lost: %+v", r.Assert)

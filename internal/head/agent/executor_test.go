@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -63,20 +62,6 @@ func createTestSession(t *testing.T, s *store.Store) string {
 	sess, err := s.CreateSession(context.Background(), "run", "test", "")
 	require.NoError(t, err)
 	return sess.ID
-}
-
-// makeSteerEnvelope was a JSON-envelope test fixture for the legacy Decide
-// steer path. S3 deleted that path (steer is now tool-call-driven), so the
-// helper has no callers. SteerOutput + ActionEnvelope stay defined until T4
-// deletes the drift subsystem; parse_fallback_test.go and recovery still use
-// mustJSON below.
-
-func mustJSON(v any) json.RawMessage {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
 }
 
 func TestReActLoop_RuleEngineSuccess(t *testing.T) {
@@ -237,7 +222,15 @@ func TestReActExecutePlan_MultipleCases(t *testing.T) {
 	assert.Len(t, traces, 3)
 }
 
-// fixedRecovery is a test double for Recovery that always returns skip.
+// fixedRecovery is a test double for Recovery that returns a fixed RecoverDecision.
+//
+// {skip: true} yields RecoverDecision{Skip: true, Action: nil} (production
+// skip shape). {skip: false} yields RecoverDecision{Skip: false, Action: nil},
+// which lies outside the production XOR contract (S3 recovery emits either a
+// real action or skip — never a nil action with Skip=false). The fall-through
+// branch in tryRecovery treats a nil action as a no-op, so the {skip: false}
+// shape is still safe to install when a test only cares about the loop's steer
+// path and wants recovery to be a deterministic no-op.
 type fixedRecovery struct {
 	skip bool
 }

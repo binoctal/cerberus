@@ -24,8 +24,9 @@ func (fakeExecutorResult) Evidence() types.EvidenceData { return types.EvidenceD
 
 // newTestRecovery builds a Recovery wired to a mock client and in-memory store.
 // It returns the recovery handle and the mock so tests can preset tool-call
-// fixtures via SetToolResponse. Recovery defaults to no embedder (no L3 recall)
-// unless the test overrides it.
+// fixtures via SetToolResponse. NewRecovery installs the default trigram
+// embedder when given nil; L3 recall still returns nothing because the empty
+// in-memory store has no procedural memories to match.
 func newTestRecovery(t *testing.T) (*Recovery, *llm.MockClient) {
 	t.Helper()
 	s, err := store.New(":memory:")

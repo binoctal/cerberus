@@ -192,10 +192,10 @@ func TestDBActionSerialization(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, types.ActionDBQuery, envelope.Type)
 
-	action, err := types.UnmarshalAction(envelope)
-	require.NoError(t, err)
-	decoded, ok := action.(types.DBQueryAction)
-	require.True(t, ok)
+	// UnmarshalAction was deleted in S3; unmarshal envelope.Raw directly into
+	// the concrete type to confirm the fields survive the JSON shape.
+	var decoded types.DBQueryAction
+	require.NoError(t, json.Unmarshal(envelope.Raw, &decoded))
 	assert.Equal(t, "sqlite", decoded.Driver)
 	assert.Equal(t, "SELECT 1", decoded.Query)
 }
@@ -212,10 +212,8 @@ func TestGraphQLActionSerialization(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, types.ActionGraphQLQuery, envelope.Type)
 
-	action, err := types.UnmarshalAction(envelope)
-	require.NoError(t, err)
-	decoded, ok := action.(types.GraphQLQueryAction)
-	require.True(t, ok)
+	var decoded types.GraphQLQueryAction
+	require.NoError(t, json.Unmarshal(envelope.Raw, &decoded))
 	assert.Equal(t, "GetUsers", decoded.OperationName)
 }
 
@@ -226,9 +224,7 @@ func TestWSActionSerialization(t *testing.T) {
 	} {
 		envelope, err := types.MarshalAction(original)
 		require.NoError(t, err)
-
-		action, err := types.UnmarshalAction(envelope)
-		require.NoError(t, err)
-		assert.Equal(t, original.GetActionType(), action.GetActionType())
+		assert.Equal(t, original.GetActionType(), envelope.Type)
+		assert.NotEmpty(t, envelope.Raw)
 	}
 }

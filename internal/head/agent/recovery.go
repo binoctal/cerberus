@@ -54,7 +54,7 @@ func (rc *Recovery) SetProject(name string) {
 // exclusivity explicit because the LLM now emits either an action tool call OR
 // a `skip` tool call OR nothing at all — never both.
 //
-// Three terminal states:
+// Terminal states (all but the action-tool path collapse to Skip:true):
 //   - transient LLM error (budget, network)  → RecoverDecision{Skip: true}, nil
 //     err (graceful skip — pre-S3 behavior preserved)
 //   - zero tool calls (drift)                → RecoverDecision{Skip: true}

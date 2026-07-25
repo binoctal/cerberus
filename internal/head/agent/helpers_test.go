@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,26 +46,12 @@ func TestIsDestructiveAction_OtherActions(t *testing.T) {
 	assert.False(t, isDestructiveAction(types.DBQueryAction{Driver: "sqlite", Query: "SELECT 1"}))
 }
 
-func TestIsParseError(t *testing.T) {
-	assert.True(t, isParseError(errors.New("failed to parse output")))
-	assert.True(t, isParseError(errors.New("invalid json format")))
-	assert.False(t, isParseError(errors.New("connection refused")))
-	assert.False(t, isParseError(nil))
-}
-
 func TestContains(t *testing.T) {
 	assert.True(t, contains("hello world", "world"))
 	assert.True(t, contains("hello", "hello"))
 	assert.True(t, contains("hello", ""))
 	assert.False(t, contains("hi", "hello"))
 	assert.False(t, contains("", "x"))
-}
-
-func TestFindSubstr(t *testing.T) {
-	assert.True(t, findSubstr("hello world", "world"))
-	assert.True(t, findSubstr("abc", "abc"))
-	assert.False(t, findSubstr("abc", "xyz"))
-	assert.False(t, findSubstr("ab", "abc"))
 }
 
 func TestSandboxPolicyFor_AllActionTypes(t *testing.T) {
