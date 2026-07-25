@@ -118,11 +118,38 @@ func fullRunClient(content string) llm.Client {
 	return &combinedMockClient{content: content, toolCalls: planToolCalls()}
 }
 
-// fullRunClientWithContract returns a Client whose content satisfies
-// Scout.BuildCoverageContract (depth/scope/coverage_gate) and whose tool calls
-// satisfy Scout.Plan.
+// fullRunClientWithContract returns a Client whose DecideWithTools responses
+// satisfy Scout.Plan (keyed by "Test Goal: ") AND Scout.BuildCoverageContract
+// (keyed by "Define the coverage contract via tools"). MockClient.matchKey's
+// longest-substring-win logic routes each DecideWithTools call to its preset.
+// Other Decide calls (Agent/Examiner Steer/Judge/AssessCoverage) fall through
+// to the "default" response "{}", which parses into any target struct as zero
+// values — mirroring the previous combinedMockClient behavior where every
+// non-tool Decide parsed contractJSON into the caller's schema.
 func fullRunClientWithContract() llm.Client {
-	return fullRunClient(contractJSON())
+	mock := llm.NewMockClient(map[string]string{"default": "{}"})
+	mock.SetToolResponse("Test Goal: ", planToolCalls())
+	mock.SetToolResponse("Define the coverage contract via tools", contractToolCallsForSession())
+	return mock
+}
+
+// contractToolCallsForSession presets the six coverage-contract tools for the
+// session-level Run tests. Replaces the legacy contractJSON helper: under the
+// tool-calling migration, BuildCoverageContract consumes tool calls (not JSON),
+// so the scope/path_types/error_scope/boundaries/priorities/coverage_gate
+// fields ride on declare_*/set_* tool inputs. Depth is no longer carried by
+// the LLM response — it comes from cfg.Settings.Coverage.Depth via the
+// BuildCoverageContract depth parameter.
+func contractToolCallsForSession() []llm.ToolCall {
+	return []llm.ToolCall{
+		{Name: "declare_scope", Input: map[string]any{"modules": []any{"health", "api"}}},
+		{Name: "declare_path_types", Input: map[string]any{"types": []any{"happy", "alternative"}}},
+		{Name: "declare_error_scope", Input: map[string]any{"scopes": []any{"4xx", "validation"}}},
+		{Name: "declare_boundaries", Input: map[string]any{"boundaries": []any{"empty", "max"}}},
+		{Name: "set_priority", Input: map[string]any{"bucket": "high", "modules": []any{"health"}}},
+		{Name: "set_priority", Input: map[string]any{"bucket": "medium", "modules": []any{"api"}}},
+		{Name: "set_coverage_gate", Input: map[string]any{"module": "api", "line_threshold": float64(80.0), "branch_threshold": float64(70.0)}},
+	}
 }
 
 func TestNewSession(t *testing.T) {

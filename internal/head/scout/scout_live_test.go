@@ -7,10 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
@@ -176,5 +179,88 @@ func TestScoutPlan_LiveGLM(t *testing.T) {
 	t.Logf("=== http-method cases: %d / %d ===", httpCases, len(plan.Cases))
 	if httpCases == 0 {
 		t.Fatalf("expected at least one HTTP case from live LLM (got %d total cases)", len(plan.Cases))
+	}
+}
+
+// TestBuildCoverageContract_LiveGLM drives Scout.BuildCoverageContract through
+// the real DecideWithTools path against a live LLM (loaded from
+// .claude/settings.json via config.Load). Validates that GLM emits the six
+// contract tools (declare_scope/path_types/error_scope/boundaries, set_priority,
+// set_coverage_gate) and that assembleContract produces a populated contract.
+// Build-tagged `live` so it never runs in `make test`. Run:
+//
+//	go test -tags live -run TestBuildCoverageContract_LiveGLM -v ./internal/head/scout/
+func TestBuildCoverageContract_LiveGLM(t *testing.T) {
+	cfg := config.Load()
+	if cfg.LLMAPIKey == "" {
+		t.Skip("no LLM API key in settings.json env — live probe needs a real LLM")
+	}
+
+	s, err := store.New(":memory:")
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+	if err := store.RunMigrations(context.Background(), s.DB(), "../../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	projCfg := &project.Config{
+		Project: project.ProjectMeta{Name: "live-contract"},
+		Services: []project.Service{{
+			Name:   "api",
+			URL:    "http://localhost:8080",
+			Health: "/health",
+		}},
+	}
+
+	client, err := llm.NewClientWithConfig(llm.ClientConfig{
+		Model:      cfg.LLMModel,
+		APIKey:     cfg.LLMAPIKey,
+		BaseURL:    cfg.LLMBaseURL,
+		Provider:   cfg.LLMProvider,
+		AuthScheme: cfg.LLMAuthScheme,
+	})
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+	driver := ai.NewDriver(client, ai.NewTokenBudget(60000, 10000))
+	sct := scout.NewScout(driver, s, projCfg, zap.NewExample())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	goal := "Verify the API health endpoint responds with 200 OK and the /api/v1/users endpoint returns a non-empty list."
+	c, err := sct.BuildCoverageContract(ctx, goal, &project.ProjectModel{
+		API: project.APIModel{Endpoints: []project.EndpointDef{
+			{Method: "GET", Path: "/health", Confidence: 0.95},
+			{Method: "GET", Path: "/api/v1/users", Confidence: 0.9},
+		}},
+	}, contract.DepthStandard)
+	if err != nil {
+		t.Fatalf("build coverage contract: %v", err)
+	}
+
+	t.Logf("=== contract assembled ===")
+	t.Logf("depth: %s", c.Depth)
+	t.Logf("scope: %v", c.Scope)
+	t.Logf("path_types: %v", c.PathTypes)
+	t.Logf("error_scope: %v", c.ErrorScope)
+	t.Logf("boundaries: %v", c.Boundaries)
+	t.Logf("priorities: %+v", c.Priorities)
+	t.Logf("coverage_gate: module=%s line=%.2f branch=%.2f",
+		c.CoverageGate.Module, c.CoverageGate.LineThreshold, c.CoverageGate.BranchThreshold)
+
+	assert.Equal(t, contract.DepthStandard, c.Depth, "depth must echo the depth parameter")
+	require.NotEmpty(t, c.Scope, "expected declare_scope to populate Scope")
+	require.NotEmpty(t, c.CoverageGate.Module, "expected set_coverage_gate to populate Module")
+
+	// set_priority's schema forces map[string][]string — confirm at least one
+	// bucket came back as []string (the regression that motivated deleting
+	// Priorities.UnmarshalJSON).
+	if len(c.Priorities) > 0 {
+		for bucket, mods := range c.Priorities {
+			t.Logf("priority[%s] = %v (type %T)", bucket, mods, mods)
+			assert.NotNil(t, mods, "priority bucket %q must be []string, not bare string", bucket)
+		}
 	}
 }

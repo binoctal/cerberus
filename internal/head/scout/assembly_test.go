@@ -111,3 +111,20 @@ func TestAssembleAnalyze_DeclareTechForcesStrings(t *testing.T) {
 	assert.Equal(t, "GET", out.Endpoints[0].Method)
 	assert.Equal(t, []string{"go", "make"}, []string(out.TechStack))
 }
+
+// TestAssembleContract_PrioritiesForcedStringSlice asserts the contract
+// tool-calling migration: set_priority's schema forces map[string][]string, so
+// assembleContract produces []string directly — the Priorities.UnmarshalJSON
+// dual-shape drift patch is gone.
+func TestAssembleContract_PrioritiesForcedStringSlice(t *testing.T) {
+	calls := []llm.ToolCall{
+		{Name: "set_priority", Input: map[string]any{"bucket": "high", "modules": []any{"go/build"}}},
+		{Name: "set_coverage_gate", Input: map[string]any{"module": "go/build", "line_threshold": float64(0.8)}},
+		{Name: "declare_scope", Input: map[string]any{"modules": []any{"a", "b"}}},
+	}
+	c := assembleContract(calls, "standard", nil)
+	assert.Equal(t, []string{"go/build"}, c.Priorities["high"])
+	assert.Equal(t, "go/build", c.CoverageGate.Module)
+	assert.Equal(t, []string{"a", "b"}, c.Scope)
+	assert.Equal(t, "standard", c.Depth)
+}

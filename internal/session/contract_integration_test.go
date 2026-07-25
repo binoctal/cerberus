@@ -10,49 +10,12 @@ import (
 	"go.uber.org/zap"
 )
 
-// contractJSON returns the JSON content used by Scout.BuildCoverageContract
-// (Decide parses scope/depth/coverage_gate from this). Scout.Plan is fed via
-// tool calls from planToolCalls() in lifecycle_test.go, so the legacy "cases"
-// field is no longer needed here. The combinedMockClient delivers both at once.
-func contractJSON() string {
-	response := map[string]any{
-		"depth": "smoke",
-		"scope": []string{
-			"health endpoints",
-			"basic API paths",
-		},
-		"path_types": []string{
-			"happy path",
-			"basic validation",
-		},
-		"error_scope": []string{
-			"5xx errors",
-			"timeout",
-		},
-		"boundaries": []string{
-			"empty input",
-			"large payload",
-		},
-		"invariants": []map[string]any{
-			{
-				"id":          "inv-001",
-				"description": "response time < 200ms",
-			},
-		},
-		"priorities": map[string]any{
-			"high":   []string{"health"},
-			"medium": []string{"api"},
-		},
-		"coverage_gate": map[string]any{
-			"module":           "api",
-			"line_threshold":   80.0,
-			"branch_threshold": 70.0,
-		},
-	}
-	b, _ := json.Marshal(response)
-	return string(b)
-}
-
+// TestRun_WithCoverageContract drives Session.Run through the migrated
+// BuildCoverageContract path (six contract tools via DecideWithTools). The mock
+// client (fullRunClientWithContract) routes Plan and BuildCoverageContract to
+// distinct tool-call presets via MockClient.matchKey's longest-substring match.
+// Depth comes from cfg.Settings.Coverage.Depth (default "standard"), not from
+// the LLM, since assembleContract always uses the depth parameter.
 func TestRun_WithCoverageContract(t *testing.T) {
 	s := testStoreWithMigrations(t)
 	defer func() { _ = s.Close() }()
@@ -80,7 +43,7 @@ func TestRun_WithCoverageContract(t *testing.T) {
 	// Verify coverage contract was created and populated
 	assert.NotNil(t, sess.Contract, "Contract should be set after Run")
 	assert.NotEmpty(t, sess.Contract.Depth, "Contract depth should be populated")
-	assert.Equal(t, "smoke", sess.Contract.Depth, "Contract depth should match mock response")
+	assert.Equal(t, "standard", sess.Contract.Depth, "Contract depth should match cfg default")
 	assert.NotEmpty(t, sess.Contract.Scope, "Contract scope should be populated")
 	assert.NotEmpty(t, sess.Contract.CoverageGate.Module, "Coverage gate module should be set")
 

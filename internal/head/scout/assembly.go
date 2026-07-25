@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -171,6 +172,37 @@ func assembleAnalyze(calls []llm.ToolCall) AnalyzeOutput {
 		}
 	}
 	return out
+}
+
+// assembleContract converts coverage-contract tool calls (declare_scope/
+// path_types/error_scope/boundaries, set_priority, set_coverage_gate) into a
+// contract.Contract. Priorities is initialized non-nil so set_priority can
+// populate it; the set_priority schema forces map[string][]string, so no
+// Priorities.UnmarshalJSON dual-shape absorption is needed. Unknown calls are
+// dropped, never panic.
+func assembleContract(calls []llm.ToolCall, depth string, invs []contract.InvariantRef) *contract.Contract {
+	c := &contract.Contract{Depth: depth, Priorities: contract.Priorities{}, Invariants: invs}
+	for _, call := range calls {
+		switch call.Name {
+		case "declare_scope":
+			c.Scope = strSliceField(call, "modules")
+		case "declare_path_types":
+			c.PathTypes = strSliceField(call, "types")
+		case "declare_error_scope":
+			c.ErrorScope = strSliceField(call, "scopes")
+		case "declare_boundaries":
+			c.Boundaries = strSliceField(call, "boundaries")
+		case "set_priority":
+			c.Priorities[strField(call, "bucket")] = strSliceField(call, "modules")
+		case "set_coverage_gate":
+			c.CoverageGate = contract.Gate{
+				Module:          strField(call, "module"),
+				LineThreshold:   numField(call, "line_threshold"),
+				BranchThreshold: numField(call, "branch_threshold"),
+			}
+		}
+	}
+	return c
 }
 
 // --- high-level assemblers ---

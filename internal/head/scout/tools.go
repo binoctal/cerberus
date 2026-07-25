@@ -83,19 +83,75 @@ func planTools() []llm.Tool {
 func analyzeTools() []llm.Tool {
 	return []llm.Tool{
 		{Name: "report_endpoint", Description: "Report one discovered API endpoint.",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+			InputSchema: objSchema([]any{"method", "path"}, map[string]any{
 				"method":     map[string]any{"type": "string"},
 				"path":       map[string]any{"type": "string"},
 				"confidence": map[string]any{"type": "number"},
-			}, "required": []any{"method", "path"}}},
+			})},
 		{Name: "report_page", Description: "Report one discovered page/route.",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+			InputSchema: objSchema([]any{"path"}, map[string]any{
 				"path":       map[string]any{"type": "string"},
 				"confidence": map[string]any{"type": "number"},
-			}, "required": []any{"path"}}},
+			})},
 		{Name: "declare_tech", Description: "Declare detected tech stack (string array).",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"stack": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-			}, "required": []any{"stack"}}},
+			InputSchema: objSchema([]any{"stack"}, map[string]any{
+				"stack": strArrSchema(),
+			})},
 	}
+}
+
+// contractTools returns the coverage-contract tool surface: one typed tool per
+// Contract field. The set_priority schema forces map[string][]string, replacing
+// the Priorities.UnmarshalJSON dual-shape drift patch.
+func contractTools() []llm.Tool {
+	return []llm.Tool{
+		{Name: "declare_scope", Description: "Declare the modules/paths in scope.",
+			InputSchema: objSchema([]any{"modules"}, map[string]any{"modules": strArrSchema()})},
+		{Name: "declare_path_types", Description: "Declare path types to cover.",
+			InputSchema: objSchema([]any{"types"}, map[string]any{"types": enumArrSchema("happy", "alternative", "boundary", "edge")})},
+		{Name: "declare_error_scope", Description: "Declare error scopes to cover.",
+			InputSchema: objSchema([]any{"scopes"}, map[string]any{"scopes": enumArrSchema("4xx", "validation", "exception")})},
+		{Name: "declare_boundaries", Description: "Declare boundary classes to cover.",
+			InputSchema: objSchema([]any{"boundaries"}, map[string]any{"boundaries": enumArrSchema("empty", "zero", "max", "invalid", "extreme")})},
+		{Name: "set_priority", Description: "Map a priority bucket to its modules.",
+			InputSchema: objSchema([]any{"bucket", "modules"}, map[string]any{
+				"bucket":  map[string]any{"type": "string"},
+				"modules": strArrSchema(),
+			})},
+		{Name: "set_coverage_gate", Description: "Set the objective coverage gate.",
+			InputSchema: objSchema([]any{"module"}, map[string]any{
+				"module":           map[string]any{"type": "string"},
+				"line_threshold":   map[string]any{"type": "number"},
+				"branch_threshold": map[string]any{"type": "number"},
+			})},
+	}
+}
+
+// selfAssessTools returns the SelfAssess tool surface: report_contract_gap
+// surfaces one gap note each. Schemas are hard-enforced by the provider,
+// replacing the legacy notes JSON.
+func selfAssessTools() []llm.Tool {
+	return []llm.Tool{{Name: "report_contract_gap", Description: "Report one coverage gap.",
+		InputSchema: objSchema([]any{"note"}, map[string]any{"note": map[string]any{"type": "string"}})},
+	}
+}
+
+// objSchema wraps an object schema with required + properties.
+func objSchema(required []any, props map[string]any) map[string]any {
+	return map[string]any{"type": "object", "properties": props, "required": required}
+}
+
+// strArrSchema returns a schema for a free-form string array.
+func strArrSchema() map[string]any {
+	return map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
+}
+
+// enumArrSchema returns a schema for a string array whose items are constrained
+// to one of the provided enum values.
+func enumArrSchema(vals ...string) map[string]any {
+	cs := make([]any, len(vals))
+	for i, v := range vals {
+		cs[i] = v
+	}
+	return map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": cs}}
 }

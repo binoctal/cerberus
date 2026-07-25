@@ -1,10 +1,5 @@
 package contract
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 // Contract is the AI-authored coverage standard for a session.
 type Contract struct {
 	Depth        string         `json:"depth"`         // smoke | standard | thorough
@@ -17,40 +12,11 @@ type Contract struct {
 	CoverageGate Gate           `json:"coverage_gate"` // objective coverage threshold
 }
 
-// Priorities maps a priority bucket to its modules. It tolerates the two
-// shapes real LLMs emit so a non-Claude model returning {"check":"level"}
-// (map[string]string) does not fail coverage-contract parsing:
-//   - map[string][]string (documented): {"high": ["go/build"]}
-//   - map[string]string (common):       {"health_check": "critical"}
-//
-// Single string values are normalized to one-element slices, so consumers
-// always see []string regardless of which shape the model produced.
+// Priorities maps a priority bucket to its modules. The set_priority tool
+// schema forces map[string][]string at the provider layer, so the dual-shape
+// drift patch that lived here pre-migration (tolerating map[string]string) is
+// no longer needed.
 type Priorities map[string][]string
-
-// UnmarshalJSON decodes Priorities from either supported shape.
-func (p *Priorities) UnmarshalJSON(data []byte) error {
-	out := make(Priorities)
-
-	var multi map[string][]string
-	if err := json.Unmarshal(data, &multi); err == nil {
-		for k, v := range multi {
-			out[k] = v
-		}
-		*p = out
-		return nil
-	}
-
-	var single map[string]string
-	if err := json.Unmarshal(data, &single); err == nil {
-		for k, v := range single {
-			out[k] = []string{v}
-		}
-		*p = out
-		return nil
-	}
-
-	return fmt.Errorf("priorities must be {string:string} or {string:string[]}")
-}
 
 // InvariantRef references a project invariant the contract must enforce.
 type InvariantRef struct {

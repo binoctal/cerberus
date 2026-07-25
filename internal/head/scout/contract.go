@@ -12,45 +12,51 @@ import (
 const promptContractSystem = `You define a coverage contract: what a test session must cover and how deeply. Given a project model, goal, and depth tier, return the scope, path types, error scopes, boundaries, priorities, and an objective coverage gate.`
 
 // BuildCoverageContract creates an AI-authored coverage contract for a test session.
-// It uses the Scout's driver to call the LLM, parses the response into a contract.Contract,
-// and carries invariants from the project configuration into the contract.
+// The LLM is driven via six typed contract tools (declare_scope/path_types/
+// error_scope/boundaries, set_priority, set_coverage_gate); assembleContract
+// turns the calls into a contract.Contract. Invariants from the project
+// configuration are carried into the contract as hard refs.
 func (s *Scout) BuildCoverageContract(ctx context.Context, goal string, model *project.ProjectModel, depth string) (*contract.Contract, error) {
 	dims := contract.ExpandDepth(depth)
 	prompt := ai.NewPrompt().
 		System(promptContractSystem).
 		Context(s.buildAnalyzeContext(TargetInfo{Goal: goal})).
-		Task(fmt.Sprintf("Goal: %s\nDepth: %s\nExpand to dimensions: %+v\nReturn a JSON coverage contract.", goal, depth, dims)).
-		Output(`Respond with JSON: {"depth":"","scope":[],"path_types":[],"error_scope":[],"boundaries":[],"priorities":{},"coverage_gate":{"module":"","line_threshold":0.0}}`).
+		Task(fmt.Sprintf("Goal: %s\nDepth: %s\nExpand to dimensions: %+v\nDefine the coverage contract via tools.", goal, depth, dims)).
 		Build()
-
-	var c contract.Contract
-	if err := s.driver.Decide(ctx, prompt, &c); err != nil {
+	res, err := s.driver.DecideWithTools(ctx, prompt, contractTools())
+	if err != nil {
 		return nil, fmt.Errorf("build coverage contract: %w", err)
 	}
-	if c.Depth == "" {
-		c.Depth = depth
+	if len(res.ToolCalls) == 0 {
+		return nil, fmt.Errorf("build coverage contract: no tool calls")
 	}
-	// carry invariants from config as hard refs
+	var invs []contract.InvariantRef
 	for _, inv := range s.config.Invariants {
-		c.Invariants = append(c.Invariants, contract.InvariantRef{ID: inv.ID, Description: inv.Description})
+		invs = append(invs, contract.InvariantRef{ID: inv.ID, Description: inv.Description})
 	}
-	return &c, nil
+	return assembleContract(res.ToolCalls, depth, invs), nil
 }
 
 // SelfAssessContract critiques a coverage contract for gaps: missing scope,
-// missing path types vs the depth tier, missing invariants. Returns notes
-// the builder can fold into case generation.
+// missing path types vs the depth tier, missing invariants. The LLM is driven
+// via the report_contract_gap tool; each call surfaces one gap note. Returns
+// notes the builder can fold into case generation.
 // v1: notes are diagnostic-only (logged). Future versions should feed them into Plan context
 // so they affect case generation.
 func (s *Scout) SelfAssessContract(ctx context.Context, c *contract.Contract) ([]string, error) {
 	prompt := ai.NewPrompt().
-		System(`You critique a coverage contract for gaps: missing scope, missing path types vs the depth tier, missing invariants. Return notes only.`).
+		System(`You critique a coverage contract for gaps: missing scope, missing path types vs the depth tier, missing invariants. Report each gap via report_contract_gap.`).
 		Task(fmt.Sprintf("Contract: %+v", c)).
-		Output(`Respond with JSON: {"notes":[]}`).
 		Build()
-	var out struct{ Notes []string }
-	if err := s.driver.Decide(ctx, prompt, &out); err != nil {
+	res, err := s.driver.DecideWithTools(ctx, prompt, selfAssessTools())
+	if err != nil {
 		return nil, fmt.Errorf("self-assess contract: %w", err)
 	}
-	return out.Notes, nil
+	var notes []string
+	for _, call := range res.ToolCalls {
+		if call.Name == "report_contract_gap" {
+			notes = append(notes, strField(call, "note"))
+		}
+	}
+	return notes, nil
 }
