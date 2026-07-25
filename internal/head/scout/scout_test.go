@@ -71,21 +71,15 @@ func TestAnalyze_ConfigOnlyModel(t *testing.T) {
 }
 
 func TestAnalyze_AIInference(t *testing.T) {
-	// When config is sparse, AI should be called to infer additional endpoints.
-	analyzeOutput := AnalyzeOutput{
-		Endpoints: []EndpointInfo{
-			{Method: "GET", Path: "/api/v1/users", Confidence: 0.8},
-			{Method: "POST", Path: "/api/v1/users", Confidence: 0.7},
-		},
-		Pages: []PageInfo{
-			{Path: "/dashboard", Confidence: 0.6},
-		},
-		TechStack: []string{"react", "node"},
-	}
-	analyzeJSON, _ := json.Marshal(analyzeOutput)
-
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": string(analyzeJSON),
+	// When config is sparse, AI should be called via tool calls to infer
+	// additional endpoints/pages/tech stack. The mock returns report_endpoint
+	// / report_page / declare_tech tool calls (preset by goal substring).
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("discover endpoints", []llm.ToolCall{
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users", "confidence": float64(0.8)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "POST", "path": "/api/v1/users", "confidence": float64(0.7)}},
+		{Name: "report_page", Input: map[string]any{"path": "/dashboard", "confidence": float64(0.6)}},
+		{Name: "declare_tech", Input: map[string]any{"stack": []any{"react", "node"}}},
 	})
 
 	cfg := &project.Config{

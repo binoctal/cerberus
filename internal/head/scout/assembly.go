@@ -140,6 +140,39 @@ func mapField(c llm.ToolCall, k string) map[string]any {
 	return nil
 }
 
+func numField(c llm.ToolCall, k string) float64 {
+	if v, ok := c.Input[k].(float64); ok {
+		return v
+	}
+	return 0
+}
+
+// assembleAnalyze converts Analyze tool calls (report_endpoint/report_page/
+// declare_tech) into an AnalyzeOutput. The provider schema enforces string
+// arrays for declare_tech, so no drift absorption is needed. Unknown calls are
+// dropped, never panic.
+func assembleAnalyze(calls []llm.ToolCall) AnalyzeOutput {
+	var out AnalyzeOutput
+	for _, c := range calls {
+		switch c.Name {
+		case "report_endpoint":
+			out.Endpoints = append(out.Endpoints, EndpointInfo{
+				Method:     strField(c, "method"),
+				Path:       strField(c, "path"),
+				Confidence: numField(c, "confidence"),
+			})
+		case "report_page":
+			out.Pages = append(out.Pages, PageInfo{
+				Path:       strField(c, "path"),
+				Confidence: numField(c, "confidence"),
+			})
+		case "declare_tech":
+			out.TechStack = strSliceField(c, "stack")
+		}
+	}
+	return out
+}
+
 // --- high-level assemblers ---
 
 func assembleHTTP(c llm.ToolCall, nextID func() string, svcs []project.Service) agent.TestCase {

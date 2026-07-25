@@ -97,8 +97,21 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 		Services: []project.Service{{Name: "api", URL: srv.URL, Health: "/health"}},
 	}
 
-	// Stage 1: Scout Analyze.
-	mockAnalyze := llm.NewMockClient(map[string]string{"default": `{"endpoints":[{"path":"/health","method":"GET","confidence":0.95},{"path":"/api/v1/users","method":"GET","confidence":0.95},{"path":"/api/v1/users","method":"POST","confidence":0.9},{"path":"/api/v1/users/1","method":"GET","confidence":0.95},{"path":"/api/v1/users/1","method":"PUT","confidence":0.9},{"path":"/api/v1/users/1","method":"DELETE","confidence":0.9},{"path":"/api/v1/posts","method":"GET","confidence":0.85},{"path":"/api/v1/stats","method":"GET","confidence":0.85}],"pages":[],"tech_stack":["go"]}`})
+	// Stage 1: Scout Analyze (tool-call fixture: report_endpoint per route,
+	// declare_tech for the stack). The new Analyze path drives DecideWithTools
+	// instead of JSON-emitted AnalyzeOutput.
+	mockAnalyze := llm.NewMockClient(nil)
+	mockAnalyze.SetToolResponse("test all CRUD operations", []llm.ToolCall{
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/health", "confidence": float64(0.95)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users", "confidence": float64(0.95)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "POST", "path": "/api/v1/users", "confidence": float64(0.9)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users/1", "confidence": float64(0.95)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "PUT", "path": "/api/v1/users/1", "confidence": float64(0.9)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "DELETE", "path": "/api/v1/users/1", "confidence": float64(0.9)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/posts", "confidence": float64(0.85)}},
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/stats", "confidence": float64(0.85)}},
+		{Name: "declare_tech", Input: map[string]any{"stack": []any{"go"}}},
+	})
 	analyzeDriver := ai.NewDriver(mockAnalyze, ai.NewTokenBudget(500000, 50000))
 	scoutHead := scout.NewScout(analyzeDriver, s, cfg, zap.NewNop())
 

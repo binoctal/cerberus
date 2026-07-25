@@ -18,16 +18,19 @@ RULES:
 - Assign confidence 0.9+ to items visible in the structure; 0.5-0.7 to inferred ones.
 - Do NOT fabricate endpoints. If there is no HTTP service, leave "endpoints" empty.`
 
-const promptAnalyzeOutput = `Respond with JSON:
-{
-  "endpoints": [
-    {"method": "GET", "path": "/api/v1/resource", "confidence": 0.9}
-  ],
-  "pages": [
-    {"path": "/dashboard", "confidence": 0.7}
-  ],
-  "tech_stack": ["react", "node", "postgresql"]
-}`
+// promptAnalyzeToolGuide replaces the legacy promptAnalyzeOutput JSON schema.
+// The Analyze agent no longer returns JSON — it emits tool calls that the
+// provider schema-validates and assembleAnalyze turns into AnalyzeOutput.
+const promptAnalyzeToolGuide = `Emit ONE TOOL CALL PER DISCOVERED ITEM. Do not output JSON.
+
+- report_endpoint — one API endpoint (method, path, confidence?).
+- report_page — one page/route (path, confidence?).
+- declare_tech — the tech stack as a string array (call once with the full stack).
+
+Rules:
+- Assign confidence 0.9+ to items explicitly listed in the brief; 0.5-0.7 to inferred ones.
+- For a local codebase with no HTTP service, leave endpoints empty and declare tech only.
+- Omit JSON; the tool schemas enforce structure.`
 
 const promptPlanSystem = `You are a test planning agent. Given a project model and a test goal, generate a comprehensive list of test cases.
 

@@ -37,23 +37,24 @@ func (s *Scout) buildAIPrompt(target TargetInfo) string {
 		System(system).
 		Context(analyzeCtx).
 		Task(s.buildAnalyzeTask(target)).
-		Output(promptAnalyzeOutput).
+		Output(promptAnalyzeToolGuide).
 		Build()
 }
 
-// runAIInference executes AI analysis with graceful degradation.
+// runAIInference executes AI analysis with graceful degradation. The LLM is
+// driven via tools (report_endpoint/report_page/declare_tech); assembleAnalyze
+// turns the calls into AnalyzeOutput. Empty/error results degrade to the
+// config-only model rather than blocking the run.
 func (s *Scout) runAIInference(ctx context.Context, prompt string, configModel *project.ProjectModel) (*project.ProjectModel, error) {
-	var out AnalyzeOutput
-	if err := s.driver.Decide(ctx, prompt, &out); err != nil {
-		s.logger.Warn("AI analysis failed, using config-only model", zap.Error(err))
+	res, err := s.driver.DecideWithTools(ctx, prompt, analyzeTools())
+	if err != nil || len(res.ToolCalls) == 0 {
+		s.logger.Warn("AI analysis failed/empty, using config-only model", zap.Error(err))
 		return configModel, nil // Graceful degradation
 	}
-
-	// Merge AI-inferred data into the model
+	out := assembleAnalyze(res.ToolCalls)
 	model := &project.ProjectModel{}
 	*model = *configModel // Copy config model
 	s.mergeAIInference(model, out)
-
 	return model, nil
 }
 

@@ -97,3 +97,17 @@ func TestAssemblePlan_WSDroppedWithoutBeginCase(t *testing.T) {
 	plan, _ := assemblePlan(calls, "g", "", nil)
 	assert.Empty(t, plan.Cases)
 }
+
+// TestAssembleAnalyze_DeclareTechForcesStrings asserts the Analyze tool-calling
+// migration: declare_tech's schema forces a string array, so assembleAnalyze
+// produces []string directly — flexibleStrings drift absorption is gone.
+func TestAssembleAnalyze_DeclareTechForcesStrings(t *testing.T) {
+	calls := []llm.ToolCall{
+		{Name: "report_endpoint", Input: map[string]any{"method": "GET", "path": "/api"}},
+		{Name: "declare_tech", Input: map[string]any{"stack": []any{"go", "make"}}},
+	}
+	out := assembleAnalyze(calls)
+	require.Len(t, out.Endpoints, 1)
+	assert.Equal(t, "GET", out.Endpoints[0].Method)
+	assert.Equal(t, []string{"go", "make"}, []string(out.TechStack))
+}

@@ -75,3 +75,27 @@ func planTools() []llm.Tool {
 			}, "required": []any{"role"}}},
 	}
 }
+
+// analyzeTools returns the Analyze tool surface: report_endpoint/report_page
+// surface one discovered API/page each, declare_tech declares the tech stack as
+// a schema-enforced string array. Schemas are hard-enforced by the provider,
+// replacing the legacy AnalyzeOutput JSON and the flexibleStrings drift patch.
+func analyzeTools() []llm.Tool {
+	return []llm.Tool{
+		{Name: "report_endpoint", Description: "Report one discovered API endpoint.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"method":     map[string]any{"type": "string"},
+				"path":       map[string]any{"type": "string"},
+				"confidence": map[string]any{"type": "number"},
+			}, "required": []any{"method", "path"}}},
+		{Name: "report_page", Description: "Report one discovered page/route.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"path":       map[string]any{"type": "string"},
+				"confidence": map[string]any{"type": "number"},
+			}, "required": []any{"path"}}},
+		{Name: "declare_tech", Description: "Declare detected tech stack (string array).",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"stack": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			}, "required": []any{"stack"}}},
+	}
+}
