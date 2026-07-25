@@ -2,6 +2,7 @@ package scout
 
 import (
 	"context"
+	"net/url"
 
 	"go.uber.org/zap"
 
@@ -57,6 +58,7 @@ func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string) {
 		s.logger.Info("expanded ws_relay cases", zap.Int("covered_services", len(covered)))
 	}
 	s.appendExecutorCases(plan, goal, covered)
+	filterWSEndpointDrift(plan, s.config) // Finding-3: drop WS-endpoint HTTP drift
 }
 
 // Plan generates a TestPlan from the goal and project model.
@@ -106,4 +108,52 @@ func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string, covered m
 		)
 		plan.Cases = append(plan.Cases, cases...)
 	}
+}
+
+// filterWSEndpointDrift drops LLM free-form cases that target a WS endpoint
+// with a non-ws_* action — the HTTP drift that produces 426 noise. Legitimate
+// HTTP REST exploration (a different path), deterministic WS cases (a ws_*
+// action), and LLM ws_* attempts on a WS endpoint are all kept. No-op when no
+// service declares a protocol (byte-identical for non-WS projects).
+func filterWSEndpointDrift(plan *agent.TestPlan, cfg *project.Config) {
+	wsPaths := map[string]bool{}
+	for _, svc := range cfg.Services {
+		if svc.Protocol == nil {
+			continue
+		}
+		if u, err := url.Parse(svc.URL); err == nil && u.Path != "" {
+			wsPaths[u.Path] = true
+		}
+	}
+	if len(wsPaths) == 0 {
+		return
+	}
+	kept := make([]agent.TestCase, 0, len(plan.Cases))
+	for _, c := range plan.Cases {
+		if wsPaths[urlPathOf(c.Target)] && !isWSAction(c.Action) {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	plan.Cases = kept
+}
+
+// urlPathOf returns the path component of a target, which may be an absolute
+// URL (http://h/ws/x), a relative path (/ws/x), or a ws:// URL. Returns "" on a
+// parse failure or empty target so it never matches a WS path.
+func urlPathOf(target string) string {
+	if u, err := url.Parse(target); err == nil {
+		return u.Path
+	}
+	return ""
+}
+
+// isWSAction reports whether action is one of the WS executor actions. The set
+// is fixed by the coder/websocket executor.
+func isWSAction(action string) bool {
+	switch action {
+	case "ws_connect", "ws_send", "ws_receive", "ws_disconnect", "ws_flow":
+		return true
+	}
+	return false
 }
