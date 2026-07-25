@@ -332,6 +332,12 @@ deterministically instead of relying on the Steer LLM to improvise it each run. 
 rationale:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-scout-cases-design.md`](../superpowers/specs/2026-07-21-ws-scout-cases-design.md).
 
+Scout also drops LLM free-form cases that target a WS endpoint with a non-`ws_*`
+action (HTTP drift, which the WS endpoint rejects with 426): legitimate HTTP
+REST exploration of other paths, deterministic WS cases, and `ws_*` attempts on
+the WS endpoint are all kept. Design:
+[`cerberus-docs/superpowers/specs/2026-07-25-ws-finding3-ws-endpoint-drift-filter-design.md`](../superpowers/specs/2026-07-25-ws-finding3-ws-endpoint-drift-filter-design.md).
+
 ### Deterministic multi-step cases (Steps)
 
 A `TestCase` may carry ordered `Steps` (`connect → send → receive → assert`)
