@@ -232,16 +232,9 @@ func TestScout_DeepPlanMode(t *testing.T) {
 }
 
 func TestScout_DeepPlanFlag_Integration(t *testing.T) {
-	// Verify that Scout without DeepPlan uses direct planning,
+	// Verify that Scout without DeepPlan uses direct tool-use planning,
 	// and Scout with DeepPlan uses ToT.
 	s := setupTestStore(t)
-
-	planOutput := PlanOutput{
-		Cases: []CaseInfo{
-			{ID: "tc-001", Name: "Direct plan", Target: "/api", Method: "GET", Expectation: "200", Priority: 1.0},
-		},
-	}
-	planJSON, _ := json.Marshal(planOutput)
 
 	proposeOut := ProposeOutput{
 		Strategies: []StrategyProposal{
@@ -250,8 +243,11 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	}
 	proposeJSON, _ := json.Marshal(proposeOut)
 
-	// Direct mode: returns PlanOutput JSON.
-	mockDirect := llm.NewMockClient(map[string]string{"default": string(planJSON)})
+	// Direct mode: DecideWithTools returns tool calls.
+	mockDirect := llm.NewMockClient(nil)
+	mockDirect.SetToolResponse("test", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api"}},
+	})
 	driverDirect := ai.NewDriver(mockDirect, ai.NewTokenBudget(500000, 50000))
 
 	cfg := &project.Config{
@@ -264,7 +260,7 @@ func TestScout_DeepPlanFlag_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "tc-001", plan.Cases[0].ID) // Direct plan case ID.
 
-	// Deep mode: returns ProposeOutput JSON (MockClient same response).
+	// Deep mode: ToT planner consumes ProposeOutput JSON.
 	mockDeep := llm.NewMockClient(map[string]string{"default": string(proposeJSON)})
 	driverDeep := ai.NewDriver(mockDeep, ai.NewTokenBudget(500000, 50000))
 

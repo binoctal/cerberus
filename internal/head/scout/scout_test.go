@@ -3,6 +3,7 @@ package scout
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -145,17 +146,12 @@ func TestAnalyze_AIErrorGracefulDegradation(t *testing.T) {
 }
 
 func TestPlan_AIPlanning(t *testing.T) {
-	planOutput := PlanOutput{
-		Cases: []CaseInfo{
-			{ID: "tc-001", Name: "List users", Target: "/api/users", Method: "GET", Expectation: "Returns 200", Priority: 1.0},
-			{ID: "tc-002", Name: "Create user", Target: "/api/users", Method: "POST", Expectation: "Returns 201", Priority: 0.9},
-			{ID: "tc-003", Name: "Get dashboard", Target: "/dashboard", Action: "navigate", Expectation: "Loads without error", Priority: 0.7},
-		},
-	}
-	planJSON, _ := json.Marshal(planOutput)
-
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": string(planJSON),
+	// Tool-call preset: 3 LLM-emitted cases (2 HTTP + 1 navigate).
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("verify API surface", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/users"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "POST", "path": "/api/users"}},
+		{Name: "navigate", Input: map[string]any{"path": "/dashboard"}},
 	})
 
 	cfg := &project.Config{
@@ -193,20 +189,17 @@ func TestPlan_AIPlanning(t *testing.T) {
 
 	// Verify case conversion.
 	assert.Equal(t, "tc-001", plan.Cases[0].ID)
-	assert.Equal(t, "List users", plan.Cases[0].Name)
+	assert.Equal(t, "GET /api/users", plan.Cases[0].Name)
 	assert.Equal(t, "/api/users", plan.Cases[0].Target)
 	assert.Equal(t, "GET", plan.Cases[0].Method)
-	assert.InDelta(t, 1.0, plan.Cases[0].Priority, 0.01)
 
 	assert.Equal(t, "navigate", plan.Cases[2].Action)
 }
 
 func TestPlan_FallbackPlan(t *testing.T) {
-	// When AI fails, should generate deterministic test cases from the model.
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": "invalid json", // Will cause parse error.
-	})
-
+	// When DecideWithTools returns a transient error, Scout should degrade to a
+	// deterministic plan generated from the model. errorMockClient (defined in
+	// direct_planning_test.go) always returns an error from Complete.
 	cfg := &project.Config{
 		Project: project.ProjectMeta{Name: "test"},
 		Services: []project.Service{
@@ -214,7 +207,7 @@ func TestPlan_FallbackPlan(t *testing.T) {
 		},
 	}
 
-	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	driver := ai.NewDriver(&errorMockClient{err: fmt.Errorf("transient LLM outage")}, ai.NewTokenBudget(200000, 10000))
 	s := setupTestStore(t)
 
 	scout := NewScout(driver, s, cfg, zap.NewNop())
@@ -254,8 +247,8 @@ func TestPlan_FallbackPlan(t *testing.T) {
 }
 
 func TestPlan_FallbackPlan_DefaultHealthCheck(t *testing.T) {
-	// When model is empty and baseURL exists, should add default health check.
-	// We need AI to fail to trigger fallback. Use invalid response.
+	// When model is empty and baseURL exists, the fallback should add a default
+	// health-check case. Trigger fallback via a transient LLM error.
 	cfg := &project.Config{
 		Project: project.ProjectMeta{Name: "test"},
 		Services: []project.Service{
@@ -265,9 +258,8 @@ func TestPlan_FallbackPlan_DefaultHealthCheck(t *testing.T) {
 
 	s := setupTestStore(t)
 
-	// Empty model triggers fallbackPlan, and since no endpoints → default health check.
 	scout2 := NewScout(
-		ai.NewDriver(llm.NewMockClient(map[string]string{"default": "bad"}), ai.NewTokenBudget(200000, 10000)),
+		ai.NewDriver(&errorMockClient{err: fmt.Errorf("transient LLM outage")}, ai.NewTokenBudget(200000, 10000)),
 		s, cfg, zap.NewNop(),
 	)
 
@@ -395,24 +387,10 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	}))
 	defer server.Close()
 
-	analyzeOutput := AnalyzeOutput{
-		Endpoints: []EndpointInfo{
-			{Method: "GET", Path: "/api/v1/users", Confidence: 0.85},
-		},
-	}
-	analyzeJSON, _ := json.Marshal(analyzeOutput)
-
-	planOutput := PlanOutput{
-		Cases: []CaseInfo{
-			{ID: "tc-001", Name: "Get users", Target: "/api/v1/users", Method: "GET", Expectation: "Returns 200", Priority: 1.0},
-		},
-	}
-	planJSON, _ := json.Marshal(planOutput)
-
-	// MockClient returns plan output. Analyze will skip AI because config has
-	// enough coverage (health + invariant → InfoScore ≥ 0.7).
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": string(planJSON),
+	// Tool-call preset for Plan: a single GET /api/v1/users case.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("verify all endpoints", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users"}},
 	})
 
 	cfg := &project.Config{
@@ -428,7 +406,6 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	s := setupTestStore(t)
 
-	_ = analyzeJSON // Used in concept; actual Analyze skips AI due to config coverage.
 	scout := NewScout(driver, s, cfg, zap.NewNop())
 
 	// Analyze — should skip AI (config has health + invariant → InfoScore ≥ 0.7).
@@ -440,7 +417,7 @@ func TestEndToEnd_AnalyzeThenPlan(t *testing.T) {
 	assert.Len(t, model.API.Endpoints, 1) // /health
 	assert.Len(t, model.InvariantHints, 1)
 
-	// Plan — should call AI.
+	// Plan — should call AI via DecideWithTools.
 	plan, err := scout.Plan(context.Background(), "verify all endpoints", model)
 	require.NoError(t, err)
 

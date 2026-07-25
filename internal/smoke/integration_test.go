@@ -3,6 +3,7 @@ package smoke
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,15 +60,14 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 	count, _ := store.SeedStrategies(ctx, s, "integration-test", zap.NewNop())
 	assert.Greater(t, count, 0, "should seed strategies")
 
-	planOutput := scout.PlanOutput{
-		Cases: []scout.CaseInfo{
-			{ID: "tc-001", Name: "GET /health returns 200", Target: "/health", Method: "GET", Expectation: "200", Priority: 0.9},
-			{ID: "tc-002", Name: "GET /api/v1/users returns list", Target: "/api/v1/users", Method: "GET", Expectation: "200", Priority: 0.9},
-			{ID: "tc-003", Name: "POST /api/v1/users creates user", Target: "/api/v1/users", Method: "POST", Expectation: "201", Priority: 0.8},
-			{ID: "tc-004", Name: "GET /api/v1/posts returns list", Target: "/api/v1/posts", Method: "GET", Expectation: "200", Priority: 0.7},
-		},
-	}
-	planJSON, _ := json.Marshal(planOutput)
+	// Tool-call preset drives Scout.Plan via DecideWithTools.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("test all APIs", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/health"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "POST", "path": "/api/v1/users", "expect_status": 201}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/posts"}},
+	})
 
 	judgeJSON, _ := json.Marshal(examiner.JudgeResult{
 		Status:                examiner.StatusPass,
@@ -75,7 +75,6 @@ func TestEndToEnd_FullPipeline(t *testing.T) {
 		Reasoning:             "response matches expected",
 	})
 
-	mockClient := llm.NewMockClient(map[string]string{"default": string(planJSON)})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	cfg := &project.Config{
@@ -165,8 +164,11 @@ func TestEndToEnd_ExaminerDegradation(t *testing.T) {
 	assert.Equal(t, examiner.StatusFail, verdicts[1].Status)
 }
 
-// TestEndToEnd_ScoutFallback tests that Scout produces a valid plan
-// even when the LLM returns garbage.
+// TestEndToEnd_ScoutFallback tests that Scout produces a deterministic
+// fallback plan when the LLM is unavailable (transient provider error). The
+// legacy variant fed "garbage" JSON to trigger parse-failure fallback; parsing
+// no longer exists, so the trigger is now a Complete() error, which is the
+// production signal of a provider outage.
 func TestEndToEnd_ScoutFallback(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
@@ -175,8 +177,7 @@ func TestEndToEnd_ScoutFallback(t *testing.T) {
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
 
-	badClient := llm.NewMockClient(map[string]string{"default": "garbage"})
-	driver := ai.NewDriver(badClient, ai.NewTokenBudget(500000, 50000))
+	driver := ai.NewDriver(&smokeErrorClient{}, ai.NewTokenBudget(500000, 50000))
 
 	cfg := &project.Config{
 		Project: project.ProjectMeta{Name: "fallback-test"},
@@ -195,4 +196,18 @@ func TestEndToEnd_ScoutFallback(t *testing.T) {
 	plan, err := scoutHead.Plan(ctx, "test everything", model)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(plan.Cases), 2, "should have cases for each endpoint")
+}
+
+// smokeErrorClient is a minimal llm.Client that always returns an error — the
+// production signal of a provider outage that triggers Scout's fallback path.
+type smokeErrorClient struct{}
+
+func (m *smokeErrorClient) Complete(ctx context.Context, req llm.Request) (*llm.Response, error) {
+	return nil, fmt.Errorf("simulated provider outage")
+}
+func (m *smokeErrorClient) CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*llm.Response, error) {
+	return nil, fmt.Errorf("simulated provider outage")
+}
+func (m *smokeErrorClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
+	return nil, fmt.Errorf("simulated provider outage")
 }

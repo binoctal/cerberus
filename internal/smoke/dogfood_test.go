@@ -27,6 +27,11 @@ func TestDogfood_LocalProjectMode(t *testing.T) {
 	// Mock LLM returns valid but minimal analysis/plan results.
 	mockResp := `{"status":"pass","confidence":0.9,"reasoning":"mock analysis"}`
 	client := llm.NewMockClient(map[string]string{"default": mockResp})
+	// S2 tool-calling: Scout.Plan consumes DecideWithTools. Preset one
+	// process_exec case keyed on the goal substring.
+	client.SetToolResponse("dogfood test", []llm.ToolCall{
+		{Name: "run_process", Input: map[string]any{"action": "exec", "cmd": "go build ./..."}},
+	})
 	logger := zap.NewNop()
 
 	cfg := project.DefaultConfig()

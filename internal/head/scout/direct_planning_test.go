@@ -279,35 +279,58 @@ func TestVerifyServiceAttribution_MalformedJSONReturnsCasesUnchanged(t *testing.
 	}
 }
 
-// TestConvertPlanOutput_BodyFromCaseInfoOrTemplate verifies that body is filled
-// from CaseInfo.Body or falls back to service body_template when empty.
-func TestConvertPlanOutput_BodyFromCaseInfoOrTemplate(t *testing.T) {
+// TestAssemblePlan_BodyFromToolOrTemplate verifies the body-fill contract that
+// TestConvertPlanOutput_BodyFromCaseInfoOrTemplate used to cover: a tool-emitted
+// body is preserved verbatim; an empty body falls back to the attributed
+// service's body_template. This is now enforced inside assemblePlan.
+func TestAssemblePlan_BodyFromToolOrTemplate(t *testing.T) {
 	services := []project.Service{
 		{Name: "gateway", URL: "http://localhost:8081", PathPrefix: []string{"/v1"},
 			BodyTemplate: `{"model":"default","messages":[]}`},
 	}
 
-	// CaseInfo with its own body → used verbatim
-	// CaseInfo without body → falls back to template
-	out := PlanOutput{Cases: []CaseInfo{
-		{ID: "t1", Target: "/v1/chat/completions", Method: "POST", Body: `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}`, Priority: 1.0},
-		{ID: "t2", Target: "/v1/chat/completions", Method: "POST", Priority: 0.5}, // no body → falls back to template
-	}}
-
-	// Create a scout instance to call convertPlanOutput
-	logger := zap.NewNop()
-	driver := ai.NewDriver(llm.NewMockClient(map[string]string{"default": `{"corrections":[]}`}), ai.NewTokenBudget(200000, 10000))
-	s := &Scout{
-		config: &project.Config{
-			Services: services,
-		},
-		logger: logger,
-		driver: driver,
+	calls := []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{
+			"method": "POST", "path": "/v1/chat/completions",
+			"body": `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}`,
+		}},
+		{Name: "test_http_endpoint", Input: map[string]any{
+			"method": "POST", "path": "/v1/chat/completions",
+		}}, // no body → falls back to template
 	}
 
-	plan := s.convertPlanOutput("test goal", out)
+	plan, _ := assemblePlan(calls, "test goal", "http://localhost:8081", services)
 
 	require.Equal(t, 2, len(plan.Cases))
 	require.Equal(t, `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}`, plan.Cases[0].Body)
 	require.Equal(t, `{"model":"default","messages":[]}`, plan.Cases[1].Body)
+}
+
+// TestDirectPlan_ToolCallingAssembly asserts the migrated directPlan path:
+// DecideWithTools returns tool calls, assemblePlan turns them into cases. The
+// mock preset (one HTTP test + a begin_case/ws_* relay group) must yield at
+// least 2 cases (http + ws_flow) — proving directPlan drives tool-assembled
+// planning rather than JSON PlanOutput parsing.
+func TestDirectPlan_ToolCallingAssembly(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("plan http + ws relay", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/health"}},
+		{Name: "begin_case", Input: map[string]any{"name": "r", "expectation": "ok", "service": "ws"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "a"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "b"}},
+		{Name: "ws_send", Input: map[string]any{"role": "a", "type": "x"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "b", "type": "y"}},
+	})
+
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+	sct := NewScout(driver, setupTestStore(t), &project.Config{
+		Project: project.ProjectMeta{Name: "tool-plan"},
+		Services: []project.Service{
+			{Name: "api", URL: "http://localhost:8080"},
+		},
+	}, zap.NewNop())
+
+	plan, err := sct.Plan(context.Background(), "plan http + ws relay", &project.ProjectModel{})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(plan.Cases), 2, "http case + ws_flow case (+ executor appends)")
 }

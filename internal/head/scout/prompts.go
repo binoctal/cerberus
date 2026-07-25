@@ -60,25 +60,28 @@ RULES:
 - Order by priority: high-risk modules first.
 - Each case must have a clear, testable expectation grounded in observable output (exit code, file contents, symbol presence).`
 
-const promptPlanOutput = `Respond with JSON:
-{
-  "cases": [
-    {
-      "id": "tc-001",
-      "name": "List users returns 200",
-      "target": "/api/v1/users",
-      "method": "GET",
-      "expectation": "Returns 200 with array of users",
-      "priority": 1.0
-    },
-    {
-      "id": "tc-002",
-      "name": "Create user returns 201",
-      "target": "/api/v1/users",
-      "method": "POST",
-      "body": "{\"name\":\"test\",\"email\":\"test@example.com\"}",
-      "expectation": "Returns 201 with created user",
-      "priority": 1.0
-    }
-  ]
-}`
+// promptPlanToolGuide replaces the legacy promptPlanOutput JSON schema. The
+// planning agent no longer returns JSON — it emits tool calls (one per test
+// case) that the provider schema-validates and assemblePlan turns into cases.
+const promptPlanToolGuide = `Emit ONE TOOL CALL PER TEST CASE. Do not output JSON.
+
+Single-step cases use a high-level tool:
+- test_http_endpoint — one HTTP request (method, path, body?, service?, expect_status?, expect_body?).
+- check_invariant — one invariant assertion (invariant_id?, description?, assertion?, severity?).
+- run_process — one process case (action=build|exec, cmd?, expect?).
+- analyze_code — one static-analysis case (action=analyze|lint|symbols, target?).
+- check_file — one file-system case (action=exists|read|glob, path?, pattern?, expect?).
+- navigate — one browser navigation case (path, expect?).
+
+Multi-step WebSocket choreography uses begin_case to open a case, then ws_* calls:
+- begin_case {name, expectation, service} opens a case; following ws_* calls belong to it until the next begin_case or high-level tool.
+- ws_connect {role, url?} opens a connection as role.
+- ws_send {role, type} sends a typed message on role's connection.
+- ws_receive {role, type, aliases?, assert?, timeout?} awaits a typed message.
+- ws_disconnect {role} closes role's connection.
+
+Rules:
+- Cover every endpoint in the project model. Order high-risk/low-confidence first.
+- For POST/PUT/PATCH, include a concrete body unless a service body_template applies.
+- For multi-party WS relay (two or more protocol roles exchanging messages), emit begin_case followed by the ordered ws_connect/ws_send/ws_receive sequence — do NOT also emit single-role ws_connect cases the relay already covers.
+- Omit JSON; the tool schemas enforce structure.`

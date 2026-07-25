@@ -100,11 +100,29 @@ func (m *MockClient) Stream(ctx context.Context, req Request) (<-chan StreamEven
 }
 
 func (m *MockClient) matchKey(input string) string {
+	// Exact match takes priority — preserves TestMockClient_MatchKeyConsultsToolResponses.
 	if _, ok := m.responses[input]; ok {
 		return input
 	}
 	if _, ok := m.toolResponses[input]; ok {
 		return input
+	}
+	// Substring fallback for tool responses only. Supports the common test
+	// idiom of keying SetToolResponse on the goal string: the Scout planning
+	// prompt embeds the goal as "Test Goal: <goal>", so the joined message
+	// contents contain the goal as a substring. The longest matching key wins
+	// to disambiguate when multiple substrings could match.
+	var bestKey string
+	for k := range m.toolResponses {
+		if k == "" || len(k) > len(input) {
+			continue
+		}
+		if strings.Contains(input, k) && len(k) > len(bestKey) {
+			bestKey = k
+		}
+	}
+	if bestKey != "" {
+		return bestKey
 	}
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(input)))[:8]
 }

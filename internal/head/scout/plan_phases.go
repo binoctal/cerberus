@@ -43,41 +43,41 @@ func (s *Scout) executeDeepPlanning(ctx context.Context, goal string, model *pro
 	return planner.Plan(ctx, goal, model, s.resolveBaseURL())
 }
 
-// executeDirectPlanning runs single-call AI planning with fallback.
-func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
+// executeDirectPlanning runs single-call AI tool-use planning with fallback.
+// Returns the plan plus the per-service set of WS roles the LLM already
+// connected (via begin_case+ws_connect groups), so WSCasesCovered can suppress
+// redundant deterministic connects.
+func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, map[string]map[string]bool, error) {
 	return s.directPlan(ctx, goal, model)
 }
 
-// augmentPlan expands LLM-authored ws_relay intents into multi-connection Steps
-// cases, then appends executor-specific cases (process, code, WS). Covered roles
-// (already connected by a relay) are passed so WSCases does not redundantly
-// re-connect them.
-func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string) {
-	covered := expandWSRelayCases(s.config, plan)
-	if len(covered) > 0 {
-		s.logger.Info("expanded ws_relay cases", zap.Int("covered_services", len(covered)))
-	}
+// augmentPlan appends executor-specific cases (process, code, WS) and then
+// drops WS-endpoint HTTP drift. covered roles (already connected by an
+// LLM-authored begin_case+ws_* group) are passed so WSCasesCovered does not
+// redundantly re-connect them.
+func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string, covered map[string]map[string]bool) {
 	s.appendExecutorCases(plan, goal, covered)
 	filterWSEndpointDrift(plan, s.config) // Finding-3: drop WS-endpoint HTTP drift
 }
 
 // Plan generates a TestPlan from the goal and project model.
-// Uses ToT deep planning if enabled, otherwise direct AI planning.
+// Uses ToT deep planning if enabled, otherwise direct AI tool-use planning.
 // Executor test cases (process, code, file) are appended based on
 // the detected project type.
 func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
-	var plan *agent.TestPlan
-	var err error
-
 	// Phase 1: Build memory context for all planning modes
 	memory := s.buildMemoryContext(ctx, goal, model)
 
-	// Phase 2: Execute planning based on mode
+	// Phase 2: Execute planning based on mode. Direct planning returns a
+	// covered map; ToT synthesizes an empty one (it authors Steps directly).
+	var plan *agent.TestPlan
+	var covered map[string]map[string]bool
+	var err error
 	if s.deepPlan {
 		plan, err = s.executeDeepPlanning(ctx, goal, model, memory)
+		covered = map[string]map[string]bool{}
 	} else {
-		// Direct AI planning also uses memory context
-		plan, err = s.executeDirectPlanning(ctx, goal, model)
+		plan, covered, err = s.executeDirectPlanning(ctx, goal, model)
 	}
 
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 	}
 
 	// Phase 3: Augment plan with executor cases
-	s.augmentPlan(plan, goal)
+	s.augmentPlan(plan, goal, covered)
 
 	return plan, nil
 }

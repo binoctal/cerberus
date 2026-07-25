@@ -8,30 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/binoctal/cerberus/internal/llm"
 )
 
-// contractJSON returns a mock response that satisfies BOTH Scout.Plan (needs "cases")
-// and Scout.BuildCoverageContract (needs "scope", "depth", "coverage_gate").
-// Both methods call driver.Decide which returns the "default" mock response,
-// so the JSON must parse into both PlanOutput and Contract structs.
+// contractJSON returns the JSON content used by Scout.BuildCoverageContract
+// (Decide parses scope/depth/coverage_gate from this). Scout.Plan is fed via
+// tool calls from planToolCalls() in lifecycle_test.go, so the legacy "cases"
+// field is no longer needed here. The combinedMockClient delivers both at once.
 func contractJSON() string {
-	// Combined response with fields for both Plan and Contract
 	response := map[string]any{
-		// Plan fields ( Scout.Plan)
-		"cases": []map[string]any{
-			{
-				"id":          "tc-001",
-				"name":        "health check",
-				"target":      "/healthz",
-				"method":      "GET",
-				"action":      "http_request",
-				"expectation": "returns 200",
-				"priority":    0.9,
-			},
-		},
-		// Contract fields (Scout.BuildCoverageContract)
 		"depth": "smoke",
 		"scope": []string{
 			"health endpoints",
@@ -69,20 +53,12 @@ func contractJSON() string {
 	return string(b)
 }
 
-// fullRunResponsesWithContract returns a mock client response map sufficient for
-// Scout.Plan + Scout.BuildCoverageContract + Agent.ExecutePlan + Examiner.Examine.
-func fullRunResponsesWithContract() map[string]string {
-	return map[string]string{
-		"default": contractJSON(),
-	}
-}
-
 func TestRun_WithCoverageContract(t *testing.T) {
 	s := testStoreWithMigrations(t)
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponsesWithContract())
+	mockClient := fullRunClientWithContract()
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -134,7 +110,7 @@ func TestRun_ContractIntegration_SmokeDepth(t *testing.T) {
 	// Configure smoke coverage depth
 	cfg.Settings.Coverage.Depth = "smoke"
 
-	mockClient := llm.NewMockClient(fullRunResponsesWithContract())
+	mockClient := fullRunClientWithContract()
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -168,7 +144,7 @@ func TestRun_ContractIntegration_NoContractWhenNoCoverage(t *testing.T) {
 	// Disable coverage - no contract should be built
 	cfg.Settings.Coverage.Depth = "off"
 
-	mockClient := llm.NewMockClient(fullRunResponses()) // Regular responses
+	mockClient := fullRunClient("") // Regular responses
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{

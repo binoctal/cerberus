@@ -1,12 +1,11 @@
 package scout
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
 
@@ -16,95 +15,6 @@ func relayProtocol() *project.Protocol {
 			"web":    {Params: map[string]string{"type": "web"}, Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
 			"bridge": {Params: map[string]string{"type": "bridge"}},
 		}}
-}
-
-// TestExpandWSRelayCases_HappyPath: a well-formed intent expands to a Steps case
-// that connects each role (in intent order) then runs the ordered send/receive,
-// and reports both roles covered for the service.
-func TestExpandWSRelayCases_HappyPath(t *testing.T) {
-	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
-	body, _ := json.Marshal(map[string]any{
-		"roles": []string{"web", "bridge"},
-		"steps": []map[string]any{
-			{"do": "receive", "role": "web", "type": "device:online"},
-			{"do": "send", "role": "web", "type": "session:start"},
-			{"do": "receive", "role": "web", "type": "session:created", "assert": map[string]any{"payload.ready": true}},
-		},
-	})
-	plan := &agent.TestPlan{Cases: []agent.TestCase{
-		{ID: "x", Action: "ws_relay", Service: "rt", Body: string(body), Name: "relay", Expectation: "relay works"},
-		{ID: "y", Action: "api_request"}, // non-relay case is untouched
-	}}
-
-	covered := expandWSRelayCases(cfg, plan)
-
-	require.Len(t, plan.Cases, 2, "ws_relay replaced in place, api_request kept")
-	require.Equal(t, "api_request", plan.Cases[1].Action, "non-relay case untouched")
-	got := plan.Cases[0]
-	require.Equal(t, "ws-rt-relay-bridge-web", got.ID, "deterministic ID with sorted roles")
-	require.Equal(t, "ws://h/ws", got.Target, "target from service URL")
-	require.Equal(t, "rt", got.Service)
-	require.Equal(t, "relay", got.Name, "LLM name preserved")
-	require.NotEmpty(t, got.Steps)
-	// connect order == intent roles order (web first).
-	require.Equal(t, "ws_connect", got.Steps[0].Action)
-	require.Equal(t, "web", got.Steps[0].ConnectionID)
-	require.Equal(t, "web", got.Steps[0].Role)
-	require.Equal(t, "ws_connect", got.Steps[1].Action)
-	require.Equal(t, "bridge", got.Steps[1].ConnectionID)
-	// ordered send/receive with role/type/assert.
-	require.Equal(t, "ws_receive", got.Steps[2].Action)
-	require.Equal(t, "device:online", got.Steps[2].Type)
-	require.Equal(t, 2, got.Steps[2].Timeout, "receive timeout from web role handshake")
-	require.Equal(t, "ws_send", got.Steps[3].Action)
-	require.Equal(t, `{"type":"session:start"}`, got.Steps[3].Message)
-	require.Equal(t, "ws_receive", got.Steps[4].Action)
-	require.Equal(t, map[string]any{"payload.ready": true}, got.Steps[4].Asserts)
-	// covered reported for both roles.
-	require.True(t, covered["rt"]["web"])
-	require.True(t, covered["rt"]["bridge"])
-}
-
-// TestExpandWSRelayCases_DropsInvalid: every malformed intent is dropped (the
-// ws_relay case removed) and other cases survive; covered is empty.
-func TestExpandWSRelayCases_DropsInvalid(t *testing.T) {
-	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
-	cases := []struct {
-		name string
-		body string
-	}{
-		{"bad json", `not json`},
-		{"fewer than 2 roles", `{"roles":["web"],"steps":[{"do":"receive","role":"web","type":"x"}]}`},
-		{"no steps", `{"roles":["web","bridge"],"steps":[]}`},
-		{"duplicate role", `{"roles":["web","web"],"steps":[{"do":"receive","role":"web","type":"x"}]}`},
-		{"unknown role", `{"roles":["web","ghost"],"steps":[{"do":"receive","role":"web","type":"x"}]}`},
-		{"unknown service", `{"roles":["web","bridge"],"steps":[{"do":"receive","role":"web","type":"x"}]}`}, // service mismatch handled below
-		{"empty type", `{"roles":["web","bridge"],"steps":[{"do":"send","role":"web","type":""}]}`},
-		{"step role not in roles", `{"roles":["web","bridge"],"steps":[{"do":"send","role":"ghost","type":"x"}]}`},
-		{"bad do", `{"roles":["web","bridge"],"steps":[{"do":"push","role":"web","type":"x"}]}`},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			svc := "rt"
-			if tc.name == "unknown service" {
-				svc = "nope"
-			}
-			plan := &agent.TestPlan{Cases: []agent.TestCase{
-				{ID: "r", Action: "ws_relay", Service: svc, Body: tc.body},
-				{ID: "keep", Action: "api_request"},
-			}}
-			covered := expandWSRelayCases(cfg, plan)
-			require.Len(t, plan.Cases, 1, "%s: invalid ws_relay dropped", tc.name)
-			require.Equal(t, "keep", plan.Cases[0].ID)
-			require.Empty(t, covered, "%s: nothing covered", tc.name)
-		})
-	}
-}
-
-// TestExpandWSRelayCases_NilSafe: nil cfg/plan is a no-op returning empty covered.
-func TestExpandWSRelayCases_NilSafe(t *testing.T) {
-	require.Empty(t, expandWSRelayCases(nil, &agent.TestPlan{}))
-	require.Empty(t, expandWSRelayCases(&project.Config{}, nil))
 }
 
 // TestWSCasesCovered_NilEqualsWSCases asserts backwards compatibility:
@@ -123,26 +33,24 @@ func TestWSCasesCovered_NilEqualsWSCases(t *testing.T) {
 	}
 }
 
-// TestAugmentPlanComposition_RelayExpansion validates the augmentPlan
-// composition end-to-end (no LLM): expandWSRelayCases turns a ws_relay case
-// into a multi-connection Steps case, and the covered map it returns makes
-// WSCasesCovered skip single-role cases for the covered roles. This is the
-// deterministic core of Scout relay generation; LLM output quality is validated
-// separately on a real target.
-func TestAugmentPlanComposition_RelayExpansion(t *testing.T) {
+// TestAugmentPlanComposition_AssembledRelay verifies the post-migration
+// augmentPlan composition (no LLM): assemblePlan turns begin_case + ws_* tool
+// calls into a multi-connection Steps case and reports the covered roles, which
+// WSCasesCovered then suppresses. This is the deterministic core previously
+// validated by expandWSRelayCases; the LLM-emission side is covered by
+// TestAssemblePlan_WSRelaySequence and the live relay probe.
+func TestAugmentPlanComposition_AssembledRelay(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
-	body, _ := json.Marshal(map[string]any{
-		"roles": []string{"web", "bridge"},
-		"steps": []map[string]any{{"do": "receive", "role": "web", "type": "device:online"}},
-	})
-	plan := &agent.TestPlan{Cases: []agent.TestCase{
-		{Action: "ws_relay", Service: "rt", Body: string(body), Name: "relay"},
-	}}
+	calls := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "relay works", "service": "rt"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "bridge"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "device:online"}},
+	}
 
-	covered := expandWSRelayCases(cfg, plan)
+	plan, covered := assemblePlan(calls, "goal", "ws://h/ws", cfg.Services)
 
-	// The ws_relay case became a multi-connection Steps case.
-	require.Len(t, plan.Cases, 1, "ws_relay replaced in place")
+	require.Len(t, plan.Cases, 1, "single ws_flow case from begin_case+ws_*")
 	require.NotEmpty(t, plan.Cases[0].Steps)
 	require.Equal(t, "ws_connect", plan.Cases[0].Steps[0].Action)
 	require.Equal(t, "web", plan.Cases[0].Steps[0].ConnectionID)
@@ -153,27 +61,4 @@ func TestAugmentPlanComposition_RelayExpansion(t *testing.T) {
 		require.NotContains(t, c.ID, "-web-")
 		require.NotContains(t, c.ID, "-bridge-")
 	}
-}
-
-// TestExpandWSRelayCases_ReceiveAliases: a relay receive step carrying aliases
-// is assembled onto the ws_receive step's Aliases (F4 match-set pass-through).
-func TestExpandWSRelayCases_ReceiveAliases(t *testing.T) {
-	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
-	body, _ := json.Marshal(map[string]any{
-		"roles": []string{"web", "bridge"},
-		"steps": []map[string]any{{
-			"do": "receive", "role": "web", "type": "session:output",
-			"aliases": []string{"session:output-batch"},
-		}},
-	})
-	plan := &agent.TestPlan{Cases: []agent.TestCase{
-		{Action: "ws_relay", Service: "rt", Body: string(body)},
-	}}
-	expandWSRelayCases(cfg, plan)
-	// step 0,1 = connects; step 2 = the receive with aliases.
-	require.GreaterOrEqual(t, len(plan.Cases[0].Steps), 3)
-	recv := plan.Cases[0].Steps[2]
-	require.Equal(t, "ws_receive", recv.Action)
-	require.Equal(t, "session:output", recv.Type)
-	require.Equal(t, []string{"session:output-batch"}, recv.Aliases)
 }

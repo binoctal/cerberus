@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
@@ -22,7 +21,7 @@ func TestGoLibFixture(t *testing.T) {
 
 	cfg := project.DefaultConfig()
 	cfg.Settings.Mode = "local"
-	mockClient := llm.NewMockClient(MockResponses("math.go"))
+	mockClient := MockClient("math.go")
 
 	sess, err := session.NewSession(context.Background(), session.SessionConfig{
 		Mode:       session.ModeRun,

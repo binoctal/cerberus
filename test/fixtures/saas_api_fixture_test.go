@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/contract"
-	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
@@ -51,7 +50,7 @@ func TestSaaSAPIFixture(t *testing.T) {
 	cfg := project.DefaultConfig()
 	cfg.Settings.Mode = "" // SaaS mode (services has URL)
 	cfg.Services = []project.Service{{Name: "api", URL: srv.URL, Health: "/health"}}
-	mockClient := llm.NewMockClient(MockResponses("/health"))
+	mockClient := MockClient("/health")
 
 	sess, err := session.NewSession(context.Background(), session.SessionConfig{
 		Mode:       session.ModeRun,

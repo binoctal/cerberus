@@ -106,21 +106,18 @@ func TestEndToEnd_CRUDPipeline(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(model.API.Endpoints), 4, "should discover endpoints")
 
-	// Stage 2: Scout Plan.
-	planOutput := scout.PlanOutput{
-		Cases: []scout.CaseInfo{
-			{ID: "tc-001", Name: "Health check", Target: "/health", Method: "GET", Expectation: "200", Priority: 1.0},
-			{ID: "tc-002", Name: "List users", Target: "/api/v1/users", Method: "GET", Expectation: "200", Priority: 0.9},
-			{ID: "tc-003", Name: "Create user (unauth)", Target: "/api/v1/users", Method: "POST", Expectation: "401", Priority: 0.8},
-			{ID: "tc-004", Name: "Get user 1", Target: "/api/v1/users/1", Method: "GET", Expectation: "200", Priority: 0.9},
-			{ID: "tc-005", Name: "Update user (unauth)", Target: "/api/v1/users/1", Method: "PUT", Expectation: "401", Priority: 0.7},
-			{ID: "tc-006", Name: "Delete user (unauth)", Target: "/api/v1/users/1", Method: "DELETE", Expectation: "401", Priority: 0.7},
-			{ID: "tc-007", Name: "List posts", Target: "/api/v1/posts", Method: "GET", Expectation: "200", Priority: 0.6},
-			{ID: "tc-008", Name: "Get stats", Target: "/api/v1/stats", Method: "GET", Expectation: "200", Priority: 0.5},
-		},
-	}
-	planJSON, _ := json.Marshal(planOutput)
-	mockPlan := llm.NewMockClient(map[string]string{"default": string(planJSON)})
+	// Stage 2: Scout Plan via tool calls (8 cases, all HTTP).
+	mockPlan := llm.NewMockClient(nil)
+	mockPlan.SetToolResponse("test all CRUD operations", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/health"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "POST", "path": "/api/v1/users", "expect_status": 401}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users/1"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "PUT", "path": "/api/v1/users/1", "expect_status": 401}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "DELETE", "path": "/api/v1/users/1", "expect_status": 401}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/posts"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/stats"}},
+	})
 	planDriver := ai.NewDriver(mockPlan, ai.NewTokenBudget(500000, 50000))
 	scoutWithPlan := scout.NewScout(planDriver, s, cfg, zap.NewNop())
 
@@ -203,14 +200,8 @@ func TestEndToEnd_ProgressEvents(t *testing.T) {
 	sess, err := s.CreateSession(ctx, "run", "progress test", "test")
 	require.NoError(t, err)
 
-	planJSON, _ := json.Marshal(scout.PlanOutput{
-		Cases: []scout.CaseInfo{
-			{ID: "tc-001", Name: "GET /ping", Target: "/ping", Method: "GET", Expectation: "200"},
-			{ID: "tc-002", Name: "GET /status", Target: "/status", Method: "GET", Expectation: "200"},
-		},
-	})
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(planJSON)})
+	// Plan is constructed directly below; the mock driver feeds Steer/Executor.
+	mockClient := llm.NewMockClient(map[string]string{"default": "{}"})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(500000, 50000))
 
 	services := []project.Service{{Name: "default", URL: srv.URL}}

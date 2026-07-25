@@ -71,20 +71,3 @@ type PageInfo struct {
 	Path       string  `json:"path"`
 	Confidence float64 `json:"confidence"`
 }
-
-// PlanOutput is the structured JSON the LLM returns for a Plan call.
-type PlanOutput struct {
-	Cases []CaseInfo `json:"cases"`
-}
-
-// CaseInfo describes a generated test case.
-type CaseInfo struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Target      string  `json:"target"`
-	Method      string  `json:"method,omitempty"`
-	Action      string  `json:"action,omitempty"`
-	Expectation string  `json:"expectation"`
-	Priority    float64 `json:"priority"`
-	Body        string  `json:"body,omitempty"`
-}

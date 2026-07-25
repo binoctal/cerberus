@@ -51,55 +51,27 @@ func (s *Scout) buildPlanningPrompt(ctx context.Context, goal string, model *pro
 		System(system).
 		Context(planCtx).
 		Task(fmt.Sprintf("Generate test cases for this project.\nTest Goal: %s", goal)).
-		Output(promptPlanOutput).
+		Output(promptPlanToolGuide).
 		Build()
 }
 
-// runAIPlanning executes AI planning with deterministic fallback.
-func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
-	var out PlanOutput
-	if err := s.driver.Decide(ctx, prompt, &out); err != nil {
-		// Fallback: generate test cases directly from the model without AI.
-		s.logger.Warn("AI planning failed, using deterministic fallback", zap.Error(err))
-		return s.fallbackPlan(goal, model), nil
+// runAIPlanning calls DecideWithTools and assembles tool calls into a plan.
+// Zero tool calls (drift/quality) → error. Transient LLM call error → fallback.
+func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, model *project.ProjectModel) (*agent.TestPlan, map[string]map[string]bool, error) {
+	res, err := s.driver.DecideWithTools(ctx, prompt, planTools())
+	if err != nil {
+		// Transient LLM call failure: degrade to deterministic fallback plan
+		// so a flaky provider never blocks the run.
+		s.logger.Warn("AI planning call failed, using deterministic fallback", zap.Error(err))
+		fb := s.fallbackPlan(goal, model)
+		return fb, map[string]map[string]bool{}, nil
 	}
-
-	// AI returned parseable but empty result — fall back to deterministic plan.
-	if len(out.Cases) == 0 {
-		s.logger.Warn("AI planning returned zero cases, using deterministic fallback")
-		return s.fallbackPlan(goal, model), nil
+	if len(res.ToolCalls) == 0 {
+		return nil, nil, fmt.Errorf("scout plan: zero tool calls (drift or quality)")
 	}
-
-	return s.convertPlanOutput(goal, out), nil
-}
-
-// convertPlanOutput transforms AI output into a TestPlan.
-func (s *Scout) convertPlanOutput(goal string, out PlanOutput) *agent.TestPlan {
-	cases := make([]agent.TestCase, 0, len(out.Cases))
-	for _, c := range out.Cases {
-		cases = append(cases, agent.TestCase{
-			ID:          c.ID,
-			Name:        c.Name,
-			Target:      c.Target,
-			Method:      c.Method,
-			Action:      c.Action,
-			Expectation: c.Expectation,
-			Priority:    c.Priority,
-			Service:     attributeService(c.Target, s.config.Services),
-			Body:        c.Body,
-		})
-	}
-
-	// Phase 2: LLM verification of service attribution.
-	cases = verifyServiceAttribution(s.logger, s.driver, cases, s.config.Services)
-
-	// Phase 3: Fill body from case info or service template.
-	cases = fillBody(cases, s.config.Services)
-
-	plan := &agent.TestPlan{
-		Goal:       goal,
-		Cases:      cases,
-		ProjectURL: s.resolveBaseURL(),
+	plan, covered := assemblePlan(res.ToolCalls, goal, s.resolveBaseURL(), s.config.Services)
+	if len(plan.Cases) == 0 {
+		return nil, nil, fmt.Errorf("scout plan: assembly produced zero cases")
 	}
 
 	s.logger.Info("test plan generated",
@@ -107,24 +79,15 @@ func (s *Scout) convertPlanOutput(goal string, out PlanOutput) *agent.TestPlan {
 		zap.Int("cases", len(plan.Cases)),
 	)
 
-	return plan
+	return plan, covered, nil
 }
 
-// directPlan generates a test plan via a single AI call with deterministic fallback.
-func (s *Scout) directPlan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, error) {
-	// Phase 1: Build memory context
+// directPlan generates a test plan via a single AI tool-calling round with
+// deterministic fallback on transient LLM errors.
+func (s *Scout) directPlan(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, map[string]map[string]bool, error) {
 	memory := s.buildEpisodicContext(ctx, goal, model)
-
-	// Phase 2: Build planning prompt
 	prompt := s.buildPlanningPrompt(ctx, goal, model, memory)
-
-	// Phase 3: Run AI planning with fallback
-	plan, err := s.runAIPlanning(ctx, prompt, goal, model)
-	if err != nil {
-		return nil, err
-	}
-
-	return plan, nil
+	return s.runAIPlanning(ctx, prompt, goal, model)
 }
 
 // fallbackPlan generates test cases deterministically from the model
@@ -170,7 +133,7 @@ func (s *Scout) fallbackPlan(goal string, model *project.ProjectModel) *agent.Te
 		})
 	}
 
-	// Fill body from service templates (mirrors convertPlanOutput).
+	// Fill body from service templates (mirrors assemblePlan's fillBody call).
 	cases = fillBody(cases, s.config.Services)
 
 	return &agent.TestPlan{
@@ -200,7 +163,7 @@ func attributeService(path string, services []project.Service) string {
 	return ""
 }
 
-// fillBody sets each case's Body from its CaseInfo body, falling back to the
+// fillBody sets each case's Body from its own body, falling back to the
 // attributed service's body_template when the LLM emitted none. GET/DELETE
 // keep empty body.
 func fillBody(cases []agent.TestCase, services []project.Service) []agent.TestCase {

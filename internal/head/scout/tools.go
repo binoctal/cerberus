@@ -5,9 +5,7 @@ import "github.com/binoctal/cerberus/internal/llm"
 // planTools returns the two-tier tool surface for directPlan: high-level
 // intent tools (one call = one TestCase) and low-level ws_* step tools gated by
 // begin_case (multi-step choreography). Schemas are hard-enforced by the
-// provider, replacing the old PlanOutput JSON.
-//
-//lint:ignore U1000 exported for Task 3 (directPlan integration)
+// provider, replacing the legacy PlanOutput JSON.
 func planTools() []llm.Tool {
 	strs := func(items ...string) map[string]any {
 		e := map[string]any{"type": "string"}

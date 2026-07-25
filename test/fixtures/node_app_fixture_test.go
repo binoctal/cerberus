@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
@@ -39,7 +38,7 @@ func TestNodeAppFixture(t *testing.T) {
 
 	cfg := project.DefaultConfig()
 	cfg.Settings.Mode = "local"
-	mockClient := llm.NewMockClient(MockResponses("lib.js"))
+	mockClient := MockClient("lib.js")
 
 	sess, err := session.NewSession(context.Background(), session.SessionConfig{
 		Mode:       session.ModeRun,

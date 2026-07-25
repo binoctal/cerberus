@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
@@ -32,7 +31,7 @@ func TestPythonPkgFixture(t *testing.T) {
 
 	cfg := project.DefaultConfig()
 	cfg.Settings.Mode = "local"
-	mockClient := llm.NewMockClient(MockResponses("mymath.py"))
+	mockClient := MockClient("mymath.py")
 
 	sess, err := session.NewSession(context.Background(), session.SessionConfig{
 		Mode:       session.ModeRun,

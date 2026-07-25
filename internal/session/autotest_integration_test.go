@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/binoctal/cerberus/internal/llm"
 )
 
 func TestRun_InvokesAutoTestPhase(t *testing.T) {
@@ -16,7 +14,7 @@ func TestRun_InvokesAutoTestPhase(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	// Use a temporary directory without Go files to avoid running actual tests
@@ -49,7 +47,7 @@ func TestRun_SkipsAutoTestPhaseWhenOff(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -80,7 +78,7 @@ func TestRun_SkipsAutoTestPhaseWhenEmpty(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{

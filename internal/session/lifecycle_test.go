@@ -2,7 +2,7 @@ package session
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -58,27 +58,71 @@ func stubCoverageFn(pcts ...float64) func(context.Context, *Session) contract.Co
 	}
 }
 
-// planJSON returns a mock PlanOutput JSON that the LLM mock client
-// will respond with during Scout.Plan.
-func planJSON() string {
-	cases := []map[string]any{
-		{
-			"id": "tc-001", "name": "health check", "target": "/healthz",
-			"method": "GET", "action": "http_request", "expectation": "returns 200",
-			"priority": 0.9,
-		},
+// planToolCalls returns the LLM tool-call preset that drives Scout.Plan under
+// the S2 tool-calling migration. The previous PlanOutput JSON injection no
+// longer applies — Scout.Plan now calls DecideWithTools.
+func planToolCalls() []llm.ToolCall {
+	return []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/healthz", "expect_status": 200}},
 	}
-	b, _ := json.Marshal(map[string]any{"cases": cases})
-	return string(b)
 }
 
-// fullRunResponses returns a mock client response map sufficient for
-// Scout.Plan + Agent.ExecutePlan + Examiner.Examine to complete.
-// Scout.Analyze is skipped (config-only model) when using testConfig().
-func fullRunResponses() map[string]string {
-	return map[string]string{
-		"default": planJSON(), // Scout.Plan + Agent.Steer + Examiner.Judge + Learner fallback
+// combinedMockClient returns a Client whose every Complete call yields the
+// preset tool calls (consumed by Scout.Plan's DecideWithTools) AND the supplied
+// JSON content (consumed by Scout.BuildCoverageContract / Agent.Steer /
+// Examiner.Judge via Decide). Both fields ride on the same Response so a single
+// mock client satisfies the cross-head flow inside Session.Run.
+type combinedMockClient struct {
+	content   string
+	toolCalls []llm.ToolCall
+}
+
+func (m *combinedMockClient) Complete(ctx context.Context, req llm.Request) (*llm.Response, error) {
+	inputTokens := len(req.Messages) * 10
+	outputTokens := len(m.content) / 4
+	return &llm.Response{
+		Content:    m.content,
+		ToolCalls:  m.toolCalls,
+		StopReason: "tool_use",
+		Usage:      TokenUsage{InputTokens: inputTokens, OutputTokens: outputTokens, TotalTokens: inputTokens + outputTokens},
+	}, nil
+}
+
+func (m *combinedMockClient) CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*llm.Response, error) {
+	return m.Complete(ctx, llm.Request{Messages: []llm.Message{{Role: "user", Content: prompt}}})
+}
+
+func (m *combinedMockClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
+	resp, err := m.Complete(ctx, req)
+	if err != nil {
+		ch := make(chan llm.StreamEvent, 1)
+		ch <- llm.StreamEvent{Type: llm.StreamError, Err: err}
+		close(ch)
+		return ch, nil
 	}
+	ch := make(chan llm.StreamEvent, 2)
+	ch <- llm.StreamEvent{Type: llm.StreamDelta, Content: resp.Content, Usage: &resp.Usage}
+	ch <- llm.StreamEvent{Type: llm.StreamDone, Usage: &resp.Usage}
+	close(ch)
+	return ch, nil
+}
+
+// TokenUsage is re-exported here so the constructor above can stay alongside
+// the mock without a separate import alias.
+type TokenUsage = llm.TokenUsage
+
+// fullRunClient returns a Client sufficient for Scout.Plan (tool calls) +
+// Agent.ExecutePlan + Examiner.Examine (any Decide calls parse the content).
+// Scout.Analyze is skipped (config-only model) when using testConfig().
+func fullRunClient(content string) llm.Client {
+	return &combinedMockClient{content: content, toolCalls: planToolCalls()}
+}
+
+// fullRunClientWithContract returns a Client whose content satisfies
+// Scout.BuildCoverageContract (depth/scope/coverage_gate) and whose tool calls
+// satisfy Scout.Plan.
+func fullRunClientWithContract() llm.Client {
+	return fullRunClient(contractJSON())
 }
 
 func TestNewSession(t *testing.T) {
@@ -268,7 +312,7 @@ func TestSession_Run_FullLifecycle(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -303,7 +347,7 @@ func TestSession_Run_VerifyMode(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -335,7 +379,7 @@ func TestSession_Run_ParallelExecution(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -375,13 +419,14 @@ func TestSession_Run_ScoutFailure(t *testing.T) {
 	cfg.Settings.AIBudget.PerCallLimit = 50000
 	// No services defined — Analyze will try AI inference.
 
-	// Mock client returns unparseable JSON for analyze, which triggers
-	// graceful degradation in Scout.Analyze (returns config-only model).
-	// Then Plan also gets bad JSON and falls back to deterministic plan.
-	// The fallback plan with no endpoints and no base URL produces zero cases.
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": `not valid json at all`,
-	})
+	// Under the S2 tool-calling migration, Scout.Plan's fallback path is
+	// triggered by a DecideWithTools *call error* (transient provider outage)
+	// — not by unparseable JSON, since Scout.Plan no longer parses JSON at all.
+	// A successful call with zero tool calls now signals drift and errors out.
+	// sessionErrorClient always returns Complete() errors, driving Scout into
+	// the deterministic fallback with no endpoints and no base URL → zero
+	// cases → Run completes with an empty plan.
+	mockClient := &sessionErrorClient{}
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -408,20 +453,34 @@ func TestSession_Run_ScoutFailure(t *testing.T) {
 	sess.Close()
 }
 
+// sessionErrorClient is a minimal llm.Client whose Complete always errors —
+// the production signal of a provider outage that drives Scout.Plan into its
+// deterministic fallback path. Mirrors smoke.smokeErrorClient and
+// head/scout.errorMockClient.
+type sessionErrorClient struct{}
+
+func (m *sessionErrorClient) Complete(ctx context.Context, req llm.Request) (*llm.Response, error) {
+	return nil, fmt.Errorf("simulated provider outage")
+}
+func (m *sessionErrorClient) CompleteWithVision(ctx context.Context, prompt string, images [][]byte) (*llm.Response, error) {
+	return nil, fmt.Errorf("simulated provider outage")
+}
+func (m *sessionErrorClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
+	return nil, fmt.Errorf("simulated provider outage")
+}
+
 func TestSession_Run_AgentFailure(t *testing.T) {
 	s := testStoreWithMigrations(t)
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
 
-	// Return valid plan JSON, but then the executor will fail because
-	// there's no real server to hit. The ReAct loop's steer attempts
-	// will exhaust retries and the case will fail, but Run should still
-	// complete (agent errors propagate through results, not as return errors).
-	planResp := planJSON()
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": planResp,
-	})
+	// The agent executor will fail because there's no real server to hit.
+	// The ReAct loop's steer attempts exhaust retries and the case fails,
+	// but Run completes (agent errors propagate through results, not return
+	// errors). The combined mock supplies tool calls for Scout.Plan and an
+	// empty content for any other Decide calls.
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -456,7 +515,7 @@ func TestSession_Run_TracksTokenBudget(t *testing.T) {
 	cfg.Settings.AIBudget.SessionTotalTokens = 500000
 	cfg.Settings.AIBudget.PerCallLimit = 50000
 
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -492,7 +551,7 @@ func TestSession_Run_DeepPlan(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -522,7 +581,7 @@ func TestSession_Run_CancelledContext(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -558,7 +617,7 @@ func TestSession_Run_DefaultWorkers(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{
@@ -611,7 +670,7 @@ func TestSession_Resume_SkipsCompleted(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	cfg := testConfig()
-	mockClient := llm.NewMockClient(fullRunResponses())
+	mockClient := fullRunClient("")
 	logger := zap.NewNop()
 
 	sess, err := NewSession(context.Background(), SessionConfig{

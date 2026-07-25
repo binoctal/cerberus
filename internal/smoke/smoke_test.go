@@ -42,6 +42,11 @@ func TestSessionSmokeTest(t *testing.T) {
 
 	mockResp := `{"status":"pass","confidence":0.9,"reasoning":"mock analysis"}`
 	client := llm.NewMockClient(map[string]string{"default": mockResp})
+	// S2 tool-calling: Scout.Plan consumes DecideWithTools. Preset one HTTP
+	// case keyed on the goal (matchKey falls back to substring match).
+	client.SetToolResponse("smoke test goal", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/healthz"}},
+	})
 
 	logger, _ := zap.NewDevelopment()
 
@@ -167,6 +172,11 @@ func TestAgentSmokeTest(t *testing.T) {
 	})
 	mockClient := llm.NewMockClient(map[string]string{
 		"default": string(steerJSON),
+	})
+	// S2 tool-calling: Scout.Plan needs tool calls; key on goal substring.
+	mockClient.SetToolResponse("agent smoke test", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users"}},
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/posts"}},
 	})
 	logger := zap.NewNop()
 
