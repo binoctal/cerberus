@@ -10,8 +10,15 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 )
 
-// steer calls the LLM to decide the next action.
-func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevResult types.ExecutorResult, attempt int) (types.TypedAction, error) {
+// steer calls the LLM (via DecideWithTools) to decide the next action.
+//
+// Returns the assembled TypedAction, a zeroCall flag signalling that the LLM
+// emitted no action tool calls (drift), and any transient error. The zeroCall
+// flag lets the ReAct loop distinguish a real WaitAction choice from the
+// deterministic drift default so it can escalate consecutive drifts to
+// StepSkipped (see runReactLoop). On a transient LLM error the loop's existing
+// retry/token-budget handling applies unchanged.
+func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevResult types.ExecutorResult, attempt int) (types.TypedAction, bool, error) {
 	observationCtx := formatResultContext(tc, prevResult, attempt)
 
 	// Include service base URL in the prompt to guide the LLM to the correct host.
@@ -27,23 +34,26 @@ func (r *ReActLoop) steer(ctx context.Context, tc *TestCase, prevResult types.Ex
 	prompt := ai.NewPrompt().
 		System(promptSteerSystem).
 		Context(observationCtx).
-		Task(fmt.Sprintf("Test case: %s\nTarget: %s\nExpectation: %s\nAttempt: %d/%d%s",
+		Task(fmt.Sprintf("Test case: %s\nTarget: %s\nExpectation: %s\nAttempt: %d/%d%s\nEmit one action tool call for the next step.",
 			tc.Name, tc.Target, tc.Expectation, attempt, r.config.MaxSteerAttempts, taskExtra)).
-		Output(promptSteerOutput).
 		Build()
 
-	var out SteerOutput
-	if err := r.driver.Decide(ctx, prompt, &out); err != nil {
-		if isParseError(err) {
-			r.logger.Warn("steer parse failed, using fallback", zap.Error(err))
-			return FallbackParseAction(err.Error(), tc.Target), nil
-		}
-		return nil, fmt.Errorf("steer attempt %d: %w", attempt, err)
-	}
-
-	action, err := actionFromEnvelope(out.Envelope, tc.Target, r.logger)
+	res, err := r.driver.DecideWithTools(ctx, prompt, actionTools())
 	if err != nil {
-		return nil, fmt.Errorf("steer: %w", err)
+		return nil, false, fmt.Errorf("steer attempt %d: %w", attempt, err)
 	}
-	return action, nil
+	if len(res.ToolCalls) == 0 {
+		r.logger.Warn("steer: zero action tool calls (drift)", zap.Int("attempt", attempt))
+		return types.WaitAction{Duration: "1s"}, true, nil
+	}
+	action, aErr := assembleAction(res.ToolCalls[0])
+	if aErr != nil {
+		// Should not happen post-schema: the provider validates the tool call
+		// against actionTools() before returning it. Treat the rare malformed
+		// call as drift so the loop's consecutive-zero-call escalation still
+		// fires rather than hard-failing the case on a recoverable glitch.
+		r.logger.Warn("steer: action assemble failed, using wait default", zap.Error(aErr))
+		return types.WaitAction{Duration: "1s"}, true, nil
+	}
+	return action, false, nil
 }

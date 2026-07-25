@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -10,7 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // TestReActLoop_SteerInjectsServiceHostHeader reproduces the bug where the
@@ -28,9 +29,11 @@ func TestReActLoop_SteerInjectsServiceHostHeader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("hit", "GET", "/api/data"))
-	loop, s := testLoopWithServices(t, map[string]string{"default": string(steerJSON)},
+	loop, s, mock := testLoopWithServices(t, nil,
 		[]project.Service{{Name: "gateway", URL: server.URL, Headers: map[string]string{"Host": "api.modelsite.ai"}}}, nil)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: "/api/data",
+	})})
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{Goal: "g", Cases: []TestCase{

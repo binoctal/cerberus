@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/escalation"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/policy"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/sandbox"
@@ -425,33 +426,23 @@ func TestIsIntermediateStep(t *testing.T) {
 }
 
 // TestReActLoop_IntermediateStepSkipsRecovery drives the ReAct loop with an
-// intermediate action (WSConnect) that succeeds, and asserts the Phase-7
-// recovery guard does NOT invoke tryRecovery. Without the guard, every
-// intermediate success would fall through to tryRecovery — burning a spurious
-// recovery LLM call per step and setting recoverySkipped, which mislabels a
-// non-passing case as StepSkipped instead of StepFailed (spec D2).
+// intermediate action that succeeds, and asserts the Phase-7 recovery guard
+// does NOT invoke tryRecovery. Without the guard, every intermediate success
+// would fall through to tryRecovery — burning a spurious recovery LLM call per
+// step and setting recoverySkipped, which mislabels a non-passing case as
+// StepSkipped instead of StepFailed (spec D2).
 //
-// The countingRecovery doubles as a probe: if the guard skips recovery on
-// intermediate+success, calls stays 0 across all MaxSteerAttempts.
+// Post-S3 the LLM tool surface no longer exposes ws_connect from steer, so the
+// test drives the same code path with a pure-duration wait (also intermediate,
+// per isIntermediateStep). The countingRecovery doubles as a probe: if the
+// guard skips recovery on intermediate+success, calls stays 0 across all
+// MaxSteerAttempts.
 func TestReActLoop_IntermediateStepSkipsRecovery(t *testing.T) {
-	url := newWSTestServer(t, func(conn *websocket.Conn) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_, _, _ = conn.Read(ctx) // block until the case ends
-	})
-
-	// Steer always emits WSConnect (intermediate). It succeeds against the
-	// httptest WS server, so the pass-gate sees Success && isIntermediate —
-	// which must NOT fire and must NOT consume recovery.
-	steerJSON, _ := json.Marshal(SteerOutput{
-		Reasoning: "open the websocket before receiving",
-		Envelope: types.ActionEnvelope{
-			Type: types.ActionWSConnect,
-			Raw:  mustJSON(types.WSConnectAction{URL: url, ConnectionID: "c1"}),
-		},
-	})
-
-	loop, s := testLoop(t, map[string]string{"default": string(steerJSON)}, nil)
+	// Steer always emits a pure-duration wait (intermediate). It succeeds
+	// immediately, so the pass-gate sees Success && isIntermediate — which
+	// must NOT fire and must NOT consume recovery.
+	loop, s, mock := testLoop(t, nil, nil)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.WaitAction{Duration: "1ms"})})
 	rec := &countingRecovery{}
 	loop.recovery = rec
 	sessionID := createTestSession(t, s)
@@ -459,7 +450,7 @@ func TestReActLoop_IntermediateStepSkipsRecovery(t *testing.T) {
 	plan := &TestPlan{
 		Goal: "intermediate step must not pass or recover",
 		Cases: []TestCase{
-			{ID: "t1", Name: "connect", Target: "verify ws", Expectation: "connected"},
+			{ID: "t1", Name: "wait", Target: "verify intermediate", Expectation: "connected"},
 		},
 	}
 	results, err := loop.ExecutePlan(context.Background(), plan, sessionID)
@@ -470,7 +461,7 @@ func TestReActLoop_IntermediateStepSkipsRecovery(t *testing.T) {
 		t.Fatalf("got %d results, want 1", len(results))
 	}
 	if results[0].Status == StepPassed {
-		t.Fatalf("WSConnect is intermediate — its success must not pass the case")
+		t.Fatalf("pure wait is intermediate — its success must not pass the case")
 	}
 	if rec.calls != 0 {
 		t.Fatalf("Phase-7 guard must skip recovery on intermediate+success; Recover was called %d time(s)", rec.calls)

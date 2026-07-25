@@ -114,7 +114,7 @@ func (m *MockClient) matchKey(input string) string {
 	// to disambiguate when multiple substrings could match.
 	var bestKey string
 	for k := range m.toolResponses {
-		if k == "" || len(k) > len(input) {
+		if k == "" || k == "default" || len(k) > len(input) {
 			continue
 		}
 		if strings.Contains(input, k) && len(k) > len(bestKey) {
@@ -123,6 +123,13 @@ func (m *MockClient) matchKey(input string) string {
 	}
 	if bestKey != "" {
 		return bestKey
+	}
+	// "default" fallback for tool responses, mirroring the text-response
+	// default idiom. Lets tests preset a single tool-call fixture that matches
+	// any prompt (e.g. the ReAct steer tests), instead of having to key on a
+	// prompt substring.
+	if _, ok := m.toolResponses["default"]; ok {
+		return "default"
 	}
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(input)))[:8]
 }

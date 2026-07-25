@@ -36,24 +36,6 @@ Protocol declarations: when a service declares a protocol, its auth is injected 
 
 Roles: a service may declare named roles (web, bridge, ...). A role bundles its credential, discriminator params/headers/subprotocols, and an optional mandatory handshake (auto-awaited after connect). Use ws_connect with role when the target declares roles.`
 
-const promptSteerOutput = `Respond with JSON:
-{
-  "reasoning": "why this action",
-  "action": {
-    "type": "api_request|navigate|wait|process_exec|file_read|file_write|file_exists|file_glob|mcp_call|code_analyze|code_lint|code_symbols|ws_connect|ws_send|ws_receive|ws_disconnect",
-    "payload": { ... type-specific fields ... }
-  }
-}
-
-Example for api_request:
-{"reasoning": "...", "action": {"type": "api_request", "payload": {"method": "GET", "url": "http://localhost:8080/api/health"}}}
-
-Example for wait:
-{"reasoning": "...", "action": {"type": "wait", "payload": {"duration": "2s"}}}
-
-Example for process_exec:
-{"reasoning": "...", "action": {"type": "process_exec", "payload": {"command": "go", "args": ["build", "./..."]}}}`
-
 // Recover prompt: AI diagnoses failure and decides next step.
 const promptRecoverSystem = `You are a test recovery agent. A test action failed. Analyze the failure and decide the next action.
 

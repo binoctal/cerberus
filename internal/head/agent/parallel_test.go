@@ -30,14 +30,8 @@ func setupParallelTest(t *testing.T) (*ReActLoop, *store.Store) {
 	err = store.RunMigrations(ctx, s.DB(), "../../../migrations")
 	require.NoError(t, err)
 
-	steerJSON, _ := json.Marshal(SteerOutput{
-		Reasoning: "ok",
-		Envelope: types.ActionEnvelope{
-			Type: types.ActionNavigate,
-			Raw:  json.RawMessage(`{"url":"/"}`),
-		},
-	})
-	client := llm.NewMockClient(map[string]string{"default": string(steerJSON)})
+	client := llm.NewMockClient(nil)
+	client.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.NavigateAction{URL: "/"})})
 	driver := ai.NewDriver(client, ai.NewTokenBudget(500000, 50000))
 	engine := NewRuleEngine([]project.Service{{Name: "default", URL: "http://localhost"}}, nil, ".")
 	httpExec := BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
@@ -268,6 +262,11 @@ func TestParallelExecutor_CascadeSkip(t *testing.T) {
 	httpExec := BuildMultiExecutor(".", nil, nil, nil, zap.NewNop())
 	emb := embed.NewTrigramProvider(embed.DefaultDimension)
 	loop2 := NewReActLoopWithConfig(ReActLoopConfig{Driver: loop.driver, Store: s, Engine: engine, Executor: httpExec, Config: DefaultReActConfig(), Logger: zap.NewNop(), Embedder: emb})
+	// Steer uses DecideWithTools and consumes the mock's "default" tool
+	// response, but production Recovery (T3 Pending) still uses the legacy
+	// Decide+JSON path. Install a no-op recovery double so this cascade test
+	// stays scoped to dependency-skip behavior; recovery has its own coverage.
+	loop2.recovery = &fixedRecovery{skip: false}
 
 	plan := &TestPlan{
 		Goal:       "cascade test",

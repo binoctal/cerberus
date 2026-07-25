@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -35,9 +35,10 @@ func TestReActLoop_RelativeURLResolvedAgainstBaseURL(t *testing.T) {
 
 	// LLM steers to a RELATIVE path (no scheme/host), mimicking the fallback /
 	// LLM path that produced HTTP 0 in production.
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("hit endpoint", "GET", "/api/data"))
-
-	loop, s := testLoop(t, map[string]string{"default": string(steerJSON)}, server)
+	loop, s, mock := testLoop(t, nil, server)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: "/api/data",
+	})})
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{
@@ -88,9 +89,10 @@ func TestReActLoop_RecoveryRelativeURLResolvedAgainstBaseURL(t *testing.T) {
 	defer server.Close()
 
 	// Steer hits a failing endpoint so the ReAct loop falls through to recovery.
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("try failing endpoint", "GET", server.URL+"/fail"))
-
-	loop, s := testLoop(t, map[string]string{"default": string(steerJSON)}, server)
+	loop, s, mock := testLoop(t, nil, server)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: server.URL + "/fail",
+	})})
 	// Recovery emits a RELATIVE-url action (mimics LLM copying a path-only target).
 	loop.recovery = &actionRecovery{action: types.HTTPAction{Method: "GET", URL: "/api/recovered"}}
 	sessionID := createTestSession(t, s)
@@ -126,12 +128,14 @@ func TestWithBaseURL_ResolvesByService(t *testing.T) {
 	defer secondaryServer.Close()
 
 	// LLM steers to a relative URL - must resolve against tc.Service="primary", not secondary.
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("hit", "GET", "/api/data"))
-	loop, s := testLoopWithServices(t, map[string]string{"default": string(steerJSON)},
+	loop, s, mock := testLoopWithServices(t, nil,
 		[]project.Service{
 			{Name: "secondary", URL: secondaryServer.URL}, // First service (fallback)
 			{Name: "primary", URL: primaryServer.URL},     // tc.Service should pick this
 		}, nil)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: "/api/data",
+	})})
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{Goal: "g", Cases: []TestCase{
@@ -158,9 +162,11 @@ func TestWithBaseURL_ForcesServiceHostOnAbsoluteURL(t *testing.T) {
 	defer server.Close()
 
 	// server is the gateway (correct host); LLM will steer to a WRONG absolute URL (localhost:9999)
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("hit", "POST", "http://localhost:9999/api/data"))
-	loop, s := testLoopWithServices(t, map[string]string{"default": string(steerJSON)},
+	loop, s, mock := testLoopWithServices(t, nil,
 		[]project.Service{{Name: "gateway", URL: server.URL}}, nil)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "POST", URL: "http://localhost:9999/api/data",
+	})})
 	sessionID := createTestSession(t, s)
 	plan := &TestPlan{Goal: "g", Cases: []TestCase{
 		{ID: "t1", Target: "verify", Service: "gateway", Method: "POST", Expectation: "ok"},

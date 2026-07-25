@@ -12,7 +12,7 @@ func (se *stepExecution) runReactLoop() StepResult {
 
 	for attempt := 1; attempt <= r.config.MaxSteerAttempts; attempt++ {
 		// Phase 1: Steer - AI decides next action
-		action, err := r.steer(se.ctx, se.tc, se.lastResult, attempt)
+		action, zeroCall, err := r.steer(se.ctx, se.tc, se.lastResult, attempt)
 		if err != nil {
 			r.logger.Warn("steer failed", zap.Int("attempt", attempt), zap.Error(err))
 			if checkTokenBudgetExhaustion(err) {
@@ -21,6 +21,22 @@ func (se *stepExecution) runReactLoop() StepResult {
 			se.lastResult = types.ErrorResult{Err: err.Error()}
 			se.lastAction = action
 			continue
+		}
+
+		// Track consecutive zero-call (drift) steers. Two in a row ⇒ StepSkipped
+		// so the Examiner can distinguish LLM drift from a real test failure
+		// (spec §3). A single drift stays in the loop with the deterministic
+		// WaitAction default and gets a retry.
+		if zeroCall {
+			se.consecutiveZeroSteer++
+		} else {
+			se.consecutiveZeroSteer = 0
+		}
+		if se.consecutiveZeroSteer >= driftSkipThreshold {
+			r.logger.Warn("steer drift exhausted: skipping case",
+				zap.Int("attempt", attempt),
+				zap.Int("consecutive_zero_steers", se.consecutiveZeroSteer))
+			return buildSkippedResultForDrift(se.tc, se.traceID, attempt, se.start)
 		}
 
 		// Phase 2: Check for destructive action

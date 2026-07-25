@@ -15,7 +15,7 @@ import (
 // environmental and excludes it from strategy effectiveness penalty, even if a
 // later non-environmental attempt became the final result.
 func TestFinalizeResult_EnvironmentalSeenSurfacesUnreachable(t *testing.T) {
-	loop, _ := testLoop(t, nil, nil)
+	loop, _, _ := testLoop(t, nil, nil)
 	se := &stepExecution{
 		loop:              loop,
 		ctx:               context.Background(),
@@ -31,7 +31,7 @@ func TestFinalizeResult_EnvironmentalSeenSurfacesUnreachable(t *testing.T) {
 // TestFinalizeResult_NoEnvironmentalNoError confirms the error is only
 // synthesized when an environmental failure was actually seen.
 func TestFinalizeResult_NoEnvironmentalNoError(t *testing.T) {
-	loop, _ := testLoop(t, nil, nil)
+	loop, _, _ := testLoop(t, nil, nil)
 	se := &stepExecution{
 		loop:  loop,
 		ctx:   context.Background(),

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -24,15 +24,10 @@ func TestReActLoop_PureWaitNotJudgedAsPass(t *testing.T) {
 	}))
 	defer server.Close()
 
-	waitJSON, _ := json.Marshal(SteerOutput{
-		Reasoning: "wait before retrying",
-		Envelope: types.ActionEnvelope{
-			Type: types.ActionWait,
-			Raw:  mustJSON(types.WaitAction{Duration: "1s"}), // pure duration, no selector
-		},
-	})
-
-	loop, s := testLoop(t, map[string]string{"default": string(waitJSON)}, server)
+	// A pure-duration wait emitted as a `wait` tool call (the tool-calling
+	// successor to the legacy fallback's WaitAction). No selector → intermediate.
+	loop, s, mock := testLoop(t, nil, server)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.WaitAction{Duration: "1s"})})
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{

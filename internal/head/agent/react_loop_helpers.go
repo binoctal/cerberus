@@ -41,6 +41,21 @@ func buildSkippedResultForDestructiveAction(tc *TestCase, traceID int64, attempt
 	}
 }
 
+// buildSkippedResultForDrift creates a skipped result when the LLM emits no
+// action tool call across consecutive steer attempts (drift). Mirrors the
+// other buildSkipped* helpers' shape. StepSkipped (not StepFailed) so the
+// Examiner can tell drift apart from a real test failure (spec §3).
+func buildSkippedResultForDrift(tc *TestCase, traceID int64, attempt int, start time.Time) StepResult {
+	return StepResult{
+		TestCase: tc,
+		Status:   StepSkipped,
+		TraceID:  traceID,
+		Attempts: attempt,
+		Duration: time.Since(start),
+		Error:    fmt.Errorf("steer drift: LLM emitted no action across %d consecutive attempts", driftSkipThreshold),
+	}
+}
+
 // buildFailedResultForUnreachableTarget creates a failed result for unreachable targets
 func buildFailedResultForUnreachableTarget(tc *TestCase, traceID int64, attempt int, start time.Time, target string) StepResult {
 	return StepResult{

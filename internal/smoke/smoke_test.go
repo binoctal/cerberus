@@ -19,7 +19,6 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
-	"github.com/binoctal/cerberus/internal/types"
 )
 
 // smokeCoverageFn is a stub CoverageFn for smoke tests, avoiding real go
@@ -127,14 +126,6 @@ settings:
 	assert.Equal(t, 200000, cfg.Settings.AIBudget.SessionTotalTokens)
 }
 
-func mustRawJSON(v any) json.RawMessage {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
 func TestAgentSmokeTest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -160,20 +151,8 @@ func TestAgentSmokeTest(t *testing.T) {
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
 
-	steerJSON, _ := json.Marshal(agent.SteerOutput{
-		Reasoning: "navigate to the endpoint",
-		Envelope: types.ActionEnvelope{
-			Type: types.ActionAPIRequest,
-			Raw: mustRawJSON(types.HTTPAction{
-				Method: "GET",
-				URL:    server.URL + "/api/v1/users",
-			}),
-		},
-	})
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": string(steerJSON),
-	})
 	// S2 tool-calling: Scout.Plan needs tool calls; key on goal substring.
+	mockClient := llm.NewMockClient(nil)
 	mockClient.SetToolResponse("agent smoke test", []llm.ToolCall{
 		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/users"}},
 		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/api/v1/posts"}},
@@ -241,19 +220,17 @@ func TestAgentWithReActSmokeTest(t *testing.T) {
 	err = store.RunMigrations(ctx, s.DB(), "../../migrations")
 	require.NoError(t, err)
 
-	steerJSON, _ := json.Marshal(agent.SteerOutput{
-		Reasoning: "try the items endpoint",
-		Envelope: types.ActionEnvelope{
-			Type: types.ActionAPIRequest,
-			Raw: mustRawJSON(types.HTTPAction{
-				Method: "GET",
-				URL:    server.URL + "/api/v1/items",
-			}),
+	// S3 tool-calling: steer emits the next action as an action tool call
+	// (here api_request) instead of the legacy JSON envelope. The default key
+	// matches any steer prompt via MockClient's tool-response default fallback.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{{
+		Name: "api_request",
+		Input: map[string]any{
+			"method": "GET",
+			"url":    server.URL + "/api/v1/items",
 		},
-	})
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": string(steerJSON),
-	})
+	}})
 
 	services := []project.Service{{Name: "default", URL: server.URL}}
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))

@@ -21,8 +21,10 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 )
 
-// testLoop creates a ReActLoop with a mock LLM and in-memory store.
-func testLoop(t *testing.T, responses map[string]string, server *httptest.Server) (*ReActLoop, *store.Store) {
+// testLoop creates a ReActLoop with a mock LLM and in-memory store. The mock
+// client is returned so tests can preset tool-call responses via
+// SetToolResponse (used by the tool-calling steer/recovery migrations).
+func testLoop(t *testing.T, responses map[string]string, server *httptest.Server) (*ReActLoop, *store.Store, *llm.MockClient) {
 	t.Helper()
 
 	s, err := store.New(":memory:")
@@ -53,7 +55,7 @@ func testLoop(t *testing.T, responses map[string]string, server *httptest.Server
 		Embedder: emb,
 	})
 
-	return loop, s
+	return loop, s, mockClient
 }
 
 func createTestSession(t *testing.T, s *store.Store) string {
@@ -63,19 +65,11 @@ func createTestSession(t *testing.T, s *store.Store) string {
 	return sess.ID
 }
 
-// makeSteerEnvelope creates a SteerOutput with an HTTP action envelope.
-func makeSteerEnvelope(reasoning, method, url string) SteerOutput {
-	return SteerOutput{
-		Reasoning: reasoning,
-		Envelope: types.ActionEnvelope{
-			Type: types.ActionAPIRequest,
-			Raw: mustJSON(types.HTTPAction{
-				Method: method,
-				URL:    url,
-			}),
-		},
-	}
-}
+// makeSteerEnvelope was a JSON-envelope test fixture for the legacy Decide
+// steer path. S3 deleted that path (steer is now tool-call-driven), so the
+// helper has no callers. SteerOutput + ActionEnvelope stay defined until T4
+// deletes the drift subsystem; parse_fallback_test.go and recovery still use
+// mustJSON below.
 
 func mustJSON(v any) json.RawMessage {
 	b, err := json.Marshal(v)
@@ -92,7 +86,7 @@ func TestReActLoop_RuleEngineSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	loop, s := testLoop(t, nil, server)
+	loop, s, _ := testLoop(t, nil, server)
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{
@@ -123,11 +117,10 @@ func TestReActLoop_SteerSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("try the complex endpoint", "GET", server.URL+"/api/complex"))
-
-	loop, s := testLoop(t, map[string]string{
-		"default": string(steerJSON),
-	}, server)
+	loop, s, mock := testLoop(t, nil, server)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: server.URL + "/api/complex",
+	})})
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{
@@ -152,11 +145,15 @@ func TestReActLoop_MaxAttemptsExhausted(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("try again", "GET", server.URL+"/fail"))
-
-	loop, s := testLoop(t, map[string]string{
-		"default": string(steerJSON),
-	}, server)
+	loop, s, mock := testLoop(t, nil, server)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: server.URL + "/fail",
+	})})
+	// Production Recovery still uses the legacy Decide+JSON path (migrated in
+	// T3). The mock's "default" tool response suits steer but not recovery, so
+	// install a no-op recovery double to keep this loop-exhaustion test scoped
+	// to the steer path; production recovery coverage lives in recovery_test.go.
+	loop.recovery = &fixedRecovery{skip: false}
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{
@@ -180,11 +177,10 @@ func TestReActLoop_RecoverySkip(t *testing.T) {
 	}))
 	defer server.Close()
 
-	steerJSON, _ := json.Marshal(makeSteerEnvelope("try request", "GET", server.URL+"/fail"))
-
-	loop, s := testLoop(t, map[string]string{
-		"default": string(steerJSON),
-	}, server)
+	loop, s, mock := testLoop(t, nil, server)
+	mock.SetToolResponse("default", []llm.ToolCall{toolCallFromAction(types.HTTPAction{
+		Method: "GET", URL: server.URL + "/fail",
+	})})
 
 	// Override recovery to always skip.
 	loop.recovery = &fixedRecovery{skip: true}
@@ -213,7 +209,7 @@ func TestReActExecutePlan_MultipleCases(t *testing.T) {
 	}))
 	defer server.Close()
 
-	loop, s := testLoop(t, nil, server)
+	loop, s, _ := testLoop(t, nil, server)
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{
@@ -268,7 +264,7 @@ func TestReActLoop_SingleServiceBackwardCompat(t *testing.T) {
 
 	// testLoop builds a single-service engine via Services[0]; configures a single Service
 	// with no Service attribution set on the TestCase.
-	loop, s := testLoop(t, nil, server)
+	loop, s, _ := testLoop(t, nil, server)
 	sessionID := createTestSession(t, s)
 	plan := &TestPlan{Goal: "g", Cases: []TestCase{
 		{ID: "t1", Target: "/api/users", Method: "GET", Expectation: "ok"},

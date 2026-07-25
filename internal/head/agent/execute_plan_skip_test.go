@@ -19,7 +19,7 @@ func TestExecutePlan_SkipsDeprioritizedCases(t *testing.T) {
 	}))
 	defer server.Close()
 
-	loop, s := testLoop(t, nil, server)
+	loop, s, _ := testLoop(t, nil, server)
 	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{

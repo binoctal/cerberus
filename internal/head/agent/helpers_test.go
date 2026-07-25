@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -102,7 +103,8 @@ func TestSandboxPolicyFor_AllActionTypes(t *testing.T) {
 }
 
 // testLoopWithServices creates a ReActLoop with custom services, mirroring testLoop.
-func testLoopWithServices(t *testing.T, responses map[string]string, services []project.Service, actors []project.Actor) (*ReActLoop, *store.Store) {
+// The mock client is returned so tests can preset tool-call responses.
+func testLoopWithServices(t *testing.T, responses map[string]string, services []project.Service, actors []project.Actor) (*ReActLoop, *store.Store, *llm.MockClient) {
 	t.Helper()
 
 	s, err := store.New(":memory:")
@@ -127,5 +129,25 @@ func testLoopWithServices(t *testing.T, responses map[string]string, services []
 		Embedder: emb,
 	})
 
-	return loop, s
+	return loop, s, mockClient
+}
+
+// toolCallFromAction converts a TypedAction to its corresponding llm.ToolCall
+// fixture, the inverse of assembleAction. It JSON-marshals the action (so
+// struct field JSON tags become the input map keys) and uses the action type
+// as the tool name. Tests use this to preset SetToolResponse("default", ...)
+// for the new tool-calling steer path.
+func toolCallFromAction(action types.TypedAction) llm.ToolCall {
+	raw, err := json.Marshal(action)
+	if err != nil {
+		panic(err)
+	}
+	var input map[string]any
+	if err := json.Unmarshal(raw, &input); err != nil {
+		panic(err)
+	}
+	return llm.ToolCall{
+		Name:  string(action.GetActionType()),
+		Input: input,
+	}
 }
