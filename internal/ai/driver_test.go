@@ -353,6 +353,23 @@ func TestDriver_DecideWithTools(t *testing.T) {
 	assert.Equal(t, `{"reasoning":"I should call api_request"}`, result.Content)
 }
 
+func TestDriver_DecideWithTools_MockPreset(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("plan a relay", []llm.ToolCall{
+		{ID: "call_1", Name: "ws_relay", Input: map[string]any{"roles": []any{"web", "bridge"}}},
+	})
+	driver := NewDriver(mock, NewTokenBudget(10000, 2000))
+	res, err := driver.DecideWithTools(context.Background(), "plan a relay", []llm.Tool{
+		{Name: "ws_relay", Description: "emit a relay intent", InputSchema: map[string]any{"type": "object"}},
+	})
+	if err != nil {
+		t.Fatalf("DecideWithTools: %v", err)
+	}
+	if len(res.ToolCalls) != 1 || res.ToolCalls[0].Name != "ws_relay" {
+		t.Fatalf("ToolCalls = %+v, want one ws_relay", res.ToolCalls)
+	}
+}
+
 func TestDriver_DecideWithTools_BudgetExhausted(t *testing.T) {
 	mock := llm.NewMockClient(nil)
 	budget := NewTokenBudget(100, 100)
