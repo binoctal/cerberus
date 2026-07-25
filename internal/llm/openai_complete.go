@@ -85,8 +85,7 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 	if len(result.Choices) > 0 {
 		content = result.Choices[0].Message.Content
 		for _, tc := range result.Choices[0].Message.ToolCalls {
-			var input map[string]any
-			_ = json.Unmarshal(tc.Function.Arguments, &input)
+			input := decodeToolArguments(tc.Function.Arguments)
 			toolCalls = append(toolCalls, ToolCall{
 				ID:    tc.ID,
 				Name:  tc.Function.Name,
@@ -109,4 +108,28 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (*Response, er
 			TotalTokens:  result.Usage.TotalTokens,
 		},
 	}, nil
+}
+
+// decodeToolArguments decodes a tool-call arguments payload into a map. OpenAI
+// (and OpenAI-compatible APIs) send arguments as a JSON-encoded string — a
+// stringified object such as `"{\"location\":\"Tokyo\"}"` — which a direct
+// json.Unmarshal into a map fails on (the payload is a JSON string, not an
+// object). Handle both shapes: decode directly when the payload is a raw
+// object; otherwise unwrap the string and decode its contents.
+func decodeToolArguments(raw json.RawMessage) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var input map[string]any
+	if err := json.Unmarshal(raw, &input); err == nil {
+		return input
+	}
+	// String-wrapped JSON (OpenAI's real shape): unwrap, then decode the inner JSON.
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil
+	}
+	var inner map[string]any
+	_ = json.Unmarshal([]byte(s), &inner)
+	return inner
 }
