@@ -55,6 +55,13 @@ func (s *Scout) ValidateTargets(plan *agent.TestPlan, projectDir string) int {
 	}
 	flagged := 0
 	for i := range plan.Cases {
+		if plan.Cases[i].Action == "ws_flow" {
+			// ws_flow is a multi-step WS choreography assembled from
+			// begin_case+ws_* tool calls; its target is the Steps sequence,
+			// not a path/URL, so an empty Target is expected and must not be
+			// deprioritized (otherwise every LLM-emitted WS case is skipped).
+			continue
+		}
 		if reason := invalidReason(plan.Cases[i].Target, projectDir); reason != "" {
 			plan.Cases[i].Priority = -1
 			flagged++

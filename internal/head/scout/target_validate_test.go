@@ -43,3 +43,28 @@ func TestValidateTargets_DeprioritizesInvalid(t *testing.T) {
 	assert.Equal(t, -1.0, plan.Cases[1].Priority, "missing path deprioritized")
 	assert.Equal(t, -1.0, plan.Cases[2].Priority, "too-broad target deprioritized")
 }
+
+func TestValidateTargets_WSFlowCaseNotDeprioritizedForEmptyTarget(t *testing.T) {
+	dir := t.TempDir()
+	// A ws_flow case is a multi-step WS choreography assembled from begin_case +
+	// ws_* tool calls; its "target" is the Steps sequence, not a path/URL. An
+	// empty Target must NOT be deprioritized — otherwise every LLM-emitted WS
+	// choreography case is silently skipped (regression surfaced by the S4
+	// dogfood: Scout emitted ws_flow via tool-calling, but target_validate
+	// flagged target="" as "empty or too broad" and the case never ran).
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "wf-1", Action: "ws_flow", Target: "", Steps: []agent.TestStep{
+			{Action: "ws_connect", Role: "web"},
+			{Action: "ws_send", Role: "web"},
+			{Action: "ws_receive", Role: "bridge", Type: "session:start"},
+		}},
+		{ID: "bad-1", Target: ""}, // non-ws_flow empty target → still deprioritized
+	}}
+	s := NewScout(nil, setupTestStore(t), &project.Config{}, zap.NewNop())
+
+	flagged := s.ValidateTargets(plan, dir)
+
+	assert.NotEqual(t, -1.0, plan.Cases[0].Priority, "ws_flow choreography case must not be deprioritized for empty target")
+	assert.Equal(t, -1.0, plan.Cases[1].Priority, "non-ws_flow empty-target case still deprioritized")
+	assert.Equal(t, 1, flagged, "only the non-ws_flow invalid case is flagged")
+}
