@@ -38,9 +38,21 @@ func TestLearn_NormalizesAndEmbedsCondition(t *testing.T) {
 	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../../migrations"))
 
 	// LLM returns one reflection whose condition is un-normalized prose.
-	driver := ai.NewDriver(llm.NewMockClient(map[string]string{
-		"default": `[{"diagnosis":"d","condition_pattern":"POST /x/* Returned 401. ","strategy":"retry auth","category":"auth","type":"failure"}]`,
-	}), ai.NewTokenBudget(100000, 10000))
+	// Post-migration: the reflection is a report_reflection tool call (not a
+	// JSON array); assembleReflections turns it into a Reflection, then the
+	// learner normalizes the condition for the L3 dedup key + embedding.
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("default", []llm.ToolCall{{
+		Name: "report_reflection",
+		Input: map[string]any{
+			"diagnosis":         "d",
+			"condition_pattern": "POST /x/* Returned 401. ",
+			"strategy":          "retry auth",
+			"category":          "auth",
+			"type":              "failure",
+		},
+	}})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(100000, 10000))
 	l := examiner.NewLearner(driver, s, zap.NewNop(), embed.NewTrigramProvider(embed.DefaultDimension))
 
 	// Create a step result for the learning context

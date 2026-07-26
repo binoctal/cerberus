@@ -56,16 +56,11 @@ RULES:
 - Anchor each condition_pattern to the SPECIFIC target where it occurred so future tests on the same endpoint can recall it: start with the HTTP method and endpoint path (use {id} for variable path segments), then the observed status code or failure mode. Examples: "POST /api/v1/auth/login → 401 invalid credentials", "GET /api/v1/users/{id} → 404 not found". For non-HTTP targets, anchor to the target string and the failure mode.
 - Pick the most specific category from: timeout_recovery, auth_failure, endpoint_not_found, server_error, ambiguous_result, general_failure.`
 
-const promptReflectionOutput = `Respond with JSON array:
-[
-  {
-    "type": "failure | success",
-    "diagnosis": "root cause or key practice in 1 sentence",
-    "strategy": "recovery action or repeatable approach",
-    "condition_pattern": "pattern for matching future scenarios",
-    "category": "timeout_recovery | auth_failure | endpoint_not_found | server_error | ambiguous_result | general_failure"
-  }
-]`
+// promptReflectionToolGuide replaces the legacy promptReflectionOutput JSON
+// schema. Each reflection is now a report_reflection tool call (one per result
+// the LLM chooses to reflect on); the provider schema-validates each call and
+// assembleReflections walks N calls into []Reflection.
+const promptReflectionToolGuide = `Emit ONE report_reflection TOOL CALL PER reflection. Do not output JSON — the tool schema enforces the structure.`
 
 const promptAutoFixSystem = `You are a test repair agent. Analyze a failed test case and suggest how to fix it.
 
@@ -75,8 +70,7 @@ RULES:
 - If a parameter or header is missing, describe the corrective action.
 - Be concise: one paragraph of reasoning.`
 
-const promptAutoFixOutput = `Respond with JSON:
-{
-  "reasoning": "why it failed and what to do",
-  "skip": false
-}`
+// promptAutoFixToolGuide replaces the legacy promptAutoFixOutput JSON schema.
+// The auto-fix call emits a suggest_fix tool call instead of JSON; the provider
+// schema-validates it and assembleAutofix turns it into (reasoning, skip).
+const promptAutoFixToolGuide = `Emit ONE suggest_fix TOOL CALL. Do not output JSON — the tool schema enforces the structure.`

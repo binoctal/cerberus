@@ -24,13 +24,21 @@ func (l *Learner) Learn(ctx context.Context, input LearnInput) (int, error) {
 		System(promptReflectionSystem).
 		Context(reflectionCtx).
 		Task("Generate reflections for all test results above. Include both failure and success reflections.").
-		Output(promptReflectionOutput).
+		Output(promptReflectionToolGuide).
 		Build()
 
-	var reflections []Reflection
-	if err := l.driver.Decide(ctx, prompt, &reflections); err != nil {
+	// Learner site: DecideWithTools + assembleReflections. Error PROPAGATES
+	// (wraps as "reflection decide: ...") — Reflexion is non-fatal background
+	// learning, but a real LLM error should still surface so the caller can
+	// log it (Examiner.Examine already treats Learn errors as non-fatal).
+	// Zero tool calls degrade to empty reflections (NOT propagate): drift
+	// produces nothing to learn, not a run-ending failure. The quality gate
+	// below is unchanged — it filters assembled Reflections before L3 storage.
+	res, err := l.driver.DecideWithTools(ctx, prompt, learnerTools())
+	if err != nil {
 		return 0, fmt.Errorf("reflection decide: %w", err)
 	}
+	reflections := assembleReflections(res.ToolCalls)
 
 	// Quality gate and store.
 	stored := 0

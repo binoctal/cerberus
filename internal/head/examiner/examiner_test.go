@@ -2,7 +2,6 @@ package examiner
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +42,19 @@ func critiqueVerdictCall(issues bool, critique string, suggested JudgeStatus, su
 			"critique":             critique,
 			"suggested_status":     string(suggested),
 			"suggested_confidence": suggestedConf,
+		},
+	}
+}
+
+// suggestFixCall builds a suggest_fix tool call fixture matching the
+// autofixTools() schema. `skip` is a field on the single object (autofix has
+// no competing action surface).
+func suggestFixCall(reasoning string, skip bool) llm.ToolCall {
+	return llm.ToolCall{
+		Name: "suggest_fix",
+		Input: map[string]any{
+			"reasoning": reasoning,
+			"skip":      skip,
 		},
 	}
 }
@@ -347,16 +359,16 @@ func TestLearner_QualityGate(t *testing.T) {
 func TestLearner_StoreReflections(t *testing.T) {
 	s := setupExaminerStore(t)
 
-	reflections := Reflection{
-		Type:             "failure",
-		Diagnosis:        "Auth token expired causing 401",
-		Strategy:         "Refresh auth token before retrying the request",
-		ConditionPattern: "* returned 401",
-		Category:         "auth_failure",
-	}
-	reflJSON, _ := json.Marshal([]Reflection{reflections})
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(reflJSON)})
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		reportReflectionCall(Reflection{
+			Type:             "failure",
+			Diagnosis:        "Auth token expired causing 401",
+			Strategy:         "Refresh auth token before retrying the request",
+			ConditionPattern: "* returned 401",
+			Category:         "auth_failure",
+		}),
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
 	learner := NewLearner(driver, s, zap.NewNop(), nil)
@@ -398,15 +410,15 @@ func TestLearner_EmptyResults(t *testing.T) {
 func TestLearner_QualityGateFiltersBadReflections(t *testing.T) {
 	s := setupExaminerStore(t)
 
-	// Mix of valid and invalid reflections.
-	reflections := []Reflection{
-		{Type: "failure", Diagnosis: "Valid diagnosis", Strategy: "Valid strategy that is long enough", ConditionPattern: "* returned 500", Category: "server_error"},
-		{Type: "failure", Diagnosis: "", Strategy: "Strategy without diagnosis", ConditionPattern: "*", Category: "general_failure"}, // Invalid: empty diagnosis
-		{Type: "success", Diagnosis: "Works well", Strategy: "short", ConditionPattern: "GET *", Category: "general_failure"},        // Invalid: strategy too short
-	}
-	reflJSON, _ := json.Marshal(reflections)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(reflJSON)})
+	// Mix of valid and invalid reflections — emitted as 3 report_reflection
+	// tool calls. assembleReflections walks all three; qualityGate drops the
+	// two invalid ones before L3 storage.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		reportReflectionCall(Reflection{Type: "failure", Diagnosis: "Valid diagnosis", Strategy: "Valid strategy that is long enough", ConditionPattern: "* returned 500", Category: "server_error"}),
+		reportReflectionCall(Reflection{Type: "failure", Diagnosis: "", Strategy: "Strategy without diagnosis", ConditionPattern: "*", Category: "general_failure"}), // Invalid: empty diagnosis
+		reportReflectionCall(Reflection{Type: "success", Diagnosis: "Works well", Strategy: "short", ConditionPattern: "GET *", Category: "general_failure"}),        // Invalid: strategy too short
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	learner := NewLearner(driver, s, zap.NewNop(), nil)
 
@@ -427,9 +439,9 @@ func TestExaminer_FullPipeline(t *testing.T) {
 	s := setupExaminerStore(t)
 
 	// Judge returns pass with high confidence via a judge_result tool call.
-	// Keyed on the judge task substring so the learner (still on Decide) gets
-	// an empty text response and fails non-fatally — the pipeline test only
-	// asserts verdicts, not reflections.
+	// Keyed on the judge task substring so the learner gets no tool-call match
+	// (zero reflections, no error) — the pipeline test only asserts verdicts,
+	// not reflections.
 	mockClient := llm.NewMockClient(nil)
 	mockClient.SetToolResponse("Evaluate this test evidence", []llm.ToolCall{
 		judgeResultCall(StatusPass, 0.95, 0.95, "Response matches expectation"),
@@ -564,9 +576,49 @@ func TestShouldAutoFix(t *testing.T) {
 	}
 }
 
-func TestAutoFixer_Fix_Success(t *testing.T) {
-	fixJSON := `{"reasoning":"The endpoint returns 201 for creation, not 200","skip":true}`
-	mockClient := llm.NewMockClient(map[string]string{"default": fixJSON})
+// TestAutoFixer_Fix_ToolCallAssembles is the S4 RED→GREEN gate: preset
+// suggest_fix{skip:false,reasoning:"..."} and assert the assembled reasoning
+// flows through Fix() into the verdict. Pre-migration this fixture was a JSON
+// string; post-migration it is a tool call that assembleAutofix unwraps.
+func TestAutoFixer_Fix_ToolCallAssembles(t *testing.T) {
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		suggestFixCall("Missing Authorization header", false),
+	})
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	logger := zaptest.NewLogger(t)
+	af := NewAutoFixer(driver, logger)
+
+	verdict := FinalVerdict{
+		Status:    StatusFail,
+		Reasoning: "Got 401 Unauthorized",
+		StepResult: agent.StepResult{
+			TestCase: &agent.TestCase{
+				ID:          "tc-002",
+				Name:        "Get profile",
+				Method:      "GET",
+				Target:      "/profile",
+				Expectation: "status 200",
+			},
+		},
+	}
+
+	result := af.Fix(context.Background(), verdict, "")
+	assert.True(t, result.Attempted)
+	assert.True(t, result.Success)
+	// Not skipped — verdict reasoning updated but status unchanged.
+	assert.Equal(t, StatusFail, result.Verdict.Status)
+	assert.Contains(t, result.Verdict.Reasoning, "Missing Authorization header")
+	assert.Contains(t, result.Verdict.Reasoning, "Auto-fix analysis:")
+}
+
+// TestAutoFixer_Fix_Skip_True verifies the skip:true branch: the verdict is
+// downgraded to StatusSkip and the reasoning is prefixed "Auto-fix:".
+func TestAutoFixer_Fix_Skip_True(t *testing.T) {
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		suggestFixCall("Endpoint returns 201 for creation, not 200", true),
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	logger := zaptest.NewLogger(t)
 	af := NewAutoFixer(driver, logger)
@@ -592,33 +644,29 @@ func TestAutoFixer_Fix_Success(t *testing.T) {
 	assert.Contains(t, result.Verdict.Reasoning, "Auto-fix:")
 }
 
-func TestAutoFixer_Fix_NoRepair(t *testing.T) {
-	fixJSON := `{"reasoning":"Missing auth token in header","skip":false}`
-	mockClient := llm.NewMockClient(map[string]string{"default": fixJSON})
+// TestAutoFixer_Fix_ZeroToolCalls_Degrades verifies the autofix error policy:
+// zero tool calls (drift/quality) degrade to {Attempted:true, Success:false}
+// (NOT propagate). autofix is part of the repair loop — a degraded verdict
+// means "no repair applied, keep the original fail", which the loop already
+// handles.
+func TestAutoFixer_Fix_ZeroToolCalls_Degrades(t *testing.T) {
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", nil) // zero tool calls
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	logger := zaptest.NewLogger(t)
 	af := NewAutoFixer(driver, logger)
 
 	verdict := FinalVerdict{
 		Status:    StatusFail,
-		Reasoning: "Got 401 Unauthorized",
+		Reasoning: "Got 401",
 		StepResult: agent.StepResult{
-			TestCase: &agent.TestCase{
-				ID:          "tc-002",
-				Name:        "Get profile",
-				Method:      "GET",
-				Target:      "/profile",
-				Expectation: "status 200",
-			},
+			TestCase: &agent.TestCase{ID: "tc-1", Name: "T", Method: "GET", Target: "/x", Expectation: "200"},
 		},
 	}
 
 	result := af.Fix(context.Background(), verdict, "")
-	assert.True(t, result.Attempted)
-	assert.True(t, result.Success)
-	// Not skipped — verdict reasoning updated but status unchanged.
-	assert.Equal(t, StatusFail, result.Verdict.Status)
-	assert.Contains(t, result.Verdict.Reasoning, "Auto-fix analysis:")
+	assert.True(t, result.Attempted, "zero tool calls still counts as an attempt")
+	assert.False(t, result.Success, "zero tool calls degrade to Success=false (no repair applied)")
 }
 
 func TestAutoFixer_Fix_NilTestCase(t *testing.T) {
