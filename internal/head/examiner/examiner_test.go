@@ -17,6 +17,36 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 )
 
+// judgeResultCall builds a judge_result tool call fixture matching the
+// judgeTools() schema. Only the four LLM-emitted fields are set;
+// self_critique/critique_triggered remain absent (they are code-set by the
+// critique path, never LLM-emitted).
+func judgeResultCall(status JudgeStatus, existence, correctness float64, reasoning string) llm.ToolCall {
+	return llm.ToolCall{
+		Name: "judge_result",
+		Input: map[string]any{
+			"status":                 string(status),
+			"existence_confidence":   existence,
+			"correctness_confidence": correctness,
+			"reasoning":              reasoning,
+		},
+	}
+}
+
+// critiqueVerdictCall builds a critique_verdict tool call fixture matching the
+// criticTools() schema.
+func critiqueVerdictCall(issues bool, critique string, suggested JudgeStatus, suggestedConf float64) llm.ToolCall {
+	return llm.ToolCall{
+		Name: "critique_verdict",
+		Input: map[string]any{
+			"issues_found":         issues,
+			"critique":             critique,
+			"suggested_status":     string(suggested),
+			"suggested_confidence": suggestedConf,
+		},
+	}
+}
+
 func setupExaminerStore(t *testing.T) *store.Store {
 	t.Helper()
 	s, err := store.New(":memory:")
@@ -43,16 +73,12 @@ func makeStepResult(id, name, target, expectation string, status agent.StepStatu
 }
 
 func TestJudge_HighConfidence(t *testing.T) {
-	// High confidence pass — should skip critique.
-	judgeResult := JudgeResult{
-		Status:                StatusPass,
-		ExistenceConfidence:   0.95,
-		CorrectnessConfidence: 0.95,
-		Reasoning:             "Response matches expectation",
-	}
-	judgeJSON, _ := json.Marshal(judgeResult)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(judgeJSON)})
+	// High confidence pass — should skip critique. DecideWithTools returns a
+	// judge_result tool call; assembleJudge turns it into the verdict.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusPass, 0.95, 0.95, "Response matches expectation"),
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
 	judge := NewJudge(driver, nil, DefaultExaminerConfig())
@@ -63,53 +89,45 @@ func TestJudge_HighConfidence(t *testing.T) {
 	assert.Equal(t, StatusPass, result.Status)
 	assert.InDelta(t, 0.95, result.CorrectnessConfidence, 0.01)
 	assert.False(t, result.CritiqueTriggered)
+	// SelfCritique/CritiqueTriggered are code-set, not LLM-emitted: the
+	// high-confidence path skips critique entirely so both stay zero.
+	assert.Empty(t, result.SelfCritique)
 }
 
 func TestJudge_LowConfidence_TriggersCritique(t *testing.T) {
-	// Low confidence result → should trigger critic.
-	judgeResult := JudgeResult{
-		Status:                StatusUncertain,
-		ExistenceConfidence:   0.9,
-		CorrectnessConfidence: 0.6,
-		Reasoning:             "Response exists but content unclear",
-	}
-	_ = judgeResult // Used conceptually; mockClient returns same JSON for both calls.
-
-	critiqueResult := CritiqueResult{
-		IssuesFound:         true,
-		Critique:            "False positive risk: status 200 but empty body",
-		SuggestedStatus:     StatusFail,
-		SuggestedConfidence: 0.3,
-	}
-	critiqueJSON, _ := json.Marshal(critiqueResult)
-
-	mockClient := llm.NewMockClient(map[string]string{
-		"default": string(critiqueJSON), // Both judge and critic use default
+	// Low confidence judge verdict → triggers critic. The critic returns
+	// IssuesFound=true → critique corrections are applied to the initial
+	// verdict. Separate mocks so judge and critic return distinct tool calls.
+	judgeMock := llm.NewMockClient(nil)
+	judgeMock.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusUncertain, 0.9, 0.6, "Response exists but content unclear"),
 	})
-	judgeDriver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
-	criticDriver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	criticMock := llm.NewMockClient(nil)
+	criticMock.SetToolResponse("default", []llm.ToolCall{
+		critiqueVerdictCall(true, "False positive risk: status 200 but empty body", StatusFail, 0.3),
+	})
+
+	judgeDriver := ai.NewDriver(judgeMock, ai.NewTokenBudget(200000, 10000))
+	criticDriver := ai.NewDriver(criticMock, ai.NewTokenBudget(200000, 10000))
 
 	judge := NewJudge(judgeDriver, criticDriver, DefaultExaminerConfig())
-	_, err := judge.Judge(context.Background(), makeStepResult(
+	result, err := judge.Judge(context.Background(), makeStepResult(
 		"tc-1", "Get users", "/api/users", "returns user list", agent.StepPassed, 200, "",
 	))
 	require.NoError(t, err)
-	// The judge returns low confidence (0.6), so it should trigger critique.
-	// Critic will return its verdict but mockClient returns same JSON for both calls.
-	// The important thing is the critique was attempted.
+	// Critique was applied: status/confidence overwritten, flags set.
+	assert.Equal(t, StatusFail, result.Status, "critique should override status")
+	assert.InDelta(t, 0.3, result.CorrectnessConfidence, 0.01)
+	assert.True(t, result.CritiqueTriggered, "CritiqueTriggered must be code-set after critique")
+	assert.Contains(t, result.SelfCritique, "False positive risk")
 }
 
 func TestJudge_NoCriticDriver(t *testing.T) {
 	// Without critic driver, uncertain result stays uncertain.
-	judgeResult := JudgeResult{
-		Status:                StatusUncertain,
-		ExistenceConfidence:   0.8,
-		CorrectnessConfidence: 0.5,
-		Reasoning:             "Cannot determine",
-	}
-	judgeJSON, _ := json.Marshal(judgeResult)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(judgeJSON)})
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusUncertain, 0.8, 0.5, "Cannot determine"),
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
 	judge := NewJudge(driver, nil, DefaultExaminerConfig())
@@ -123,15 +141,10 @@ func TestJudge_NoCriticDriver(t *testing.T) {
 
 func TestJudge_MaxCritiquesExceeded(t *testing.T) {
 	// Session-level max critiques should prevent further critiques.
-	judgeResult := JudgeResult{
-		Status:                StatusUncertain,
-		ExistenceConfidence:   0.8,
-		CorrectnessConfidence: 0.5,
-		Reasoning:             "Uncertain",
-	}
-	judgeJSON, _ := json.Marshal(judgeResult)
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(judgeJSON)})
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusUncertain, 0.8, 0.5, "Uncertain"),
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
 	cfg := ExaminerConfig{MaxCritiques: 0, ConfThreshold: 0.9} // Max 0 critiques
@@ -142,6 +155,54 @@ func TestJudge_MaxCritiquesExceeded(t *testing.T) {
 	))
 	require.NoError(t, err)
 	assert.False(t, result.CritiqueTriggered)
+}
+
+// TestJudge_ZeroToolCalls_Error verifies the zero-call judge path: when the
+// judge LLM emits no tool calls (drift/quality), Judge surfaces an error
+// (not a silent verdict). The caller (examiner.go) maps this to fallbackVerdict.
+func TestJudge_ZeroToolCalls_Error(t *testing.T) {
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", nil) // zero tool calls
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+
+	judge := NewJudge(driver, nil, DefaultExaminerConfig())
+	_, err := judge.Judge(context.Background(), makeStepResult(
+		"tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok",
+	))
+	require.Error(t, err, "zero tool calls must surface as an error")
+	assert.Contains(t, err.Error(), "zero tool calls")
+}
+
+// TestCritic_ZeroToolCalls_RefundsSlot covers the NEW zero-call refund path
+// (today's tests only cover the error-refund path). When the critic LLM emits
+// no tool calls (drift), the reserved critique slot is refunded and the
+// initial verdict is kept — identical to the Decide-error refund policy.
+func TestCritic_ZeroToolCalls_RefundsSlot(t *testing.T) {
+	judgeMock := llm.NewMockClient(nil)
+	judgeMock.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusUncertain, 0.9, 0.6, "uncertain"),
+	})
+	// Critic returns ZERO tool calls (drift).
+	criticMock := llm.NewMockClient(nil)
+	criticMock.SetToolResponse("default", nil)
+
+	judgeDriver := ai.NewDriver(judgeMock, ai.NewTokenBudget(200000, 10000))
+	criticDriver := ai.NewDriver(criticMock, ai.NewTokenBudget(200000, 10000))
+
+	cfg := ExaminerConfig{MaxCritiques: 1, ConfThreshold: 0.9}
+	j := NewJudge(judgeDriver, criticDriver, cfg)
+
+	result, err := j.Judge(context.Background(), makeStepResult(
+		"tc-1", "Test", "/api", "works", agent.StepPassed, 200, "ok",
+	))
+	require.NoError(t, err)
+	// Initial verdict kept (no critique applied).
+	assert.Equal(t, StatusUncertain, result.Status)
+	assert.False(t, result.CritiqueTriggered)
+	// Slot was refunded: critiqueUsed back to 0, so a subsequent uncertain
+	// verdict can still claim the slot.
+	assert.Equal(t, int64(0), j.critiqueUsed.Load(),
+		"zero-call critic must refund the reserved slot")
 }
 
 func TestPolicy_NotUncertain(t *testing.T) {
@@ -365,23 +426,14 @@ func TestLearner_QualityGateFiltersBadReflections(t *testing.T) {
 func TestExaminer_FullPipeline(t *testing.T) {
 	s := setupExaminerStore(t)
 
-	// Judge returns pass with high confidence.
-	judgeResult := JudgeResult{
-		Status:                StatusPass,
-		ExistenceConfidence:   0.95,
-		CorrectnessConfidence: 0.95,
-		Reasoning:             "Response matches expectation",
-	}
-	judgeJSON, _ := json.Marshal(judgeResult)
-	_ = judgeJSON // MockClient returns same JSON for judge and reflection calls.
-
-	// Reflection returns one valid failure reflection.
-	reflections := []Reflection{
-		{Type: "failure", Diagnosis: "Endpoint timeout", Strategy: "Increase timeout and retry with backoff", ConditionPattern: "* returned timeout", Category: "timeout_recovery"},
-	}
-	_ = reflections // MockClient uses default response for all calls.
-
-	mockClient := llm.NewMockClient(map[string]string{"default": string(judgeJSON)})
+	// Judge returns pass with high confidence via a judge_result tool call.
+	// Keyed on the judge task substring so the learner (still on Decide) gets
+	// an empty text response and fails non-fatally — the pipeline test only
+	// asserts verdicts, not reflections.
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("Evaluate this test evidence", []llm.ToolCall{
+		judgeResultCall(StatusPass, 0.95, 0.95, "Response matches expectation"),
+	})
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
 	examinerHead := NewExaminer(driver, nil, s, DefaultExaminerConfig(), zap.NewNop())
@@ -399,18 +451,18 @@ func TestExaminer_FullPipeline(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, verdicts, 2)
-	// Both get StatusPass because MockClient returns same judge JSON for all calls.
-	// The pipeline itself is what we're testing, not the judge accuracy per case.
+	// Both get StatusPass because the judge mock returns the same tool call.
+	// The pipeline itself is what we're testing, not per-case judge accuracy.
 	assert.Equal(t, StatusPass, verdicts[0].Status)
-	assert.Equal(t, StatusPass, verdicts[1].Status) // Same mock response for both
+	assert.Equal(t, StatusPass, verdicts[1].Status)
 	assert.GreaterOrEqual(t, reflectionCount, 0)
 }
 
 func TestExaminer_StepStatusFallback(t *testing.T) {
 	s := setupExaminerStore(t)
 
-	// MockClient returns invalid JSON → Judge fails → fallback to step status.
-	mockClient := llm.NewMockClient(map[string]string{"default": "not json"})
+	// No tool response → Judge gets zero tool calls → error → fallback verdict.
+	mockClient := llm.NewMockClient(nil)
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 
 	examinerHead := NewExaminer(driver, nil, s, DefaultExaminerConfig(), zap.NewNop())
@@ -431,11 +483,12 @@ func TestExaminer_StepStatusFallback(t *testing.T) {
 
 func TestExaminer_Parallel_PreservesVerdictsByIndex(t *testing.T) {
 	s := setupExaminerStore(t)
-	// Invalid JSON → Judge fails → verdict falls back to each step's own status,
-	// so per-index verdicts are distinguishable. Parallel Examine must preserve
-	// the input order exactly (verdicts are written by index into a pre-allocated
-	// slice, with no mutex, so any ordering bug shows up as a mismatch here).
-	mockClient := llm.NewMockClient(map[string]string{"default": "not json"})
+	// No tool calls → Judge fails → verdict falls back to each step's own
+	// status, so per-index verdicts are distinguishable. Parallel Examine must
+	// preserve the input order exactly (verdicts are written by index into a
+	// pre-allocated slice, with no mutex, so any ordering bug shows up as a
+	// mismatch here).
+	mockClient := llm.NewMockClient(nil)
 	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
 	cfg := DefaultExaminerConfig()
 	cfg.MaxWorkers = 3 // < len(results) to exercise worker slot reuse.

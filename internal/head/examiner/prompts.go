@@ -17,13 +17,10 @@ RULES:
 - Only mark PASS for an error when the SYSTEM-UNDER-TEST deliberately returned/raised the expected error (a real negative test). A Step Error that prevented the test from executing is always FAIL.
 - For a WebSocket case, PASS requires a real upgraded exchange: a successful ws_connect and, when the expectation is receiving a message, a ws_receive that matched the awaited type. Any plain-HTTP response in a WS case (426 Upgrade Required, 400, connection closed without upgrade) means the socket was never upgraded — that is a FAIL, not a pass. A WS case whose evidence is only failing HTTP requests, with no ws_* result and no matched WS message, did not test the WebSocket and is a FAIL. A connect-only case (expectation: establish the connection) passes on a successful ws_connect without a matched receive.`
 
-const promptJudgeOutput = `Respond with JSON:
-{
-  "status": "pass | fail | uncertain | skip",
-  "existence_confidence": 0.0,
-  "correctness_confidence": 0.0,
-  "reasoning": "explanation of verdict"
-}`
+// promptJudgeToolGuide replaces the legacy promptJudgeOutput JSON schema. The
+// judge no longer returns JSON — it emits a judge_result tool call that the
+// provider schema-validates and assembleJudge turns into a JudgeResult.
+const promptJudgeToolGuide = `Emit ONE judge_result TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
 
 const promptCriticSystem = `You are a verdict quality reviewer. Check the initial verdict below for common errors.
 
@@ -35,13 +32,9 @@ COMMON ERRORS:
 
 Be skeptical. Only flag real issues.`
 
-const promptCriticOutput = `Respond with JSON:
-{
-  "issues_found": false,
-  "critique": "description of issues found, empty if none",
-  "suggested_status": "pass | fail | uncertain | skip",
-  "suggested_confidence": 0.0
-}`
+// promptCriticToolGuide replaces the legacy promptCriticOutput JSON schema.
+// The critic emits a critique_verdict tool call instead of JSON.
+const promptCriticToolGuide = `Emit ONE critique_verdict TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
 
 const promptReflectionSystem = `You are a test learning agent. Analyze ALL test results below and generate concise, actionable reflections.
 

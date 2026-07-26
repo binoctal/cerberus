@@ -45,11 +45,21 @@ func (j *Judge) Judge(ctx context.Context, result agent.StepResult) (*JudgeResul
 		System(promptJudgeSystem).
 		Context(evidence).
 		Task(task).
-		Output(promptJudgeOutput).
+		Output(promptJudgeToolGuide).
 		Build()
 
-	var judgeResult JudgeResult
-	if err := j.judgeDriver.Decide(ctx, prompt, &judgeResult); err != nil {
+	// Judge site: DecideWithTools + assembleJudge. Error OR zero tool calls
+	// surface as an error (NOT a silent verdict) so the caller (examiner.go)
+	// maps a judge failure to fallbackVerdict — preserving graceful degrade.
+	res, err := j.judgeDriver.DecideWithTools(ctx, prompt, judgeTools())
+	if err != nil {
+		return nil, fmt.Errorf("judge decide: %w", err)
+	}
+	if len(res.ToolCalls) == 0 {
+		return nil, fmt.Errorf("judge decide: zero tool calls (drift or quality)")
+	}
+	judgeResult, err := assembleJudge(res.ToolCalls[0])
+	if err != nil {
 		return nil, fmt.Errorf("judge decide: %w", err)
 	}
 
@@ -95,12 +105,27 @@ func (j *Judge) critique(ctx context.Context, initial JudgeResult, evidence, exp
 	prompt := ai.NewPrompt().
 		System(promptCriticSystem).
 		Task(task).
-		Output(promptCriticOutput).
+		Output(promptCriticToolGuide).
 		Build()
 
-	var critique CritiqueResult
-	if err := j.criticDriver.Decide(ctx, prompt, &critique); err != nil {
+	// Critic site: DecideWithTools + assembleCritique. Error OR zero tool calls
+	// refund the reserved slot and return nil (keep the initial verdict) —
+	// identical to the pre-migration Decide-error policy. SelfCritique and
+	// CritiqueTriggered are code-set here, never LLM-emitted.
+	res, err := j.criticDriver.DecideWithTools(ctx, prompt, criticTools())
+	if err != nil {
 		// Critic failed — refund the reserved slot and use the initial result.
+		j.critiqueUsed.Add(-1)
+		return nil
+	}
+	if len(res.ToolCalls) == 0 {
+		// Drift: zero tool calls — refund the reserved slot, keep initial.
+		j.critiqueUsed.Add(-1)
+		return nil
+	}
+	critique, err := assembleCritique(res.ToolCalls[0])
+	if err != nil {
+		// Malformed call (should not happen post-schema) — refund, keep initial.
 		j.critiqueUsed.Add(-1)
 		return nil
 	}

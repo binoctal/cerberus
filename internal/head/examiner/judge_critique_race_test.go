@@ -2,7 +2,6 @@ package examiner
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -38,27 +37,19 @@ func (c *countingClient) Stream(ctx context.Context, req llm.Request) (<-chan ll
 // Before the fix, critiqueUsed (a plain int) was read in Judge and incremented
 // in critique without synchronization, so the budget was exceeded under load.
 func TestJudgeCritiqueBudgetHeldUnderConcurrency(t *testing.T) {
-	judgeResult := JudgeResult{
-		Status:                StatusUncertain,
-		ExistenceConfidence:   0.8,
-		CorrectnessConfidence: 0.5,
-		Reasoning:             "uncertain",
-	}
-	judgeJSON, _ := json.Marshal(judgeResult)
-	critiqueResult := CritiqueResult{
-		IssuesFound:         true,
-		SuggestedStatus:     StatusPass,
-		SuggestedConfidence: 0.9,
-		Critique:            "c",
-	}
-	critiqueJSON, _ := json.Marshal(critiqueResult)
+	judgeMock := llm.NewMockClient(nil)
+	judgeMock.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusUncertain, 0.8, 0.5, "uncertain"),
+	})
+	criticMock := llm.NewMockClient(nil)
+	criticMock.SetToolResponse("default", []llm.ToolCall{
+		critiqueVerdictCall(true, "c", StatusPass, 0.9),
+	})
 
-	judgeDriver := ai.NewDriver(
-		llm.NewMockClient(map[string]string{"default": string(judgeJSON)}),
-		ai.NewTokenBudget(200000, 10000))
+	judgeDriver := ai.NewDriver(judgeMock, ai.NewTokenBudget(200000, 10000))
 	var criticCalls atomic.Int64
 	criticDriver := ai.NewDriver(
-		&countingClient{inner: llm.NewMockClient(map[string]string{"default": string(critiqueJSON)}), n: &criticCalls},
+		&countingClient{inner: criticMock, n: &criticCalls},
 		ai.NewTokenBudget(200000, 10000))
 
 	judge := NewJudge(judgeDriver, criticDriver, ExaminerConfig{MaxCritiques: 2, ConfThreshold: 0.9})
