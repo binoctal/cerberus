@@ -36,6 +36,13 @@ Be skeptical. Only flag real issues.`
 // The critic emits a critique_verdict tool call instead of JSON.
 const promptCriticToolGuide = `Emit ONE critique_verdict TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
 
+// promptAssessToolGuide replaces the legacy "Respond with JSON" instruction.
+// The assess call emits an assess_coverage tool call instead of JSON; the
+// provider schema-validates it and assembleAssessment turns it into an
+// Assessment. coverage_pct is NOT in the schema — always overwritten by the
+// objective measure in assess.go.
+const promptAssessToolGuide = `Emit ONE assess_coverage TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
+
 const promptReflectionSystem = `You are a test learning agent. Analyze ALL test results below and generate concise, actionable reflections.
 
 RULES:

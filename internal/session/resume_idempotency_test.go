@@ -420,12 +420,17 @@ func newResumableSessionWithContract(t *testing.T, c *contract.Contract) (Sessio
 	s := testStoreWithMigrations(t)
 
 	cfg := testConfig()
+	mock := llm.NewMockClient(map[string]string{"default": "{}"})
+	// AssessCoverage migrated to DecideWithTools (S4): preset the
+	// assess_coverage tool so Resume produces a non-nil Assessment. The
+	// objective gate overrides `reached` (10% < 99% gate → false).
+	mock.SetToolResponse("Objective coverage of gated module", assessCoverageToolCalls())
 	scfg := SessionConfig{
 		Mode:       ModeRun,
 		Goal:       "resume coverage test",
 		Config:     &cfg,
 		Store:      s,
-		Client:     llm.NewMockClient(map[string]string{"default": "{}"}),
+		Client:     mock,
 		Logger:     zap.NewNop(),
 		Gate:       nil,
 		ProjectDir: ".",

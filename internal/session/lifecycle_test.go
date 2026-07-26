@@ -119,18 +119,38 @@ func fullRunClient(content string) llm.Client {
 }
 
 // fullRunClientWithContract returns a Client whose DecideWithTools responses
-// satisfy Scout.Plan (keyed by "Test Goal: ") AND Scout.BuildCoverageContract
-// (keyed by "Define the coverage contract via tools"). MockClient.matchKey's
-// longest-substring-win logic routes each DecideWithTools call to its preset.
-// Other Decide calls (Agent/Examiner Steer/Judge/AssessCoverage) fall through
-// to the "default" response "{}", which parses into any target struct as zero
-// values — mirroring the previous combinedMockClient behavior where every
-// non-tool Decide parsed contractJSON into the caller's schema.
+// satisfy Scout.Plan (keyed by "Test Goal: "), Scout.BuildCoverageContract
+// (keyed by "Define the coverage contract via tools"), AND Examiner.
+// AssessCoverage (keyed by "Objective coverage of gated module").
+// MockClient.matchKey's longest-substring-win logic routes each
+// DecideWithTools call to its preset. Other Decide calls (Agent/Examiner
+// Steer/Judge) fall through to the "default" response "{}", which parses into
+// any target struct as zero values; Judge's zero-call error maps to
+// fallbackVerdict in examiner.go.
 func fullRunClientWithContract() llm.Client {
 	mock := llm.NewMockClient(map[string]string{"default": "{}"})
 	mock.SetToolResponse("Test Goal: ", planToolCalls())
 	mock.SetToolResponse("Define the coverage contract via tools", contractToolCallsForSession())
+	mock.SetToolResponse("Objective coverage of gated module", assessCoverageToolCalls())
 	return mock
+}
+
+// assessCoverageToolCalls presets the assess_coverage tool for the session-level
+// Run/Resume tests. Under the S4 tool-calling migration AssessCoverage consumes
+// an assess_coverage tool call (not JSON); without this preset the mock's
+// "default":"{}" text response yields zero tool calls, AssessCoverage errors,
+// and sess.Assessment stays nil. The objective gate in assess.go overrides
+// `reached` when measurement < threshold, so the fixture value here only
+// matters for the no-gate path.
+func assessCoverageToolCalls() []llm.ToolCall {
+	return []llm.ToolCall{{
+		Name: "assess_coverage",
+		Input: map[string]any{
+			"reached":   true,
+			"gaps":      []any{},
+			"reasoning": "session-test fixture",
+		},
+	}}
 }
 
 // contractToolCallsForSession presets the six coverage-contract tools for the
