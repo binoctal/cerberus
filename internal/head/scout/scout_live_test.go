@@ -23,8 +23,14 @@ import (
 // TestScoutRelayEmission_Live drives Scout.Plan with the real LLM (loaded from
 // .claude/settings.json via config.Load) against a two-role WS protocol and a
 // relay goal, then dumps the generated cases to inspect whether the LLM emits a
-// ws_relay intent (the A1 risk for Scout relay generation). Build-tagged `live`
-// so it never runs in `make test`. Run:
+// ws_flow choreography via begin_case+ws_* tools (the A1 risk for Scout relay
+// generation). Pre-S2 this was a "ws_relay" structured-output intent, which GLM
+// never emitted (see cerberus-docs/technical/dogfood/2026-07-24-ws-scout-relay-llm-dogfood-procedure.md);
+// S2 renamed it to a ws_flow case assembled from begin_case+ws_* tool calls.
+// Cases are categorized (http/ws_flow/invariant/process/…) so action=""
+// (check_invariant → invariant assertion, deliberately Action-less) is not
+// misread as a malformed case. Build-tagged `live` so it never runs in `make
+// test`. Run:
 //
 //	go test -tags live -run TestScoutRelayEmission_Live -v ./internal/head/scout/
 func TestScoutRelayEmission_Live(t *testing.T) {
@@ -80,9 +86,19 @@ func TestScoutRelayEmission_Live(t *testing.T) {
 	}
 
 	t.Logf("=== %d cases generated ===", len(plan.Cases))
-	sawRelay, sawMultiStep := false, false
+	sawFlow, sawMultiStep := false, false
+	counts := map[string]int{}
 	for i, c := range plan.Cases {
-		t.Logf("[%d] id=%q action=%q service=%q target=%q", i, c.ID, c.Action, c.Service, c.Target)
+		// Categorize so action="" (check_invariant → invariant assertion,
+		// deliberately Action-less) is not misread as a malformed case.
+		cat := c.Action
+		if c.Method != "" {
+			cat = "http"
+		} else if c.Action == "" {
+			cat = "invariant"
+		}
+		counts[cat]++
+		t.Logf("[%d] id=%q cat=%s action=%q service=%q target=%q", i, c.ID, cat, c.Action, c.Service, c.Target)
 		if c.Body != "" {
 			t.Logf("    body=%s", truncLive(c.Body, 220))
 		}
@@ -92,11 +108,12 @@ func TestScoutRelayEmission_Live(t *testing.T) {
 		for j, st := range c.Steps {
 			t.Logf("    step[%d] %s conn=%s role=%s type=%s", j, st.Action, st.ConnectionID, st.Role, st.Type)
 		}
-		if c.Action == "ws_relay" {
-			sawRelay = true
+		if c.Action == "ws_flow" {
+			sawFlow = true
 		}
 	}
-	t.Logf("=== saw ws_relay case: %v | saw multi-step (>1) case: %v ===", sawRelay, sawMultiStep)
+	t.Logf("=== categories: %+v ===", counts)
+	t.Logf("=== saw ws_flow case: %v | saw multi-step (>1) case: %v ===", sawFlow, sawMultiStep)
 }
 
 func truncLive(s string, n int) string {
