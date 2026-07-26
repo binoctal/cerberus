@@ -83,9 +83,9 @@ func planTools() []llm.Tool {
 func proposeTools() []llm.Tool {
 	return []llm.Tool{
 		{Name: "propose_strategy", Description: "Propose one diverse test strategy.",
-			InputSchema: objSchema([]any{"description", "cases"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"description", "cases"}, map[string]any{
 				"description": map[string]any{"type": "string"},
-				"cases":       strArrSchema(),
+				"cases":       llm.StrArrSchema(),
 			})},
 	}
 }
@@ -97,19 +97,19 @@ func proposeTools() []llm.Tool {
 func analyzeTools() []llm.Tool {
 	return []llm.Tool{
 		{Name: "report_endpoint", Description: "Report one discovered API endpoint.",
-			InputSchema: objSchema([]any{"method", "path"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"method", "path"}, map[string]any{
 				"method":     map[string]any{"type": "string"},
 				"path":       map[string]any{"type": "string"},
 				"confidence": map[string]any{"type": "number"},
 			})},
 		{Name: "report_page", Description: "Report one discovered page/route.",
-			InputSchema: objSchema([]any{"path"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"path"}, map[string]any{
 				"path":       map[string]any{"type": "string"},
 				"confidence": map[string]any{"type": "number"},
 			})},
 		{Name: "declare_tech", Description: "Declare detected tech stack (string array).",
-			InputSchema: objSchema([]any{"stack"}, map[string]any{
-				"stack": strArrSchema(),
+			InputSchema: llm.ObjSchema([]any{"stack"}, map[string]any{
+				"stack": llm.StrArrSchema(),
 			})},
 	}
 }
@@ -120,20 +120,20 @@ func analyzeTools() []llm.Tool {
 func contractTools() []llm.Tool {
 	return []llm.Tool{
 		{Name: "declare_scope", Description: "Declare the modules/paths in scope.",
-			InputSchema: objSchema([]any{"modules"}, map[string]any{"modules": strArrSchema()})},
+			InputSchema: llm.ObjSchema([]any{"modules"}, map[string]any{"modules": llm.StrArrSchema()})},
 		{Name: "declare_path_types", Description: "Declare path types to cover.",
-			InputSchema: objSchema([]any{"types"}, map[string]any{"types": enumArrSchema("happy", "alternative", "boundary", "edge")})},
+			InputSchema: llm.ObjSchema([]any{"types"}, map[string]any{"types": llm.EnumArrSchema("happy", "alternative", "boundary", "edge")})},
 		{Name: "declare_error_scope", Description: "Declare error scopes to cover.",
-			InputSchema: objSchema([]any{"scopes"}, map[string]any{"scopes": enumArrSchema("4xx", "validation", "exception")})},
+			InputSchema: llm.ObjSchema([]any{"scopes"}, map[string]any{"scopes": llm.EnumArrSchema("4xx", "validation", "exception")})},
 		{Name: "declare_boundaries", Description: "Declare boundary classes to cover.",
-			InputSchema: objSchema([]any{"boundaries"}, map[string]any{"boundaries": enumArrSchema("empty", "zero", "max", "invalid", "extreme")})},
+			InputSchema: llm.ObjSchema([]any{"boundaries"}, map[string]any{"boundaries": llm.EnumArrSchema("empty", "zero", "max", "invalid", "extreme")})},
 		{Name: "set_priority", Description: "Map a priority bucket to its modules.",
-			InputSchema: objSchema([]any{"bucket", "modules"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"bucket", "modules"}, map[string]any{
 				"bucket":  map[string]any{"type": "string"},
-				"modules": strArrSchema(),
+				"modules": llm.StrArrSchema(),
 			})},
 		{Name: "set_coverage_gate", Description: "Set the objective coverage gate.",
-			InputSchema: objSchema([]any{"module"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"module"}, map[string]any{
 				"module":           map[string]any{"type": "string"},
 				"line_threshold":   map[string]any{"type": "number"},
 				"branch_threshold": map[string]any{"type": "number"},
@@ -146,26 +146,6 @@ func contractTools() []llm.Tool {
 // replacing the legacy notes JSON.
 func selfAssessTools() []llm.Tool {
 	return []llm.Tool{{Name: "report_contract_gap", Description: "Report one coverage gap.",
-		InputSchema: objSchema([]any{"note"}, map[string]any{"note": map[string]any{"type": "string"}})},
+		InputSchema: llm.ObjSchema([]any{"note"}, map[string]any{"note": map[string]any{"type": "string"}})},
 	}
-}
-
-// objSchema wraps an object schema with required + properties.
-func objSchema(required []any, props map[string]any) map[string]any {
-	return map[string]any{"type": "object", "properties": props, "required": required}
-}
-
-// strArrSchema returns a schema for a free-form string array.
-func strArrSchema() map[string]any {
-	return map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
-}
-
-// enumArrSchema returns a schema for a string array whose items are constrained
-// to one of the provided enum values.
-func enumArrSchema(vals ...string) map[string]any {
-	cs := make([]any, len(vals))
-	for i, v := range vals {
-		cs[i] = v
-	}
-	return map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": cs}}
 }

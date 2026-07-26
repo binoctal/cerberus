@@ -27,7 +27,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "api_request",
 			Description: "Issue an HTTP request to the target service.",
-			InputSchema: objSchema([]any{"method", "url"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"method", "url"}, map[string]any{
 				"method":  map[string]any{"type": "string", "enum": []any{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}},
 				"url":     map[string]any{"type": "string"},
 				"body":    map[string]any{"type": "string"},
@@ -40,7 +40,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "navigate",
 			Description: "Navigate the browser to a URL.",
-			InputSchema: objSchema([]any{"url"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"url"}, map[string]any{
 				"url":           map[string]any{"type": "string"},
 				"wait_selector": map[string]any{"type": "string"},
 				"wait_for":      map[string]any{"type": "number"},
@@ -49,7 +49,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "wait",
 			Description: "Wait before proceeding (duration, selector, or state).",
-			InputSchema: objSchema(nil, map[string]any{
+			InputSchema: llm.ObjSchema(nil, map[string]any{
 				"duration":       map[string]any{"type": "string"},
 				"selector":       map[string]any{"type": "string"},
 				"wait_for_state": map[string]any{"type": "string"},
@@ -60,7 +60,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "process_exec",
 			Description: "Execute a system command.",
-			InputSchema: objSchema([]any{"command"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"command"}, map[string]any{
 				"command":  map[string]any{"type": "string"},
 				"args":     map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 				"work_dir": map[string]any{"type": "string"},
@@ -73,7 +73,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "file_read",
 			Description: "Read bytes from a file.",
-			InputSchema: objSchema([]any{"path"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"path"}, map[string]any{
 				"path":   map[string]any{"type": "string"},
 				"offset": map[string]any{"type": "number"},
 				"limit":  map[string]any{"type": "number"},
@@ -82,7 +82,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "file_write",
 			Description: "Write content to a file.",
-			InputSchema: objSchema([]any{"path", "content"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"path", "content"}, map[string]any{
 				"path":               map[string]any{"type": "string"},
 				"content":            map[string]any{"type": "string"},
 				"create_parent_dirs": map[string]any{"type": "boolean"},
@@ -92,14 +92,14 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "file_exists",
 			Description: "Check whether a file exists.",
-			InputSchema: objSchema([]any{"path"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"path"}, map[string]any{
 				"path": map[string]any{"type": "string"},
 			}),
 		},
 		{
 			Name:        "file_glob",
 			Description: "Find files matching a glob pattern.",
-			InputSchema: objSchema([]any{"pattern"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"pattern"}, map[string]any{
 				"pattern": map[string]any{"type": "string"},
 				"path":    map[string]any{"type": "string"},
 			}),
@@ -109,7 +109,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "browser_goto",
 			Description: "Navigate the browser to a URL (Playwright-style).",
-			InputSchema: objSchema([]any{"url"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"url"}, map[string]any{
 				"url":        map[string]any{"type": "string"},
 				"wait_until": map[string]any{"type": "string", "enum": []any{"load", "domcontentloaded", "networkidle0", "networkidle2"}},
 			}),
@@ -117,7 +117,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "browser_click",
 			Description: "Click an element matching a CSS selector.",
-			InputSchema: objSchema([]any{"selector"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"selector"}, map[string]any{
 				"selector":  map[string]any{"type": "string"},
 				"text":      map[string]any{"type": "string"},
 				"button":    map[string]any{"type": "string", "enum": []any{"left", "right", "middle"}},
@@ -127,7 +127,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "browser_fill",
 			Description: "Fill a form field with a value.",
-			InputSchema: objSchema([]any{"selector", "value"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"selector", "value"}, map[string]any{
 				"selector": map[string]any{"type": "string"},
 				"value":    map[string]any{"type": "string"},
 			}),
@@ -135,7 +135,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "browser_eval",
 			Description: "Evaluate a JavaScript expression in the browser.",
-			InputSchema: objSchema([]any{"expression"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"expression"}, map[string]any{
 				"expression": map[string]any{"type": "string"},
 				"args":       map[string]any{"type": "array"},
 			}),
@@ -145,7 +145,7 @@ func actionTools() []llm.Tool {
 		{
 			Name:        "mcp_call",
 			Description: "Call a method on an MCP server.",
-			InputSchema: objSchema([]any{"server", "method"}, map[string]any{
+			InputSchema: llm.ObjSchema([]any{"server", "method"}, map[string]any{
 				"server": map[string]any{"type": "string"},
 				"method": map[string]any{"type": "string"},
 				"params": map[string]any{"type": "object"},
@@ -154,17 +154,8 @@ func actionTools() []llm.Tool {
 	}
 }
 
-// objSchema wraps an object schema with required + properties. A nil required
-// list means every property is optional (used by wait, which has no required
-// field). Mirrors the helper in scout/tools.go — both heads build the same
-// provider shape.
-func objSchema(required []any, props map[string]any) map[string]any {
-	s := map[string]any{"type": "object", "properties": props}
-	if required != nil {
-		s["required"] = required
-	}
-	return s
-}
+// objSchema + strArrSchema + enumArrSchema live in internal/llm/schema.go,
+// shared by Scout, Agent, and Examiner.
 
 // recoveryTools returns the action tool surface plus a dedicated `skip`
 // control tool used only by Recovery.Recover. Steer must not be able to skip a
@@ -179,6 +170,6 @@ func recoveryTools() []llm.Tool {
 	return append(actionTools(), llm.Tool{
 		Name:        "skip",
 		Description: "Abandon this target — it is unrecoverable.",
-		InputSchema: objSchema(nil, map[string]any{}),
+		InputSchema: llm.ObjSchema(nil, map[string]any{}),
 	})
 }
