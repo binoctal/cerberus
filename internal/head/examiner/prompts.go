@@ -17,8 +17,8 @@ RULES:
 - Only mark PASS for an error when the SYSTEM-UNDER-TEST deliberately returned/raised the expected error (a real negative test). A Step Error that prevented the test from executing is always FAIL.
 - For a WebSocket case, PASS requires a real upgraded exchange: a successful ws_connect and, when the expectation is receiving a message, a ws_receive that matched the awaited type. Any plain-HTTP response in a WS case (426 Upgrade Required, 400, connection closed without upgrade) means the socket was never upgraded — that is a FAIL, not a pass. A WS case whose evidence is only failing HTTP requests, with no ws_* result and no matched WS message, did not test the WebSocket and is a FAIL. A connect-only case (expectation: establish the connection) passes on a successful ws_connect without a matched receive.`
 
-// promptJudgeToolGuide replaces the legacy promptJudgeOutput JSON schema. The
-// judge no longer returns JSON — it emits a judge_result tool call that the
+// promptJudgeToolGuide replaces the legacy "Respond with JSON" instruction.
+// The judge no longer returns JSON — it emits a judge_result tool call that the
 // provider schema-validates and assembleJudge turns into a JudgeResult.
 const promptJudgeToolGuide = `Emit ONE judge_result TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
 
@@ -32,7 +32,7 @@ COMMON ERRORS:
 
 Be skeptical. Only flag real issues.`
 
-// promptCriticToolGuide replaces the legacy promptCriticOutput JSON schema.
+// promptCriticToolGuide replaces the legacy "Respond with JSON" instruction.
 // The critic emits a critique_verdict tool call instead of JSON.
 const promptCriticToolGuide = `Emit ONE critique_verdict TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
 
@@ -56,9 +56,9 @@ RULES:
 - Anchor each condition_pattern to the SPECIFIC target where it occurred so future tests on the same endpoint can recall it: start with the HTTP method and endpoint path (use {id} for variable path segments), then the observed status code or failure mode. Examples: "POST /api/v1/auth/login → 401 invalid credentials", "GET /api/v1/users/{id} → 404 not found". For non-HTTP targets, anchor to the target string and the failure mode.
 - Pick the most specific category from: timeout_recovery, auth_failure, endpoint_not_found, server_error, ambiguous_result, general_failure.`
 
-// promptReflectionToolGuide replaces the legacy promptReflectionOutput JSON
-// schema. Each reflection is now a report_reflection tool call (one per result
-// the LLM chooses to reflect on); the provider schema-validates each call and
+// promptReflectionToolGuide replaces the legacy "Respond with JSON" instruction.
+// Each reflection is now a report_reflection tool call (one per result the LLM
+// chooses to reflect on); the provider schema-validates each call and
 // assembleReflections walks N calls into []Reflection.
 const promptReflectionToolGuide = `Emit ONE report_reflection TOOL CALL PER reflection. Do not output JSON — the tool schema enforces the structure.`
 
@@ -70,7 +70,7 @@ RULES:
 - If a parameter or header is missing, describe the corrective action.
 - Be concise: one paragraph of reasoning.`
 
-// promptAutoFixToolGuide replaces the legacy promptAutoFixOutput JSON schema.
+// promptAutoFixToolGuide replaces the legacy "Respond with JSON" instruction.
 // The auto-fix call emits a suggest_fix tool call instead of JSON; the provider
 // schema-validates it and assembleAutofix turns it into (reasoning, skip).
 const promptAutoFixToolGuide = `Emit ONE suggest_fix TOOL CALL. Do not output JSON — the tool schema enforces the structure.`
