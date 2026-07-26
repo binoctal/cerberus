@@ -83,4 +83,5 @@ Rules:
 - Cover every endpoint in the project model. Order high-risk/low-confidence first.
 - For POST/PUT/PATCH, include a concrete body unless a service body_template applies.
 - For multi-party WS relay (two or more protocol roles exchanging messages), emit begin_case followed by the ordered ws_connect/ws_send/ws_receive sequence — do NOT also emit single-role ws_connect cases the relay already covers.
+- A begin_case MUST be immediately followed by the ws_* steps of the choreography: at least one ws_connect per role, then ws_send/ws_receive. A bare begin_case with no following ws_* produces no case (the planner drops it). Example relay sequence: begin_case -> ws_connect web -> ws_connect bridge -> ws_send web <type> -> ws_receive bridge <type> -> ws_disconnect web -> ws_disconnect bridge.
 - Omit JSON; the tool schemas enforce structure.`
