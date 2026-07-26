@@ -22,6 +22,14 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 	nextID := func() string { id++; return fmt.Sprintf("tc-%03d", id) }
 	flush := func() {
 		if open != nil {
+			if open.Action == "ws_flow" && len(open.Steps) == 0 {
+				// A begin_case the LLM opened with no following ws_* calls.
+				// Drop it: a 0-step ws_flow case is not a real case — it would
+				// waste an Agent cycle and confuse the Examiner. (Defense side
+				// of ws_flow emission stability; the prompt handles guidance.)
+				open = nil
+				return
+			}
 			if open.Service != "" {
 				for _, st := range open.Steps {
 					if st.Action == "ws_connect" && st.Role != "" {

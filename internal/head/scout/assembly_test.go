@@ -98,6 +98,23 @@ func TestAssemblePlan_WSDroppedWithoutBeginCase(t *testing.T) {
 	assert.Empty(t, plan.Cases)
 }
 
+// TestAssemblePlan_DropsEmptyWSFlowCase asserts the defense side of ws_flow
+// emission stability (spec 2026-07-27-ws-flow-emission-stability): a begin_case
+// the LLM emitted with NO following ws_* calls must NOT become a 0-step ws_flow
+// case — it is dropped, so it cannot waste an Agent cycle or confuse the
+// Examiner. (GLM does this non-deterministically; run-2 of the 2026-07-26
+// dogfood emitted exactly this.) Contrast TestAssemblePlan_WSRelaySequence,
+// which has ws_* after begin_case and must still produce a populated case.
+func TestAssemblePlan_DropsEmptyWSFlowCase(t *testing.T) {
+	calls := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "bridge gets signal", "service": "ws"}},
+		// no ws_* follows — the model opened a case and moved on
+	}
+	plan, covered := assemblePlan(calls, "g", "", nil)
+	assert.Empty(t, plan.Cases, "empty ws_flow case (begin_case with 0 ws_* steps) must be dropped")
+	assert.Empty(t, covered, "an empty ws_flow case records no connected roles")
+}
+
 // TestAssembleAnalyze_DeclareTechForcesStrings asserts the Analyze tool-calling
 // migration: declare_tech's schema forces a string array, so assembleAnalyze
 // produces []string directly — flexibleStrings drift absorption is gone.
