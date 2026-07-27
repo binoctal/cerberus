@@ -67,10 +67,14 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 			cases = append(cases, assembleNavigate(call, nextID))
 		case "begin_case":
 			flush()
+			svcName := llm.StrField(call, "service")
 			open = &agent.TestCase{
 				ID: nextID(), Name: llm.StrField(call, "name"),
 				Expectation: llm.StrField(call, "expectation"), Action: "ws_flow",
-				Service: llm.StrField(call, "service"),
+				Service: svcName,
+				// ws_connect dials tc.Target (stepToAction); the LLM emits the
+				// service NAME, so resolve it to the service URL here.
+				Target: serviceURLByName(svcName, services),
 			}
 			// ws_* handled in Task 2; high-level-only tests never hit them.
 		case "ws_connect":
@@ -170,6 +174,18 @@ func assembleContract(calls []llm.ToolCall, depth string, invs []contract.Invari
 }
 
 // --- high-level assemblers ---
+
+// serviceURLByName returns the URL of the named service, or "" if not found.
+// Used by begin_case so a ws_flow case's Target is the dial URL stepToAction
+// uses for ws_connect (the LLM emits the service NAME, not the URL).
+func serviceURLByName(name string, services []project.Service) string {
+	for _, s := range services {
+		if s.Name == name {
+			return s.URL
+		}
+	}
+	return ""
+}
 
 func assembleHTTP(c llm.ToolCall, nextID func() string, svcs []project.Service) agent.TestCase {
 	method := strings.ToUpper(llm.StrField(c, "method"))

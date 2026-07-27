@@ -115,6 +115,26 @@ func TestAssemblePlan_DropsEmptyWSFlowCase(t *testing.T) {
 	assert.Empty(t, covered, "an empty ws_flow case records no connected roles")
 }
 
+// TestAssemblePlan_WSFlowCaseTargetIsServiceURL asserts the execution-side
+// companion of ws_flow emission stability: a ws_flow case (begin_case + ws_*)
+// is executed by runSteps via stepToAction, which dials ws_connect at
+// TestCase.Target. The LLM's begin_case carries the service NAME (not URL), so
+// assembly must set Target to that service's URL — otherwise ws_connect dials
+// "" (10µs fail, proto nil → unknown role). The 2026-07-27 dogfood surfaced
+// this: emission stability made the LLM emit a complete ws_flow, but it could
+// not execute because Target was empty.
+func TestAssemblePlan_WSFlowCaseTargetIsServiceURL(t *testing.T) {
+	svcs := []project.Service{{Name: "realtime", URL: "http://localhost:8989/ws/u1"}}
+	calls := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "web gets signal", "service": "realtime"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+	}
+	plan, _ := assemblePlan(calls, "g", "", svcs)
+	require.Len(t, plan.Cases, 1)
+	assert.Equal(t, "http://localhost:8989/ws/u1", plan.Cases[0].Target,
+		"ws_flow case Target must be the service URL so stepToAction's ws_connect can dial it")
+}
+
 // TestAssembleAnalyze_DeclareTechForcesStrings asserts the Analyze tool-calling
 // migration: declare_tech's schema forces a string array, so assembleAnalyze
 // produces []string directly — flexibleStrings drift absorption is gone.
