@@ -570,12 +570,21 @@ func removeString(ss []string, s string) []string {
 }
 
 // checkAsserts evaluates field-level assertions against data in sorted path
-// order (deterministic error reporting). On the first failure it returns the
-// path, expected value, and actual ("<missing>" for an absent key); otherwise
-// ok=true. Empty asserts is a no-op (M1 behavior).
-func checkAsserts(data []byte, asserts map[string]any) (path string, expected, actual any, ok bool) {
+// order (deterministic error reporting). On the first LEGIT failure (a path
+// whose root segment exists in the matched message but the full path is absent
+// or its value mismatches) it returns the path, expected, actual ("<missing>"
+// for an absent intermediate key) and ok=false. Entries whose ROOT segment is
+// not a top-level key of the matched message are treated as malformed (a
+// wrong-path or expression-shape assert the LLM emitted) and SKIPPED — collected
+// in malformedPaths, non-fatal — so a type-matched receive is never false-failed
+// by a malformed assert. A legit assert always references a path whose root is a
+// real top-level field; the only masked case is a legit assert on a root field
+// genuinely absent from the message (structurally identical to a wrong-path
+// malformed assert — accepted, surfaced via malformedPaths for a visible warn).
+// Empty asserts is a no-op (M1 behavior).
+func checkAsserts(data []byte, asserts map[string]any) (failPath string, failExpected, failActual any, ok bool, malformedPaths []string) {
 	if len(asserts) == 0 {
-		return "", nil, nil, true
+		return "", nil, nil, true, nil
 	}
 	paths := make([]string, 0, len(asserts))
 	for k := range asserts {
@@ -584,15 +593,27 @@ func checkAsserts(data []byte, asserts map[string]any) (path string, expected, a
 	sort.Strings(paths)
 	for _, p := range paths {
 		exp := asserts[p]
+		// Malformed-assert defense (D4): if the path's root segment is not a
+		// top-level key of the matched message, the entry is almost certainly a
+		// malformed (wrong-path / expression-shape) assert rather than a real
+		// content check. Skip it (non-fatal) and record it for a visible warning.
+		root := p
+		if i := strings.IndexByte(p, '.'); i >= 0 {
+			root = p[:i]
+		}
+		if _, rootFound := extractPath(data, root); !rootFound {
+			malformedPaths = append(malformedPaths, p)
+			continue
+		}
 		got, found := extractPath(data, p)
 		if !found {
-			return p, exp, "<missing>", false
+			return p, exp, "<missing>", false, malformedPaths
 		}
 		if !valueEqual(got, exp) {
-			return p, exp, got, false
+			return p, exp, got, false, malformedPaths
 		}
 	}
-	return "", nil, nil, true
+	return "", nil, nil, true, malformedPaths
 }
 
 // valueEqual reports whether actual equals expected, with numeric
@@ -708,7 +729,8 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 		// The matched frame is evidence either way. No asserts (or non-json
 		// framing) → arrival-only success.
 		if framing == "" || framing == "json" {
-			if p, exp, act, ok := checkAsserts(data, a.Assert); !ok {
+			p, exp, act, ok, malformed := checkAsserts(data, a.Assert)
+			if !ok {
 				return types.WSResult{
 					OK:             false,
 					Err:            fmt.Sprintf("receive: assert %s: expected %v, got %v", p, exp, act),
@@ -716,6 +738,15 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 					SeenMessages:   seen,
 					Latency:        time.Since(start),
 				}
+			}
+			if len(malformed) > 0 {
+				// Visible masking: these assert entries referenced roots absent
+				// from the matched message (likely malformed). The type matched,
+				// so the receive is NOT failed; logged so the skip is visible.
+				e.logger.Warn("ws_receive: assert entries skipped (root not in matched message, likely malformed — not failing the matched receive)",
+					zap.String("type", a.Type),
+					zap.String("connection_id", a.ConnectionID),
+					zap.Strings("skipped_paths", malformed))
 			}
 		}
 		return types.WSResult{OK: true, MatchedMessage: frameForResult(framing, data), SeenMessages: seen, Latency: time.Since(start)}

@@ -1028,10 +1028,14 @@ func TestReceiveAssertValueMismatchFails(t *testing.T) {
 }
 
 func TestReceiveAssertMissingPathFails(t *testing.T) {
+	// Root `payload` is PRESENT (an empty object); the leaf `approved` is
+	// absent. This is a legit intermediate-missing path that must still fail
+	// under the D4 malformed-assert defense (which only tolerates entries whose
+	// ROOT is absent). Contrast TestReceiveAssertMalformedRootNotFailed below.
 	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"x"}`))
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"x","payload":{}}`))
 		_, _, _ = conn.Read(ctx)
 	})
 	ex := newWSExecutor()
@@ -1047,6 +1051,87 @@ func TestReceiveAssertMissingPathFails(t *testing.T) {
 	}
 	if !strings.Contains(ws.Err, "payload.approved") || !strings.Contains(ws.Err, "<missing>") {
 		t.Fatalf("err should report missing path: %q", ws.Err)
+	}
+}
+
+// TestReceiveAssertMalformedRootNotFailed locks the D4 defense: when the
+// routing-key type matched, assert entries whose ROOT segment is not a
+// top-level key of the matched message are treated as malformed (a wrong-path
+// or expression-shape assert the LLM emitted) and do NOT fail the receive.
+// Reproduces the 2026-07-28 dogfood false-fails (run3 {field,op,value};
+// run4 {msgType:...}) on a correctly-matched device:online relay.
+func TestReceiveAssertMalformedRootNotFailed(t *testing.T) {
+	wsURL := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"device:online","payload":{"deviceId":"d1"}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	for _, desc := range []struct {
+		id string
+		m  map[string]any
+	}{
+		{"c-wrong", map[string]any{"msgType": "device:online"}},
+		{"c-expr", map[string]any{"field": "type", "op": "==", "value": "device:online"}},
+		{"c-absent", map[string]any{"metadata.version": 2}}, // legit shape, absent root → tolerated (masked)
+	} {
+		// Fresh connection per case: the test server writes one message per
+		// connection, so each subcase must connect its own socket.
+		ex.Execute(ctx, types.WSConnectAction{URL: wsURL, ConnectionID: desc.id})
+		res := ex.Execute(ctx, types.WSReceiveAction{
+			ConnectionID: desc.id, Type: "device:online", Assert: desc.m,
+		})
+		ws, ok := res.(types.WSResult)
+		if !ok || !ws.Success() {
+			t.Fatalf("%s: malformed-root assert must not fail a matched receive: %+v", desc.id, res)
+		}
+		if !strings.Contains(ws.MatchedMessage, "device:online") {
+			t.Fatalf("%s: matched message should still be evidence: %s", desc.id, ws.MatchedMessage)
+		}
+	}
+}
+
+// TestCheckAsserts_MalformedRootSkipped is a direct unit test of the
+// malformed-assert defense: root-absent entries are skipped (malformedPaths),
+// root-exists entries are evaluated normally (mismatch/intermediate-missing
+// still fails).
+func TestCheckAsserts_MalformedRootSkipped(t *testing.T) {
+	data := []byte(`{"type":"device:online","payload":{"deviceId":"d1"}}`)
+	cases := []struct {
+		name    string
+		asserts map[string]any
+		wantOK  bool
+		wantBad []string // entries that must appear in malformedPaths
+	}{
+		{"wrong-path root", map[string]any{"msgType": "device:online"}, true, []string{"msgType"}},
+		{"expression shape", map[string]any{"field": "type", "op": "==", "value": "device:online"}, true, []string{"field", "op", "value"}},
+		{"root-exists value match", map[string]any{"type": "device:online"}, true, nil},
+		{"root-exists nested match", map[string]any{"payload.deviceId": "d1"}, true, nil},
+		{"root-exists value mismatch", map[string]any{"type": "device:offline"}, false, nil},
+		{"root-exists intermediate missing", map[string]any{"payload.absent": "x"}, false, nil},
+		{"legit absent root (masked)", map[string]any{"metadata.version": 2}, true, []string{"metadata.version"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, _, _, ok, malformed := checkAsserts(data, c.asserts)
+			if ok != c.wantOK {
+				t.Fatalf("ok=%v want %v (malformed=%v)", ok, c.wantOK, malformed)
+			}
+			for _, w := range c.wantBad {
+				found := false
+				for _, m := range malformed {
+					if m == w {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("want malformedPaths to contain %q, got %v", w, malformed)
+				}
+			}
+		})
 	}
 }
 
