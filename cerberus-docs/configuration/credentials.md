@@ -11,6 +11,7 @@
 ```bash
 export CERBERUS_ACTOR_ADMIN_EMAIL="admin@example.com"
 export CERBERUS_ACTOR_ADMIN_PASSWORD="secret"
+export CERBERUS_ACTOR_ADMIN_TOKEN="api-key-or-dev-token"
 ```
 
 Actor name is uppercased with hyphens replaced by underscores.
@@ -24,6 +25,7 @@ actors:
   admin:
     email: admin@example.com
     password: changeme
+    token: api-key-or-dev-token
 ```
 
 !!! warning

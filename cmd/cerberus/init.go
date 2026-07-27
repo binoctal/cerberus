@@ -64,6 +64,7 @@ actors:
   admin:
     email: admin@example.com
     password: changeme
+    # token: <static WS token — for actors with no auth flow (API key / dev backdoor)>
 `
 			if err := os.WriteFile(dir+"/credentials.yaml", []byte(credYAML), 0644); err != nil {
 				return err
