@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -271,4 +272,96 @@ func (m *errorMockClient) CompleteWithVision(ctx context.Context, prompt string,
 
 func (m *errorMockClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.StreamEvent, error) {
 	return nil, m.err
+}
+
+// wsRelayConfig is a minimal config whose declared protocol makes
+// WSCasesCovered emit the deterministic peer-join relay case (web has an
+// OPTIONAL handshake awaiting a signal; bridge is the peer). Used by the
+// zero-case fallback tests. The URL value is irrelevant — cases are not
+// executed in these tests.
+func wsRelayConfig() *project.Config {
+	return &project.Config{
+		Project: project.ProjectMeta{Name: "relay"},
+		Services: []project.Service{{
+			Name: "realtime",
+			URL:  "http://localhost:8989/u",
+			Protocol: &project.Protocol{
+				TypePath: "type",
+				Roles: map[string]*project.ProtocolRole{
+					"web": {
+						Params:    map[string]string{"type": "web"},
+						Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2},
+					},
+					"bridge": {Params: map[string]string{"type": "bridge"}},
+				},
+			},
+		}},
+	}
+}
+
+// TestPlan_ZeroToolCalls_ProceedsToDeterministic asserts that when the LLM
+// returns zero tool calls, Scout.Plan no longer aborts: it proceeds to
+// deterministic augmentation and the protocol-derived relay case is generated.
+// (Reproduces the 2026-07-27 dogfood zero-case scenario; now passes — zero tool calls
+// proceed to deterministic augmentation instead of aborting.)
+func TestPlan_ZeroToolCalls_ProceedsToDeterministic(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("zero tool calls relay goal", []llm.ToolCall{}) // zero tool calls
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+	sct := NewScout(driver, setupTestStore(t), wsRelayConfig(), zap.NewNop())
+
+	plan, err := sct.Plan(context.Background(), "zero tool calls relay goal", &project.ProjectModel{})
+	require.NoError(t, err, "zero LLM tool calls must not abort when deterministic cases apply")
+	var hasRelay bool
+	for _, c := range plan.Cases {
+		if c.ID == "ws-realtime-relay-web-signal-device-online" {
+			hasRelay = true
+		}
+	}
+	require.True(t, hasRelay, "expected the deterministic relay case; got case IDs: %v", caseIDStrings(plan.Cases))
+}
+
+// TestPlan_ZeroAssembled_ProceedsToDeterministic: the LLM returns a bare
+// begin_case with no ws_* follow-ups, which assembly drops (empty ws_flow) →
+// zero assembled cases. The plan must still proceed to deterministic cases.
+func TestPlan_ZeroAssembled_ProceedsToDeterministic(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("zero assembled relay goal", []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "x", "expectation": "ok", "service": "realtime"}},
+		// no ws_* follows → assembly drops the empty ws_flow case → 0 assembled cases
+	})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+	sct := NewScout(driver, setupTestStore(t), wsRelayConfig(), zap.NewNop())
+
+	plan, err := sct.Plan(context.Background(), "zero assembled relay goal", &project.ProjectModel{})
+	require.NoError(t, err)
+	require.NotEmpty(t, plan.Cases, "deterministic relay case should survive a zero-assembled LLM round")
+}
+
+// TestPlan_NoCasesAtAll_ReturnsEmpty: zero LLM tool calls + no protocol + a
+// non-code root (so GenerateExecutorCases is also empty) → the augmented plan
+// is empty → Scout.Plan returns the empty plan, nil (graceful completion; the
+// session layer treats an empty plan as a successful no-op run).
+func TestPlan_NoCasesAtAll_ReturnsEmpty(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("nothing applies goal", []llm.ToolCall{})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+	cfg := &project.Config{
+		Project: project.ProjectMeta{Name: "empty"},
+		Code:    project.CodeConfig{Root: t.TempDir()}, // non-code dir → no executor cases
+	}
+	sct := NewScout(driver, setupTestStore(t), cfg, zap.NewNop())
+
+	plan, err := sct.Plan(context.Background(), "nothing applies goal", &project.ProjectModel{})
+	require.NoError(t, err)
+	require.Empty(t, plan.Cases, "no protocol + non-code root → empty plan, returned gracefully (not an error)")
+}
+
+// caseIDStrings returns case IDs for assertion-failure messages.
+func caseIDStrings(cases []agent.TestCase) []string {
+	ids := make([]string, len(cases))
+	for i, c := range cases {
+		ids[i] = c.ID
+	}
+	return ids
 }

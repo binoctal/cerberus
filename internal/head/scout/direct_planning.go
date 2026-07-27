@@ -56,7 +56,9 @@ func (s *Scout) buildPlanningPrompt(ctx context.Context, goal string, model *pro
 }
 
 // runAIPlanning calls DecideWithTools and assembles tool calls into a plan.
-// Zero tool calls (drift/quality) → error. Transient LLM call error → fallback.
+// Zero tool calls (drift/quality), or tool calls that assemble to zero cases, are NOT fatal:
+// an empty plan is returned so deterministic augmentation can still run. Transient LLM call
+// error → fallback.
 func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, model *project.ProjectModel) (*agent.TestPlan, map[string]map[string]bool, error) {
 	res, err := s.driver.DecideWithTools(ctx, prompt, planTools())
 	if err != nil {
@@ -67,7 +69,12 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 		return fb, map[string]map[string]bool{}, nil
 	}
 	if len(res.ToolCalls) == 0 {
-		return nil, nil, fmt.Errorf("scout plan: zero tool calls (drift or quality)")
+		// Zero tool calls is not fatal: return an empty plan so Scout.Plan's augmentation
+		// step can still add deterministic cases. If augmentation also adds nothing, the plan
+		// stays empty and the session layer completes it gracefully (no abort).
+		s.logger.Debug("scout planning proceeding to deterministic augmentation",
+			zap.String("reason", "zero tool calls"))
+		return &agent.TestPlan{}, map[string]map[string]bool{}, nil
 	}
 	names := make([]string, len(res.ToolCalls))
 	for i, tc := range res.ToolCalls {
@@ -83,8 +90,11 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 		zap.Int("cases", len(plan.Cases)),
 	)
 	if len(plan.Cases) == 0 {
-		s.logger.Debug("scout planning produced zero cases", zap.Int("tool_calls", len(res.ToolCalls)))
-		return nil, nil, fmt.Errorf("scout plan: assembly produced zero cases")
+		// Assembled zero cases: not fatal — proceed to deterministic augmentation.
+		s.logger.Debug("scout planning proceeding to deterministic augmentation",
+			zap.String("reason", "assembly produced zero cases"),
+			zap.Int("tool_calls", len(res.ToolCalls)))
+		return plan, covered, nil
 	}
 
 	s.logger.Info("test plan generated",
