@@ -192,6 +192,23 @@ func (j *Judge) buildEvidenceContext(r agent.StepResult) string {
 			b = append(b, fmt.Sprintf("Result Summary: %s\n", r.Result.Summary())...)
 		}
 	}
+	// Multi-step (Steps / ws_flow) cases carry their per-step trace in
+	// Evidence; Result holds only the LAST step. Without surfacing Evidence,
+	// the judge never sees the decisive step when it is not last — e.g. a relay
+	// case whose decisive device:online receive is followed by ws_disconnect:
+	// Result is the inert disconnect and the matched receive is invisible, so a
+	// passing relay gets misjudged (judge drift / near-fail). Surface the trace
+	// so the decisive receive is judgeable. (React-loop cases set no Evidence.)
+	if len(r.Evidence) > 0 {
+		b = append(b, "Step Trace:\n"...)
+		for i, ev := range r.Evidence {
+			content := ev.Content
+			if len(content) > 500 {
+				content = content[:500] + "... (truncated)"
+			}
+			b = append(b, fmt.Sprintf("  %d. %s\n", i+1, content)...)
+		}
+	}
 	if r.Action != nil {
 		envelope, _ := types.MarshalAction(r.Action)
 		actionJSON, _ := json.Marshal(envelope)

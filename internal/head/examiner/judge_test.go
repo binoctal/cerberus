@@ -31,6 +31,43 @@ func TestBuildEvidenceContextIncludesWSMessages(t *testing.T) {
 	}
 }
 
+// TestBuildEvidenceContextIncludesStepTrace verifies that a MULTI-step (Steps /
+// ws_flow) case surfaces its per-step evidence to the judge. runSteps sets
+// StepResult.Result to the LAST step (often an inert ws_disconnect) and
+// StepResult.Evidence to the full step trace. The decisive matched receive
+// (e.g. the relayed device:online) lives in Evidence, NOT in Result; if the
+// judge prompt only shows Result, a passing relay looks like an empty
+// disconnect and gets misjudged (judge drift / near-fail). Reproduces the
+// 2026-07-28 dogfood regression where tc-001 matched device:online yet scored
+// "zero tool calls" / uncertain 0.2.
+func TestBuildEvidenceContextIncludesStepTrace(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{
+			Name:        "relay: web receives device:online when bridge connects",
+			Target:      "ws://x/ws/user",
+			Expectation: "web receives the relayed device:online signal after bridge connects",
+		},
+		Status: agent.StepPassed,
+		// Last step is an inert disconnect — MatchedMessage empty, exactly like
+		// tc-001's final ws_disconnect. This is what the judge currently sees.
+		Result: types.WSResult{OK: true},
+		Evidence: []agent.Evidence{
+			{Type: "ws_messages", Content: "ws_connect: ws ok connection_id=web"},
+			{Type: "ws_messages", Content: "ws_connect: ws ok connection_id=bridge"},
+			{Type: "ws_messages", Content: "ws_receive: ws ok (matched=1 seen=0, 96ms)"},
+			{Type: "ws_messages", Content: "ws_disconnect: ws ok"},
+		},
+	}
+	got := j.buildEvidenceContext(res)
+	if !strings.Contains(got, "matched=1") {
+		t.Fatalf("multi-step evidence missing the decisive matched receive from StepResult.Evidence:\n%s", got)
+	}
+	if !strings.Contains(got, "ws_connect") {
+		t.Fatalf("multi-step evidence missing the step trace:\n%s", got)
+	}
+}
+
 // TestBuildEvidenceContextIncludesHTTPBody locks the HTTP branch of the
 // refactored three-branch switch (HTTP/WS/default). Summary() omits the body,
 // so the dedicated branch must surface status code, body, and error text for
