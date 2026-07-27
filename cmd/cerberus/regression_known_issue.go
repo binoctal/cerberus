@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/store"
 )
 
@@ -23,7 +23,7 @@ func knownIssueCmd() *cobra.Command {
 		Short: "List known issues",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			s, err := store.New(cfg.DBPath)

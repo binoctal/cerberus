@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/store"
 )
 
@@ -24,7 +24,7 @@ func regressionCmd() *cobra.Command {
 		Long:  "运行架构分析器的回归测试，确保已修复的bug不会重现",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			s, err := store.New(cfg.DBPath)

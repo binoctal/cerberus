@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/store"
 )
 
@@ -92,7 +92,7 @@ actors:
 			if seedErr == nil {
 				seedCtx := context.Background()
 				_ = store.RunMigrations(seedCtx, seedDB.DB(), "migrations")
-				seedLogger, _ := zap.NewProduction()
+				seedLogger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 				count, _ := store.SeedStrategies(seedCtx, seedDB, "", seedLogger)
 				_ = seedDB.Close()
 				if count > 0 {

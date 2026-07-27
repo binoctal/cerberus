@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/server"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -22,7 +23,7 @@ func serveCmd() *cobra.Command {
 		Short: "Start HTTP API server (CI integration)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			dbPath := cfg.DBPath

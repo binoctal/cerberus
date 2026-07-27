@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/embed"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -35,7 +35,7 @@ func memoryListCmd() *cobra.Command {
 		Long:  "List procedural memories (default) or specify --type for semantic/episodic",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			s, err := store.New(cfg.DBPath)
@@ -199,7 +199,7 @@ func memoryShowCmd() *cobra.Command {
 			}
 
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			s, err := store.New(cfg.DBPath)
@@ -291,7 +291,7 @@ func memoryPruneCmd() *cobra.Command {
 		Long:  "Archive (default) or delete (--hard) stale memories by governance policy",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			s, err := store.New(cfg.DBPath)
@@ -364,7 +364,7 @@ func memoryReembedCmd() *cobra.Command {
 		Long:  "Re-embed ALL memory_procedural.condition and memory_semantic.content with the current trigram model, updating embedding + embedding_model. Use this to fix legacy empty-model rows.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			s, err := store.New(cfg.DBPath)

@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/mcp"
 	"github.com/binoctal/cerberus/internal/store"
 )
@@ -20,7 +20,7 @@ func mcpCmd() *cobra.Command {
 		Short: "Start MCP server (for Claude Code integration)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			dbPath := cfg.DBPath

@@ -8,11 +8,11 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/discover"
 	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/logging"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/session"
 	"github.com/binoctal/cerberus/internal/store"
@@ -25,7 +25,7 @@ func runCmd() *cobra.Command {
 		Short: "Run intelligent tests (cognition + exploration + judgment)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.Load()
-			logger, _ := zap.NewProduction()
+			logger := logging.NewLogger(cfg.LogLevel, cfg.Paths.LogsDir)
 			defer func() { _ = logger.Sync() }()
 
 			projCfg := loadProjectConfig(configFlag, urlFlag, goalFlag, logger)
