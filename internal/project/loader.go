@@ -92,6 +92,10 @@ func LoadFromFile(path string) (*Config, error) {
 		// env file not found is not an error — env overlay is optional.
 	}
 
+	if err := mergeCredentials(cfg, configDir); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
 }
 
@@ -127,6 +131,58 @@ func resolveProtocolRefs(cfg *Config, baseDir string) error {
 		}
 		svc.Protocol = &p
 		svc.ProtocolRef = ""
+	}
+	return nil
+}
+
+// credentialsFile is the on-disk shape of .cerberus/credentials.yaml: a map
+// keyed by actor name. It is intentionally distinct from project.yaml's actor
+// list form.
+type credentialsFile struct {
+	Actors map[string]credentialSecret `yaml:"actors"`
+}
+
+// credentialSecret mirrors the subset of CredentialRef that credentials.yaml
+// may set: Email, Password, and the static WS Token.
+type credentialSecret struct {
+	Email    string `yaml:"email"`
+	Password string `yaml:"password"`
+	Token    string `yaml:"token"`
+}
+
+// mergeCredentials loads .cerberus/credentials.yaml from configDir (alongside
+// the project config) and, for every actor present in both cfg and the file,
+// overrides the actor's Email/Password/Token with the non-empty values from
+// the file (layered override; env still wins via ResolveCredentials). A missing
+// file is not an error — it is optional and gitignored. A present but malformed
+// file is an error (fail loud), mirroring the env-overlay malformed handling.
+func mergeCredentials(cfg *Config, configDir string) error {
+	credPath := filepath.Join(configDir, "credentials.yaml")
+	data, err := os.ReadFile(credPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // optional file
+		}
+		return fmt.Errorf("read credentials file: %w", err)
+	}
+	var cf credentialsFile
+	if err := yaml.Unmarshal(data, &cf); err != nil {
+		return fmt.Errorf("parse credentials file %s: %w", credPath, err)
+	}
+	for i := range cfg.Actors {
+		sec, ok := cf.Actors[cfg.Actors[i].Name]
+		if !ok {
+			continue
+		}
+		if sec.Email != "" {
+			cfg.Actors[i].Credentials.Email = sec.Email
+		}
+		if sec.Password != "" {
+			cfg.Actors[i].Credentials.Password = sec.Password
+		}
+		if sec.Token != "" {
+			cfg.Actors[i].Credentials.Token = sec.Token
+		}
 	}
 	return nil
 }

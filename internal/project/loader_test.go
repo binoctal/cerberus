@@ -300,3 +300,158 @@ settings:
 	assert.Equal(t, "json", cfg.Services[0].Protocol.Framing)
 	assert.InDelta(t, 0.95, cfg.Settings.ConfidenceThreshold, 0.01)
 }
+
+// mustActor returns the actor named name, failing the test if it is absent.
+// Shared by the credentials.yaml tests below.
+func mustActor(t *testing.T, cfg *Config, name string) Actor {
+	t.Helper()
+	for _, a := range cfg.Actors {
+		if a.Name == name {
+			return a
+		}
+	}
+	t.Fatalf("actor %q not found in config", name)
+	return Actor{}
+}
+
+func TestLoadFromFile_CredentialsYAML_MergesAll(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "project.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+project:
+  name: relay
+actors:
+  - name: web
+  - name: bridge
+`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials.yaml"), []byte(`
+actors:
+  web:
+    email: web@x.dev
+    password: webpw
+    token: demo_token
+  bridge:
+    email: bridge@x.dev
+    password: bridgepw
+    token: deviceToken
+`), 0644))
+
+	cfg, err := LoadFromFile(cfgPath)
+	require.NoError(t, err)
+
+	web := mustActor(t, cfg, "web")
+	assert.Equal(t, "web@x.dev", web.Credentials.Email)
+	assert.Equal(t, "webpw", web.Credentials.Password)
+	assert.Equal(t, "demo_token", web.Credentials.Token)
+
+	bridge := mustActor(t, cfg, "bridge")
+	assert.Equal(t, "deviceToken", bridge.Credentials.Token)
+}
+
+func TestLoadFromFile_CredentialsYAML_OverridesInline(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "project.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+actors:
+  - name: web
+    credentials:
+      email: inline@x.dev
+      password: inlinepw
+      token: inline_tok
+`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials.yaml"), []byte(`
+actors:
+  web:
+    email: file@x.dev
+    password: filepw
+    token: file_tok
+`), 0644))
+
+	cfg, err := LoadFromFile(cfgPath)
+	require.NoError(t, err)
+
+	a := mustActor(t, cfg, "web")
+	assert.Equal(t, "file@x.dev", a.Credentials.Email)
+	assert.Equal(t, "filepw", a.Credentials.Password)
+	assert.Equal(t, "file_tok", a.Credentials.Token)
+}
+
+func TestLoadFromFile_CredentialsYAML_PerFieldOverride(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "project.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+actors:
+  - name: web
+    credentials:
+      email: inline@x.dev
+      password: inlinepw
+`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials.yaml"), []byte(`
+actors:
+  web:
+    token: demo_token
+`), 0644))
+
+	cfg, err := LoadFromFile(cfgPath)
+	require.NoError(t, err)
+
+	a := mustActor(t, cfg, "web")
+	assert.Equal(t, "inline@x.dev", a.Credentials.Email, "inline email preserved")
+	assert.Equal(t, "inlinepw", a.Credentials.Password, "inline password preserved")
+	assert.Equal(t, "demo_token", a.Credentials.Token, "token from file")
+}
+
+func TestLoadFromFile_CredentialsYAML_Missing_NoError(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "project.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+actors:
+  - name: web
+    credentials:
+      token: inline_tok
+`), 0644))
+	// No credentials.yaml present.
+
+	cfg, err := LoadFromFile(cfgPath)
+	require.NoError(t, err)
+
+	a := mustActor(t, cfg, "web")
+	assert.Equal(t, "inline_tok", a.Credentials.Token)
+}
+
+func TestLoadFromFile_CredentialsYAML_Malformed_Error(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "project.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+actors:
+  - name: web
+`), 0644))
+	// Unclosed flow sequence → definite YAML parse error.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials.yaml"), []byte("actors: [unterminated"), 0644))
+
+	_, err := LoadFromFile(cfgPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "credentials")
+}
+
+func TestLoadFromFile_CredentialsYAML_AtCerberusLocation(t *testing.T) {
+	dir := t.TempDir()
+	cerbDir := filepath.Join(dir, ".cerberus")
+	require.NoError(t, os.MkdirAll(cerbDir, 0755))
+	cfgPath := filepath.Join(cerbDir, "project.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+actors:
+  - name: web
+`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(cerbDir, "credentials.yaml"), []byte(`
+actors:
+  web:
+    token: demo_token
+`), 0644))
+
+	cfg, err := LoadFromFile(cfgPath)
+	require.NoError(t, err)
+
+	a := mustActor(t, cfg, "web")
+	assert.Equal(t, "demo_token", a.Credentials.Token)
+}
