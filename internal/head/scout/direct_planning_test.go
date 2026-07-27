@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/stretchr/testify/require"
 
@@ -187,6 +189,70 @@ func TestDirectPlan_ToolCallingAssembly(t *testing.T) {
 	plan, err := sct.Plan(context.Background(), "plan http + ws relay", &project.ProjectModel{})
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(plan.Cases), 2, "http case + ws_flow case (+ executor appends)")
+}
+
+// TestDirectPlan_LogsToolCallsAtDebug asserts runAIPlanning emits debug logs
+// naming the tool calls received and the assembled case count, so a zero-case
+// abort (the 2026-07-27 dogfood incident) is diagnosable from the run log.
+func TestDirectPlan_LogsToolCallsAtDebug(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("plan http + ws relay", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/health"}},
+		{Name: "begin_case", Input: map[string]any{"name": "r", "expectation": "ok", "service": "ws"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "a"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "b"}},
+		{Name: "ws_send", Input: map[string]any{"role": "a", "type": "x"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "b", "type": "y"}},
+	})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+
+	core, recorded := observer.New(zapcore.DebugLevel)
+	sct := NewScout(driver, setupTestStore(t), &project.Config{
+		Project:  project.ProjectMeta{Name: "log-plan"},
+		Services: []project.Service{{Name: "api", URL: "http://localhost:8080"}},
+	}, zap.New(core))
+
+	_, err := sct.Plan(context.Background(), "plan http + ws relay", &project.ProjectModel{})
+	require.NoError(t, err)
+
+	recv := recorded.FilterMessage("scout planning tool calls received").All()
+	require.Len(t, recv, 1, "tool-calls-received debug log should fire once")
+	var tools string
+	for _, f := range recv[0].Context {
+		if f.Key == "tools" {
+			tools = f.String
+		}
+	}
+	require.Contains(t, tools, "test_http_endpoint")
+	require.Contains(t, tools, "begin_case")
+	require.GreaterOrEqual(t, recorded.FilterMessage("scout planning assembled").Len(), 1)
+}
+
+// TestDirectPlan_DebugLogsFilteredAtInfo asserts the planning debug logs are
+// emitted at Debug level: an info-level observer captures none of them.
+func TestDirectPlan_DebugLogsFilteredAtInfo(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("plan http + ws relay", []llm.ToolCall{
+		{Name: "test_http_endpoint", Input: map[string]any{"method": "GET", "path": "/health"}},
+		{Name: "begin_case", Input: map[string]any{"name": "r", "expectation": "ok", "service": "ws"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "a"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "b"}},
+		{Name: "ws_send", Input: map[string]any{"role": "a", "type": "x"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "b", "type": "y"}},
+	})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+
+	core, recorded := observer.New(zapcore.InfoLevel) // captures Info+, drops Debug
+	sct := NewScout(driver, setupTestStore(t), &project.Config{
+		Project:  project.ProjectMeta{Name: "log-plan-info"},
+		Services: []project.Service{{Name: "api", URL: "http://localhost:8080"}},
+	}, zap.New(core))
+
+	_, err := sct.Plan(context.Background(), "plan http + ws relay", &project.ProjectModel{})
+	require.NoError(t, err)
+
+	require.Equal(t, 0, recorded.FilterMessage("scout planning tool calls received").Len(),
+		"debug log must not appear at info level")
 }
 
 // errorMockClient is a minimal llm.Client mock that always returns an error.

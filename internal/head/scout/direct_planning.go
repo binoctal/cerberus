@@ -69,8 +69,21 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 	if len(res.ToolCalls) == 0 {
 		return nil, nil, fmt.Errorf("scout plan: zero tool calls (drift or quality)")
 	}
+	names := make([]string, len(res.ToolCalls))
+	for i, tc := range res.ToolCalls {
+		names[i] = tc.Name
+	}
+	s.logger.Debug("scout planning tool calls received",
+		zap.Int("count", len(res.ToolCalls)),
+		zap.String("tools", strings.Join(names, ",")),
+	)
 	plan, covered := assemblePlan(res.ToolCalls, goal, s.resolveBaseURL(), s.config.Services)
+	s.logger.Debug("scout planning assembled",
+		zap.Int("tool_calls", len(res.ToolCalls)),
+		zap.Int("cases", len(plan.Cases)),
+	)
 	if len(plan.Cases) == 0 {
+		s.logger.Debug("scout planning produced zero cases", zap.Int("tool_calls", len(res.ToolCalls)))
 		return nil, nil, fmt.Errorf("scout plan: assembly produced zero cases")
 	}
 
