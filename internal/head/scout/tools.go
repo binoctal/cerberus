@@ -67,7 +67,13 @@ func planTools() []llm.Tool {
 		{Name: "ws_receive", Description: "WS step: await a typed message on role's connection.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
 				"role": map[string]any{"type": "string"}, "type": map[string]any{"type": "string"},
-				"aliases": strs(), "assert": map[string]any{"type": "object"}, "timeout": map[string]any{"type": "number"},
+				"aliases": strs(),
+				"assert": map[string]any{
+					"type":                 "object",
+					"description":          "Optional path->value content checks on the MATCHED message, ONLY when the `type` routing-key match does not by itself prove the expectation. Keys are dotted JSON paths into the matched message (e.g. \"payload.approved\", \"type\"); values are the expected scalars (bool/string/number/null). Every entry must hold or the receive FAILS. OMIT this field entirely for arrival-only checks (the common case: if matching `type` is all you need, do not add assert). Example: {\"payload.approved\": true}. This is a flat path->value map, NOT an expression: never use field/op/value keys or operators.",
+					"additionalProperties": true,
+				},
+				"timeout": map[string]any{"type": "number"},
 			}, "required": []any{"role"}}},
 		{Name: "ws_disconnect", Description: "WS step: close role's connection.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
