@@ -56,3 +56,15 @@ token: demo_token
 	require.NoError(t, err)
 	require.NotContains(t, string(outEmpty), "token:", "empty Token must be omitted")
 }
+
+func TestResolveCredentials_TokenEnv(t *testing.T) {
+	t.Setenv("CERBERUS_ACTOR_WEB_TOKEN", "env_tok")
+
+	cfg := &Config{
+		Actors: []Actor{
+			{Name: "web", Credentials: CredentialRef{Token: "file_tok"}},
+		},
+	}
+	resolved := ResolveCredentials(cfg)
+	assert.Equal(t, "env_tok", resolved.Actors[0].Credentials.Token)
+}

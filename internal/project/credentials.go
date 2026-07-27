@@ -18,6 +18,9 @@ func ResolveCredentials(cfg *Config) *Config {
 		if pass := os.Getenv(envPrefix + "_PASSWORD"); pass != "" {
 			actor.Credentials.Password = pass
 		}
+		if token := os.Getenv(envPrefix + "_TOKEN"); token != "" {
+			actor.Credentials.Token = token
+		}
 		result.Actors[i] = actor
 	}
 	return &result
