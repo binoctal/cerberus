@@ -3,6 +3,7 @@ package scout
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/llm"
@@ -61,4 +62,46 @@ func TestAugmentPlanComposition_AssembledRelay(t *testing.T) {
 		require.NotContains(t, c.ID, "-web-")
 		require.NotContains(t, c.ID, "-bridge-")
 	}
+}
+
+// TestAssemblePlan_UnsoundWSFlowDoesNotCover is the A1 residual-risk fix: an
+// LLM ws_flow that connects a role but receives an INVENTED (ungrounded) type is
+// unsound, so the role is NOT marked covered — WSCasesCovered still emits the
+// deterministic fallback for it. A sound case (grounded receive) still covers.
+func TestAssemblePlan_UnsoundWSFlowDoesNotCover(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+
+	sound := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "ok", "service": "rt"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "device:online"}}, // grounded (web await_type)
+	}
+	_, coveredSound := assemblePlan(sound, "goal", "ws://h/ws", cfg.Services)
+	assert.True(t, coveredSound["rt"]["web"], "grounded receive -> web covered")
+
+	unsound := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "ok", "service": "rt"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "message"}}, // invented
+	}
+	planUnsound, coveredUnsound := assemblePlan(unsound, "goal", "ws://h/ws", cfg.Services)
+	assert.False(t, coveredUnsound["rt"]["web"], "invented receive -> web NOT covered (unsound)")
+	// Policy: the unsound LLM case itself stays in the plan.
+	assert.Len(t, planUnsound.Cases, 1, "unsound LLM case is kept, not dropped")
+
+	// Residual-risk proof: unsound coverage keeps web's deterministic fallback.
+	// (web has an optional handshake in relayProtocol, so the fallback is the
+	// deterministic relay case, which connects web.)
+	connectsWeb := func(covered map[string]map[string]bool) bool {
+		for _, c := range WSCasesCovered(cfg, "receive devices:sync", covered) {
+			for _, st := range c.Steps {
+				if st.Action == "ws_connect" && st.Role == "web" {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	assert.False(t, connectsWeb(coveredSound), "sound coverage suppresses web fallback")
+	assert.True(t, connectsWeb(coveredUnsound), "unsound coverage keeps web fallback (not stranded)")
 }

@@ -74,7 +74,13 @@ func TestAssemblePlan_WSRelaySequence(t *testing.T) {
 		{Name: "ws_send", Input: map[string]any{"role": "web", "type": "ping"}},
 		{Name: "ws_receive", Input: map[string]any{"role": "bridge", "type": "signal", "assert": map[string]any{"online": true}}},
 	}
-	plan, covered := assemblePlan(calls, "g", "", nil)
+	// The signal receive is grounded by bridge's declared handshake await_type,
+	// so the ws_flow is sound and marks its connected roles covered (the
+	// contract is now sound coverage — A1 unsound-fallback Phase 1).
+	svcs := []project.Service{{Name: "ws", Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"bridge": {Handshake: &project.RoleHandshake{AwaitType: "signal"}},
+	}}}}
+	plan, covered := assemblePlan(calls, "g", "", svcs)
 	require.Len(t, plan.Cases, 1)
 	c := plan.Cases[0]
 	assert.Equal(t, "ws_flow", c.Action)

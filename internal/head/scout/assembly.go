@@ -17,6 +17,14 @@ import (
 func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool) {
 	var cases []agent.TestCase
 	covered := map[string]map[string]bool{}
+	// service -> declared protocol, so flush can judge ws_flow soundness without
+	// re-scanning services per case.
+	svcProtos := map[string]*project.Protocol{}
+	for _, s := range services {
+		if s.Protocol != nil {
+			svcProtos[s.Name] = s.Protocol
+		}
+	}
 	var open *agent.TestCase
 	id := 0
 	nextID := func() string { id++; return fmt.Sprintf("tc-%03d", id) }
@@ -31,12 +39,19 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 				return
 			}
 			if open.Service != "" {
-				for _, st := range open.Steps {
-					if st.Action == "ws_connect" && st.Role != "" {
-						if covered[open.Service] == nil {
-							covered[open.Service] = map[string]bool{}
+				// A1 unsound-fallback (Phase 1): only a SOUND ws_flow suppresses
+				// the deterministic fallback for the roles it connects. An unsound
+				// case (a ws_receive of an invented type) stays in the plan but
+				// does not mark its roles covered, so WSCasesCovered still emits
+				// the deterministic fallback for them.
+				if llmWSFlowSound(open, svcProtos[open.Service], goal) {
+					for _, st := range open.Steps {
+						if st.Action == "ws_connect" && st.Role != "" {
+							if covered[open.Service] == nil {
+								covered[open.Service] = map[string]bool{}
+							}
+							covered[open.Service][st.Role] = true
 						}
-						covered[open.Service][st.Role] = true
 					}
 				}
 			}
