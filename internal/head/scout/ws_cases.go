@@ -19,20 +19,23 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 }
 
 // WSCasesCovered generates deterministic WS test cases from a project's declared
-// protocols. Per role on each WS service it emits either:
+// protocols. Per role on each WS service it emits ONE ws_flow Steps case:
 //
-//   - ONE ws_flow Steps case (connect→send→receive sharing one connection_id)
-//     when the goal pairs a client-sent type (send-verb-introduced) with a
-//     following receive type; OR
-//   - today's connect + per-type ws_receive form when no exchange is detected
-//     (receive-only, handshake-only, or unrelated goals). This preserves
-//     connect/handshake coverage.
+//   - connect → send → receive (sharing one connection_id) when the goal pairs a
+//     client-sent type (send-verb-introduced) with a following receive type; OR
+//   - connect + one receive per decisive type when no exchange is detected
+//     (receive-only, handshake-only, or unrelated goals).
 //
-// The chosen rule — Steps case for exchanges, separate cases otherwise — keeps
-// the no-exchange path identical to pre-Steps behavior while making the
-// send/receive exchange runnable through runSteps (one connection, deterministic
-// connect/send/receive, Asserts from the goal). Returns nil when no service
-// declares a protocol.
+// Both forms run through runSteps (deterministic, no Steer). The WS connection
+// table is keyed by <caseID>:<connectionID>, so a role's connect and receives
+// must live in ONE case to share a socket — folding them into Steps (rather than
+// separate connect + DependsOn receive cases, whose per-case namespaces could
+// never share a connection) is what makes the no-exchange path runnable. The
+// connect step carries Role, so the executor auto-awaits the role's
+// handshake.await_type; receive steps therefore exclude the handshake await_type
+// (consumed by connect) and any relay signal. A role with no decisive
+// non-handshake type yields a connect-only Steps case. Returns nil when no
+// service declares a protocol.
 //
 // Determinism: roles are iterated in sorted name order; the exchange detector
 // picks the first send/receive pair; Asserts are parsed in goal order.
@@ -109,18 +112,31 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 			if relayConnected[roleName] {
 				continue
 			}
-			connectID := wsCaseID(svc.Name, roleName, "connect")
-			cases = append(cases, agent.TestCase{
-				ID:          connectID,
-				Name:        fmt.Sprintf("%s %s connects", svc.Name, roleName),
-				Service:     svc.Name,
-				Target:      svc.URL,
-				Action:      "ws_connect",
-				Background:  true,
-				Body:        wsBody(roleName, ""),
-				Expectation: fmt.Sprintf("%s role %s establishes the connection", svc.Name, roleName),
-				Priority:    0.5,
-			})
+			// Finding-2: emit ONE ws_flow Steps case per role. The connect step
+			// and each receive share one connection_id, so within this case they
+			// share one connection-table namespace (<caseID>:<connID>) and the
+			// receives reach the connect's socket. The prior free-form connect
+			// case + DependsOn receive cases had DIFFERENT caseIDs, so a receive
+			// could never resolve the connect's connection (Background does not
+			// broaden the namespace). Routed via runSteps — deterministic, no Steer.
+			//
+			// The connect step carries Role, so the executor auto-awaits the
+			// role's handshake.await_type; the receive steps therefore EXCLUDE
+			// the handshake await_type (already consumed by connect — a separate
+			// receive would re-await it) and any relay signal (covered by a relay
+			// case). A role with no decisive non-handshake type yields a
+			// connect-only Steps case (valid: verifies connect + handshake).
+			handshakeID := ""
+			recvTimeout := 0
+			if role != nil && role.Handshake != nil {
+				handshakeID = sanitizeTypeID(role.Handshake.AwaitType)
+				if role.Handshake.Timeout > 0 {
+					// Reuse the handshake timeout as the receive-await budget so
+					// a slow server cannot hang the case beyond the role's bound.
+					recvTimeout = role.Handshake.Timeout
+				}
+			}
+			steps := []agent.TestStep{{Action: "ws_connect", ConnectionID: roleName, Role: roleName}}
 			for _, typ := range wsDecisiveTypes(role, goal) {
 				if relaySignals[typ] {
 					// The deterministic relay case already receives this
@@ -128,18 +144,27 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 					// receive would time out, so skip it.
 					continue
 				}
-				cases = append(cases, agent.TestCase{
-					ID:          wsCaseID(svc.Name, roleName, typ),
-					Name:        fmt.Sprintf("%s %s receives %s", svc.Name, roleName, typ),
-					Service:     svc.Name,
-					Target:      svc.URL,
-					Action:      "ws_receive",
-					Body:        wsBody(roleName, typ),
-					Expectation: fmt.Sprintf("%s role %s receives a %s message", svc.Name, roleName, typ),
-					DependsOn:   agent.Deps{connectID},
-					Priority:    0.8,
+				if sanitizeTypeID(typ) == handshakeID {
+					// Awaited and consumed by the connect step's handshake; a
+					// separate receive would re-await an already-consumed
+					// message. This also collapses a goal-named type that
+					// sanitizes to the handshake await_type's ID.
+					continue
+				}
+				steps = append(steps, agent.TestStep{
+					Action: "ws_receive", ConnectionID: roleName, Type: typ, Timeout: recvTimeout,
 				})
 			}
+			cases = append(cases, agent.TestCase{
+				ID:          wsCaseID(svc.Name, roleName, "connect"),
+				Name:        fmt.Sprintf("%s %s connects", svc.Name, roleName),
+				Service:     svc.Name,
+				Target:      svc.URL,
+				Action:      "ws_flow",
+				Expectation: fmt.Sprintf("%s role %s establishes the connection", svc.Name, roleName),
+				Priority:    0.5,
+				Steps:       steps,
+			})
 		}
 	}
 	return cases
@@ -421,17 +446,6 @@ func wsTypesNamedInGoal(goal string) []string {
 		out = append(out, f)
 	}
 	return out
-}
-
-func wsBody(role, typ string) string {
-	m := map[string]string{"role": role}
-	if typ != "" {
-		m["type"] = typ
-	}
-	// json.Marshal of a map[string]string cannot fail (strings are always
-	// encodable); the error is intentionally ignored.
-	b, _ := json.Marshal(m)
-	return string(b)
 }
 
 func wsCaseID(service, role, typ string) string {

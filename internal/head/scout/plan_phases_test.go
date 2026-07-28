@@ -15,9 +15,9 @@ import (
 
 // TestAppendExecutorCases_AppendsWSCasesWhenProtocolDeclared verifies the WS
 // wiring: when a service declares a Protocol, appendExecutorCases (the real
-// plan-augmentation entry point) surfaces ws_connect / ws_receive cases in
-// addition to the language-based executor cases. Exercises the wiring — it
-// does NOT call WSCases directly.
+// plan-augmentation entry point) surfaces a ws_flow Steps case (connect +
+// receives sharing one connection_id) in addition to the language-based
+// executor cases. Exercises the wiring — it does NOT call WSCases directly.
 func TestAppendExecutorCases_AppendsWSCasesWhenProtocolDeclared(t *testing.T) {
 	rootDir := writeGoModMarker(t)
 	cfg := &project.Config{
@@ -34,19 +34,30 @@ func TestAppendExecutorCases_AppendsWSCasesWhenProtocolDeclared(t *testing.T) {
 
 	s.appendExecutorCases(plan, "bridge receives permission:response", nil)
 
-	var connects, receives, others []agent.TestCase
+	// WS cases are emitted as ws_flow Steps cases. At least one must be present,
+	// carrying a ws_connect step and a ws_receive step inside.
+	var flows, others []agent.TestCase
 	for _, c := range plan.Cases {
-		switch c.Action {
-		case "ws_connect":
-			connects = append(connects, c)
-		case "ws_receive":
-			receives = append(receives, c)
-		default:
+		if c.Action == "ws_flow" {
+			flows = append(flows, c)
+		} else {
 			others = append(others, c)
 		}
 	}
-	require.NotEmpty(t, connects, "ws_connect case must be appended when a protocol is declared")
-	require.NotEmpty(t, receives, "ws_receive case must be appended when a protocol is declared")
+	require.NotEmpty(t, flows, "ws_flow case must be appended when a protocol is declared")
+	var hasConnect, hasReceive bool
+	for _, f := range flows {
+		for _, st := range f.Steps {
+			if st.Action == "ws_connect" {
+				hasConnect = true
+			}
+			if st.Action == "ws_receive" {
+				hasReceive = true
+			}
+		}
+	}
+	assert.True(t, hasConnect, "ws_flow case must contain a ws_connect step")
+	assert.True(t, hasReceive, "ws_flow case must contain a ws_receive step")
 	// Language-based executor cases (process_build, code_symbols, ...) are
 	// still produced for a Go project alongside the WS cases.
 	assert.NotEmpty(t, others, "language-based executor cases must still be appended")

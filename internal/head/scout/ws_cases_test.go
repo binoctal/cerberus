@@ -31,24 +31,30 @@ func TestWSCasesEmitsConnectAndDecisiveReceives(t *testing.T) {
 		},
 	}}}
 	cases := WSCases(cfg, "bridge receives permission:response with approved=true")
-	// One connect setup + one handshake-await decisive receive + one goal-named receive.
-	connects := filterAction(cases, "ws_connect")
-	require.Len(t, connects, 1)
-	assert.Equal(t, "rt", connects[0].Service)
-	assert.True(t, connects[0].Background)
-	assertBodyRole(t, connects[0].Body, "bridge")
-	// Target must be the service URL so target_validate does not deprioritize
-	// the case (empty target -> skipped, never executed — 2026-07-22 verify run).
-	assert.Equal(t, "http://x", connects[0].Target)
+	// No-exchange goal (no send verb) -> ONE ws_flow Steps case whose connect
+	// and receives share one connection_id (one caseID -> one namespace, so the
+	// receives reach the connect's socket). The connect step carries Role, so
+	// the executor auto-awaits the handshake await_type; the receive steps
+	// therefore EXCLUDE "devices:sync" (consumed by connect) and keep only the
+	// goal-named "permission:response".
+	require.Len(t, cases, 1, "no-exchange role emits a single Steps case")
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	assert.Equal(t, "ws-rt-bridge-connect", c.ID)
+	assert.Equal(t, "http://x", c.Target, "case must carry the service URL (target_validate)")
+	assert.Empty(t, c.DependsOn, "steps are in-case; no cross-case DependsOn")
 
-	receives := filterAction(cases, "ws_receive")
-	// handshake await_type "devices:sync" + goal-named "permission:response"
-	types := bodyTypes(receives)
-	assert.ElementsMatch(t, []string{"devices:sync", "permission:response"}, types)
-	// Every receive depends on the connect.
-	for _, r := range receives {
-		assert.Contains(t, []string(r.DependsOn), connects[0].ID)
-	}
+	require.Len(t, c.Steps, 2, "connect step + one goal-type receive step")
+	// Step 0: connect carries the role (handshake auto-awaited + consumed).
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "bridge", c.Steps[0].Role)
+	connID := c.Steps[0].ConnectionID
+	require.Equal(t, "bridge", connID, "connection_id is the role name")
+	// Step 1: the goal-named receive, sharing the connect's connection_id.
+	assert.Equal(t, "ws_receive", c.Steps[1].Action)
+	assert.Equal(t, connID, c.Steps[1].ConnectionID, "receive must share the connect's connection_id")
+	// The handshake await_type is NOT a receive step (awaited by connect).
+	assert.ElementsMatch(t, []string{"permission:response"}, stepReceiveTypes(c))
 }
 
 func TestWSCasesNoGoalMatchJustHandshake(t *testing.T) {
@@ -59,14 +65,45 @@ func TestWSCasesNoGoalMatchJustHandshake(t *testing.T) {
 		}},
 	}}}
 	cases := WSCases(cfg, "unrelated goal")
-	receives := filterAction(cases, "ws_receive")
-	assert.Equal(t, []string{"ready"}, bodyTypes(receives))
+	// The only decisive type is the handshake await_type "ready", which the
+	// connect step auto-awaits and consumes. No receive step is emitted (it
+	// would re-await an already-consumed message) -> a connect-only Steps case.
+	require.Len(t, cases, 1)
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 1, "handshake-only role -> connect-only Steps case")
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "web", c.Steps[0].Role)
+	assert.Empty(t, stepReceiveTypes(c), "handshake await_type is not a receive step")
+}
+
+// TestWSCasesGoalNamesHandshakeAwaitStillConnectOnly is the regression guard
+// for the handshake-exclusion nuance: when the goal text explicitly names the
+// role's handshake await_type, that type must NOT become a separate receive
+// step. The connect step auto-awaits (and consumes) the handshake frame, so a
+// receive for it would re-await an already-consumed message. The case stays
+// connect-only.
+func TestWSCasesGoalNamesHandshakeAwaitStillConnectOnly(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "session:ready", Timeout: 5}},
+		}},
+	}}}
+	cases := WSCases(cfg, "verify session:ready")
+	require.Len(t, cases, 1)
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 1, "goal naming the handshake type still yields connect-only")
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "web", c.Steps[0].Role)
+	assert.Empty(t, stepReceiveTypes(c), "the handshake type is consumed by connect, not a receive step")
 }
 
 // TestWSCasesMultiRoleDeterministicOrder is the regression guard for the
-// role-iteration sort: with multiple roles on one service, the ws_connect
-// cases must appear in sorted-role-name order so the returned slice is
-// deterministic run-to-run (Go randomizes map iteration order).
+// role-iteration sort: with multiple roles on one service, the per-role
+// ws_flow cases must appear in sorted-role-name order so the returned slice
+// is deterministic run-to-run (Go randomizes map iteration order).
 func TestWSCasesMultiRoleDeterministicOrder(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{
 		Name: "rt", URL: "http://x",
@@ -80,26 +117,28 @@ func TestWSCasesMultiRoleDeterministicOrder(t *testing.T) {
 	var want []string
 	for i := 0; i < 100; i++ {
 		cases := WSCases(cfg, "")
-		connects := filterAction(cases, "ws_connect")
-		got := make([]string, len(connects))
-		for j, c := range connects {
+		// No-exchange path now emits one ws_flow Steps case per role.
+		flows := filterAction(cases, "ws_flow")
+		got := make([]string, len(flows))
+		for j, c := range flows {
 			got[j] = c.ID
 		}
 		if want == nil {
 			want = got
 		}
-		assert.Equal(t, want, got, "ws_connect case order must be stable across calls (iteration %d)", i)
+		assert.Equal(t, want, got, "ws_flow case order must be stable across calls (iteration %d)", i)
 	}
 	// Sorted-role-name order: bridge before web.
 	assert.Equal(t,
 		[]string{"ws-rt-bridge-connect", "ws-rt-web-connect"}, want,
-		"ws_connect cases must appear in sorted role-name order",
+		"ws_flow cases must appear in sorted role-name order",
 	)
 }
 
-// TestWSCasesIDFormat pins the exact case-ID format so downstream
-// DependsOn matching stays stable: connect = ws-<service>-<role>-connect,
-// receive = ws-<service>-<role>-<sanitized-type> with ':' collapsed to '-'.
+// TestWSCasesIDFormat pins the exact case-ID format of the no-exchange Steps
+// case: ws-<service>-<role>-connect, Action ws_flow, no DependsOn (connect +
+// receives are steps in one case, sharing one connection namespace). With an
+// empty goal the role is handshake-only, so the case is connect-only.
 func TestWSCasesIDFormat(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{
 		Name: "rt", URL: "http://x",
@@ -109,27 +148,17 @@ func TestWSCasesIDFormat(t *testing.T) {
 	}}}
 	cases := WSCases(cfg, "")
 
-	connects := filterAction(cases, "ws_connect")
-	require.Len(t, connects, 1, "expected exactly one ws_connect case")
-	connect := connects[0]
-	assert.Equal(t, "ws-rt-bridge-connect", connect.ID,
-		"connect ID must be ws-<service>-<role>-connect")
-
-	// Find the handshake-await receive case and pin its sanitized ID +
-	// DependsOn wiring. "devices:sync" -> "devices-sync".
-	for _, c := range cases {
-		if c.Action != "ws_receive" {
-			continue
-		}
-		if strings.Contains(c.ID, "devices-sync") {
-			assert.Equal(t, "ws-rt-bridge-devices-sync", c.ID,
-				"receive ID must be ws-<service>-<role>-<sanitized type>; ':' -> '-'")
-			assert.Equal(t, agent.Deps{connect.ID}, c.DependsOn,
-				"receive must depend on its role's connect ID")
-			return
-		}
-	}
-	t.Fatal("no ws_receive case with sanitized devices-sync ID found")
+	require.Len(t, cases, 1, "handshake-only role emits one Steps case")
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	assert.Equal(t, "ws-rt-bridge-connect", c.ID,
+		"case ID must be ws-<service>-<role>-connect")
+	assert.Empty(t, c.DependsOn,
+		"no cross-case DependsOn; connect + receives are in-case Steps")
+	// Handshake-only (empty goal): connect step only, no receive step.
+	require.Len(t, c.Steps, 1)
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "bridge", c.Steps[0].Role)
 }
 
 // TestWSCasesTargetSetAndGoalTemplateBraces covers two 2026-07-22 verify-run
@@ -147,15 +176,15 @@ func TestWSCasesTargetSetAndGoalTemplateBraces(t *testing.T) {
 	}}}
 	cases := WSCases(cfg, "send a {type: device:command} message")
 
-	// Every generated case targets the service URL (so it is not deprioritized).
-	for _, c := range cases {
-		assert.Equal(t, "http://localhost:8787", c.Target, "case %q missing service URL target", c.ID)
-	}
+	// One ws_flow Steps case targets the service URL (so it is not deprioritized).
+	require.Len(t, cases, 1)
+	c := cases[0]
+	assert.Equal(t, "http://localhost:8787", c.Target, "case must carry the service URL")
 
-	// Brace handling: the goal template yields the routing type "device:command",
-	// not "device:command}", and no spurious "type:" receive.
-	receives := filterAction(cases, "ws_receive")
-	types := bodyTypes(receives)
+	// Brace handling: the goal template yields the routing type "device:command"
+	// (not "device:command}") as the receive step's Type, and no spurious
+	// "type:" receive. The handshake await_type is excluded (awaited by connect).
+	types := stepReceiveTypes(c)
 	assert.Contains(t, types, "device:command", "brace-stripped goal type must be device:command")
 	for _, ty := range types {
 		assert.NotEqual(t, "type:", ty, "the default routing-key field name must not become a receive type")
@@ -173,22 +202,18 @@ func filterAction(cs []agent.TestCase, action string) []agent.TestCase {
 	return out
 }
 
-func bodyTypes(cs []agent.TestCase) []string {
+// stepReceiveTypes collects the ws_receive step Types within a single Steps
+// case. The no-exchange path now folds connect + receives into one ws_flow
+// Steps case (sharing one connection_id) rather than emitting separate
+// ws_connect/ws_receive cases, so receives are asserted as Steps, not cases.
+func stepReceiveTypes(c agent.TestCase) []string {
 	var out []string
-	for _, c := range cs {
-		var b map[string]string
-		if json.Unmarshal([]byte(c.Body), &b) == nil {
-			out = append(out, b["type"])
+	for _, s := range c.Steps {
+		if s.Action == "ws_receive" {
+			out = append(out, s.Type)
 		}
 	}
 	return out
-}
-
-func assertBodyRole(t *testing.T, body, want string) {
-	t.Helper()
-	var b map[string]string
-	require.NoError(t, json.Unmarshal([]byte(body), &b))
-	assert.Equal(t, want, b["role"])
 }
 
 // TestWsTypesNamedInGoalDirection pins the send-verb direction heuristic: a
@@ -303,34 +328,39 @@ func TestWSCasesEmitsStepsForExchange(t *testing.T) {
 	assert.Empty(t, filterAction(cases, "ws_receive"), "no separate ws_receive case (folded into Steps)")
 }
 
-// TestWSCasesConnectOnlyWhenNoExchange pins the chosen no-exchange rule: a goal
-// without a send-verb → receive-type pair keeps today's separate connect +
-// per-type ws_receive case form (connect/handshake coverage preserved). This is
-// the documented fallback for receive-only, handshake-only, or unrelated goals.
-func TestWSCasesConnectOnlyWhenNoExchange(t *testing.T) {
+// TestWSCasesNoExchangeEmitsStepsCase pins the no-exchange rule: a goal without
+// a send-verb → receive-type pair yields ONE ws_flow Steps case (connect +
+// decisive receives sharing one connection_id), not separate connect/ws_receive
+// cases. The handshake await_type "ready" is excluded (auto-awaited by the
+// connect step); the goal-named "status:ok" is a receive step. Connect/handshake
+// coverage is preserved and runs deterministically via runSteps.
+func TestWSCasesNoExchangeEmitsStepsCase(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{
 		Name: "rt", URL: "http://x",
 		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
 			"web": {Handshake: &project.RoleHandshake{AwaitType: "ready", Timeout: 5}},
 		}},
 	}}}
-	// Receive-only goal: no send verb -> no exchange -> today's form.
+	// Receive-only goal: no send verb -> no exchange -> one Steps case.
 	cases := WSCases(cfg, "verify status:ok")
 
-	assert.Empty(t, filterAction(cases, "ws_flow"),
-		"no exchange -> no Steps case (today's connect+receive form is used)")
+	require.Len(t, cases, 1)
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	assert.Equal(t, "http://x", c.Target)
 
-	connects := filterAction(cases, "ws_connect")
-	require.Len(t, connects, 1)
-	assert.Equal(t, "http://x", connects[0].Target)
+	// Connect step + exactly one receive step (status:ok); the handshake
+	// await_type "ready" is NOT a receive step (awaited by connect).
+	require.Len(t, c.Steps, 2)
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "web", c.Steps[0].Role)
+	assert.Equal(t, "ws_receive", c.Steps[1].Action)
+	assert.Equal(t, "status:ok", c.Steps[1].Type)
+	assert.ElementsMatch(t, []string{"status:ok"}, stepReceiveTypes(c))
 
-	receives := filterAction(cases, "ws_receive")
-	// Handshake await_type "ready" + goal-named "status:ok".
-	assert.ElementsMatch(t, []string{"ready", "status:ok"}, bodyTypes(receives))
-	for _, r := range receives {
-		assert.Contains(t, []string(r.DependsOn), connects[0].ID,
-			"receive case must depend on the connect case")
-	}
+	// No legacy separate-case shape leaks through.
+	assert.Empty(t, filterAction(cases, "ws_connect"), "connect folded into Steps")
+	assert.Empty(t, filterAction(cases, "ws_receive"), "receive folded into Steps")
 }
 
 // TestWSExchangeFromGoal is the unit test for the exchange detector: a
@@ -428,11 +458,12 @@ func TestWSExchangeFromGoal(t *testing.T) {
 }
 
 // TestWSCasesCollidingTypesDedupToOneCase pins the cross-source ID-collision
-// fix: two decisive types that sanitize to the same case ID (a handshake
-// await_type "devices-sync" and a goal-named "devices:sync" both -> "devices-sync")
-// must dedup to a single receive case rather than emitting two cases with one ID
-// (which would corrupt the DependsOn graph). The handshake spelling wins because
-// it is added first.
+// behavior in the new Steps shape: two decisive types that sanitize to the same
+// ID (a handshake await_type "devices-sync" and a goal-named "devices:sync",
+// both -> "devices-sync") dedup to a single entry in wsDecisiveTypes. That entry
+// is the handshake spelling (added first), which the connect step auto-awaits
+// and consumes — so no separate receive step is emitted (it would re-await an
+// already-consumed message). The case is connect-only.
 func TestWSCasesCollidingTypesDedupToOneCase(t *testing.T) {
 	cfg := &project.Config{Services: []project.Service{{
 		Name: "rt", URL: "http://x",
@@ -441,13 +472,15 @@ func TestWSCasesCollidingTypesDedupToOneCase(t *testing.T) {
 		}},
 	}}}
 	// Goal names the same routing type with a colon; sanitizeTypeID collapses
-	// "devices-sync" and "devices:sync" to one case ID.
+	// "devices-sync" and "devices:sync" to one ID.
 	cases := WSCases(cfg, "verify devices:sync")
-	receives := filterAction(cases, "ws_receive")
-	require.Len(t, receives, 1,
-		"colliding types must dedup to one case, not duplicate the sanitized ID")
-	assert.Equal(t, []string{"devices-sync"}, bodyTypes(receives),
-		"handshake spelling (added first) wins on collision")
+	require.Len(t, cases, 1)
+	c := cases[0]
+	assert.Equal(t, "ws_flow", c.Action)
+	// The collision collapses to the handshake entry, consumed by connect.
+	require.Len(t, c.Steps, 1, "colliding type collapses into the handshake -> connect-only")
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Empty(t, stepReceiveTypes(c), "no duplicate receive for the colliding type")
 }
 
 // wsRelayCases emits a relay case for an optional-handshake role in a ≥2-role
@@ -613,13 +646,14 @@ func TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver(t *testing.T) {
 	for _, c := range got {
 		require.NotContains(t, c.ID, "relay-web-signal", "deterministic relay dropped when LLM covers the receiver")
 	}
-	// web is covered at the role level → no web cases at all; bridge still connects.
-	var sawBridgeConnect bool
+	// web is covered at the role level → no web cases at all; bridge still
+	// connects via its own ws_flow Steps case (connect is a step, not a case).
+	var sawBridgeCase bool
 	for _, c := range got {
 		require.NotContains(t, c.ID, "-web-", "web fully skipped (LLM-covered)")
-		if c.Action == "ws_connect" && strings.Contains(c.ID, "-bridge-") {
-			sawBridgeConnect = true
+		if c.Action == "ws_flow" && strings.Contains(c.ID, "-bridge-") {
+			sawBridgeCase = true
 		}
 	}
-	require.True(t, sawBridgeConnect, "uncovered bridge role still connects")
+	require.True(t, sawBridgeCase, "uncovered bridge role still gets a connect Steps case")
 }
