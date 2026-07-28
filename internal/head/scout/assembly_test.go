@@ -15,7 +15,7 @@ func TestAssemblePlan_HighLevelHTTP(t *testing.T) {
 		Name:  "test_http_endpoint",
 		Input: map[string]any{"method": "GET", "path": "/api/users", "expect_status": float64(200)},
 	}}
-	plan, covered := assemblePlan(calls, "goal", "http://x", nil)
+	plan, covered, _ := assemblePlan(calls, "goal", "http://x", nil)
 	require.Len(t, plan.Cases, 1)
 	c := plan.Cases[0]
 	assert.Equal(t, "tc-001", c.ID)
@@ -32,7 +32,7 @@ func TestAssemblePlan_ServiceOverride(t *testing.T) {
 		Name:  "test_http_endpoint",
 		Input: map[string]any{"method": "GET", "path": "/api/users", "service": "wrong"},
 	}}
-	plan, _ := assemblePlan(calls, "g", "", svcs)
+	plan, _, _ := assemblePlan(calls, "g", "", svcs)
 	assert.Equal(t, "api", plan.Cases[0].Service, "attributeService must override wrong LLM tag")
 }
 
@@ -41,7 +41,7 @@ func TestAssemblePlan_RunProcessBuildOnly(t *testing.T) {
 		Name:  "run_process",
 		Input: map[string]any{"action": "build"},
 	}}
-	plan, _ := assemblePlan(calls, "g", "", nil)
+	plan, _, _ := assemblePlan(calls, "g", "", nil)
 	require.Len(t, plan.Cases, 1)
 	assert.Equal(t, "process_build", plan.Cases[0].Action)
 }
@@ -49,7 +49,7 @@ func TestAssemblePlan_RunProcessBuildOnly(t *testing.T) {
 func TestAssemblePlan_AnalyzeCodeAllThree(t *testing.T) {
 	for _, a := range []string{"analyze", "lint", "symbols"} {
 		calls := []llm.ToolCall{{Name: "analyze_code", Input: map[string]any{"action": a}}}
-		plan, _ := assemblePlan(calls, "g", "", nil)
+		plan, _, _ := assemblePlan(calls, "g", "", nil)
 		require.Len(t, plan.Cases, 1, "action=%s", a)
 		assert.Equal(t, "code_"+a, plan.Cases[0].Action)
 	}
@@ -60,7 +60,7 @@ func TestAssemblePlan_IDsSequential(t *testing.T) {
 		{Name: "navigate", Input: map[string]any{"path": "/"}},
 		{Name: "check_invariant", Input: map[string]any{"description": "x", "assertion": "y"}},
 	}
-	plan, _ := assemblePlan(calls, "g", "", nil)
+	plan, _, _ := assemblePlan(calls, "g", "", nil)
 	require.Len(t, plan.Cases, 2)
 	assert.Equal(t, "tc-001", plan.Cases[0].ID)
 	assert.Equal(t, "tc-002", plan.Cases[1].ID)
@@ -80,7 +80,7 @@ func TestAssemblePlan_WSRelaySequence(t *testing.T) {
 	svcs := []project.Service{{Name: "ws", Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
 		"bridge": {Handshake: &project.RoleHandshake{AwaitType: "signal"}},
 	}}}}
-	plan, covered := assemblePlan(calls, "g", "", svcs)
+	plan, covered, _ := assemblePlan(calls, "g", "", svcs)
 	require.Len(t, plan.Cases, 1)
 	c := plan.Cases[0]
 	assert.Equal(t, "ws_flow", c.Action)
@@ -100,7 +100,7 @@ func TestAssemblePlan_WSRelaySequence(t *testing.T) {
 func TestAssemblePlan_WSDroppedWithoutBeginCase(t *testing.T) {
 	// ws_* before any begin_case: dropped (no open group).
 	calls := []llm.ToolCall{{Name: "ws_connect", Input: map[string]any{"role": "web"}}}
-	plan, _ := assemblePlan(calls, "g", "", nil)
+	plan, _, _ := assemblePlan(calls, "g", "", nil)
 	assert.Empty(t, plan.Cases)
 }
 
@@ -116,7 +116,7 @@ func TestAssemblePlan_DropsEmptyWSFlowCase(t *testing.T) {
 		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "bridge gets signal", "service": "ws"}},
 		// no ws_* follows — the model opened a case and moved on
 	}
-	plan, covered := assemblePlan(calls, "g", "", nil)
+	plan, covered, _ := assemblePlan(calls, "g", "", nil)
 	assert.Empty(t, plan.Cases, "empty ws_flow case (begin_case with 0 ws_* steps) must be dropped")
 	assert.Empty(t, covered, "an empty ws_flow case records no connected roles")
 }
@@ -135,7 +135,7 @@ func TestAssemblePlan_WSFlowCaseTargetIsServiceURL(t *testing.T) {
 		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "web gets signal", "service": "realtime"}},
 		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
 	}
-	plan, _ := assemblePlan(calls, "g", "", svcs)
+	plan, _, _ := assemblePlan(calls, "g", "", svcs)
 	require.Len(t, plan.Cases, 1)
 	assert.Equal(t, "http://localhost:8989/ws/u1", plan.Cases[0].Target,
 		"ws_flow case Target must be the service URL so stepToAction's ws_connect can dial it")

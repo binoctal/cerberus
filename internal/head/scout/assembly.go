@@ -14,9 +14,13 @@ import (
 // per-service set of roles already connected by a begin_case+ws_* group
 // (covered), so WSCasesCovered can suppress redundant deterministic connects.
 // Unknown/invalid calls are dropped, never panic.
-func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool) {
+func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool, map[string]map[string]string) {
 	var cases []agent.TestCase
 	covered := map[string]map[string]bool{}
+	// A1 Phase 2: side table mirroring covered, carrying the ID of the sound
+	// LLM case that covered each (svc, role), so WSCasesCovered can emit a lazy
+	// fallback bound to it. covered stays bool; this adds only the binding.
+	coveringCase := map[string]map[string]string{}
 	// service -> declared protocol, so flush can judge ws_flow soundness without
 	// re-scanning services per case.
 	svcProtos := map[string]*project.Protocol{}
@@ -51,6 +55,12 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 								covered[open.Service] = map[string]bool{}
 							}
 							covered[open.Service][st.Role] = true
+							// A1 Phase 2: record which sound case covered this
+							// role, so WSCasesCovered can bind a lazy fallback.
+							if coveringCase[open.Service] == nil {
+								coveringCase[open.Service] = map[string]string{}
+							}
+							coveringCase[open.Service][st.Role] = open.ID
 						}
 					}
 				}
@@ -126,7 +136,7 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 	}
 	flush()
 	cases = fillBody(cases, services) // retained: service.BodyTemplate fill
-	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, covered
+	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, covered, coveringCase
 }
 
 // --- field helpers live in internal/llm/toolfield.go (shared with Agent) ---

@@ -156,7 +156,7 @@ func TestAssemblePlan_BodyFromToolOrTemplate(t *testing.T) {
 		}}, // no body → falls back to template
 	}
 
-	plan, _ := assemblePlan(calls, "test goal", "http://localhost:8081", services)
+	plan, _, _ := assemblePlan(calls, "test goal", "http://localhost:8081", services)
 
 	require.Equal(t, 2, len(plan.Cases))
 	require.Equal(t, `{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}`, plan.Cases[0].Body)
