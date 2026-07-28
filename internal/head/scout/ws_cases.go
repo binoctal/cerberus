@@ -57,10 +57,26 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		// deterministic relay is redundant and is dropped.
 		relayCases, relayCovered, _ := wsRelayCases(svc)
 		svcCovered := covered[svc.Name]
+		svcCovering := coveringCase[svc.Name]
 		for _, rc := range relayCases {
 			// The receiver role is the first step's Role (A-first connect order).
-			if !svcCovered[rc.Steps[0].Role] {
+			receiver := rc.Steps[0].Role
+			if !svcCovered[receiver] {
+				// Uncovered receiver: emit the deterministic relay as a normal case.
 				cases = append(cases, rc)
+				continue
+			}
+			// A1 Phase 2: receiver covered by a sound LLM case. Emit a lazy
+			// fallback copy bound to that case. Priority<0 makes the Agent skip
+			// it by default; it activates the copy only if the primary case
+			// fails at execution (a runtime hole plan-time soundness cannot see).
+			// rc is a value (Steps slice shared read-only — the Agent does not
+			// mutate steps), so a shallow copy is sufficient.
+			if coverer := svcCovering[receiver]; coverer != "" {
+				fb := rc
+				fb.FallbackFor = coverer
+				fb.Priority = -1
+				cases = append(cases, fb)
 			}
 		}
 		relaySignals := map[string]bool{}

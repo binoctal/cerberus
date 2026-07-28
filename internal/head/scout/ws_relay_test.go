@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -130,4 +131,39 @@ func TestAssemblePlan_RecordsCoveringCase(t *testing.T) {
 	}
 	_, _, coveringUnsound := assemblePlan(unsound, "goal", "ws://h/ws", cfg.Services)
 	assert.Empty(t, coveringUnsound["rt"]["web"], "unsound case records no coverer")
+}
+
+// TestWSCasesCovered_LazyFallbackForCoveredReceiver is the A1 Phase 2 emitter:
+// a relay receiver covered by a sound LLM case gets a lazy deterministic
+// fallback bound to that case (FallbackFor set, Priority<0), not a normal
+// case and not a drop. An uncovered receiver still emits a normal relay case.
+func TestWSCasesCovered_LazyFallbackForCoveredReceiver(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+	covered := map[string]map[string]bool{"rt": {"web": true}}
+	coveringCase := map[string]map[string]string{"rt": {"web": "tc-l lm-primary"}}
+
+	cases := WSCasesCovered(cfg, "receive devices:sync", covered, coveringCase)
+
+	// web is the relay receiver (optional handshake await_type device:online in
+	// relayProtocol). Find the case whose receiver (first connect step) is web.
+	var webRelay *agent.TestCase
+	for i := range cases {
+		c := &cases[i]
+		if len(c.Steps) > 0 && c.Steps[0].Action == "ws_connect" && c.Steps[0].Role == "web" {
+			webRelay = c
+			break
+		}
+	}
+	require.NotNil(t, webRelay, "web relay case present")
+	assert.Equal(t, "tc-l lm-primary", webRelay.FallbackFor, "bound to the covering case")
+	assert.Less(t, webRelay.Priority, 0.0, "lazy fallback is deprioritized")
+	assert.NotEmpty(t, webRelay.Steps, "fallback carries the deterministic relay steps")
+
+	// Sanity: a receiver with no coverer is emitted as a normal case (no FallbackFor).
+	coveringNone := map[string]map[string]string{"rt": {}}
+	casesNone := WSCasesCovered(cfg, "receive devices:sync", map[string]map[string]bool{"rt": {}}, coveringNone)
+	for i := range casesNone {
+		assert.Empty(t, casesNone[i].FallbackFor, "uncovered receiver has no FallbackFor")
+		assert.GreaterOrEqual(t, casesNone[i].Priority, 0.0, "normal case is not deprioritized")
+	}
 }
