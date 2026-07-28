@@ -641,7 +641,7 @@ func TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver(t *testing.T) {
 	}}
 	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: p}}}
 	got := WSCasesCovered(cfg, "verify web receives device:online",
-		map[string]map[string]bool{"rt": {"web": true}})
+		map[string]map[string]bool{"rt": {"web": true}}, nil)
 	// No deterministic relay case (web is covered by an LLM ws_relay).
 	for _, c := range got {
 		require.NotContains(t, c.ID, "relay-web-signal", "deterministic relay dropped when LLM covers the receiver")

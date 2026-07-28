@@ -15,7 +15,7 @@ import (
 // WSCases generates WS test cases for cfg/goal with no roles covered. It is
 // kept for compatibility (existing callers/tests); new code calls WSCasesCovered.
 func WSCases(cfg *project.Config, goal string) []agent.TestCase {
-	return WSCasesCovered(cfg, goal, nil)
+	return WSCasesCovered(cfg, goal, nil, nil)
 }
 
 // WSCasesCovered generates deterministic WS test cases from a project's declared
@@ -39,7 +39,7 @@ func WSCases(cfg *project.Config, goal string) []agent.TestCase {
 //
 // Determinism: roles are iterated in sorted name order; the exchange detector
 // picks the first send/receive pair; Asserts are parsed in goal order.
-func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[string]bool) []agent.TestCase {
+func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[string]bool, coveringCase map[string]map[string]string) []agent.TestCase {
 	if cfg == nil {
 		return nil
 	}

@@ -47,7 +47,7 @@ func (s *Scout) executeDeepPlanning(ctx context.Context, goal string, model *pro
 // Returns the plan plus the per-service set of WS roles the LLM already
 // connected (via begin_case+ws_connect groups), so WSCasesCovered can suppress
 // redundant deterministic connects.
-func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, map[string]map[string]bool, error) {
+func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *project.ProjectModel) (*agent.TestPlan, map[string]map[string]bool, map[string]map[string]string, error) {
 	return s.directPlan(ctx, goal, model)
 }
 
@@ -55,8 +55,8 @@ func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *p
 // drops WS-endpoint HTTP drift. covered roles (already connected by an
 // LLM-authored begin_case+ws_* group) are passed so WSCasesCovered does not
 // redundantly re-connect them.
-func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string, covered map[string]map[string]bool) {
-	s.appendExecutorCases(plan, goal, covered)
+func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string, covered map[string]map[string]bool, coveringCase map[string]map[string]string) {
+	s.appendExecutorCases(plan, goal, covered, coveringCase)
 	filterWSEndpointDrift(plan, s.config) // Finding-3: drop WS-endpoint HTTP drift
 }
 
@@ -72,12 +72,14 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 	// covered map; ToT synthesizes an empty one (it authors Steps directly).
 	var plan *agent.TestPlan
 	var covered map[string]map[string]bool
+	var coveringCase map[string]map[string]string
 	var err error
 	if s.deepPlan {
 		plan, err = s.executeDeepPlanning(ctx, goal, model, memory)
 		covered = map[string]map[string]bool{}
+		coveringCase = map[string]map[string]string{}
 	} else {
-		plan, covered, err = s.executeDirectPlanning(ctx, goal, model)
+		plan, covered, coveringCase, err = s.executeDirectPlanning(ctx, goal, model)
 	}
 
 	if err != nil {
@@ -85,7 +87,7 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 	}
 
 	// Phase 3: Augment plan with executor cases
-	s.augmentPlan(plan, goal, covered)
+	s.augmentPlan(plan, goal, covered, coveringCase)
 
 	return plan, nil
 }
@@ -93,14 +95,14 @@ func (s *Scout) Plan(ctx context.Context, goal string, model *project.ProjectMod
 // appendExecutorCases detects the project type and appends non-HTTP test
 // cases (build, test, lint, code analysis) plus WS connect/receive cases
 // (when any service declares a protocol) to the plan.
-func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string, covered map[string]map[string]bool) {
+func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string, covered map[string]map[string]bool, coveringCase map[string]map[string]string) {
 	rootDir := s.config.Code.Root
 	if rootDir == "" {
 		rootDir = "."
 	}
 	info := DetectProjectType(rootDir)
 	cases := GenerateExecutorCases(info, goal)
-	cases = append(cases, WSCasesCovered(s.config, goal, covered)...)
+	cases = append(cases, WSCasesCovered(s.config, goal, covered, coveringCase)...)
 	if len(cases) > 0 {
 		s.logger.Info("appended executor cases",
 			zap.String("project_type", string(info.Type)),
