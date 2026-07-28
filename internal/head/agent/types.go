@@ -36,6 +36,10 @@ type TestCase struct {
 	Service     string     `json:"service,omitempty"`
 	Body        string     `json:"body,omitempty"`
 	Steps       []TestStep `json:"steps,omitempty"` // Deterministic multi-step WebSocket flow
+	// FallbackFor is the ID of the primary case this case is a lazy fallback for
+	// (A1 Phase 2). Empty on normal cases. The Agent skips a lazy fallback by
+	// default and activates it only when its primary case fails at execution.
+	FallbackFor string `json:"fallback_for,omitempty"`
 }
 
 // TestStep is a single step in a deterministic WebSocket flow.
@@ -98,6 +102,10 @@ type StepResult struct {
 	Action   types.TypedAction
 	Result   types.ExecutorResult
 	Error    error
+	// Recovered is true when this result is a lazy fallback case that ran because
+	// its primary case failed, and the fallback passed (A1 Phase 2). The primary
+	// case's own result stays a fail; this marks the role recovered, not passed.
+	Recovered bool
 }
 
 // String returns a human-readable summary of the result.
