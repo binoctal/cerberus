@@ -99,17 +99,33 @@ func acquireWorkerSlot(ctx context.Context, tc *TestCase, state *parallelExecSta
 	}
 }
 
-// executeAndStore executes a single test case and stores the result
-func (p *ParallelExecutor) executeAndStore(ctx context.Context, tc *TestCase, sessionID string, state *parallelExecState) {
+// executeAndStore executes a single test case and stores the result. On a
+// non-environmental failure it also runs the case's lazy fallbacks (A1 Phase 2)
+// inline in this same worker and stores each by its own ID. A fallback is bound
+// to exactly one primary and runs only here, so results[fb.ID] is written once.
+func (p *ParallelExecutor) executeAndStore(ctx context.Context, tc *TestCase, sessionID string, state *parallelExecState, fallbacksByPrimary map[string][]*TestCase) {
 	defer func() { <-state.sem }()
 
-	// Execute the step
 	result := p.loop.executeStep(ctx, tc, sessionID)
 
-	state.mu.Lock()
-	state.results[tc.ID] = result
-	close(state.completed[tc.ID])
-	state.mu.Unlock()
+	store := func(r StepResult) {
+		state.mu.Lock()
+		state.results[r.TestCase.ID] = r
+		if ch, ok := state.completed[r.TestCase.ID]; ok {
+			close(ch)
+		}
+		state.mu.Unlock()
+	}
+	store(result)
+
+	// A1 Phase 2: activate lazy fallback on non-environmental failure.
+	if result.Status == StepFailed && !isEnvironmental(result) {
+		for _, fb := range fallbacksByPrimary[tc.ID] {
+			fbResult := p.loop.executeStep(ctx, fb, sessionID)
+			fbResult.Recovered = fbResult.Status == StepPassed
+			store(fbResult)
+		}
+	}
 
 	p.logger.Info("parallel case completed",
 		zap.String("case_id", tc.ID),

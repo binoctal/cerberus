@@ -21,10 +21,24 @@ func (p *ParallelExecutor) ExecutePlan(ctx context.Context, plan *TestPlan, sess
 	// Phase 2: Initialize parallel execution state
 	state := initParallelExecState(plan.Cases, p.config.MaxWorkers)
 
+	// Phase 2.5: A1 Phase 2 — index lazy fallback cases by primary ID. They are
+	// skipped in the dispatch loop and activated inline by their primary's worker.
+	fallbacksByPrimary := map[string][]*TestCase{}
+	for i := range plan.Cases {
+		if tc := &plan.Cases[i]; tc.FallbackFor != "" {
+			fb := &plan.Cases[i]
+			fallbacksByPrimary[fb.FallbackFor] = append(fallbacksByPrimary[fb.FallbackFor], fb)
+		}
+	}
+
 	// Phase 3: Execute test cases in parallel
 	var wg sync.WaitGroup
 	for i := range plan.Cases {
 		tc := &plan.Cases[i]
+		if tc.FallbackFor != "" {
+			// Lazy fallback: activated only by its primary's worker below.
+			continue
+		}
 		if isDeprioritized(tc) {
 			p.skipAndStore(tc, state)
 			continue
@@ -45,7 +59,7 @@ func (p *ParallelExecutor) ExecutePlan(ctx context.Context, plan *TestPlan, sess
 			}
 
 			// Execute and store result
-			p.executeAndStore(ctx, tc, sessionID, state)
+			p.executeAndStore(ctx, tc, sessionID, state, fallbacksByPrimary)
 		}(tc)
 	}
 
