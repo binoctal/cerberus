@@ -405,6 +405,61 @@ func wsDecisiveTypes(role *project.ProtocolRole, goal string) []string {
 	return types
 }
 
+// wsTypeGrounded reports whether a ws_receive type (or any of its aliases) is
+// grounded — i.e. the server is known to send it. A type is grounded when it
+// equals (by sanitizeTypeID, so "devices:sync" and "devices-sync" match) any
+// role's handshake await_type in proto OR a type named in the goal. The goal is
+// receive-directional (wsTypesNamedInGoal already excludes send-verb types).
+// Aliases are matched because the executor matches a frame whose type_path is
+// Type OR any Aliases (websocket.go want = Type + Aliases).
+func wsTypeGrounded(typ string, aliases []string, proto *project.Protocol, goal string) bool {
+	grounded := wsGroundedTypeSet(proto, goal)
+	if grounded[sanitizeTypeID(typ)] {
+		return true
+	}
+	for _, a := range aliases {
+		if grounded[sanitizeTypeID(a)] {
+			return true
+		}
+	}
+	return false
+}
+
+// wsGroundedTypeSet returns the sanitizeTypeID-normalized set of receive types
+// the server is known to send: every role's handshake await_type in proto plus
+// the goal-named types. Used to judge whether an LLM-emitted ws_receive can
+// plausibly match a real frame.
+func wsGroundedTypeSet(proto *project.Protocol, goal string) map[string]bool {
+	out := map[string]bool{}
+	if proto != nil {
+		for _, r := range proto.Roles {
+			if r != nil && r.Handshake != nil && r.Handshake.AwaitType != "" {
+				out[sanitizeTypeID(r.Handshake.AwaitType)] = true
+			}
+		}
+	}
+	for _, t := range wsTypesNamedInGoal(goal) {
+		out[sanitizeTypeID(t)] = true
+	}
+	return out
+}
+
+// llmWSFlowSound reports whether an LLM-authored ws_flow case is structurally
+// sound: every ws_receive step has a grounded type or alias. A case with no
+// ws_receive (connect-only, send-only) is trivially sound. An unsound case (a
+// receive of an invented type the server never sends) must not by itself mark a
+// role covered, or the role is stranded when the receive times out. Asserts are
+// intentionally not considered — malformed asserts are tolerated at execution by
+// the D4 defense (commit cf638a0).
+func llmWSFlowSound(tc *agent.TestCase, proto *project.Protocol, goal string) bool {
+	for _, s := range tc.Steps {
+		if s.Action == "ws_receive" && !wsTypeGrounded(s.Type, s.Aliases, proto, goal) {
+			return false
+		}
+	}
+	return true
+}
+
 // wsSendVerbs are goal verbs that mark the following colon token as something
 // the CLIENT sends (not a receive target). A token whose immediately preceding
 // word is one of these is excluded from ws_receive generation. Provisional —
