@@ -112,3 +112,27 @@ func TestExecutePlan_NoFallbackOnPass(t *testing.T) {
 	require.Len(t, res, 1, "primary only — lazy fallback not activated on pass")
 	assert.Equal(t, StepPassed, res[0].Status)
 }
+
+func TestParallelExecutePlan_ActivatesFallbackOnFailure(t *testing.T) {
+	loop, sid := fallbackLoop(t, true) // primary's receive fails once
+	primary := wsFlowCase("tc-primary")
+	fallback := wsFlowCase("tc-fallback")
+	fallback.FallbackFor = "tc-primary"
+	fallback.Priority = -1
+
+	pExec := NewParallelExecutor(loop, ParallelConfig{MaxWorkers: 2}, zap.NewNop())
+	res, err := pExec.ExecutePlan(context.Background(), &TestPlan{
+		Goal: "g", Cases: []TestCase{primary, fallback},
+	}, sid)
+	require.NoError(t, err)
+
+	// collectResults returns results keyed by case ID in plan order; the lazy
+	// fallback was activated by its primary's worker, so its result is present.
+	byID := map[string]StepResult{}
+	for _, r := range res {
+		byID[r.TestCase.ID] = r
+	}
+	assert.Equal(t, StepFailed, byID["tc-primary"].Status, "primary failed")
+	assert.Contains(t, byID, "tc-fallback", "fallback activated in parallel")
+	assert.True(t, byID["tc-fallback"].Recovered, "fallback recovered")
+}
