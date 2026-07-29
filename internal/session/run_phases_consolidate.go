@@ -34,6 +34,11 @@ func writeEpisodicMemory(ctx context.Context, session *Session, verdicts []exami
 		if tc == nil || tc.Target == "" {
 			continue
 		}
+		// A1 Phase 2: the fallback shares its primary's target; the primary
+		// already records the episodic row. Skip to avoid a duplicate.
+		if tc.FallbackFor != "" {
+			continue
+		}
 		target := memory.NormalizeTarget(tc.Target)
 		if err := session.Store.RecordEpisodic(
 			ctx, session.ID, target, string(v.Status), string(v.Status), v.StepResult.Duration); err != nil {
@@ -134,6 +139,11 @@ func verdictByNormalizedTarget(ctx context.Context, session *Session, verdicts [
 		if v.Target == "" {
 			continue
 		}
+		// A1 Phase 2: a recovered fallback shares its primary's target. Skip it
+		// so the primary's fail (the strategy's real signal) wins this slot.
+		if v.Recovered {
+			continue
+		}
 		out[memory.NormalizeTarget(v.Target)] = verdictInfo{
 			status: examiner.JudgeStatus(v.Status),
 			reason: v.FailureReason,
@@ -146,6 +156,11 @@ func verdictByNormalizedTarget(ctx context.Context, session *Session, verdicts [
 	// excluded as environmental.
 	for _, v := range verdicts {
 		if v.StepResult.TestCase == nil || v.StepResult.TestCase.Target == "" {
+			continue
+		}
+		// A1 Phase 2: skip fallback verdicts (recovered or not) — the primary
+		// already represents this target.
+		if v.StepResult.TestCase.FallbackFor != "" {
 			continue
 		}
 		key := memory.NormalizeTarget(v.StepResult.TestCase.Target)
