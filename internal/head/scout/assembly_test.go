@@ -74,9 +74,12 @@ func TestAssemblePlan_WSRelaySequence(t *testing.T) {
 		{Name: "ws_send", Input: map[string]any{"role": "web", "type": "ping"}},
 		{Name: "ws_receive", Input: map[string]any{"role": "bridge", "type": "signal", "assert": map[string]any{"online": true}}},
 	}
-	// The signal receive is grounded by bridge's declared handshake await_type,
-	// so the ws_flow is sound and marks its connected roles covered (the
-	// contract is now sound coverage — A1 unsound-fallback Phase 1).
+	// "signal" is bridge's declared handshake await_type, so the ws_connect for
+	// bridge auto-awaits and consumes it; the later ws_receive on the same
+	// connection is a redundant re-await (would time out at runtime) and is
+	// dropped by sanitizeSelfHandshakeReawait. The collapsed case (two connects
+	// + the web send) stays sound — both connects mark their roles covered
+	// (sound coverage — A1 unsound-fallback Phase 1).
 	svcs := []project.Service{{Name: "ws", Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
 		"bridge": {Handshake: &project.RoleHandshake{AwaitType: "signal"}},
 	}}}}
@@ -84,14 +87,12 @@ func TestAssemblePlan_WSRelaySequence(t *testing.T) {
 	require.Len(t, plan.Cases, 1)
 	c := plan.Cases[0]
 	assert.Equal(t, "ws_flow", c.Action)
-	require.Len(t, c.Steps, 4)
+	require.Len(t, c.Steps, 3, "redundant signal re-await on bridge must be dropped")
 	assert.Equal(t, "ws_connect", c.Steps[0].Action)
 	assert.Equal(t, "web", c.Steps[0].ConnectionID)
 	assert.Equal(t, "ws_connect", c.Steps[1].Action)
 	assert.Equal(t, "bridge", c.Steps[1].ConnectionID)
 	assert.Equal(t, `{"type":"ping"}`, c.Steps[2].Message)
-	assert.Equal(t, "signal", c.Steps[3].Type)
-	assert.Equal(t, map[string]any{"online": true}, c.Steps[3].Asserts)
 	// covered records connected roles per service
 	assert.True(t, covered["ws"]["web"])
 	assert.True(t, covered["ws"]["bridge"])

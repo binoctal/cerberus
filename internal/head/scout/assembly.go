@@ -46,6 +46,13 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 				open = nil
 				return
 			}
+			// ws self-handshake re-await: a ws_connect auto-awaits and consumes
+			// its role's Handshake.AwaitType frame (websocket.go readMatching),
+			// so a later ws_receive of that type on the same connection would
+			// re-await an already-consumed frame and time out. The deterministic
+			// emitter excludes this at emit time (ws_cases.go); mirror that for
+			// LLM-authored ws_flow cases before soundness/coverage is judged.
+			sanitizeSelfHandshakeReawait(open, svcProtos[open.Service])
 			if open.Service != "" {
 				// A1 unsound-fallback (Phase 1): only a SOUND ws_flow suppresses
 				// the deterministic fallback for the roles it connects. An unsound
@@ -210,6 +217,59 @@ func assembleContract(calls []llm.ToolCall, depth string, invs []contract.Invari
 		}
 	}
 	return c
+}
+
+// sanitizeSelfHandshakeReawait drops redundant ws_receive steps that re-await
+// the handshake frame a ws_connect on the same connection has already
+// auto-consumed. The deterministic emitter excludes these at emit time
+// (ws_cases.go); this mirrors that defense for LLM-authored ws_flow cases. A
+// ws_connect with no role, a role without a handshake, or a missing protocol
+// makes the call a no-op — existing behavior is unchanged. When every receive
+// on a connection is dropped, the case naturally collapses to connect-only,
+// which llmWSFlowSound already accepts as trivially sound (the connect alone
+// proves connect+handshake), so the role stays covered.
+func sanitizeSelfHandshakeReawait(open *agent.TestCase, proto *project.Protocol) {
+	if proto == nil || len(proto.Roles) == 0 || open == nil {
+		return
+	}
+	// connection_id -> sanitized handshake await type already consumed by the
+	// connect on that connection.
+	consumed := map[string]string{}
+	for _, st := range open.Steps {
+		if st.Action != "ws_connect" || st.Role == "" {
+			continue
+		}
+		role, ok := proto.Roles[st.Role]
+		if !ok || role == nil || role.Handshake == nil || role.Handshake.AwaitType == "" {
+			continue
+		}
+		consumed[st.ConnectionID] = sanitizeTypeID(role.Handshake.AwaitType)
+	}
+	if len(consumed) == 0 {
+		return
+	}
+	kept := make([]agent.TestStep, 0, len(open.Steps))
+	for _, st := range open.Steps {
+		if st.Action == "ws_receive" {
+			if hid, ok := consumed[st.ConnectionID]; ok {
+				if sanitizeTypeID(st.Type) == hid {
+					continue
+				}
+				drop := false
+				for _, a := range st.Aliases {
+					if sanitizeTypeID(a) == hid {
+						drop = true
+						break
+					}
+				}
+				if drop {
+					continue
+				}
+			}
+		}
+		kept = append(kept, st)
+	}
+	open.Steps = kept
 }
 
 // --- high-level assemblers ---
