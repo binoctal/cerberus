@@ -70,7 +70,7 @@ The judge prompt is updated to instruct: emit `none` unless the failure has a co
 ```go
 type RepairInput struct {
 	Case      agent.TestCase
-	Hint      examiner.RedispatchHint
+	Hint      agent.RedispatchHint
 	Reasoning string
 }
 ```
@@ -95,15 +95,18 @@ func (s *Scout) RepairPlan(ctx context.Context, goal string, model *project.Proj
 ```go
 func (rp *runPhase) executeRepairLoop(model *project.ProjectModel) error
 ```
-State held on `runPhase` (or local): `lastHint map[string]examiner.RedispatchHint` keyed by normalized target, derived from the Replaces chain + committed/in-memory verdicts.
+
+**Shared builders (prerequisite refactor).** Today `executeAgentPhase` (`run_phases_agent.go:28`) and `executeExaminerPhase` (`run_phases_examiner.go:21`) construct their head inline. Factor those constructions into `rp.buildAgentLoop() *agent.ReActLoop` (or the parallel executor) and `rp.buildExaminer() *examiner.Examiner` shared helpers, used by both the original phase and the repair loop. This avoids duplicating the engine/executor/examiner wiring.
+
+State held on `runPhase` (or local): `lastHint map[string]agent.RedispatchHint` keyed by normalized target, derived from the Replaces chain + committed/in-memory verdicts.
 
 Per round (1..`replanMaxRounds`, default 2):
 1. **Eligibility:** from `rp.verdicts`, collect failures where `Status==Fail && RedispatchHint!=none`. Drop a failure whose target is already `stuck` (no-progress, see 5.3). If none remain → return.
 2. **Budget gate:** if remaining token budget below threshold OR escalation gate says stop → return.
 3. `replacements := scoutHead.RepairPlan(ctx, goal, model, eligible)`.
-4. Append replacements to `rp.plan`; `SavePlan` (versioned/round-tagged).
-5. **Execute only replacements:** `rp.executeAgentSubset(replacements)` — a new entry that runs a case subset through the existing executor/rule-engine/ReAct path (factor the subset-running out of `executeAgentPhase`, or call the loop's per-case runner directly).
-6. **Re-judge:** re-judge the replacement results (Examiner over the replacement `StepResult`s only) → merge verdicts into `rp.verdicts`; persist via `PersistFinalVerdicts`.
+4. Append replacements to `rp.plan.Cases`; re-`SavePlan` (it upserts by session — no versioning needed).
+5. **Execute only replacements:** run a sub-plan through the existing executor — `rp.buildAgentLoop().ExecutePlan(ctx, &agent.TestPlan{Cases: replacements}, sessionID)` (parallel path mirrors). Collects replacement `StepResult`s.
+6. **Re-judge:** `rp.buildExaminer().Examine(ctx, replacementResults, sessionID, project)` → merge verdicts into `rp.verdicts`; persist via `PersistFinalVerdicts`.
 7. Update `lastHint` from the new replacement verdicts.
 
 Any phase error inside a round → `logger.Warn` + return (keep verdicts gathered so far; fall through to consolidate). Repair is an enhancement, never a run abort.
@@ -119,12 +122,15 @@ After step 6, for each replacement verdict `R` that replaces `X`:
 
 ### 5.4 Recovered wiring for `Replaces`
 
-A passed replacement recovers its original target. Extend the recovered tally/render (currently keyed on `FallbackFor != "" && pass`) to also key on `Replaces != "" && pass`:
-- `internal/session/summary.go` recovered count + PendingReview/fallback traversal.
-- `internal/report/html*` recovered badge.
-- `internal/session/run_phases_consolidate.go` `verdictByNormalizedTarget` / any `IsFallback`-style predicate: treat a passed `Replaces` verdict as covering the replaced target.
+A passed replacement recovers its original target. **Important:** `StepResult.Recovered` is set by the Agent's `FallbackFor` activation path (`executor_run.go`) and is NOT set for `Replaces` cases (the loop runs them explicitly, not via lazy activation). So the recovered wiring must gate `Replaces` on **pass-status**, not on the `Recovered` bool.
 
-A target recovered by replacement renders as `recovered` (same badge as #4), and the original `fail` verdict stays a fail (mirrors A1 Phase 2 semantics: recovered marks the target covered, not the original verdict flipped).
+`internal/session/summary.go` pairs primary↔fallback today via `tc.FallbackFor != "" && r.Recovered` → `recoveredPrimaryIDs[tc.FallbackFor]`. Add the `Replaces` analog: a result with `tc.Replaces != "" && r.Status == StepPassed` → add `tc.Replaces` to the recovered-primary set. The existing reclassify-primary-out-of-Failed logic then covers replaced primaries unchanged.
+
+`internal/session/run_phases_consolidate.go` skips fallback verdicts (`FallbackFor != ""`, `Recovered`) so a recovered fallback is not double-counted as an independent unit. Add the `Replaces` analog: skip a passed `Replaces` verdict (its target is already tallied via the recovered primary); a failed `Replaces` verdict stays as its own fail (the target is not recovered).
+
+`internal/report/html*` / `markdown_helpers.go` already renders a `recovered` badge by status — no change needed there beyond the summary feeding it the recovered classification.
+
+Net effect: a target recovered by replacement renders as `recovered` (same badge as #4); the original `fail` verdict stays a fail (mirrors A1 Phase 2 — recovered marks the target covered, not the original verdict flipped).
 
 ### 5.5 Termination summary
 
@@ -191,6 +197,7 @@ Modified:
 - `internal/head/examiner/types.go` / `policy.go` / `policy_helpers.go` — `FinalVerdict.RedispatchHint`; `newFinalVerdict`/`fallbackVerdict`.
 - `internal/head/examiner/tools.go` + `prompts.go` + `assembly.go` — judge tool `redispatch_hint` field + parse.
 - `internal/session/lifecycle_run.go` — call `executeRepairLoop` after Examiner.
-- `internal/session/run_phases_agent.go` — factor out a subset runner (`executeAgentSubset`).
-- `internal/session/summary.go`, `internal/report/html*`, `internal/session/run_phases_consolidate.go` — `Replaces` recovered wiring.
+- `internal/session/run_phases_agent.go` — factor loop construction into `buildAgentLoop()` shared helper (used by phase + repair subset run; subset = `ExecutePlan(&TestPlan{Cases: replacements})`).
+- `internal/session/run_phases_examiner.go` — factor examiner construction into `buildExaminer()` shared helper (used by phase + repair re-judge).
+- `internal/session/summary.go`, `internal/session/run_phases_consolidate.go` — `Replaces` recovered wiring (gate on `Status==StepPassed`, not the `Recovered` bool).
 - `internal/config` — `replan_max_rounds` setting (default 2).
