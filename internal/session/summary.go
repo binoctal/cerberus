@@ -79,15 +79,12 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 
 	// Pair primary<->fallback via TestCase.FallbackFor, and primary<->replacement
 	// via TestCase.Replaces. A fallback/replacement result is not an independent
-	// tally unit. A primary whose fallback recovered is reclassified OUT of Failed
-	// into Recovered (FallbackFor semantics). A passed replacement recovers its
-	// primary too — but gated on pass-status (StepResult.Recovered is set only by
-	// the FallbackFor activation path, not for Replaces), and the primary STAYS a
-	// fail while also being counted as Recovered (the failure was real, a later
-	// repair role rescued it). The two recovery modes are tracked separately so
-	// the verdict loop can apply the right counting rule.
-	recoveredPrimaryIDs := map[string]bool{}   // FallbackFor: reclassify out of Failed
-	recoveredViaReplacesIDs := map[string]bool{} // Replaces: stay Failed, add Recovered
+	// tally unit. A primary that is recovered — either because its fallback
+	// recovered (gated on StepResult.Recovered, set only by the FallbackFor
+	// activation path) or because a replacement passed (gated on pass-status) —
+	// is reclassified OUT of Failed into Recovered. Both recovery modes feed the
+	// same recoveredPrimaryIDs set so the counting rule is uniform.
+	recoveredPrimaryIDs := map[string]bool{}
 	nonUnitResultCount := 0
 	for _, r := range results {
 		tc := r.TestCase
@@ -102,7 +99,7 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		} else if tc.Replaces != "" {
 			nonUnitResultCount++
 			if r.Status == agent.StepPassed {
-				recoveredViaReplacesIDs[tc.Replaces] = true
+				recoveredPrimaryIDs[tc.Replaces] = true
 			}
 		}
 	}
@@ -119,14 +116,10 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 				continue // fallback/replacement result, not an independent unit
 			}
 			if tc != nil && recoveredPrimaryIDs[tc.ID] {
-				// FallbackFor recovery: reclassify out of Failed into Recovered.
+				// Reclassified out of Failed into Recovered (FallbackFor or
+				// Replaces recovery — the primary is counted once, as Recovered).
 				s.Recovered++
 				continue
-			}
-			if tc != nil && recoveredViaReplacesIDs[tc.ID] {
-				// Replaces recovery: the primary's verdict stays (typically Fail)
-				// but the role is also counted as Recovered.
-				s.Recovered++
 			}
 			switch v.Status {
 			case examiner.StatusPass:
@@ -146,14 +139,10 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 				continue
 			}
 			if tc != nil && recoveredPrimaryIDs[tc.ID] {
-				// FallbackFor recovery: reclassify out of Failed into Recovered.
+				// Reclassified out of Failed into Recovered (FallbackFor or
+				// Replaces recovery — the primary is counted once, as Recovered).
 				s.Recovered++
 				continue
-			}
-			if tc != nil && recoveredViaReplacesIDs[tc.ID] {
-				// Replaces recovery: the primary's status stays (typically Fail)
-				// but the role is also counted as Recovered.
-				s.Recovered++
 			}
 			switch r.Status {
 			case agent.StepPassed:
