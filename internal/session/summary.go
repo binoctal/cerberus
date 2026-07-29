@@ -163,6 +163,10 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 	}
 
 	for _, v := range verdicts {
+		tc := v.StepResult.TestCase
+		if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
+			continue // non-unit (fallback/replacement) — not an independent review unit
+		}
 		if v.NeedsReview() {
 			s.PendingReview++
 		}

@@ -172,6 +172,24 @@ func TestSessionSummary_StringIncludesRecovered(t *testing.T) {
 	assert.Contains(t, s.String(), "1 recovered")
 }
 
+// TestFromResults_PendingReview_ExcludesNonUnit: the PendingReview count
+// mirrors the tally loops — a fallback/replacement result is not an
+// independent review unit, so a pending-review fallback is NOT counted
+// while a pending-review primary IS.
+func TestFromResults_PendingReview_ExcludesNonUnit(t *testing.T) {
+	results := []agent.StepResult{
+		{TestCase: &agent.TestCase{ID: "A"}, Status: agent.StepFailed},
+		{TestCase: &agent.TestCase{ID: "A'", FallbackFor: "A"}, Status: agent.StepFailed},
+	}
+	verdicts := []examiner.FinalVerdict{
+		{Status: examiner.StatusFail, StepResult: results[0], PendingReview: true},
+		{Status: examiner.StatusFail, StepResult: results[1], PendingReview: true},
+	}
+
+	summary := FromResults("g", "", 1, results, verdicts, 0, 0, 0)
+	assert.Equal(t, 1, summary.PendingReview, "only the primary's pending-review counts")
+}
+
 func TestPlannedCaseCount_ExcludesLazyFallback(t *testing.T) {
 	plan := &agent.TestPlan{Cases: []agent.TestCase{
 		{ID: "A"},
