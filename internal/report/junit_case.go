@@ -13,6 +13,14 @@ func buildJUnitCase(v store.Verdict, evidence map[int64][]store.Evidence) junitC
 		Classname: "cerberus",
 	}
 
+	// A1 Phase 2: a recovered verdict is a passing testcase (the role was
+	// rescued by a deterministic fallback, so the suite must not fail), marked
+	// so a reader sees it was not a clean pass.
+	if v.Recovered {
+		tc.Name += " (recovered)"
+		return tc
+	}
+
 	evSummary := evidenceSummary(evidence, v.TraceID)
 
 	switch v.Status {
