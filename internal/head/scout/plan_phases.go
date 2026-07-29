@@ -105,7 +105,7 @@ func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string, covered m
 	info := DetectProjectType(rootDir)
 	cases := GenerateExecutorCases(info, goal)
 	cases = append(cases, WSCasesCovered(s.config, goal, covered, coveringCase)...)
-	_ = httpCovering // consumed in Task 2
+	cases = append(cases, HTTPCasesCovered(s.config, httpCovering)...)
 	if len(cases) > 0 {
 		s.logger.Info("appended executor cases",
 			zap.String("project_type", string(info.Type)),
