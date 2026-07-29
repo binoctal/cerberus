@@ -33,21 +33,16 @@ Given results `R`:
 
 This model applies identically to the verdict path (`FinalVerdict` embeds `StepResult`, carrying both `Recovered` and `TestCase.FallbackFor`) and the raw-results fallback path (when the Examiner did not run).
 
-## Encoding (zero-migration)
+## Encoding (recovered column)
 
-`recovered` is encoded as a 5th verdict status string, not a new column.
+`recovered` is a dedicated boolean column on `store.Verdict`, NOT a status string.
 
-- New constant in `internal/head/examiner/types.go` alongside the existing `JudgeStatus` values: `StatusRecovered JudgeStatus = "recovered"`.
-- In `examiner.PersistFinalVerdicts`, after computing `status := string(v.Status)`, translate a recovered fallback before storage:
-  ```go
-  if v.StepResult.Recovered {
-      status = string(examiner.StatusRecovered)
-  }
-  ```
-  The fallback already carries a non-zero `TraceID` (it runs `executeStep` → the steps path), so the existing `TraceID == 0` skip guard does not drop it; the recovered verdict persists as its own row with `status = "recovered"`.
-- No `store.Verdict` schema change, no migration, no `CreateVerdict` signature change (`CreateVerdict` has exactly one production caller, `PersistFinalVerdicts`).
+- The `verdicts` table has a `CHECK (status IN ('pass','fail','uncertain','skip'))` constraint, so encoding `recovered` as a 5th status value would require a SQLite table rebuild (CHECK constraints cannot be altered in place). A dedicated column is a one-line `ALTER TABLE ... ADD COLUMN` following the exact precedent of `V006__failure_reason.sql`, and keeps the status domain clean.
+- New migration `migrations/V011__verdict_recovered.sql`: `ALTER TABLE verdicts ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0;`
+- `store.Verdict` gains `Recovered bool json:"recovered"`. `CreateVerdict` gains a `recovered bool` parameter and writes it (its only production caller is `examiner.PersistFinalVerdicts`, so the ripple is one call site). `GetVerdicts` selects and scans the new column.
+- In `examiner.PersistFinalVerdicts`, the recovered fallback verdict is persisted with `recovered = v.StepResult.Recovered`. Its `status` stays the Examiner's judgment (`pass`); recovery is the orthogonal column.
 
-The in-memory verdict for a recovered fallback keeps `Status == StatusPass` (the Examiner judged it a pass, which is correct — it did pass). The `"recovered"` string exists only in the persisted row and anywhere that row is reloaded or rendered. `FromResults` reads `StepResult.Recovered` (in-memory) for the live path and the status string for the DB-reload path.
+The in-memory verdict for a recovered fallback keeps `Status == StatusPass` (the Examiner judged it a pass, which is correct — it did pass); `Recovered` rides along on the embedded `StepResult`. `FromResults` and all consolidate/render code read `Recovered` (in-memory via `StepResult.Recovered`, reloaded via `store.Verdict.Recovered`). The fallback already carries a non-zero `TraceID` (it runs `executeStep` → the steps path), so the existing `TraceID == 0` skip guard does not drop it; the recovered verdict persists as its own row.
 
 ## Changes by site
 
@@ -58,7 +53,7 @@ The in-memory verdict for a recovered fallback keeps `Status == StatusPass` (the
 | `session.SessionSummary` (`summary.go`) | Add `Recovered int json:"recovered"`. |
 | `session.FromResults` (`summary.go:48`) | Implement the outcome model. Detect fallback results and `recoveredPrimaryIDs` from whichever slice is being iterated (verdicts via embedded `StepResult`; raw results directly). `TotalCases = len(results) - fallbackResultCount`. `CoveragePct = (Passed+Recovered)/TotalCases`. `Recovered` counted in both the verdict branch and the raw-results branch. |
 | `TestCasesPlanned` call sites | `run_phases_lifecycle.go:78` and `resume_phases_helpers.go:80` both pass `len(rp.plan.Cases)`, which includes lazy fallback cases. Introduce a helper `plannedCaseCount(plan) = count of cases with FallbackFor == ""` and pass it at both sites so the planned count reflects real roles. |
-| `verdictByNormalizedTarget` (`run_phases_consolidate.go:127`) | Committed loop: `if v.Status == "recovered" { continue }` before inserting into the map. In-memory loop: `if v.StepResult.Recovered || v.StepResult.TestCase.FallbackFor != "" { continue }`. Net effect: a recovered role's effectiveness signal comes from its **primary's fail** (the recalled strategy failed), not the deterministic fallback's pass. This is a latent-bug fix. |
+| `verdictByNormalizedTarget` (`run_phases_consolidate.go:127`) | Committed loop: `if v.Recovered { continue }` before inserting into the map. In-memory loop: `if v.StepResult.Recovered || v.StepResult.TestCase.FallbackFor != "" { continue }`. Net effect: a recovered role's effectiveness signal comes from its **primary's fail** (the recalled strategy failed), not the deterministic fallback's pass. This is a latent-bug fix. |
 | `writeEpisodicMemory` (`run_phases_consolidate.go:31`) | Skip fallback verdicts (`FallbackFor != ""`) so a target gets one episodic row (from its primary), not two. |
 
 ### Rendering (the visibility work — downstream of the status string)
@@ -67,14 +62,14 @@ The in-memory verdict for a recovered fallback keeps `Status == StatusPass` (the
 |---|---|
 | `summary.String()` (`summary.go:108`) | Append `, %d recovered` after `uncertain` in the `Verdicts:` line. |
 | Markdown summary table (`markdown_render_summary.go`) | Add a `Recovered` column. |
-| Markdown verdicts table + `statusEmoji` (`markdown_helpers.go`) | Add `case "recovered": return "♻️ recovered"`. |
-| HTML (`html_template.go`) | Add a `Recovered` summary card and a `badge-recovered` CSS class (alongside `badge-pass`/`badge-fail` at lines 21–32). |
-| JUnit `buildJUnitCase` (`junit_case.go`) | Add `case "recovered":` → a **passing** testcase (no `<failure>`/`<error>`, so the suite does not fail because of a rescue), with `tc.Name += " (recovered)"` and an optional `SystemOut` note. `suite.Tests` (=`len(verdicts)`) includes it. |
+| Markdown verdicts table + `statusEmoji` (`markdown_helpers.go`) | In `renderVerdictsTable`, render a recovered row as `statusEmoji("recovered")` when `v.Recovered`; add `case "recovered": return "♻️ recovered"` to `statusEmoji`. |
+| HTML (`html_template.go`) | Add a `Recovered` summary card and a `badge-recovered` CSS class (alongside `badge-pass`/`badge-fail` at lines 21–32); verdict badge class becomes `badge-{{if $v.Recovered}}recovered{{else}}{{$v.Status}}{{end}}`. |
+| JUnit `buildJUnitCase` (`junit_case.go`) | When `v.Recovered`, emit a **passing** testcase (no `<failure>`/`<error>`, so the suite does not fail because of a rescue), with `tc.Name += " (recovered)"` and an optional `SystemOut` note. `suite.Tests` (=`len(verdicts)`) includes it. |
 
 ## Verification
 
 - `FromResults` outcome model: a table-driven test using the golden example (A/B/C with A′ recovered, B′ not, C standalone) asserting `Passed=1, Failed=1, Recovered=1, TotalCases=3, CoveragePct≈66.7`, plus an all-recovered case and a no-fallback baseline.
-- `PersistFinalVerdicts`: a recovered fallback's row is stored with `status="recovered"`; a non-recovered result keeps its original status.
+- `CreateVerdict` + `GetVerdicts`: a recovered fallback's row round-trips `recovered=true`; a normal verdict stays `recovered=false`.
 - `verdictByNormalizedTarget`: with a primary fail and a recovered fallback sharing a target, the map entry is the primary's fail (recovered does not overwrite).
 - `plannedCaseCount`: excludes `FallbackFor != ""` cases.
 - Renderers: `statusEmoji("recovered")`, Markdown summary column, HTML badge class, and JUnit case name suffix each have a focused test.
@@ -89,10 +84,11 @@ The in-memory verdict for a recovered fallback keeps `Status == StatusPass` (the
 
 ## Files
 
-- `internal/head/examiner/types.go` — `StatusRecovered` constant.
-- `internal/head/examiner/verdict_persist.go` — translate `Recovered` → `"recovered"` status before `CreateVerdict`.
-- `internal/session/summary.go` — `SessionSummary.Recovered`, `FromResults` outcome model, `String()`.
-- `internal/session/run_phases_lifecycle.go`, `internal/session/resume_phases_helpers.go` — `plannedCaseCount`.
+- `migrations/V011__verdict_recovered.sql` — `ALTER TABLE verdicts ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0`.
+- `internal/store/verdict.go` — `Verdict.Recovered`, `CreateVerdict` param, `GetVerdicts` select/scan.
+- `internal/head/examiner/verdict_persist.go` — pass `StepResult.Recovered` to `CreateVerdict`.
+- `internal/session/summary.go` — `SessionSummary.Recovered`, `FromResults` outcome model, `String()`, `plannedCaseCount`.
+- `internal/session/run_phases_lifecycle.go`, `internal/session/resume_phases_helpers.go` — call `plannedCaseCount`.
 - `internal/session/run_phases_consolidate.go` — `verdictByNormalizedTarget` + `writeEpisodicMemory` skip rules.
 - `internal/report/markdown_render_summary.go`, `markdown_render_verdicts.go`, `markdown_helpers.go` — recovered column/emoji.
 - `internal/report/html_template.go` — recovered card + badge.
