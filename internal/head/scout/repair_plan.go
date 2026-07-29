@@ -7,7 +7,6 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
-	"github.com/binoctal/cerberus/internal/project"
 )
 
 // RepairInput is one Examiner-diagnosed failure handed to Scout for targeted
@@ -23,11 +22,11 @@ type RepairInput struct {
 // emitted repair_case tool call becomes a TestCase with Replaces set to its
 // originating failure's ID. Degrades on LLM error: returns (nil, err) so the
 // repair loop can log+break without aborting the run.
-func (s *Scout) RepairPlan(ctx context.Context, goal string, model *project.ProjectModel, failures []RepairInput) ([]agent.TestCase, error) {
+func (s *Scout) RepairPlan(ctx context.Context, goal string, failures []RepairInput) ([]agent.TestCase, error) {
 	if len(failures) == 0 {
 		return nil, nil
 	}
-	prompt := s.buildRepairPrompt(goal, model, failures)
+	prompt := s.buildRepairPrompt(goal, failures)
 	res, err := s.driver.DecideWithTools(ctx, prompt, repairTools())
 	if err != nil {
 		return nil, fmt.Errorf("repair plan: %w", err)
@@ -100,7 +99,7 @@ func repairTools() []llm.Tool {
 // buildRepairPrompt assembles the repair prompt: goal, per-failure context
 // (original case + diagnosis), and the tool guide. Mirrors runAIPlanning's
 // ai.NewPrompt() usage.
-func (s *Scout) buildRepairPrompt(goal string, model *project.ProjectModel, failures []RepairInput) string {
+func (s *Scout) buildRepairPrompt(goal string, failures []RepairInput) string {
 	var b []byte
 	b = append(b, fmt.Sprintf("Goal: %s\n\nYou are repairing failed test cases. For EACH failed case below, emit ONE repair_case tool call with the corrected fields (set `replaces` to the failed case's ID). Only change what the diagnosis indicates; keep the rest.\n\n", goal)...)
 	for i, f := range failures {

@@ -51,6 +51,11 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		return rp.err
 	}
 
+	// Phase 3.1: Repair loop — Examiner->Scout targeted replanning (feature #3).
+	if err := rp.executeRepairLoop(); err != nil {
+		rp.session.Logger.Warn("repair loop failed", zap.Error(err))
+	}
+
 	// Phase 3.5: Consolidate — Write episodic memory (idempotent)
 	if err := rp.executeConsolidatePhase(); err != nil {
 		rp.session.Logger.Warn("consolidate phase failed", zap.Error(err))

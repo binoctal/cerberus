@@ -19,4 +19,8 @@ type runPhase struct {
 	reflections int
 	summary     *SessionSummary
 	err         error
+
+	// repairPlanFn is the Scout.RepairPlan seam used by executeRepairLoop.
+	// nil = use a real Scout head; tests override it for deterministic output.
+	repairPlanFn func(ctx context.Context, goal string, failures []repairInput) ([]agent.TestCase, error)
 }

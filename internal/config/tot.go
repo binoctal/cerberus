@@ -70,3 +70,12 @@ func depthForContextReflexion(contextTokens int) project.ReflexionSettings {
 		return project.ReflexionSettings{EpisodicLimit: 5, SemanticTopK: 3, SemanticThreshold: 0.3}
 	}
 }
+
+// ResolveReplanMaxRounds returns the repair-loop round cap, defaulting to 2.
+// A positive Settings.ReplanMaxRounds always wins; 0/unset means the default.
+func ResolveReplanMaxRounds(s project.Settings) int {
+	if s.ReplanMaxRounds > 0 {
+		return s.ReplanMaxRounds
+	}
+	return 2
+}

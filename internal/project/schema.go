@@ -93,6 +93,10 @@ type Settings struct {
 	Reflexion           ReflexionSettings `yaml:"reflexion,omitempty"`
 	Coverage            CoverageSettings  `yaml:"coverage,omitempty"`
 	Auth                AuthSettings      `yaml:"auth,omitempty"`
+
+	// ReplanMaxRounds caps the in-session Examiner->Scout repair loop
+	// (feature #3). 0 means "use the default" (resolved by config.ResolveReplanMaxRounds).
+	ReplanMaxRounds int `yaml:"replan_max_rounds,omitempty"`
 }
 
 type AIBudget struct {
