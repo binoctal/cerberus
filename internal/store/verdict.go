@@ -17,16 +17,19 @@ type Verdict struct {
 	Suggestions   string        `json:"suggestions,omitempty"`
 	FailureReason FailureReason `json:"failure_reason,omitempty"` // Root cause of failure
 	Recovered     bool          `json:"recovered,omitempty"`      // True if this verdict is a recovered lazy fallback (A1 Phase 2)
+	FallbackFor   string        `json:"fallback_for,omitempty"`   // Non-empty when this verdict is a fallback for another test case
+	Replaces      string        `json:"replaces,omitempty"`       // Non-empty when this verdict is a replacement for another test case
 	CreatedAt     string        `json:"created_at"`
 }
 
 func (s *Store) CreateVerdict(ctx context.Context, sessionID string, traceID int64,
-	target, status string, confidence float64, source, reasoning string, suggestions any, failureReason FailureReason, recovered bool) (*Verdict, error) {
+	target, status string, confidence float64, source, reasoning string, suggestions any, failureReason FailureReason, recovered bool,
+	fallbackFor, replaces string) (*Verdict, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO verdicts (session_id, trace_id, target, status, confidence, source, reasoning, suggestions, failure_reason, recovered, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sessionID, traceID, target, status, confidence, source, reasoning, jsonText(suggestions), string(failureReason), recovered, now)
+		`INSERT INTO verdicts (session_id, trace_id, target, status, confidence, source, reasoning, suggestions, failure_reason, recovered, fallback_for, replaces, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sessionID, traceID, target, status, confidence, source, reasoning, jsonText(suggestions), string(failureReason), recovered, fallbackFor, replaces, now)
 	if err != nil {
 		return nil, err
 	}
@@ -34,14 +37,16 @@ func (s *Store) CreateVerdict(ctx context.Context, sessionID string, traceID int
 	return &Verdict{
 		ID: id, SessionID: sessionID, TraceID: traceID,
 		Target: target, Status: status, Confidence: confidence,
-		Source: source, Reasoning: reasoning, FailureReason: failureReason, Recovered: recovered, CreatedAt: now,
+		Source: source, Reasoning: reasoning, FailureReason: failureReason, Recovered: recovered,
+		FallbackFor: fallbackFor, Replaces: replaces, CreatedAt: now,
 	}, nil
 }
 
 func (s *Store) GetVerdicts(ctx context.Context, sessionID string) ([]Verdict, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, session_id, trace_id, target, status, confidence, source,
-		        COALESCE(reasoning, ''), COALESCE(suggestions, ''), COALESCE(failure_reason, ''), recovered, created_at
+		        COALESCE(reasoning, ''), COALESCE(suggestions, ''), COALESCE(failure_reason, ''), recovered,
+		        COALESCE(fallback_for, ''), COALESCE(replaces, ''), created_at
 		 FROM verdicts WHERE session_id = ? ORDER BY created_at`, sessionID)
 	if err != nil {
 		return nil, err
@@ -53,7 +58,7 @@ func (s *Store) GetVerdicts(ctx context.Context, sessionID string) ([]Verdict, e
 		var v Verdict
 		if err := rows.Scan(&v.ID, &v.SessionID, &v.TraceID, &v.Target,
 			&v.Status, &v.Confidence, &v.Source, &v.Reasoning, &v.Suggestions,
-			&v.FailureReason, &v.Recovered, &v.CreatedAt); err != nil {
+			&v.FailureReason, &v.Recovered, &v.FallbackFor, &v.Replaces, &v.CreatedAt); err != nil {
 			return nil, err
 		}
 		verdicts = append(verdicts, v)

@@ -94,6 +94,8 @@ func PersistFinalVerdicts(ctx context.Context, s *store.Store, logger *zap.Logge
 			nil, // suggestions
 			failureReason,
 			v.StepResult.Recovered,
+			v.StepResult.TestCase.FallbackFor,
+			v.StepResult.TestCase.Replaces,
 		)
 		if err != nil {
 			logger.Warn("failed to persist verdict",

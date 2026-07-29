@@ -142,7 +142,11 @@ func verdictByNormalizedTarget(ctx context.Context, session *Session, verdicts [
 		}
 		// A1 Phase 2: a recovered fallback shares its primary's target. Skip it
 		// so the primary's fail (the strategy's real signal) wins this slot.
-		if v.Recovered {
+		// An unrecovered non-unit (a fallback/replacement that also failed) is
+		// skipped for the same reason — it is not an independent signal and must
+		// not shadow the primary's failure reason. Mirrors the in-memory loop's
+		// TestCase.FallbackFor/Replaces skip, using the persisted columns.
+		if v.Recovered || v.FallbackFor != "" || v.Replaces != "" {
 			continue
 		}
 		out[memory.NormalizeTarget(v.Target)] = verdictInfo{
