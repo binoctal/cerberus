@@ -21,6 +21,8 @@ func TestExecuteRepairLoop_OneRound(t *testing.T) {
 	defer cleanup()
 
 	rp.session.ID = "sess-repair-1"
+	// Bound the loop to exactly one round — proves the one-round contract.
+	rp.session.Config.Settings.ReplanMaxRounds = 1
 	// Insert session row for FK constraint on verdict persistence.
 	_, err := rp.session.Store.DB().ExecContext(ctx,
 		`INSERT INTO sessions (id, mode, status, goal, project_name, coverage_pct, stats, started_at)
@@ -54,25 +56,26 @@ func TestExecuteRepairLoop_OneRound(t *testing.T) {
 
 	require.NoError(t, rp.executeRepairLoop())
 
-	// (a) A replacement case (Replaces != "") was appended to the persisted plan.
+	// (a) Exactly one replacement case (Replaces="tc-1") was appended to the
+	// persisted plan — not two (which would indicate a second round ran).
 	var persisted agent.TestPlan
 	require.NoError(t, rp.session.Store.LoadPlan(ctx, rp.session.ID, &persisted))
-	var sawReplacementInPlan bool
+	var planReplacements []agent.TestCase
 	for _, tc := range persisted.Cases {
 		if tc.Replaces == "tc-1" {
-			sawReplacementInPlan = true
+			planReplacements = append(planReplacements, tc)
 		}
 	}
-	require.True(t, sawReplacementInPlan, "replacement case must be appended to persisted plan")
+	require.Len(t, planReplacements, 1, "exactly one replacement case in persisted plan (one round)")
 
-	// (b) A replacement verdict is merged into rp.verdicts.
-	var sawReplacementVerdict bool
+	// (b) Exactly one replacement verdict merged into rp.verdicts.
+	var verdictReplacements []examiner.FinalVerdict
 	for _, v := range rp.verdicts {
 		if v.StepResult.TestCase != nil && v.StepResult.TestCase.Replaces == "tc-1" {
-			sawReplacementVerdict = true
+			verdictReplacements = append(verdictReplacements, v)
 		}
 	}
-	require.True(t, sawReplacementVerdict, "replacement verdict must be merged into rp.verdicts")
+	require.Len(t, verdictReplacements, 1, "exactly one replacement verdict merged (one round)")
 }
 
 // TestExecuteRepairLoop_NoEligible_NoOp: with no actionable hints, the loop is

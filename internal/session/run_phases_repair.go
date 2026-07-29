@@ -41,10 +41,13 @@ func (rp *runPhase) executeRepairLoop() error {
 			return nil
 		}
 
-		// Append + persist so resume sees them.
+		// Append + persist so resume sees them. A SavePlan failure must break —
+		// otherwise PersistFinalVerdicts could write verdicts referencing cases
+		// not in the plan.
 		rp.plan.Cases = append(rp.plan.Cases, replacements...)
 		if err := rp.session.Store.SavePlan(rp.ctx, rp.session.ID, rp.plan); err != nil {
-			rp.session.Logger.Warn("save plan (repair) failed", zap.Error(err))
+			rp.session.Logger.Warn("save plan (repair) failed; stopping repair loop", zap.Error(err))
+			return nil
 		}
 
 		// Execute only the replacements.
