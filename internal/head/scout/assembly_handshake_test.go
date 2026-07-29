@@ -126,3 +126,28 @@ func TestAssemblePlan_SelfHandshakeSanitize_NoRedundancy_NoOp(t *testing.T) {
 	assert.Equal(t, "ws_connect", c.Steps[0].Action)
 	assert.Equal(t, "ws_receive", c.Steps[1].Action)
 }
+
+// TestAssemblePlan_SelfHandshakeSanitize_OptionalHandshake_Kept: an OPTIONAL
+// handshake's AwaitType is a peer-join signal — the connect's auto-await TIMES
+// OUT (the signal arrives later, beyond the handshake window) without consuming
+// it, so the later ws_receive(signal) is the decisive assertion and must be
+// KEPT. Only mandatory (consumed) handshakes are sanitized. Mirrors the
+// deterministic relay, which is built only for optional handshakes
+// (ws_cases.go:206 — !a.Handshake.Optional → skip).
+func TestAssemblePlan_SelfHandshakeSanitize_OptionalHandshake_Kept(t *testing.T) {
+	proto := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"web": {Handshake: &project.RoleHandshake{AwaitType: "signal", Optional: true, Timeout: 1}},
+	}}
+	svcs := []project.Service{{Name: "ws", Protocol: proto}}
+	calls := wsHandshakeCalls("ws",
+		wsConnect("web"),
+		wsRecv("web", "signal"),
+	)
+	plan, _, _, _ := assemblePlan(calls, "verify signal", "", svcs)
+	require.Len(t, plan.Cases, 1)
+	c := plan.Cases[0]
+	require.Len(t, c.Steps, 2, "optional-handshake peer-join receive must NOT be dropped")
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "ws_receive", c.Steps[1].Action)
+	assert.Equal(t, "signal", c.Steps[1].Type)
+}

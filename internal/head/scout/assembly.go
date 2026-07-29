@@ -220,27 +220,43 @@ func assembleContract(calls []llm.ToolCall, depth string, invs []contract.Invari
 }
 
 // sanitizeSelfHandshakeReawait drops redundant ws_receive steps that re-await
-// the handshake frame a ws_connect on the same connection has already
-// auto-consumed. The deterministic emitter excludes these at emit time
-// (ws_cases.go); this mirrors that defense for LLM-authored ws_flow cases. A
-// ws_connect with no role, a role without a handshake, or a missing protocol
-// makes the call a no-op — existing behavior is unchanged. When every receive
-// on a connection is dropped, the case naturally collapses to connect-only,
-// which llmWSFlowSound already accepts as trivially sound (the connect alone
-// proves connect+handshake), so the role stays covered.
+// a MANDATORY handshake frame a ws_connect on the same connection has already
+// auto-consumed (a mandatory connect's auto-await succeeds within the handshake
+// window, consuming the AwaitType frame; a later receive of that type would
+// time out). The deterministic emitter excludes these at emit time
+// (ws_cases.go); this mirrors that defense for LLM-authored ws_flow cases.
+//
+// OPTIONAL handshakes are intentionally NOT sanitized: an optional connect's
+// auto-await TIMES OUT (the AwaitType is a peer-join signal that arrives later,
+// beyond the handshake window) without consuming the frame, so the later
+// ws_receive(signal) is the decisive peer-join assertion and MUST stay. The
+// deterministic relay (wsRelayCases) is built only for optional handshakes
+// (ws_cases.go:206 — !a.Handshake.Optional → skip) on the same premise.
+//
+// A ws_connect with no role, a role without a mandatory handshake, or a missing
+// protocol makes the call a no-op. When every receive on a connection is
+// dropped, the case naturally collapses to connect-only, which llmWSFlowSound
+// already accepts as trivially sound (the connect alone proves connect +
+// handshake), so the role stays covered.
 func sanitizeSelfHandshakeReawait(open *agent.TestCase, proto *project.Protocol) {
 	if proto == nil || len(proto.Roles) == 0 || open == nil {
 		return
 	}
-	// connection_id -> sanitized handshake await type already consumed by the
-	// connect on that connection.
+	// connection_id -> sanitized mandatory handshake await type already
+	// consumed by the connect on that connection.
 	consumed := map[string]string{}
 	for _, st := range open.Steps {
 		if st.Action != "ws_connect" || st.Role == "" {
 			continue
 		}
 		role, ok := proto.Roles[st.Role]
-		if !ok || role == nil || role.Handshake == nil || role.Handshake.AwaitType == "" {
+		if !ok || role == nil || role.Handshake == nil {
+			continue
+		}
+		// Only mandatory handshakes consume the AwaitType frame within the
+		// connect; optional handshakes time out and leave it for a later
+		// receive to assert.
+		if role.Handshake.AwaitType == "" || role.Handshake.Optional {
 			continue
 		}
 		consumed[st.ConnectionID] = sanitizeTypeID(role.Handshake.AwaitType)
