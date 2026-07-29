@@ -19,7 +19,8 @@ type JudgeResult struct {
 	CorrectnessConfidence float64     `json:"correctness_confidence"`
 	Reasoning             string      `json:"reasoning"`
 	SelfCritique          string      `json:"self_critique,omitempty"`
-	CritiqueTriggered     bool        `json:"critique_triggered,omitempty"`
+	CritiqueTriggered     bool                 `json:"critique_triggered,omitempty"`
+	RedispatchHint        agent.RedispatchHint `json:"redispatch_hint,omitempty"`
 }
 
 // CritiqueResult is the output of a Self-Refine critique pass.

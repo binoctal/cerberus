@@ -134,6 +134,7 @@ func fallbackVerdict(r agent.StepResult, conf float64, reason string) FinalVerdi
 		ExistenceConfidence:   1.0,
 		CorrectnessConfidence: 1.0,
 		Reasoning:             reason,
+		RedispatchHint:        agent.HintNone,
 	}
 	return VerdictPolicy(judgeResult, r, conf)
 }

@@ -42,6 +42,7 @@ type FinalVerdict struct {
 	PendingReview         bool
 	DegradedLevel         int // 0 = not degraded, 1 = Self-Refine, 2 = checker-only, 3 = pending
 	StepResult            agent.StepResult
+	RedispatchHint        agent.RedispatchHint
 }
 
 // NeedsReview returns true if this verdict requires human review.

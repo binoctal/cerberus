@@ -18,6 +18,20 @@ const (
 	StepUncertain StepStatus = "uncertain"
 )
 
+// RedispatchHint is the Examiner's structured diagnosis of a failure's
+// correctable cause (feature #3). "none" means no targeted replanning; the
+// others name a cause a replacement case could address. Defined in package
+// agent (not examiner) so both scout and examiner can reference it without a
+// scout->examiner import cycle.
+type RedispatchHint string
+
+const (
+	HintNone          RedispatchHint = "none"
+	HintEndpointDrift RedispatchHint = "endpoint_drift" // wrong path/method/verb
+	HintAuth          RedispatchHint = "auth"           // missing/bad credentials or scheme
+	HintShape         RedispatchHint = "shape"          // wrong payload/contract shape
+)
+
 // TestCase represents a single testable operation.
 type TestCase struct {
 	ID          string     `json:"id"`
@@ -40,6 +54,10 @@ type TestCase struct {
 	// (A1 Phase 2). Empty on normal cases. The Agent skips a lazy fallback by
 	// default and activates it only when its primary case fails at execution.
 	FallbackFor string `json:"fallback_for,omitempty"`
+	// Replaces is the ID of the failed case this case is a targeted replacement
+	// for (feature #3). Empty on normal/planned cases. A replacement is scheduled
+	// explicitly by the repair loop (NOT lazily activated like FallbackFor).
+	Replaces string `json:"replaces,omitempty"`
 }
 
 // TestStep is a single step in a deterministic WebSocket flow.

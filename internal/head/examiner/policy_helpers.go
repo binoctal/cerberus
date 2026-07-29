@@ -16,6 +16,7 @@ func newFinalVerdict(judgeResult *JudgeResult, stepResult agent.StepResult) Fina
 		Reasoning:             judgeResult.Reasoning,
 		SelfCritique:          judgeResult.SelfCritique,
 		CritiqueTriggered:     judgeResult.CritiqueTriggered,
+		RedispatchHint:        judgeResult.RedispatchHint,
 		StepResult:            stepResult,
 	}
 }
