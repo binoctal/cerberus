@@ -50,7 +50,7 @@ func TestAugmentPlanComposition_AssembledRelay(t *testing.T) {
 		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "device:online"}},
 	}
 
-	plan, covered, _ := assemblePlan(calls, "goal", "ws://h/ws", cfg.Services)
+	plan, covered, _, _ := assemblePlan(calls, "goal", "ws://h/ws", cfg.Services)
 
 	require.Len(t, plan.Cases, 1, "single ws_flow case from begin_case+ws_*")
 	require.NotEmpty(t, plan.Cases[0].Steps)
@@ -77,7 +77,7 @@ func TestAssemblePlan_UnsoundWSFlowDoesNotCover(t *testing.T) {
 		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
 		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "device:online"}}, // grounded (web await_type)
 	}
-	_, coveredSound, _ := assemblePlan(sound, "goal", "ws://h/ws", cfg.Services)
+	_, coveredSound, _, _ := assemblePlan(sound, "goal", "ws://h/ws", cfg.Services)
 	assert.True(t, coveredSound["rt"]["web"], "grounded receive -> web covered")
 
 	unsound := []llm.ToolCall{
@@ -85,7 +85,7 @@ func TestAssemblePlan_UnsoundWSFlowDoesNotCover(t *testing.T) {
 		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
 		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "message"}}, // invented
 	}
-	planUnsound, coveredUnsound, _ := assemblePlan(unsound, "goal", "ws://h/ws", cfg.Services)
+	planUnsound, coveredUnsound, _, _ := assemblePlan(unsound, "goal", "ws://h/ws", cfg.Services)
 	assert.False(t, coveredUnsound["rt"]["web"], "invented receive -> web NOT covered (unsound)")
 	// Policy: the unsound LLM case itself stays in the plan.
 	assert.Len(t, planUnsound.Cases, 1, "unsound LLM case is kept, not dropped")
@@ -119,7 +119,7 @@ func TestAssemblePlan_RecordsCoveringCase(t *testing.T) {
 		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
 		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "device:online"}}, // grounded
 	}
-	plan, _, covering := assemblePlan(sound, "goal", "ws://h/ws", cfg.Services)
+	plan, _, covering, _ := assemblePlan(sound, "goal", "ws://h/ws", cfg.Services)
 	require.NotEmpty(t, plan.Cases)
 	primaryID := plan.Cases[0].ID
 	assert.Equal(t, primaryID, covering["rt"]["web"], "sound case ID recorded as web's coverer")
@@ -129,7 +129,7 @@ func TestAssemblePlan_RecordsCoveringCase(t *testing.T) {
 		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
 		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "message"}}, // invented
 	}
-	_, _, coveringUnsound := assemblePlan(unsound, "goal", "ws://h/ws", cfg.Services)
+	_, _, coveringUnsound, _ := assemblePlan(unsound, "goal", "ws://h/ws", cfg.Services)
 	assert.Empty(t, coveringUnsound["rt"]["web"], "unsound case records no coverer")
 }
 

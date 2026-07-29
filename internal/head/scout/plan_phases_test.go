@@ -32,7 +32,7 @@ func TestAppendExecutorCases_AppendsWSCasesWhenProtocolDeclared(t *testing.T) {
 	s := &Scout{config: cfg, logger: zap.NewNop()}
 	plan := &agent.TestPlan{}
 
-	s.appendExecutorCases(plan, "bridge receives permission:response", nil, nil)
+	s.appendExecutorCases(plan, "bridge receives permission:response", nil, nil, nil)
 
 	// WS cases are emitted as ws_flow Steps cases. At least one must be present,
 	// carrying a ws_connect step and a ws_receive step inside.
@@ -77,7 +77,7 @@ func TestAppendExecutorCases_NoWSCasesWhenNoProtocolDeclared(t *testing.T) {
 	s := &Scout{config: cfg, logger: zap.NewNop()}
 	plan := &agent.TestPlan{}
 
-	s.appendExecutorCases(plan, "test the API", nil, nil)
+	s.appendExecutorCases(plan, "test the API", nil, nil, nil)
 
 	for _, c := range plan.Cases {
 		assert.NotEqual(t, "ws_connect", c.Action, "no ws_connect case without a declared protocol")

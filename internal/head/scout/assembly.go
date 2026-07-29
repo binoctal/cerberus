@@ -14,13 +14,17 @@ import (
 // per-service set of roles already connected by a begin_case+ws_* group
 // (covered), so WSCasesCovered can suppress redundant deterministic connects.
 // Unknown/invalid calls are dropped, never panic.
-func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool, map[string]map[string]string) {
+func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool, map[string]map[string]string, map[string]map[string]string) {
 	var cases []agent.TestCase
 	covered := map[string]map[string]bool{}
 	// A1 Phase 2: side table mirroring covered, carrying the ID of the sound
 	// LLM case that covered each (svc, role), so WSCasesCovered can emit a lazy
 	// fallback bound to it. covered stays bool; this adds only the binding.
 	coveringCase := map[string]map[string]string{}
+	// A1 #4: HTTP coverage side table — service -> path -> ID of the LLM HTTP
+	// case that covered the endpoint, so HTTPCasesCovered can bind a lazy smoke
+	// fallback to it. Deduped by (service, path): one smoke per endpoint.
+	httpCovering := map[string]map[string]string{}
 	// service -> declared protocol, so flush can judge ws_flow soundness without
 	// re-scanning services per case.
 	svcProtos := map[string]*project.Protocol{}
@@ -74,7 +78,16 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 		switch call.Name {
 		case "test_http_endpoint":
 			flush()
-			cases = append(cases, assembleHTTP(call, nextID, services))
+			hc := assembleHTTP(call, nextID, services)
+			if hc.Service != "" && strings.HasPrefix(hc.Target, "/") {
+				if httpCovering[hc.Service] == nil {
+					httpCovering[hc.Service] = map[string]string{}
+				}
+				if _, dup := httpCovering[hc.Service][hc.Target]; !dup {
+					httpCovering[hc.Service][hc.Target] = hc.ID
+				}
+			}
+			cases = append(cases, hc)
 		case "check_invariant":
 			flush()
 			cases = append(cases, assembleInvariant(call, nextID))
@@ -136,7 +149,7 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 	}
 	flush()
 	cases = fillBody(cases, services) // retained: service.BodyTemplate fill
-	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, covered, coveringCase
+	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, covered, coveringCase, httpCovering
 }
 
 // --- field helpers live in internal/llm/toolfield.go (shared with Agent) ---
