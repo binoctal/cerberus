@@ -9,12 +9,18 @@ import (
 
 // stepToAction converts a declarative TestStep into the typed WS action the
 // shared executor already dispatches. Every step carries its own connection_id,
-// so a case may address several connections. The connect step dials tc.Target;
-// role drives protocol auth + handshake exactly as a Steer-emitted ws_connect.
+// so a case may address several connections. The connect step dials s.URL when
+// set, otherwise tc.Target — so a single case can dial peers at different
+// endpoints (cross-endpoint multi-party relay). Role drives protocol auth +
+// handshake exactly as a Steer-emitted ws_connect.
 func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 	switch s.Action {
 	case "ws_connect":
-		return types.WSConnectAction{URL: tc.Target, Role: s.Role, ConnectionID: s.ConnectionID}, nil
+		url := s.URL
+		if url == "" {
+			url = tc.Target
+		}
+		return types.WSConnectAction{URL: url, Role: s.Role, ConnectionID: s.ConnectionID}, nil
 	case "ws_send":
 		return types.WSSendAction{ConnectionID: s.ConnectionID, Message: s.Message}, nil
 	case "ws_receive":

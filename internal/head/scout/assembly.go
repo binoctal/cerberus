@@ -121,6 +121,7 @@ func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project
 			}
 			open.Steps = append(open.Steps, agent.TestStep{
 				Action: "ws_connect", ConnectionID: llm.StrField(call, "role"), Role: llm.StrField(call, "role"),
+				URL: llm.StrField(call, "url"),
 			})
 		case "ws_send":
 			if open == nil {

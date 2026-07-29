@@ -321,3 +321,107 @@ func TestStepToActionReceiveAliases(t *testing.T) {
 	require.Equal(t, "session:output", wr.Type)
 	require.Equal(t, []string{"session:output-batch"}, wr.Aliases)
 }
+
+// TestStepToActionWSConnectURL covers the per-step dial URL fallback: an empty
+// TestStep.URL falls back to tc.Target (the common case), while a non-empty
+// TestStep.URL overrides it so a single case can dial peers at different
+// endpoints (cross-endpoint multi-party relay).
+func TestStepToActionWSConnectURL(t *testing.T) {
+	t.Run("empty_url_falls_back_to_target", func(t *testing.T) {
+		action, err := stepToAction(&TestCase{Target: "ws://case-target/ws"}, TestStep{
+			Action: "ws_connect", Role: "web", ConnectionID: "c1",
+		})
+		require.NoError(t, err)
+		wc, ok := action.(types.WSConnectAction)
+		require.True(t, ok)
+		require.Equal(t, "ws://case-target/ws", wc.URL, "empty step URL must fall back to tc.Target")
+		require.Equal(t, "web", wc.Role)
+		require.Equal(t, "c1", wc.ConnectionID)
+	})
+
+	t.Run("non_empty_url_overrides_target", func(t *testing.T) {
+		action, err := stepToAction(&TestCase{Target: "ws://case-target/ws"}, TestStep{
+			Action: "ws_connect", Role: "web", ConnectionID: "c1", URL: "ws://peer-other/endpoint",
+		})
+		require.NoError(t, err)
+		wc, ok := action.(types.WSConnectAction)
+		require.True(t, ok)
+		require.Equal(t, "ws://peer-other/endpoint", wc.URL, "non-empty step URL must override tc.Target")
+	})
+}
+
+// TestRunStepsCrossEndpoint proves a single Steps case can dial TWO different
+// endpoints in one scenario: two ws_connect steps carry explicit per-step URLs
+// pointing at two distinct httptest WS servers. Each server is an echo broker
+// for its own connection; a frame round-trips on each. accepts==2 across both
+// servers proves the case opened two sockets at two endpoints (not one shared
+// connection to tc.Target). The protocol index maps BOTH servers' hosts so
+// role/param resolution works on each.
+func TestRunStepsCrossEndpoint(t *testing.T) {
+	var acceptsA, acceptsB atomic.Int32
+	echoA := newWSTestServer(t, func(conn *websocket.Conn) {
+		acceptsA.Add(1)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			if err := conn.Write(ctx, mt, data); err != nil {
+				return
+			}
+		}
+	})
+	echoB := newWSTestServer(t, func(conn *websocket.Conn) {
+		acceptsB.Add(1)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		for {
+			mt, data, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			if err := conn.Write(ctx, mt, data); err != nil {
+				return
+			}
+		}
+	})
+
+	// Index maps BOTH servers' hosts to the protocol so role params resolve on
+	// each endpoint independently (host-based lookup, per WSProtocolIndex.ByHost).
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{
+			"web":    {Params: map[string]string{"type": "web"}},
+			"bridge": {Params: map[string]string{"type": "bridge"}},
+		}}
+	wsIdx := &WSProtocolIndex{
+		ByHost: map[string]*project.Protocol{
+			hostOf(t, echoA): p,
+			hostOf(t, echoB): p,
+		},
+	}
+
+	// tc.Target is a closed port; both steps MUST dial their explicit URL or the
+	// case fails to connect at all — proving the per-step URL is authoritative.
+	tc := &TestCase{
+		ID:     "tc-cross-endpoint",
+		Target: closedPortURL(t),
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "c-web", URL: echoA + "?type=web"},
+			{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge", URL: echoB + "?type=bridge"},
+			{Action: "ws_send", ConnectionID: "c-web", Message: `{"type":"ping:web"}`},
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "ping:web", Timeout: 2},
+			{Action: "ws_send", ConnectionID: "c-bridge", Message: `{"type":"ping:bridge"}`},
+			{Action: "ws_receive", ConnectionID: "c-bridge", Type: "ping:bridge", Timeout: 2},
+		},
+	}
+
+	se := newStepExecutionWithIdx(t, tc, wsIdx)
+	result := se.runSteps()
+
+	require.Equal(t, StepPassed, result.Status, "cross-endpoint case should pass")
+	require.Len(t, result.Evidence, 6, "one evidence entry per step")
+	require.Equal(t, int32(1), acceptsA.Load(), "server A must accept exactly one connection")
+	require.Equal(t, int32(1), acceptsB.Load(), "server B must accept exactly one connection")
+}

@@ -67,6 +67,7 @@ type TestStep struct {
 	Action       string         `json:"action"`                  // ws_connect, ws_send, ws_receive, ws_disconnect
 	ConnectionID string         `json:"connection_id,omitempty"` // Identifies the WS connection
 	Role         string         `json:"role,omitempty"`          // Optional: role name (e.g., "web", "device")
+	URL          string         `json:"url,omitempty"`           // ws_connect only: dial URL (defaults to tc.Target when empty)
 	Message      string         `json:"message,omitempty"`       // For ws_send: JSON payload to send
 	Type         string         `json:"type,omitempty"`          // For ws_receive: expected message type
 	Aliases      []string       `json:"aliases,omitempty"`       // ws_receive: additional matching types

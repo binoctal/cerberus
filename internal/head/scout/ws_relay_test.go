@@ -65,6 +65,30 @@ func TestAugmentPlanComposition_AssembledRelay(t *testing.T) {
 	}
 }
 
+// TestAssemblePlan_WSConnectURL verifies the per-step ws_connect url is captured
+// onto TestStep.URL so a case can dial peers at different endpoints than the
+// begin_case service. A missing url leaves URL empty (stepToAction falls back to
+// tc.Target); a present url is surfaced verbatim.
+func TestAssemblePlan_WSConnectURL(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+	calls := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "ok", "service": "rt"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "bridge", "url": "ws://other-host/ws"}},
+	}
+
+	plan, _, _, _ := assemblePlan(calls, "goal", "ws://h/ws", cfg.Services)
+	require.Len(t, plan.Cases, 1, "single ws_flow case")
+	steps := plan.Cases[0].Steps
+	require.Len(t, steps, 2)
+
+	require.Equal(t, "web", steps[0].Role)
+	require.Empty(t, steps[0].URL, "omitted url leaves TestStep.URL empty (falls back to tc.Target)")
+
+	require.Equal(t, "bridge", steps[1].Role)
+	require.Equal(t, "ws://other-host/ws", steps[1].URL, "emitted url must populate TestStep.URL")
+}
+
 // TestAssemblePlan_UnsoundWSFlowDoesNotCover is the A1 residual-risk fix: an
 // LLM ws_flow that connects a role but receives an INVENTED (ungrounded) type is
 // unsound, so the role is NOT marked covered — WSCasesCovered still emits the

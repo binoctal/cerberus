@@ -58,7 +58,8 @@ func planTools() []llm.Tool {
 			}, "required": []any{"name", "expectation"}}},
 		{Name: "ws_connect", Description: "WS step: open a connection as role.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"role": map[string]any{"type": "string"}, "url": map[string]any{"type": "string"},
+				"role": map[string]any{"type": "string"},
+				"url":  map[string]any{"type": "string", "description": "Optional dial URL. Defaults to the begin_case service URL; set this to dial a peer at a different endpoint (host/path) than the case target."},
 			}, "required": []any{"role"}}},
 		{Name: "ws_send", Description: "WS step: send a typed message on role's connection.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
