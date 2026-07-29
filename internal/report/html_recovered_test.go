@@ -32,5 +32,5 @@ func TestRenderHTML_RecoveredVerdictBadge(t *testing.T) {
 	}
 	out, err := RenderHTMLString(&data)
 	assert.NoError(t, err)
-	assert.True(t, strings.Contains(out, "badge-recovered"), "recovered verdict gets badge-recovered")
+	assert.True(t, strings.Contains(out, "badge badge-recovered"), "rendered verdict badge uses class \"badge badge-recovered\"")
 }
