@@ -9,6 +9,15 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 )
 
+// smokePasses is the deterministic judgment for an HTTP smoke fallback (A1 #4):
+// pass iff the server returned a response with status < 500. A transport error
+// (no response, status 0) or a 5xx fails. This is intentionally broader than the
+// normal HTTP OK rule (2xx/3xx) — a smoke proves the endpoint is reachable and
+// not erroring, so 4xx counts as covered.
+func smokePasses(r types.HTTPResult) bool {
+	return r.StatusCode >= 200 && r.StatusCode < 500
+}
+
 // tryRuleEngine attempts to execute the test case using the rule engine.
 // Returns a successful result if the rule engine handles the case, nil otherwise.
 func (se *stepExecution) tryRuleEngine() *StepResult {
@@ -68,6 +77,39 @@ func (se *stepExecution) tryRuleEngine() *StepResult {
 
 	result := r.executor.Execute(se.ctx, action)
 	r.recordEvidence(se.ctx, se.traceID, "rule_engine", action, result)
+	// A1 #4: a smoke fallback (FallbackFor != "") gets deterministic
+	// reachable-and-non-5xx judgment and stays off the ReAct LLM loop. A
+	// transport error or 5xx -> StepFailed (not recovered); 2xx/3xx/4xx -> pass.
+	if se.tc.FallbackFor != "" {
+		if hr, ok := result.(types.HTTPResult); ok && smokePasses(hr) {
+			stepResult := StepResult{
+				TestCase: se.tc,
+				Status:   StepPassed,
+				TraceID:  se.traceID,
+				Attempts: 1,
+				Duration: time.Since(se.start),
+				Action:   action,
+				Result:   result,
+				Evidence: []Evidence{{Type: evidenceType(result), Content: result.Evidence().Content}},
+			}
+			return &stepResult
+		}
+		failResult := StepResult{
+			TestCase: se.tc,
+			Status:   StepFailed,
+			TraceID:  se.traceID,
+			Attempts: 1,
+			Duration: time.Since(se.start),
+			Action:   action,
+			Result:   result,
+		}
+		if hr, ok := result.(types.HTTPResult); ok {
+			failResult.Error = fmt.Errorf("smoke: endpoint not reachable or 5xx (status=%d)", hr.StatusCode)
+		} else {
+			failResult.Error = fmt.Errorf("smoke: no HTTP response")
+		}
+		return &failResult
+	}
 	if result.Success() {
 		stepResult := StepResult{
 			TestCase: se.tc,
