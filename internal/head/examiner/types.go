@@ -14,11 +14,11 @@ const (
 
 // JudgeResult is the output of a Judge evaluation.
 type JudgeResult struct {
-	Status                JudgeStatus `json:"status"`
-	ExistenceConfidence   float64     `json:"existence_confidence"`
-	CorrectnessConfidence float64     `json:"correctness_confidence"`
-	Reasoning             string      `json:"reasoning"`
-	SelfCritique          string      `json:"self_critique,omitempty"`
+	Status                JudgeStatus          `json:"status"`
+	ExistenceConfidence   float64              `json:"existence_confidence"`
+	CorrectnessConfidence float64              `json:"correctness_confidence"`
+	Reasoning             string               `json:"reasoning"`
+	SelfCritique          string               `json:"self_critique,omitempty"`
 	CritiqueTriggered     bool                 `json:"critique_triggered,omitempty"`
 	RedispatchHint        agent.RedispatchHint `json:"redispatch_hint,omitempty"`
 }

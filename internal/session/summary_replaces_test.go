@@ -3,10 +3,11 @@ package session_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/session"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestFromResults_ReplacesRecovered: a passed replacement recovers its original

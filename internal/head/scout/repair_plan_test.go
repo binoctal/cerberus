@@ -3,10 +3,11 @@ package scout
 import (
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/head/agent"
-	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/llm"
 )
 
 // TestAssembleRepair_PairsReplacements: each repair_case emission pairs to its
