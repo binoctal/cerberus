@@ -21,8 +21,12 @@ func renderVerdictsTable(b *strings.Builder, verdicts []store.Verdict) {
 		if (v.Status == "fail" || v.Status == "failed") && v.FailureReason != "" {
 			failReason = v.FailureReason.DisplayName()
 		}
+		verdictStatus := v.Status
+		if v.Recovered {
+			verdictStatus = "recovered"
+		}
 		fmt.Fprintf(b, "| %d | `%s` | %s | %.2f | %s | %s |\n",
-			i+1, v.Target, statusEmoji(v.Status), v.Confidence, failReason, v.Source)
+			i+1, v.Target, statusEmoji(verdictStatus), v.Confidence, failReason, v.Source)
 	}
 	b.WriteString("\n")
 

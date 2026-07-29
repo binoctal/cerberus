@@ -53,7 +53,7 @@ func TestBuildReport(t *testing.T) {
 	err = s.FinishTrace(ctx, traceID, "pass")
 	require.NoError(t, err)
 
-	_, err = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/health", "pass", 0.95, "judge", "endpoint healthy", nil, store.FailureReasonNone)
+	_, err = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/health", "pass", 0.95, "judge", "endpoint healthy", nil, store.FailureReasonNone, false)
 	require.NoError(t, err)
 
 	// Build report.
@@ -116,7 +116,7 @@ func TestRenderMarkdown(t *testing.T) {
 
 	traceID, _ := s.CreateTrace(ctx, sess.ID, "http", "POST /api/login")
 	_ = s.FinishTrace(ctx, traceID, "pass")
-	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "POST /api/login", "pass", 0.9, "judge", "login works correctly", nil, store.FailureReasonNone)
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "POST /api/login", "pass", 0.9, "judge", "login works correctly", nil, store.FailureReasonNone, false)
 
 	data, err := BuildReport(ctx, s, sess.ID)
 	require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestRenderHTML(t *testing.T) {
 
 	traceID, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/users")
 	_ = s.FinishTrace(ctx, traceID, "pass")
-	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/users", "pass", 0.88, "judge", "users endpoint responds", nil, store.FailureReasonNone)
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/users", "pass", 0.88, "judge", "users endpoint responds", nil, store.FailureReasonNone, false)
 
 	data, err := BuildReport(ctx, s, sess.ID)
 	require.NoError(t, err)
@@ -216,8 +216,8 @@ func TestBuildReport_MultipleVerdicts(t *testing.T) {
 	_ = s.FinishTrace(ctx, trace1, "pass")
 	_ = s.FinishTrace(ctx, trace2, "fail")
 
-	_, _ = s.CreateVerdict(ctx, sess.ID, trace1, "GET /a", "pass", 0.9, "judge", "ok", nil, store.FailureReasonNone)
-	_, _ = s.CreateVerdict(ctx, sess.ID, trace2, "POST /b", "fail", 0.3, "judge", "server error", nil, store.FailureReasonAssertionFailed)
+	_, _ = s.CreateVerdict(ctx, sess.ID, trace1, "GET /a", "pass", 0.9, "judge", "ok", nil, store.FailureReasonNone, false)
+	_, _ = s.CreateVerdict(ctx, sess.ID, trace2, "POST /b", "fail", 0.3, "judge", "server error", nil, store.FailureReasonAssertionFailed, false)
 
 	data, err := BuildReport(ctx, s, sess.ID)
 	require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestBuildReport_EvidenceMap(t *testing.T) {
 	traceID, err := s.CreateTrace(ctx, sess.ID, "http", "GET /api/health")
 	require.NoError(t, err)
 	_ = s.FinishTrace(ctx, traceID, "pass")
-	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/health", "pass", 0.95, "judge", "healthy", nil, store.FailureReasonNone)
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/health", "pass", 0.95, "judge", "healthy", nil, store.FailureReasonNone, false)
 
 	// Add evidence.
 	_, err = s.CreateEvidence(ctx, traceID, "screenshot", "base64-image-data")
@@ -266,7 +266,7 @@ func TestRenderMarkdown_WithEvidence(t *testing.T) {
 
 	traceID, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/items")
 	_ = s.FinishTrace(ctx, traceID, "pass")
-	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/items", "pass", 0.9, "judge", "ok", nil, store.FailureReasonNone)
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/items", "pass", 0.9, "judge", "ok", nil, store.FailureReasonNone, false)
 	_, _ = s.CreateEvidence(ctx, traceID, "response", `{"items":[]}`)
 
 	data, err := BuildReport(ctx, s, sess.ID)
@@ -287,7 +287,7 @@ func TestRenderHTML_WithEvidence(t *testing.T) {
 
 	traceID, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/status")
 	_ = s.FinishTrace(ctx, traceID, "pass")
-	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/status", "pass", 0.9, "judge", "status ok", nil, store.FailureReasonNone)
+	_, _ = s.CreateVerdict(ctx, sess.ID, traceID, "GET /api/status", "pass", 0.9, "judge", "status ok", nil, store.FailureReasonNone, false)
 	_, _ = s.CreateEvidence(ctx, traceID, "log", "request completed in 50ms")
 
 	data, err := BuildReport(ctx, s, sess.ID)

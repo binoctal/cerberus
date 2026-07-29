@@ -11,6 +11,8 @@ func statusEmoji(status string) string {
 		return "⚠️ " + status
 	case "skip", "skipped":
 		return "⏭️ " + status
+	case "recovered":
+		return "♻️ recovered"
 	case "running":
 		return "🔄 " + status
 	case "aborted":

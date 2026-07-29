@@ -19,6 +19,7 @@ func renderSummaryTable(b *strings.Builder, sum *session.SessionSummary) {
 	fmt.Fprintf(b, "| **Failed** | %d |\n", sum.Failed)
 	fmt.Fprintf(b, "| **Skipped** | %d |\n", sum.Skipped)
 	fmt.Fprintf(b, "| **Uncertain** | %d |\n", sum.Uncertain)
+	fmt.Fprintf(b, "| **Recovered** | %d |\n", sum.Recovered)
 	fmt.Fprintf(b, "| **Pending Review** | %d |\n", sum.PendingReview)
 	if sum.DurationMs > 0 {
 		fmt.Fprintf(b, "| **Duration** | %s |\n", sum.Duration)
