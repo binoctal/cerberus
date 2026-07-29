@@ -37,8 +37,9 @@ func (s *Scout) RepairPlan(ctx context.Context, goal string, failures []RepairIn
 // assembleRepair maps repair_case tool calls to replacement TestCases, pairing
 // each to its originating failure via Replaces. One replacement per failure
 // (first emission wins); an emission whose `replaces` matches no failure is
-// dropped, as is any failure with no matching emission. Iterates failures in
-// input order for deterministic output.
+// dropped, as is any failure with no matching emission. Iterates repair_case
+// calls in emission order; one replacement per failure (first emission wins).
+// Output order follows the LLM's emission order, not the failures slice.
 func assembleRepair(calls []llm.ToolCall, failures []RepairInput) []agent.TestCase {
 	byID := make(map[string]int, len(failures))
 	for i, f := range failures {

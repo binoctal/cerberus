@@ -11,8 +11,6 @@ import (
 )
 
 // repairInput mirrors scout.RepairInput for the repairPlanFn seam signature.
-// Keeping a session-local alias avoids leaking scout as a field-level type
-// while letting tests construct inputs without importing scout.
 type repairInput = scout.RepairInput
 
 // executeRepairLoop closes the in-session Examiner->Scout loop (feature #3):
@@ -93,6 +91,16 @@ func (rp *runPhase) callRepairPlan(eligible []repairInput) ([]agent.TestCase, er
 // eligibleFailures collects Fail verdicts with an actionable hint whose target
 // is not marked stuck. Returns RepairInput for Scout.
 func (rp *runPhase) eligibleFailures(stuck map[string]bool) []scout.RepairInput {
+	// A case that has a replacement (Replaces chain) is shadowed: only the
+	// latest replacement in the chain is eligible for the next round (spec
+	// §5.3). This prevents re-emitting the original after a hint-change and
+	// avoids duplicate TestCase IDs / redundant Agent work.
+	replacedIDs := map[string]bool{}
+	for _, v := range rp.verdicts {
+		if tc := v.StepResult.TestCase; tc != nil && tc.Replaces != "" {
+			replacedIDs[tc.Replaces] = true
+		}
+	}
 	var out []scout.RepairInput
 	for _, v := range rp.verdicts {
 		if v.Status != examiner.StatusFail || v.RedispatchHint == agent.HintNone {
@@ -100,6 +108,9 @@ func (rp *runPhase) eligibleFailures(stuck map[string]bool) []scout.RepairInput 
 		}
 		tc := v.StepResult.TestCase
 		if tc == nil {
+			continue
+		}
+		if replacedIDs[tc.ID] {
 			continue
 		}
 		if stuck[memory.NormalizeTarget(tc.Target)] {

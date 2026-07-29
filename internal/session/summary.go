@@ -98,6 +98,11 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 			}
 		} else if tc.Replaces != "" {
 			nonUnitResultCount++
+			// Recovery here is gated on the Agent-side r.Status (StepPassed),
+			// not the examiner verdict v.Status — mirroring the inherited
+			// FallbackFor gating (r.Recovered is also Agent-side). So an
+			// examiner downgrade of a passed step could in theory still count
+			// as recovered; revisit if the FallbackFor analog is ever tightened.
 			if r.Status == agent.StepPassed {
 				recoveredPrimaryIDs[tc.Replaces] = true
 			}
