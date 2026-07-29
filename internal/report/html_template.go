@@ -7,7 +7,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cerberus Report — {{.Session.ID}}</title>
 <style>
-  :root { --pass: #22c55e; --fail: #ef4444; --uncertain: #eab308; --skip: #9ca3af; --bg: #f8fafc; --border: #e2e8f0; }
+  :root { --pass: #22c55e; --fail: #ef4444; --uncertain: #eab308; --skip: #9ca3af; --recovered: #0ea5e9; --bg: #f8fafc; --border: #e2e8f0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: #1e293b; padding: 2rem; max-width: 960px; margin: 0 auto; }
   h1 { font-size: 1.5rem; margin-bottom: 1rem; }
@@ -22,6 +22,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .badge-fail { background: var(--fail); }
   .badge-uncertain { background: var(--uncertain); color: #1e293b; }
   .badge-skip { background: var(--skip); }
+  .badge-recovered { background: var(--recovered); }
   .badge-running { background: #3b82f6; }
   .badge-aborted { background: #7c3aed; }
   .badge-completed { background: var(--pass); }
@@ -60,6 +61,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="summary-card"><div class="value" style="color:var(--fail)">{{.Summary.Failed}}</div><div class="label">Failed</div></div>
   <div class="summary-card"><div class="value" style="color:var(--skip)">{{.Summary.Skipped}}</div><div class="label">Skipped</div></div>
   <div class="summary-card"><div class="value" style="color:var(--uncertain)">{{.Summary.Uncertain}}</div><div class="label">Uncertain</div></div>
+  <div class="summary-card"><div class="value" style="color:var(--recovered)">{{.Summary.Recovered}}</div><div class="label">Recovered</div></div>
   <div class="summary-card"><div class="value">{{.Summary.TotalCases}}</div><div class="label">Total</div></div>
   {{if .Summary.Duration}}<div class="summary-card"><div class="value">{{.Summary.Duration}}</div><div class="label">Duration</div></div>{{end}}
 </div>
@@ -87,7 +89,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <tr>
     <td>{{add $i 1}}</td>
     <td><code>{{$v.Target}}</code></td>
-    <td><span class="badge badge-{{$v.Status}}">{{$v.Status}}</span></td>
+    <td><span class="badge badge-{{if $v.Recovered}}recovered{{else}}{{$v.Status}}{{end}}">{{$v.Status}}</span></td>
     <td>{{printf "%.2f" $v.Confidence}}</td>
     <td>{{if or (eq $v.Status "fail") (eq $v.Status "failed")}}{{if $v.FailureReason}}{{$v.FailureReason.DisplayName}}{{else}}—{{end}}{{else}}—{{end}}</td>
     <td>{{$v.Source}}</td>
