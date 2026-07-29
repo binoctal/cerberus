@@ -5,11 +5,11 @@ bin/
 /cerberus
 /slowtest
 
-# Project runtime files (now in .cerberus/runtime/)
-.cerberus/runtime/
+# Project runtime files (.cerberus/runtime/ at any depth, e.g. cmd/cerberus/.cerberus/)
+**/.cerberus/runtime/
 
-# Cerberus credentials (sensitive - never commit)
-.cerberus/credentials.yaml
+# Cerberus credentials (sensitive - never commit, at any depth)
+**/.cerberus/credentials.yaml
 
 # IDE / tool directories
 .claude/*
