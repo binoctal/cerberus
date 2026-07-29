@@ -18,13 +18,19 @@ type repairInput = scout.RepairInput
 // executeRepairLoop closes the in-session Examiner->Scout loop (feature #3):
 // each round, collect failures with an actionable RedispatchHint, ask Scout for
 // targeted replacements (Replaces), run only those, and re-judge. Bounded by a
-// round cap (default 2) and the no-progress guard (Task 5). Any error logs and
-// breaks to Consolidate — repair never aborts the run.
+// round cap (default 2), the no-progress guard (Task 5; see computeStuck), and
+// the inherited token-budget backstop — a DecideWithTools that exhausts the
+// budget returns an error, RepairPlan returns (nil, err), and the loop breaks
+// via the error branch below (no new budget API). Any error logs and breaks to
+// Consolidate — repair never aborts the run.
 func (rp *runPhase) executeRepairLoop() error {
 	maxRounds := config.ResolveReplanMaxRounds(rp.session.Config.Settings)
-	stuck := map[string]bool{} // Task 5 populates this; empty here = no no-progress yet
 
 	for round := 1; round <= maxRounds; round++ {
+		// Recompute stuck each round from the latest verdicts. This is what
+		// bounds duplicate processing across rounds: a target whose replacement
+		// re-fails with the same hint becomes stuck and is dropped here.
+		stuck := computeStuck(rp.verdicts)
 		eligible := rp.eligibleFailures(stuck)
 		if len(eligible) == 0 {
 			break
@@ -102,4 +108,34 @@ func (rp *runPhase) eligibleFailures(stuck map[string]bool) []scout.RepairInput 
 		out = append(out, scout.RepairInput{Case: *tc, Hint: v.RedispatchHint, Reasoning: v.Reasoning})
 	}
 	return out
+}
+
+// computeStuck returns the set of normalized targets that have made no progress:
+// a replacement (Replaces != "") that re-failed with the SAME RedispatchHint as
+// its predecessor. A changed hint (e.g. drift->auth) is progress and is NOT
+// stuck. The predecessor is found by walking Replaces to the prior verdict.
+// Pure (no receiver state) so it can be unit-tested without the LLM/executor
+// harness.
+func computeStuck(verdicts []examiner.FinalVerdict) map[string]bool {
+	byCaseID := map[string]examiner.FinalVerdict{}
+	for _, v := range verdicts {
+		if v.StepResult.TestCase != nil {
+			byCaseID[v.StepResult.TestCase.ID] = v
+		}
+	}
+	stuck := map[string]bool{}
+	for _, v := range verdicts {
+		tc := v.StepResult.TestCase
+		if tc == nil || tc.Replaces == "" || v.Status != examiner.StatusFail || v.RedispatchHint == agent.HintNone {
+			continue
+		}
+		prev, ok := byCaseID[tc.Replaces]
+		if !ok {
+			continue
+		}
+		if prev.RedispatchHint == v.RedispatchHint {
+			stuck[memory.NormalizeTarget(tc.Target)] = true
+		}
+	}
+	return stuck
 }
