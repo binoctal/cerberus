@@ -57,6 +57,12 @@ func TestHTTPCasesCovered_EmitsSmokeFallback(t *testing.T) {
 	cases := HTTPCasesCovered(cfg, httpCovering)
 	require.Len(t, cases, 3, "one smoke per covered endpoint")
 
+	// Deterministic order: services in cfg.Services order (api before web),
+	// paths sorted within a service (/posts before /users).
+	assert.Equal(t, []string{"api/posts", "api/users", "web/"},
+		[]string{cases[0].Service + cases[0].Target, cases[1].Service + cases[1].Target, cases[2].Service + cases[2].Target},
+		"emitted in cfg.Services order, paths sorted within each service")
+
 	byTarget := map[string]agent.TestCase{}
 	for _, c := range cases {
 		byTarget[c.Service+c.Target] = c

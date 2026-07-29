@@ -102,6 +102,10 @@ func (se *stepExecution) tryRuleEngine() *StepResult {
 			Duration: time.Since(se.start),
 			Action:   action,
 			Result:   result,
+			// Symmetry with the pass path: attach the same Evidence slice so the
+			// rendered StepResult carries the response body for debug/reporting.
+			// Evidence is also recorded upstream via recordEvidence.
+			Evidence: []Evidence{{Type: evidenceType(result), Content: result.Evidence().Content}},
 		}
 		if hr, ok := result.(types.HTTPResult); ok {
 			failResult.Error = fmt.Errorf("smoke: endpoint not reachable or 5xx (status=%d)", hr.StatusCode)

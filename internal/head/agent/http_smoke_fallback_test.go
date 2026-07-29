@@ -32,13 +32,17 @@ func (e *smokeStubExec) Execute(ctx context.Context, a types.TypedAction) types.
 	}
 }
 
-// TestExecutePlan_HTTPSmokeRecoversOnNonEnvironmentalFailure proves the lazy
-// GET-smoke fallback shipped in Tasks 1-3 is judged deterministically through
-// the real executeStep -> tryRuleEngine path: a 2xx/3xx/4xx response yields
-// StepPassed (reachable and non-5xx) and a 5xx yields StepFailed. The smoke
+// TestExecuteStep_HTTPSmokeJudgment_StatusDriven covers the deterministic
+// smoke judgment through the real executeStep -> tryRuleEngine path: a
+// 2xx/3xx/4xx response yields StepPassed (reachable and non-5xx) and a 5xx
+// yields StepFailed. The 404 case anchors the 4xx pass boundary. The smoke
 // case never enters the ReAct LLM loop — tryRuleEngine returns a verdict
 // directly because FallbackFor != "".
-func TestExecutePlan_HTTPSmokeRecoversOnNonEnvironmentalFailure(t *testing.T) {
+//
+// This test does NOT drive the activation->Recovered flow; that machinery is
+// action-agnostic, reused as-is, and covered by the WS Phase 2 tests (not
+// duplicated here).
+func TestExecuteStep_HTTPSmokeJudgment_StatusDriven(t *testing.T) {
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
@@ -75,6 +79,9 @@ func TestExecutePlan_HTTPSmokeRecoversOnNonEnvironmentalFailure(t *testing.T) {
 	// 2xx -> reachable and non-5xx -> StepPassed.
 	assert.Equal(t, StepPassed, runSmoke(200),
 		"smoke GET on a 200 endpoint -> StepPassed (reachable, non-5xx)")
+	// 4xx -> reachable and non-5xx -> StepPassed (anchors the 4xx pass boundary).
+	assert.Equal(t, StepPassed, runSmoke(404),
+		"smoke GET on a 404 endpoint -> StepPassed (reachable, non-5xx includes 4xx)")
 	// 5xx -> server erroring -> StepFailed.
 	assert.Equal(t, StepFailed, runSmoke(500),
 		"smoke GET on a 500 endpoint -> StepFailed (5xx)")

@@ -2,6 +2,8 @@ package scout
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/project"
@@ -12,6 +14,10 @@ import (
 // Agent skips it by default (Priority<0) and activates it only when the bound
 // primary case fails non-environmentally. Reuses the generic FallbackFor
 // activation + Recovered tally/render — no Agent/store/report changes.
+//
+// Determinism: services are iterated in cfg.Services slice order and each
+// service's paths in sorted name order, so the emitted plan is stable across
+// runs (map iteration order is random). Mirrors WSCasesCovered's discipline.
 func HTTPCasesCovered(cfg *project.Config, httpCovering map[string]map[string]string) []agent.TestCase {
 	if cfg == nil || len(httpCovering) == 0 {
 		return nil
@@ -20,12 +26,18 @@ func HTTPCasesCovered(cfg *project.Config, httpCovering map[string]map[string]st
 	// Service so the executor resolves the same URL as the covering LLM case.
 
 	var cases []agent.TestCase
-	for svc, paths := range httpCovering {
-		for path, covererID := range paths {
+	for _, svc := range cfg.Services {
+		paths := httpCovering[svc.Name]
+		if len(paths) == 0 {
+			continue
+		}
+		sortedPaths := slices.Sorted(maps.Keys(paths))
+		for _, path := range sortedPaths {
+			covererID := paths[path]
 			if covererID == "" {
 				continue
 			}
-			cases = append(cases, httpSmokeCase(svc, path, covererID))
+			cases = append(cases, httpSmokeCase(svc.Name, path, covererID))
 		}
 	}
 	return cases
