@@ -25,6 +25,10 @@ type SessionSummary struct {
 	Failed     int `json:"failed"`
 	Skipped    int `json:"skipped"`
 	Uncertain  int `json:"uncertain"`
+	// Recovered counts roles rescued by a lazy fallback (A1 Phase 2). A
+	// recovered primary is reclassified out of Failed; its fallback result is
+	// not an independent unit. Recovered counts toward coverage.
+	Recovered int `json:"recovered"`
 
 	// Examiner phase.
 	Verdicts          int `json:"verdicts"`
@@ -50,7 +54,6 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		Goal:              goal,
 		ProjectURL:        projectURL,
 		TestCasesPlanned:  planCases,
-		TotalCases:        len(results),
 		Verdicts:          len(verdicts),
 		ReflectionsStored: reflections,
 		TotalTokens:       tokensUsed,
@@ -58,12 +61,37 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		DurationMs:        elapsed.Milliseconds(),
 	}
 
+	// Pair primary<->fallback via TestCase.FallbackFor. A fallback result is
+	// not an independent tally unit; a primary whose fallback recovered is
+	// reclassified out of Failed into Recovered (counted toward coverage).
+	recoveredPrimaryIDs := map[string]bool{}
+	fallbackResultCount := 0
+	for _, r := range results {
+		tc := r.TestCase
+		if tc == nil || tc.FallbackFor == "" {
+			continue
+		}
+		fallbackResultCount++
+		if r.Recovered {
+			recoveredPrimaryIDs[tc.FallbackFor] = true
+		}
+	}
+	s.TotalCases = len(results) - fallbackResultCount
+
 	// Count final outcomes. Prefer examiner verdicts — the final judgment
 	// reflects correctness adjustments (e.g. pass→uncertain) that raw step
 	// status lacks, and these counts feed user-facing reports. Fall back to
 	// step status only when the Examiner didn't run (no verdicts).
 	if len(verdicts) > 0 {
 		for _, v := range verdicts {
+			tc := v.StepResult.TestCase
+			if tc != nil && tc.FallbackFor != "" {
+				continue // fallback result, not a unit
+			}
+			if tc != nil && recoveredPrimaryIDs[tc.ID] {
+				s.Recovered++
+				continue
+			}
 			switch v.Status {
 			case examiner.StatusPass:
 				s.Passed++
@@ -77,6 +105,14 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		}
 	} else {
 		for _, r := range results {
+			tc := r.TestCase
+			if tc != nil && tc.FallbackFor != "" {
+				continue
+			}
+			if tc != nil && recoveredPrimaryIDs[tc.ID] {
+				s.Recovered++
+				continue
+			}
 			switch r.Status {
 			case agent.StepPassed:
 				s.Passed++
@@ -96,9 +132,10 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		}
 	}
 
-	// Compute coverage: passed verdicts / total cases * 100.
+	// Coverage: (passed + recovered) roles / total role units * 100. Recovered
+	// counts as covered (the deterministic fallback proved the role viable).
 	if s.TotalCases > 0 {
-		s.CoveragePct = float64(s.Passed) / float64(s.TotalCases) * 100
+		s.CoveragePct = float64(s.Passed+s.Recovered) / float64(s.TotalCases) * 100
 	}
 
 	return s
@@ -107,12 +144,12 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 // String returns a human-readable summary.
 func (s *SessionSummary) String() string {
 	return fmt.Sprintf(`Session Summary:
-  Verdicts: %d pass, %d fail, %d skip, %d uncertain
+  Verdicts: %d pass, %d fail, %d skip, %d uncertain, %d recovered
   Pending review: %d
   Reflections stored: %d (failure + success)
   Total tokens: ~%dK
   Duration: %s`,
-		s.Passed, s.Failed, s.Skipped, s.Uncertain,
+		s.Passed, s.Failed, s.Skipped, s.Uncertain, s.Recovered,
 		s.PendingReview,
 		s.ReflectionsStored,
 		s.TotalTokens/1000,

@@ -107,3 +107,67 @@ func TestSessionSummary_CoveragePct_EdgeCases(t *testing.T) {
 		assert.InDelta(t, 0.0, summary.CoveragePct, 0.01)
 	})
 }
+
+// TestFromResults_RecoveredPairing is the golden case from the design:
+// roles A, B, C; A has fallback A' (recovered), B has fallback B' (not
+// recovered), C standalone. A reclassifies to Recovered (not Failed); the
+// fallback results are not independent units; coverage counts Recovered.
+func TestFromResults_RecoveredPairing(t *testing.T) {
+	results := []agent.StepResult{
+		{TestCase: &agent.TestCase{ID: "A"}, Status: agent.StepFailed},
+		{TestCase: &agent.TestCase{ID: "B"}, Status: agent.StepFailed},
+		{TestCase: &agent.TestCase{ID: "C"}, Status: agent.StepPassed},
+		{TestCase: &agent.TestCase{ID: "A'", FallbackFor: "A"}, Status: agent.StepPassed, Recovered: true},
+		{TestCase: &agent.TestCase{ID: "B'", FallbackFor: "B"}, Status: agent.StepFailed},
+	}
+	verdicts := []examiner.FinalVerdict{
+		{Status: examiner.StatusFail, StepResult: results[0]},
+		{Status: examiner.StatusFail, StepResult: results[1]},
+		{Status: examiner.StatusPass, StepResult: results[2]},
+		{Status: examiner.StatusPass, StepResult: results[3]},
+		{Status: examiner.StatusFail, StepResult: results[4]},
+	}
+
+	summary := FromResults("g", "", 5, results, verdicts, 0, 0, 0)
+
+	assert.Equal(t, 3, summary.TotalCases, "fallback results excluded from total")
+	assert.Equal(t, 1, summary.Passed, "only C passed")
+	assert.Equal(t, 1, summary.Failed, "only B failed; A reclassified out of Failed")
+	assert.Equal(t, 1, summary.Recovered, "A recovered")
+	assert.InDelta(t, 66.67, summary.CoveragePct, 0.01, "(Passed+Recovered)/Total")
+}
+
+// TestFromResults_AllRecovered: a recovered role does not surface as Failed.
+func TestFromResults_AllRecovered(t *testing.T) {
+	results := []agent.StepResult{
+		{TestCase: &agent.TestCase{ID: "A"}, Status: agent.StepFailed},
+		{TestCase: &agent.TestCase{ID: "A'", FallbackFor: "A"}, Status: agent.StepPassed, Recovered: true},
+	}
+	verdicts := []examiner.FinalVerdict{
+		{Status: examiner.StatusFail, StepResult: results[0]},
+		{Status: examiner.StatusPass, StepResult: results[1]},
+	}
+	summary := FromResults("g", "", 2, results, verdicts, 0, 0, 0)
+	assert.Equal(t, 0, summary.Failed, "recovered primary is not Failed")
+	assert.Equal(t, 1, summary.Recovered)
+	assert.Equal(t, 1, summary.TotalCases)
+	assert.InDelta(t, 100.0, summary.CoveragePct, 0.01)
+}
+
+// TestFromResults_RecoveredRawResults: the raw-results branch (no verdicts)
+// also honors Recovered/FallbackFor.
+func TestFromResults_RecoveredRawResults(t *testing.T) {
+	results := []agent.StepResult{
+		{TestCase: &agent.TestCase{ID: "A"}, Status: agent.StepFailed},
+		{TestCase: &agent.TestCase{ID: "A'", FallbackFor: "A"}, Status: agent.StepPassed, Recovered: true},
+	}
+	summary := FromResults("g", "", 2, results, nil, 0, 0, 0)
+	assert.Equal(t, 0, summary.Failed)
+	assert.Equal(t, 1, summary.Recovered)
+}
+
+func TestSessionSummary_StringIncludesRecovered(t *testing.T) {
+	s := &SessionSummary{Passed: 1, Failed: 1, Skipped: 0, Uncertain: 0, Recovered: 1,
+		PendingReview: 0, ReflectionsStored: 0, TotalTokens: 0, Duration: "1s"}
+	assert.Contains(t, s.String(), "1 recovered")
+}
