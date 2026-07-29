@@ -3,6 +3,7 @@ package examiner
 import (
 	"fmt"
 
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/llm"
 )
@@ -30,7 +31,20 @@ func assembleJudge(call llm.ToolCall) (JudgeResult, error) {
 		ExistenceConfidence:   llm.NumField(call, "existence_confidence"),
 		CorrectnessConfidence: llm.NumField(call, "correctness_confidence"),
 		Reasoning:             llm.StrField(call, "reasoning"),
+		RedispatchHint:        parseRedispatchHint(llm.StrField(call, "redispatch_hint")),
 	}, nil
+}
+
+// parseRedispatchHint maps the LLM's redispatch_hint string to the enum; any
+// missing or unrecognized value becomes HintNone so a malformed/omitted hint
+// never accidentally triggers replanning.
+func parseRedispatchHint(s string) agent.RedispatchHint {
+	switch agent.RedispatchHint(s) {
+	case agent.HintEndpointDrift, agent.HintAuth, agent.HintShape:
+		return agent.RedispatchHint(s)
+	default:
+		return agent.HintNone
+	}
 }
 
 // assembleCritique maps a critique_verdict call to a CritiqueResult.

@@ -24,6 +24,11 @@ func judgeTools() []llm.Tool {
 			"existence_confidence":   map[string]any{"type": "number"},
 			"correctness_confidence": map[string]any{"type": "number"},
 			"reasoning":              map[string]any{"type": "string"},
+			"redispatch_hint": map[string]any{
+				"type":        "string",
+				"enum":        []any{"none", "endpoint_drift", "auth", "shape"},
+				"description": "For a fail: the correctable root cause a replacement case could address. 'none' unless the failure is clearly correctable.",
+			},
 		}),
 	}}
 }
