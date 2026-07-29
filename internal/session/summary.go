@@ -48,6 +48,22 @@ type SessionSummary struct {
 	DurationMs  int64  `json:"duration_ms"`
 }
 
+// plannedCaseCount returns the number of real role units in a plan, excluding
+// lazy fallback cases (FallbackFor != ""), which are rescue copies of an
+// existing primary rather than independent planned roles (A1 Phase 2).
+func plannedCaseCount(plan *agent.TestPlan) int {
+	if plan == nil {
+		return 0
+	}
+	n := 0
+	for i := range plan.Cases {
+		if plan.Cases[i].FallbackFor == "" {
+			n++
+		}
+	}
+	return n
+}
+
 // FromResults builds a summary from agent and examiner results.
 func FromResults(goal, projectURL string, planCases int, results []agent.StepResult, verdicts []examiner.FinalVerdict, reflections int, tokensUsed int, elapsed time.Duration) *SessionSummary {
 	s := &SessionSummary{

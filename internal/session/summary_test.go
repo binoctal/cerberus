@@ -171,3 +171,16 @@ func TestSessionSummary_StringIncludesRecovered(t *testing.T) {
 		PendingReview: 0, ReflectionsStored: 0, TotalTokens: 0, Duration: "1s"}
 	assert.Contains(t, s.String(), "1 recovered")
 }
+
+func TestPlannedCaseCount_ExcludesLazyFallback(t *testing.T) {
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "A"},
+		{ID: "B"},
+		{ID: "C"},
+		{ID: "A'", FallbackFor: "A"},
+		{ID: "B'", FallbackFor: "B"},
+	}}
+	assert.Equal(t, 3, plannedCaseCount(plan), "lazy fallback cases are not independent planned roles")
+	assert.Equal(t, 0, plannedCaseCount(&agent.TestPlan{}), "empty plan -> 0")
+	assert.Equal(t, 0, plannedCaseCount(nil), "nil plan -> 0")
+}

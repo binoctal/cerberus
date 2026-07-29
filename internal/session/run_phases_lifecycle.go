@@ -75,7 +75,7 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 	rp.summary = FromResults(
 		rp.session.Goal,
 		rp.session.resolveBaseURL(),
-		len(rp.plan.Cases),
+		plannedCaseCount(rp.plan),
 		rp.results,
 		rp.verdicts,
 		rp.reflections,
