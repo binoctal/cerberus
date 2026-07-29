@@ -77,22 +77,36 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		DurationMs:        elapsed.Milliseconds(),
 	}
 
-	// Pair primary<->fallback via TestCase.FallbackFor. A fallback result is
-	// not an independent tally unit; a primary whose fallback recovered is
-	// reclassified out of Failed into Recovered (counted toward coverage).
-	recoveredPrimaryIDs := map[string]bool{}
-	fallbackResultCount := 0
+	// Pair primary<->fallback via TestCase.FallbackFor, and primary<->replacement
+	// via TestCase.Replaces. A fallback/replacement result is not an independent
+	// tally unit. A primary whose fallback recovered is reclassified OUT of Failed
+	// into Recovered (FallbackFor semantics). A passed replacement recovers its
+	// primary too — but gated on pass-status (StepResult.Recovered is set only by
+	// the FallbackFor activation path, not for Replaces), and the primary STAYS a
+	// fail while also being counted as Recovered (the failure was real, a later
+	// repair role rescued it). The two recovery modes are tracked separately so
+	// the verdict loop can apply the right counting rule.
+	recoveredPrimaryIDs := map[string]bool{}   // FallbackFor: reclassify out of Failed
+	recoveredViaReplacesIDs := map[string]bool{} // Replaces: stay Failed, add Recovered
+	nonUnitResultCount := 0
 	for _, r := range results {
 		tc := r.TestCase
-		if tc == nil || tc.FallbackFor == "" {
+		if tc == nil {
 			continue
 		}
-		fallbackResultCount++
-		if r.Recovered {
-			recoveredPrimaryIDs[tc.FallbackFor] = true
+		if tc.FallbackFor != "" {
+			nonUnitResultCount++
+			if r.Recovered {
+				recoveredPrimaryIDs[tc.FallbackFor] = true
+			}
+		} else if tc.Replaces != "" {
+			nonUnitResultCount++
+			if r.Status == agent.StepPassed {
+				recoveredViaReplacesIDs[tc.Replaces] = true
+			}
 		}
 	}
-	s.TotalCases = len(results) - fallbackResultCount
+	s.TotalCases = len(results) - nonUnitResultCount
 
 	// Count final outcomes. Prefer examiner verdicts — the final judgment
 	// reflects correctness adjustments (e.g. pass→uncertain) that raw step
@@ -101,12 +115,18 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 	if len(verdicts) > 0 {
 		for _, v := range verdicts {
 			tc := v.StepResult.TestCase
-			if tc != nil && tc.FallbackFor != "" {
-				continue // fallback result, not a unit
+			if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
+				continue // fallback/replacement result, not an independent unit
 			}
 			if tc != nil && recoveredPrimaryIDs[tc.ID] {
+				// FallbackFor recovery: reclassify out of Failed into Recovered.
 				s.Recovered++
 				continue
+			}
+			if tc != nil && recoveredViaReplacesIDs[tc.ID] {
+				// Replaces recovery: the primary's verdict stays (typically Fail)
+				// but the role is also counted as Recovered.
+				s.Recovered++
 			}
 			switch v.Status {
 			case examiner.StatusPass:
@@ -122,12 +142,18 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 	} else {
 		for _, r := range results {
 			tc := r.TestCase
-			if tc != nil && tc.FallbackFor != "" {
+			if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
 				continue
 			}
 			if tc != nil && recoveredPrimaryIDs[tc.ID] {
+				// FallbackFor recovery: reclassify out of Failed into Recovered.
 				s.Recovered++
 				continue
+			}
+			if tc != nil && recoveredViaReplacesIDs[tc.ID] {
+				// Replaces recovery: the primary's status stays (typically Fail)
+				// but the role is also counted as Recovered.
+				s.Recovered++
 			}
 			switch r.Status {
 			case agent.StepPassed:

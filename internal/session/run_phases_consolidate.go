@@ -35,8 +35,9 @@ func writeEpisodicMemory(ctx context.Context, session *Session, verdicts []exami
 			continue
 		}
 		// A1 Phase 2: the fallback shares its primary's target; the primary
-		// already records the episodic row. Skip to avoid a duplicate.
-		if tc.FallbackFor != "" {
+		// already records the episodic row. A replacement (TestCase.Replaces)
+		// shares its primary's target too. Skip to avoid a duplicate.
+		if tc.FallbackFor != "" || tc.Replaces != "" {
 			continue
 		}
 		target := memory.NormalizeTarget(tc.Target)
@@ -159,8 +160,9 @@ func verdictByNormalizedTarget(ctx context.Context, session *Session, verdicts [
 			continue
 		}
 		// A1 Phase 2: skip fallback verdicts (recovered or not) — the primary
-		// already represents this target.
-		if v.StepResult.TestCase.FallbackFor != "" {
+		// already represents this target. A replacement (TestCase.Replaces) also
+		// shares its primary's target.
+		if tc := v.StepResult.TestCase; tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
 			continue
 		}
 		key := memory.NormalizeTarget(v.StepResult.TestCase.Target)
