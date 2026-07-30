@@ -5,6 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/llm"
 )
 
 // TestRepairTools_HasStepsArray: repair_case carries an optional `steps` array
@@ -27,4 +30,67 @@ func TestRepairTools_HasStepsArray(t *testing.T) {
 
 	required := tools[0].InputSchema["required"].([]any)
 	assert.Contains(t, required, "replaces", "replaces stays required")
+}
+
+// TestAssembleRepair_WSFlowSteps: a repair_case with `steps` builds a WS
+// replacement TestCase (Action=ws_flow, Steps carried — action/message/type/
+// asserts/match_all), Target from the first connect url, Replaces bound. Without
+// the steps branch the case would be HTTP-shaped (no Steps) — the assertion RED.
+func TestAssembleRepair_WSFlowSteps(t *testing.T) {
+	failures := []RepairInput{
+		{Case: agent.TestCase{ID: "ws-1", Action: "ws_flow", Target: "wss://x", Service: "ws",
+			Steps: []agent.TestStep{{Action: "ws_connect", ConnectionID: "web"}}},
+			Hint: agent.HintWsMatch, Reasoning: "receive matched nothing"},
+	}
+	calls := []llm.ToolCall{
+		{Name: "repair_case", Input: map[string]any{
+			"replaces":    "ws-1",
+			"service":     "ws",
+			"expectation": "receives hello",
+			"steps": []any{
+				map[string]any{"action": "ws_connect", "connection_id": "web", "url": "wss://x"},
+				map[string]any{"action": "ws_send", "connection_id": "web", "message": `{"subscribe":"all"}`},
+				map[string]any{"action": "ws_receive", "connection_id": "web", "type": "hello",
+					"match_all": true, "asserts": map[string]any{"payload.approved": true}},
+			},
+		}},
+	}
+	out := assembleRepair(calls, failures)
+	require.Len(t, out, 1)
+	c := out[0]
+	assert.Equal(t, "ws-1", c.Replaces)
+	assert.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 3)
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "wss://x", c.Steps[0].URL)
+	assert.Equal(t, "ws_send", c.Steps[1].Action)
+	assert.Equal(t, `{"subscribe":"all"}`, c.Steps[1].Message)
+	assert.Equal(t, "ws_receive", c.Steps[2].Action)
+	assert.Equal(t, "hello", c.Steps[2].Type)
+	assert.True(t, c.Steps[2].MatchAll)
+	assert.Equal(t, true, c.Steps[2].Asserts["payload.approved"])
+	assert.Equal(t, "wss://x", c.Target, "Target derived from the first connect url")
+	assert.Equal(t, "receives hello", c.Expectation)
+}
+
+// TestAssembleRepair_HTTPUnchangedByStepsBranch: an HTTP repair_case (no steps)
+// still produces an HTTP TestCase with Target/Method/Body and NO Steps — the WS
+// branch must not regress HTTP repair.
+func TestAssembleRepair_HTTPUnchangedByStepsBranch(t *testing.T) {
+	failures := []RepairInput{
+		{Case: agent.TestCase{ID: "h-1", Target: "/u", Method: "GET", Service: "api"},
+			Hint: agent.HintEndpointDrift, Reasoning: "404"},
+	}
+	calls := []llm.ToolCall{
+		{Name: "repair_case", Input: map[string]any{
+			"replaces": "h-1", "method": "GET", "path": "/v2/u", "service": "api", "body": `{"b":1}`,
+		}},
+	}
+	out := assembleRepair(calls, failures)
+	require.Len(t, out, 1)
+	c := out[0]
+	assert.Equal(t, "/v2/u", c.Target)
+	assert.Equal(t, "GET", c.Method)
+	assert.Equal(t, `{"b":1}`, c.Body)
+	assert.Empty(t, c.Steps, "HTTP repair has no Steps")
 }

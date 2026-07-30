@@ -63,9 +63,22 @@ func assembleRepair(calls []llm.ToolCall, failures []RepairInput) []agent.TestCa
 }
 
 // repairCaseFromCall builds the corrected TestCase from a repair_case emission.
-// Target/Service/Method/Body carry the correction; Replaces binds it to the
-// failed case. A deterministic ID makes traces/reporting readable.
+// When the call carries a `steps` array (a WebSocket flow), it builds a WS case
+// (Action=ws_flow, Steps) mirroring Scout's plan assembly; otherwise it builds
+// the HTTP shape (Target/Method/Body). Replaces binds it to the failed case.
 func repairCaseFromCall(call llm.ToolCall, replaces string) agent.TestCase {
+	if steps := parseRepairSteps(call); len(steps) > 0 {
+		return agent.TestCase{
+			ID:          fmt.Sprintf("repair-%s", replaces),
+			Name:        fmt.Sprintf("repair %s", replaces),
+			Action:      "ws_flow",
+			Target:      wsFlowTarget(steps),
+			Service:     llm.StrField(call, "service"),
+			Steps:       steps,
+			Expectation: llm.StrField(call, "expectation"),
+			Replaces:    replaces,
+		}
+	}
 	return agent.TestCase{
 		ID:          fmt.Sprintf("repair-%s", replaces),
 		Name:        fmt.Sprintf("repair %s", llm.StrField(call, "path")),
@@ -76,6 +89,87 @@ func repairCaseFromCall(call llm.ToolCall, replaces string) agent.TestCase {
 		Expectation: llm.StrField(call, "expectation"),
 		Replaces:    replaces,
 	}
+}
+
+// parseRepairSteps reads the optional `steps` array from a repair_case call into
+// []TestStep. Returns nil when absent (HTTP repair).
+func parseRepairSteps(call llm.ToolCall) []agent.TestStep {
+	arr, ok := call.Input["steps"].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]agent.TestStep, 0, len(arr))
+	for _, raw := range arr {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, agent.TestStep{
+			Action:       mapStr(m, "action"),
+			ConnectionID: mapStr(m, "connection_id"),
+			Role:         mapStr(m, "role"),
+			URL:          mapStr(m, "url"),
+			Message:      mapStr(m, "message"),
+			Type:         mapStr(m, "type"),
+			Aliases:      mapStrSlice(m, "aliases"),
+			Asserts:      mapAny(m, "asserts"),
+			MatchAll:     mapBool(m, "match_all"),
+			Timeout:      mapInt(m, "timeout"),
+		})
+	}
+	return out
+}
+
+// wsFlowTarget returns the first step URL (the dial target), else "".
+func wsFlowTarget(steps []agent.TestStep) string {
+	for _, s := range steps {
+		if s.URL != "" {
+			return s.URL
+		}
+	}
+	return ""
+}
+
+// map* helpers read typed fields from a step's map[string]any (mirroring the
+// llm.ToolCall field helpers, which take a ToolCall rather than a raw map).
+func mapStr(m map[string]any, k string) string {
+	if v, ok := m[k].(string); ok {
+		return v
+	}
+	return ""
+}
+func mapInt(m map[string]any, k string) int {
+	switch v := m[k].(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	}
+	return 0
+}
+func mapBool(m map[string]any, k string) bool {
+	v, _ := m[k].(bool)
+	return v
+}
+func mapStrSlice(m map[string]any, k string) []string {
+	arr, ok := m[k].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(arr))
+	for _, v := range arr {
+		if s, ok := v.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+func mapAny(m map[string]any, k string) map[string]any {
+	v, ok := m[k].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return v
 }
 
 // repairTools returns the tool surface for RepairPlan: one repair_case call per
