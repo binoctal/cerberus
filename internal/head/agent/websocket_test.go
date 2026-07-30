@@ -1972,6 +1972,95 @@ func TestWSReceiveMatchAll_PushbackPreservesNextFrame(t *testing.T) {
 	require.Contains(t, ws2.MatchedMessage, "done")
 }
 
+// TestWSReceiveMatchAll_OverallTimeoutMidBurstPasses pins the mid-burst timeout
+// ruling: when the receive's OVERALL deadline fires while matching frames are
+// still streaming (faster than grace, so grace keeps resetting and the burst is
+// live), the receive SUCCEEDS with the frames collected so far — it does NOT
+// report a timeout failure. The server emits a 2-item batch at once (guarantees
+// phase 2 collects >=2 before any idle gap), then keeps streaming one-item batches
+// every 3ms (faster than matchAllGrace, so the burst stays live) well past the 1s
+// receive budget; the overall timer truncates the live stream and the receive must
+// pass with >=2 items and no "timed out" error. Verified RED by flipping the
+// <-timer.C case to return "timeout". See 2026-07-30-ws-match-all-mid-burst-timeout-ruling.md.
+func TestWSReceiveMatchAll_OverallTimeoutMidBurstPasses(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		// Two items up front: phase 2 always collects >=2 before any grace gap.
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[`+
+				`{"id":"a","ok":true},{"id":"b","ok":true}]}}`))
+		// Keep the burst live past the 1s receive budget: a batch every 3ms.
+		ticker := time.NewTicker(3 * time.Millisecond)
+		defer ticker.Stop()
+		i := 0
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				msg := fmt.Sprintf(`{"type":"event-batch","payload":{"events":[{"id":"s%d","ok":true}]}}`, i)
+				if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+					return
+				}
+				i++
+			}
+		}
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, eventBatchProtocol()))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	start := time.Now()
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "event", MatchAll: true,
+		Assert: map[string]any{"payload.ok": true}, Timeout: 1,
+	})
+	elapsed := time.Since(start)
+	ws, ok := res.(types.WSResult)
+	require.True(t, ok, "expected WSResult")
+	// The core ruling: an overall-timeout that truncates a LIVE burst is a pass.
+	require.True(t, ws.OK, "overall-timeout mid-burst must end the burst as a success, not a timeout failure: %+v", res)
+	require.NotContains(t, ws.Err, "timed out", "mid-burst overall-timeout must not surface as a timeout error")
+	require.GreaterOrEqual(t, ws.MatchedCount, 2, "must have collected >=2 frames before the deadline (mid-burst)")
+	// And it really was the overall timer that ended it: the receive ran the
+	// full ~1s budget (not a sub-grace early return).
+	require.GreaterOrEqual(t, elapsed, 900*time.Millisecond, "receive must run until the 1s overall deadline, not end early")
+}
+
+// TestWSReceiveMatchAll_PeerCloseMidBurstPasses pins the second mid-burst
+// terminator: when the peer closes the connection after sending part of a batch,
+// the match-all receive SUCCEEDS with the frames already collected (peer-close is
+// a legitimate "done sending" signal), and the connection is then observably dead.
+func TestWSReceiveMatchAll_PeerCloseMidBurstPasses(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[`+
+				`{"id":"a","ok":true},{"id":"b","ok":true}]}}`))
+		// Close immediately after the batch: the pump exits mid-burst (the
+		// receiver is still collecting). No Read() — we close at once.
+		_ = conn.Close(websocket.StatusNormalClosure, "done")
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, eventBatchProtocol()))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "event", MatchAll: true,
+		Assert: map[string]any{"payload.ok": true}, Timeout: 2,
+	})
+	ws, ok := res.(types.WSResult)
+	require.True(t, ok && ws.OK, "peer close mid-batch must end the burst as a success: %+v", res)
+	require.Equal(t, 2, ws.MatchedCount, "both streamed items must be collected before the pump exits")
+
+	// The connection is now dead: a follow-up receive must fail (closed).
+	after := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "event", Timeout: 1})
+	wsAfter, _ := after.(types.WSResult)
+	require.False(t, wsAfter.OK, "connection must be dead after peer close")
+}
+
 func TestWSReceiveAliasesMatch(t *testing.T) {
 	url := newWSTestServer(t, func(conn *websocket.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

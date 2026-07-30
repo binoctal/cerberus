@@ -308,6 +308,12 @@ func readMatching(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration)
 //     another frame: match ⇒ keep collecting; non-match ⇒ pushback + done;
 //     grace/timeout/pump-exit ⇒ done with what was collected.
 //
+// All three phase-2 terminators (idle grace, the overall receive timeout, and
+// pump exit) return "matched" — they fire only from a buffer-drained state, so
+// each means "no more frames arrived" and is a legitimate SUCCESSFUL burst end,
+// not a failure. Only phase 1 (zero matches) returns "timeout"/"closed". See
+// cerberus-docs/.../2026-07-30-ws-match-all-mid-burst-timeout-ruling.md.
+//
 // Returns all matched frames (valid when status == "matched"), the non-matching
 // frames seen before the first match, and a status ("matched"/"timeout"/"closed").
 func readMatchingAll(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration) (matched []wsMsg, seen []string, status string) {
