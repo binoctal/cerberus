@@ -23,6 +23,10 @@ func (a *AutoTest) Run(ctx context.Context, projectDir string) (*AutoTestReport,
 	if gcp, ok := a.coverage.(*GoCoverageProvider); ok {
 		rep.Gaps = append(rep.Gaps, gcp.NoTestFileGaps(projectDir)...)
 	}
+	// D1 §6.7: drop gaps the coverage repair loop already targeted, so Phase 4
+	// does not regenerate tests for them. Applied before the MaxGaps cap so
+	// excluded gaps do not consume cap slots.
+	rep.Gaps = a.withoutExcluded(rep.Gaps)
 	// Cap gaps generated per run: a large codebase can have hundreds of gaps;
 	// generating tests for all of them would be slow and expensive. Take the
 	// first MaxGaps (>0). A future revision can rank by estimated coverage gain.

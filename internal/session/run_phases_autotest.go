@@ -63,6 +63,9 @@ func (rp *runPhase) executeAutoTestPhase() {
 	}
 
 	at := autotest.NewAutoTest(cov, gen, autotest.NewEscalationGateAdapter(rp.session.Gate), nil, mode, rp.session.Logger)
+	// D1 §6.7: exclude gaps the coverage repair loop already targeted so Phase 4
+	// does not regenerate tests for them.
+	at.ExcludeTargets(rp.targetedGaps())
 
 	report, atErr := at.Run(rp.ctx, rp.session.ProjectDir)
 	if atErr != nil {

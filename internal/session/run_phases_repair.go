@@ -199,6 +199,20 @@ func (rp *runPhase) coverageBaseline() float64 {
 	return 0
 }
 
+// targetedGaps returns the gaps the coverage repair loop has dispatched this
+// run, as CoverageGaps for AutoTest.ExcludeTargets. Phase 4 uses these to skip
+// already-covered gaps (D1 spec §6.7).
+func (rp *runPhase) targetedGaps() []autotest.CoverageGap {
+	if len(rp.session.repairTargeted) == 0 {
+		return nil
+	}
+	out := make([]autotest.CoverageGap, 0, len(rp.session.repairTargeted))
+	for k := range rp.session.repairTargeted {
+		out = append(out, autotest.CoverageGap{File: k.File, Func: k.Func})
+	}
+	return out
+}
+
 // measureCoverageReport runs the coverage provider ONCE and returns the raw
 // report (for gap reuse) + measurement. It uses the coverageProvider seam when
 // set (tests — shared with buildAutoTest so the per-round RunCoverage cost is
