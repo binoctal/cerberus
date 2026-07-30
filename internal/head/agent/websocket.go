@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -157,15 +158,68 @@ func (entry *wsEntry) readPump() {
 			entry.pumpErr = err
 			return
 		}
-		select {
-		case entry.msgs <- wsMsg{data: data, binary: mt == websocket.MessageBinary}:
-		case <-entry.ctx.Done():
-			// ctx cancel while the channel is full: record the cause so a
-			// racing consumer doesn't format a misleading "receive: <nil>".
-			entry.pumpErr = entry.ctx.Err()
-			return
+		// Batch decomposition happens here (before pushing) so every consumer —
+		// handshake auto-await, ws_receive, decisive verdict, evidence — sees the
+		// expanded item frames with no per-callsite change. expandBatch returns the
+		// N item frames for a declared json batch, or the single original frame
+		// otherwise (non-json, no protocol, non-batch type, missing/empty array).
+		binary := mt == websocket.MessageBinary
+		for _, m := range expandBatch(entry.protocol, data, binary) {
+			select {
+			case entry.msgs <- m:
+			case <-entry.ctx.Done():
+				// ctx cancel while the channel is full: record the cause so a
+				// racing consumer doesn't format a misleading "receive: <nil>".
+				entry.pumpErr = entry.ctx.Err()
+				return
+			}
 		}
 	}
+}
+
+// expandBatch decomposes a json batch frame into N synthetic item frames per
+// the connection protocol's batch declarations. Returns the frames to push: the
+// N items when the frame is a declared batch (json framing, array at
+// items_path), otherwise a single-element slice holding the original frame
+// (non-json, no protocol, non-batch type, or missing/empty/non-array items_path
+// → degrade by passing the batch through unexpanded). The pump pushes whatever
+// it returns, in order. Single-level: an item_type that is itself a batch is
+// rejected at validation, so no recursion here.
+func expandBatch(proto *project.Protocol, data []byte, binary bool) []wsMsg {
+	original := []wsMsg{{data: data, binary: binary}}
+	if binary || proto == nil || len(proto.Batches) == 0 {
+		return original
+	}
+	if framing := proto.Framing; framing != "" && framing != "json" {
+		return original
+	}
+	typePath := proto.TypePath
+	if typePath == "" {
+		typePath = "type"
+	}
+	rt, ok := extractTypePath(data, typePath)
+	if !ok {
+		return original
+	}
+	batch, ok := proto.Batches[rt]
+	if !ok || batch == nil {
+		return original
+	}
+	items, ok := extractArray(data, batch.ItemsPath)
+	if !ok || len(items) == 0 {
+		// Missing/non-array/empty items path: nothing to expand; pass the batch
+		// frame through so a receive can still match it as a whole (alias path).
+		return original
+	}
+	out := make([]wsMsg, 0, len(items))
+	for _, it := range items {
+		synth, err := json.Marshal(map[string]any{"type": batch.ItemType, "payload": it})
+		if err != nil {
+			return original // marshal failure: degrade rather than drop the frame
+		}
+		out = append(out, wsMsg{data: synth, binary: false})
+	}
+	return out
 }
 
 // readMatching consumes frames from entry's pump until one satisfies match, the

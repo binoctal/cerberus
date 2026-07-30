@@ -84,6 +84,24 @@ func ValidateProtocol(p *Protocol, actors []Actor) error {
 			}
 		}
 	}
+	// Batch decomposition iterates a JSON array, so it is defined only for json
+	// framing ("" defaults to json). Reject a batch declaration under text/binary.
+	if len(p.Batches) > 0 && p.Framing != "" && p.Framing != "json" {
+		return fmt.Errorf("batches require json framing, got %q", p.Framing)
+	}
+	for bName, batch := range p.Batches {
+		if batch == nil || batch.ItemType == "" {
+			return fmt.Errorf("batches[%q].item_type is required", bName)
+		}
+		if batch.ItemsPath == "" {
+			return fmt.Errorf("batches[%q].items_path is required", bName)
+		}
+		// A batch whose item type is itself a batch would recurse in the pump;
+		// reject so decomposition stays single-level.
+		if _, recurse := p.Batches[batch.ItemType]; recurse {
+			return fmt.Errorf("batches[%q].item_type %q is itself a batch (recursive decomposition is not allowed)", bName, batch.ItemType)
+		}
+	}
 	return nil
 }
 

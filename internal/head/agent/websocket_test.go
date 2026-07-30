@@ -1809,6 +1809,70 @@ func TestWSReceiveAfterPeerCloseAllConsumersError(t *testing.T) {
 	}
 }
 
+// TestWSBatchDecomposition_ReceiveOnItem is the end-to-end proof of batch
+// decomposition (roadmap #5): the server sends ONE batch frame
+// session:output-batch with payload.lines ["hello","world"]; the protocol
+// declares the batch (item_type session:output, items_path payload.lines). The
+// read pump expands it into two item frames, and two sequential ws_receive of
+// the item type consume them IN ORDER, each with a per-item assert — proving
+// expansion, ordering, per-item consumption, and per-item assertion all work
+// through the unchanged receive path. The decisive verdict is the final receive.
+func TestWSBatchDecomposition_ReceiveOnItem(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"session:output-batch","payload":{"lines":["hello","world"]}}`))
+		_, _, _ = conn.Read(ctx) // block until close
+	})
+	p := &project.Protocol{TypePath: "type", Batches: map[string]*project.ProtocolBatch{
+		"session:output-batch": {ItemType: "session:output", ItemsPath: "payload.lines"},
+	}}
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, p))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	// First item in arrival order, with a per-item assert.
+	r1 := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "session:output",
+		Assert: map[string]any{"payload": "hello"}, Timeout: 2})
+	ws1, ok := r1.(types.WSResult)
+	require.True(t, ok && ws1.OK, "first item receive failed: %+v", r1)
+	require.Contains(t, ws1.MatchedMessage, "hello")
+
+	// Second item: proves the pump expanded BOTH and the second was buffered for
+	// the next receive (not collapsed back into the batch).
+	r2 := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "session:output",
+		Assert: map[string]any{"payload": "world"}, Timeout: 2})
+	ws2, ok := r2.(types.WSResult)
+	require.True(t, ok && ws2.OK, "second item receive failed: %+v", r2)
+	require.Contains(t, ws2.MatchedMessage, "world")
+}
+
+// TestWSBatchDecomposition_NoBatchDeclIsBackwardsCompat proves that without a
+// batch declaration the batch frame passes through whole (the aliasing path): a
+// receive of the item type does NOT match the unexpanded batch, but a receive of
+// the batch type (as an alias) does. Guards against the pump accidentally
+// expanding frames when no protocol/batch is declared.
+func TestWSBatchDecomposition_NoBatchDeclIsBackwardsCompat(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"session:output-batch","payload":{"lines":["x"]}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	// No Batches declaration: the executor has no protocol index at all (M0).
+	ex := newWSExecutor()
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	// The whole batch frame matches a receive of the batch type directly.
+	r := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "session:output-batch", Timeout: 2})
+	ws, ok := r.(types.WSResult)
+	require.True(t, ok && ws.OK, "whole-batch receive should match without a batch declaration: %+v", r)
+	require.Contains(t, ws.MatchedMessage, "session:output-batch")
+}
+
 func TestWSReceiveAliasesMatch(t *testing.T) {
 	url := newWSTestServer(t, func(conn *websocket.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

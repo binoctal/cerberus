@@ -53,6 +53,19 @@ func extractTypePath(data []byte, path string) (string, bool) {
 	return s, ok
 }
 
+// extractArray walks a dotted path to a JSON array and returns its elements.
+// Returns (nil, false) if the message is not a JSON object, the path is absent,
+// or the leaf is not a JSON array. Used by batch decomposition to find the items
+// to expand.
+func extractArray(data []byte, path string) ([]any, bool) {
+	v, ok := extractPath(data, path)
+	if !ok {
+		return nil, false
+	}
+	arr, ok := v.([]any)
+	return arr, ok
+}
+
 // framingOf returns the effective wire framing for a connection. Empty (no
 // protocol, or a protocol with no framing) means json — the M0/M1 default.
 func framingOf(entry *wsEntry) string {

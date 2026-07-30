@@ -40,6 +40,54 @@ func TestValidateProtocol(t *testing.T) {
 	}
 }
 
+func TestValidateProtocol_Batches(t *testing.T) {
+	cases := []struct {
+		name    string
+		p       *Protocol
+		wantErr string
+	}{
+		{
+			name:    "valid json batch",
+			p:       &Protocol{Batches: map[string]*ProtocolBatch{"session:output-batch": {ItemType: "session:output", ItemsPath: "payload.lines"}}},
+			wantErr: "",
+		},
+		{
+			name:    "missing item_type",
+			p:       &Protocol{Batches: map[string]*ProtocolBatch{"b": {ItemsPath: "payload.x"}}},
+			wantErr: "item_type is required",
+		},
+		{
+			name:    "missing items_path",
+			p:       &Protocol{Batches: map[string]*ProtocolBatch{"b": {ItemType: "item"}}},
+			wantErr: "items_path is required",
+		},
+		{
+			name:    "recursive item_type rejected",
+			p:       &Protocol{Batches: map[string]*ProtocolBatch{"b": {ItemType: "c", ItemsPath: "p"}, "c": {ItemType: "item", ItemsPath: "p"}}},
+			wantErr: "itself a batch",
+		},
+		{
+			name:    "non-json framing rejected",
+			p:       &Protocol{Framing: "text", Batches: map[string]*ProtocolBatch{"b": {ItemType: "item", ItemsPath: "p"}}},
+			wantErr: "batches require json framing",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateProtocol(tc.p, nil)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected err: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("want err containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
 func TestValidateIntegrationRejectsBadProtocol(t *testing.T) {
 	cfg := &Config{
 		Services: []Service{{Name: "rt", URL: "http://x", Protocol: &Protocol{Framing: "raw"}}},

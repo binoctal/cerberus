@@ -223,3 +223,71 @@ func TestBuildWSProtocolIndex_StaticToken(t *testing.T) {
 	_, ok := idx.ActorTokens["none"]
 	require.False(t, ok, "no token + no flow ⇒ no ActorTokens entry")
 }
+
+// TestExpandBatch covers the pump's batch decomposition: a declared json batch
+// frame expands into N synthetic item frames (ordered, retyped); everything else
+// (no protocol, binary, non-json framing, non-batch type, missing/empty/non-array
+// path) passes the original frame through unchanged.
+func TestExpandBatch(t *testing.T) {
+	batchProto := &project.Protocol{
+		TypePath: "type",
+		Batches: map[string]*project.ProtocolBatch{
+			"session:output-batch": {ItemType: "session:output", ItemsPath: "payload.lines"},
+		},
+	}
+	batchFrame := []byte(`{"type":"session:output-batch","payload":{"lines":["a","b","c"]}}`)
+	objBatch := &project.Protocol{TypePath: "type", Batches: map[string]*project.ProtocolBatch{
+		"ev-batch": {ItemType: "ev", ItemsPath: "payload.events"},
+	}}
+	objFrame := []byte(`{"type":"ev-batch","payload":{"events":[{"id":1},{"id":2}]}}`)
+
+	cases := []struct {
+		name       string
+		proto      *project.Protocol
+		data       []byte
+		binary     bool
+		wantFrames int       // number of frames returned
+		wantType   string    // routing type of the (first) returned frame
+		wantItems  []string  // for the array-of-strings case, the payload of each frame in order
+		wantObjIDs []float64 // for the array-of-objects case, each item's payload.id
+	}{
+		{"batch expands to N items", batchProto, batchFrame, false, 3, "session:output", []string{"a", "b", "c"}, nil},
+		{"batch of objects expands", objBatch, objFrame, false, 2, "ev", nil, []float64{1, 2}},
+		{"no protocol passes through", nil, batchFrame, false, 1, "session:output-batch", nil, nil},
+		{"binary passes through", batchProto, batchFrame, true, 1, "", nil, nil},
+		{"non-batch type passes through", batchProto, []byte(`{"type":"other"}`), false, 1, "other", nil, nil},
+		{"empty array passes through", batchProto, []byte(`{"type":"session:output-batch","payload":{"lines":[]}}`), false, 1, "session:output-batch", nil, nil},
+		{"missing array path passes through", batchProto, []byte(`{"type":"session:output-batch","payload":{}}`), false, 1, "session:output-batch", nil, nil},
+		{"non-json passes through", batchProto, []byte("not json"), false, 1, "", nil, nil},
+		{"text framing passes through", &project.Protocol{Framing: "text", Batches: batchProto.Batches}, batchFrame, false, 1, "", nil, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := expandBatch(c.proto, c.data, c.binary)
+			require.Len(t, got, c.wantFrames, "frame count")
+			if c.wantType != "" {
+				rt, ok := extractTypePath(got[0].data, "type")
+				require.True(t, ok, "first frame has a type")
+				require.Equal(t, c.wantType, rt, "first frame type")
+			}
+			if c.wantItems != nil {
+				var items []string
+				for _, m := range got {
+					v, ok := extractPath(m.data, "payload")
+					require.True(t, ok)
+					items = append(items, v.(string))
+				}
+				require.Equal(t, c.wantItems, items, "expanded item order/contents")
+			}
+			if c.wantObjIDs != nil {
+				var ids []float64
+				for _, m := range got {
+					v, ok := extractPath(m.data, "payload.id")
+					require.True(t, ok)
+					ids = append(ids, v.(float64))
+				}
+				require.Equal(t, c.wantObjIDs, ids, "expanded object item ids")
+			}
+		})
+	}
+}

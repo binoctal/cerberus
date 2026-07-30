@@ -16,6 +16,24 @@ type Protocol struct {
 	// Roles maps named connection types (e.g. "web", "bridge") to their
 	// per-role declaration. Empty means no roles (M1 behavior).
 	Roles map[string]*ProtocolRole `yaml:"roles,omitempty"`
+	// Batches maps a batch routing type to its decomposition: when a frame whose
+	// routing key (at type_path) matches a key here, the read pump expands it into
+	// N synthetic item frames (one per element of the array at items_path), each
+	// retyped to item_type — so every consumer sees the items with no per-callsite
+	// change. json framing only. Empty means no batch decomposition (backwards-
+	// compat). See the WS batch decomposition design spec.
+	Batches map[string]*ProtocolBatch `yaml:"batches,omitempty"`
+}
+
+// ProtocolBatch declares how a single batch frame decomposes into N item frames.
+// Phase 1: each array element becomes the whole "payload" of a synthetic json
+// frame {"type": item_type, "payload": <element>}.
+type ProtocolBatch struct {
+	// ItemType is the routing key applied to each expanded item frame.
+	ItemType string `yaml:"item_type"`
+	// ItemsPath is the dotted JSON path to the array within the batch frame
+	// (e.g. "payload.lines").
+	ItemsPath string `yaml:"items_path"`
 }
 
 // ProtocolAuth declares where a credential goes and which actor supplies it.
