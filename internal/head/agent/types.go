@@ -30,6 +30,11 @@ const (
 	HintEndpointDrift RedispatchHint = "endpoint_drift" // wrong path/method/verb
 	HintAuth          RedispatchHint = "auth"           // missing/bad credentials or scheme
 	HintShape         RedispatchHint = "shape"          // wrong payload/contract shape
+	// D2 WS hints: WebSocket-correctable failure causes. Each implicates a
+	// specific TestStep field for Scout to repair (see D2 spec §5.1).
+	HintHandshake RedispatchHint = "handshake" // WS: mandatory/role handshake await mismatch
+	HintWsShape   RedispatchHint = "ws_shape"  // WS: wrong ws_send message envelope/payload
+	HintWsMatch   RedispatchHint = "ws_match"  // WS: ws_receive type/assert/match_all criteria wrong
 	// HintCoverage is SESSION-SYNTHESIZED (D1 spec §5.1): the coverage gate was
 	// not reached. It is never LLM-emitted and never parsed from judge output;
 	// persisted verdicts carry it via JSON struct tags. parseRedispatchHint

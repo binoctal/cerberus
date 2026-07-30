@@ -40,7 +40,8 @@ func assembleJudge(call llm.ToolCall) (JudgeResult, error) {
 // never accidentally triggers replanning.
 func parseRedispatchHint(s string) agent.RedispatchHint {
 	switch agent.RedispatchHint(s) {
-	case agent.HintEndpointDrift, agent.HintAuth, agent.HintShape:
+	case agent.HintEndpointDrift, agent.HintAuth, agent.HintShape,
+		agent.HintHandshake, agent.HintWsShape, agent.HintWsMatch:
 		return agent.RedispatchHint(s)
 	default:
 		return agent.HintNone

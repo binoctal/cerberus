@@ -23,6 +23,12 @@ func TestAssembleJudge_ParsesRedispatchHint(t *testing.T) {
 		// emits it and the parser must NOT accept it — it round-trips via JSON, not
 		// via parseRedispatchHint. Negative: accepting it here flips this to RED.
 		"coverage": agent.HintNone,
+		// D2 WS hints: accepted by the parser (judge-emitted).
+		"handshake": agent.HintHandshake,
+		"ws_shape":  agent.HintWsShape,
+		"ws_match":  agent.HintWsMatch,
+		// A typo'd WS hint must collapse to none (negative: accepting it → RED).
+		"handshoke": agent.HintNone,
 	}
 	for in, want := range cases {
 		input := map[string]any{"status": "fail", "reasoning": "r"}
