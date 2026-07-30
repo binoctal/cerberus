@@ -174,3 +174,112 @@ out.
 
 Until these are answered, D1 is the recommended concrete next step and the others
 stay parked.
+
+## 6. Decision Record (2026-07-30)
+
+### 6.1 The D1/D3 fork — DECIDED: Option (a) + selective absorption
+
+Coverage recovery is **owned by the Examiner repair loop** (Option a); AutoTest
+stays a Phase-4 polish pass. Full unification (Option b) is deferred as YAGNI
+until duplication is demonstrated in practice. Rationale: the two mechanisms
+produce different artifacts with different safety profiles (Scout repair = durable
+semantic cases judged via executor; AutoTest = generated files, revert-on-no-gain,
+escalation-gated `destructive_risk`). Merging entangles the verdict loop with file
+mutation and breaks the "repair never aborts the run" invariant.
+
+**Absorb from (b) into (a)** — take the value, avoid the cost:
+
+| # | Absorbed practice | Cost | Verdict |
+|---|---|---|---|
+| 1 | Contract-prioritized gap ranking (replace FIFO `MaxGaps`) | pure fn | **in D1** |
+| 2 | Escalation gate + explicit token-budget backstop in repair loop | small | **in D1** |
+| 3 | Dedup coordination edge (covered-set shared repair↔AutoTest) | small | **in D1** |
+| 4 | AutoTest coverage delta folded back into `Assessment` (final `AssessCoverage`) | 1 call | **in D1** |
+| 5 | Repair loop *dispatches* AutoTest as a tool for a mechanical gap | medium | **Phase 2, gated** |
+
+Item 5 is deferred because it conflicts with the D1 invariant "the gate measures
+the Agent's tests only" (design 2026-07-17 D1): an in-loop AutoTest dispatch would
+pollute the Agent-gate unless measured on a separate track. Open it only if
+mechanical-gap coverage proves necessary after D1 ships, and then keep its
+measurement off the Agent-gate.
+
+**Not absorbed** (this IS the cost of b): merging AutoTest's file-mutation state
+into verdict-loop ownership; strategy-selection as a first-class loop concern.
+
+### 6.2 D1 concrete scope
+
+1. Coverage gap → repair-loop eligibility: `Assessment.Gaps` (kind `coverage`)
+   derives synthetic `RepairInput`s; re-judge calls `AssessCoverage` (Agent-only
+   measurement, D1 invariant held).
+2. AutoTest gap ranking → contract-priority-weighted.
+3. Repair loop wired to `escalation.Gate` + explicit `TokenBudget` backstop.
+4. Covered-set dedup + AutoTest delta folded into final `Assessment`.
+
+### 6.3 "Uncovered region" granularity — DECIDED: reuse `CoverageGap{File, Func}`
+
+(See §7 for the full reasoning.) The existing `autotest.CoverageGap{File, Func
+string, Reason string}` already carries both granularities and is uniform across
+languages, dissolving the file-vs-function dichotomy. Target = finest the provider
+gives (Func when populated, File-only when empty); covered-set key = `(File, Func)`;
+**progress measured at the aggregate gate (line-pct delta via `AssessCoverage`),
+not per-target** — this keeps the Go-line-vs-Node/Python-function asymmetry out of
+termination correctness.
+
+## 7. Coverage hint "uncovered region" granularity: file vs function
+
+The data model dissolves the binary. `autotest.CoverageGap` (types.go:57) is:
+
+```go
+type CoverageGap struct { File, Func string; Reason string }
+```
+
+— shared by Go / Node / Python providers, carrying BOTH file and function. Go's
+`Gaps()` emits `File+Func` for uncovered functions and `File`-only for the
+no-test-file case (coverage_go.go:103/133/136). So "file or function" is not a
+language split to design around — it is a field that is sometimes populated.
+
+### 7.1 Target granularity (what becomes a RepairInput / covered-set key)
+
+**Recommendation: reuse `CoverageGap` as the repair target type.** Target = the
+finest granularity the provider reports.
+
+- **Function-level target** (when `Func` populated — Go uncovered-func, Node/Python
+  func gaps):
+  - **+** Precise behavioral target → focused, judgeable test; crisp no-progress
+    attribution; **zero new concept** — reuses the existing AutoTest gap model.
+  - **+** Language-uniform at the type level (the language difference lives only in
+    the measurement unit, already handled by `CoverageMeasurement.Unit`).
+  - **−** Node/Python function identity can be noisy (anonymous/minified methods) →
+    unstable target. **Mitigation:** degrade to file-level when `Func` is empty or
+    untrusted.
+  - **−** More gaps than rounds allow → may not cover enough within the round cap.
+    **Mitigation:** rank by contract-priority × estimated coverage gain.
+- **File-level target** (when `Func` empty — no-test-file case, or noisy func):
+  - **+** Stable, durable, unambiguous; resume/dedup-simple; matches how test files
+    are actually produced.
+  - **−** Coarse: Scout may re-cover covered code or emit a sprawling test; weaker
+    behavioral signal → more LLM inference; harder to judge.
+
+The `Func` field being sometimes-empty already implements the right degradation —
+do not force a single granularity.
+
+### 7.2 Measurement granularity (the orthogonal concern — where the asymmetry bites)
+
+The contract gate is a **line** threshold (Go). Progress MUST be measured as the
+aggregate line-pct delta (via `AssessCoverage`), **regardless of whether the target
+was a file or a function.** Do NOT measure progress as "did this target flip to
+covered":
+
+- Per-target coverage status optimizes function count, not the gate's line metric.
+- It is exactly where Go-line-vs-Node/Python-function asymmetry would corrupt
+  termination: a Node/Python "covered function" is a coarser unit than a Go
+  covered-line-block, so per-target progress would mean different things per
+  language.
+- Measuring at the aggregate gate sidesteps the asymmetry entirely — the loop
+  stops when `Pct >= LineThreshold` (or no delta), uniformly.
+
+### 7.3 Ranking when gaps exceed the round budget
+
+Rank candidate gaps by `contract.Priorities[module]` × estimated coverage gain. Go
+can estimate gain from the uncovered `numStmts` in the profile; Node/Python
+approximate as `1/TotalFuncs`. This is the absorbed practice #1 in §6.2.
