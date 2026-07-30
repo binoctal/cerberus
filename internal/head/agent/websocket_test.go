@@ -2061,6 +2061,81 @@ func TestWSReceiveMatchAll_PeerCloseMidBurstPasses(t *testing.T) {
 	require.False(t, wsAfter.OK, "connection must be dead after peer close")
 }
 
+// TestWSExpandBatch_EmptyArrayPassesThrough pins the batch-decomposition
+// boundary: a declared batch whose items_path resolves to an EMPTY array is NOT
+// decomposed into zero items — the batch frame passes through unexpanded (so it
+// can still be matched as the batch type). Only a non-empty array expands to N
+// synthetic item frames. See 2026-07-30-ws-match-all-edge-bounds-ruling.md Q2.
+func TestWSExpandBatch_EmptyArrayPassesThrough(t *testing.T) {
+	proto := &project.Protocol{TypePath: "type", Batches: map[string]*project.ProtocolBatch{
+		"event-batch": {ItemType: "event", ItemsPath: "payload.events"},
+	}}
+	emptyBatch := []byte(`{"type":"event-batch","payload":{"events":[]}}`)
+	got := expandBatch(proto, emptyBatch, false)
+	require.Len(t, got, 1, "empty array must NOT decompose — pass the batch frame through")
+	require.Equal(t, emptyBatch, got[0].data, "the passed-through frame must be the original batch")
+
+	// Non-empty array expands to one synthetic item frame per element.
+	fullBatch := []byte(`{"type":"event-batch","payload":{"events":[{"id":"a"},{"id":"b"}]}}`)
+	expanded := expandBatch(proto, fullBatch, false)
+	require.Len(t, expanded, 2, "a 2-element array must decompose into 2 item frames")
+	for _, m := range expanded {
+		require.Contains(t, string(m.data), `"type":"event"`, "each synthetic frame carries the item type")
+	}
+}
+
+// TestWSReceiveMatchAll_EmptyBatchIsTimeoutNotVacuousPass pins verdict integrity
+// for the empty-batch case: when the server sends ONLY an empty batch, a match-all
+// receive of the item type finds no matching item frame and FAILS with a timeout —
+// it does NOT vacuously pass as "all zero items satisfied the assert". See
+// 2026-07-30-ws-match-all-edge-bounds-ruling.md Q2.
+func TestWSReceiveMatchAll_EmptyBatchIsTimeoutNotVacuousPass(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[]}}`))
+		_, _, _ = conn.Read(ctx) // block until close
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, eventBatchProtocol()))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "event", MatchAll: true,
+		Assert: map[string]any{"payload.ok": true}, Timeout: 1,
+	})
+	ws, ok := res.(types.WSResult)
+	require.True(t, ok, "expected WSResult")
+	require.False(t, ws.OK, "empty batch must NOT vacuously pass a match-all receive over zero items")
+	require.Contains(t, ws.Err, "timed out", "empty batch must surface as a timeout, not a pass; got %q", ws.Err)
+}
+
+// TestReadMatching_PendingSurvivesPumpExit pins the pushback lifecycle (Q1): a
+// frame pushed back by a prior readMatchingAll is delivered to the next consumer
+// EVEN WHEN the pump has already exited (done closed). popBuffered checks the
+// pending slot before any <-entry.done select, so a peeked frame is never lost to
+// a racing pump exit. Deterministic unit test — no network. See
+// 2026-07-30-ws-match-all-edge-bounds-ruling.md Q1.
+func TestReadMatching_PendingSurvivesPumpExit(t *testing.T) {
+	entry := &wsEntry{
+		msgs: make(chan wsMsg, 1),
+		done: make(chan struct{}),
+	}
+	// A prior readMatchingAll ended its burst on this frame and pushed it back;
+	// then the pump exited (peer closed).
+	pushed := wsMsg{data: []byte(`{"type":"done"}`)}
+	entry.pending = pushed
+	entry.hasPending = true
+	close(entry.done) // pump already dead
+
+	matched, _, status := readMatching(entry, func(m wsMsg) bool {
+		return strings.Contains(string(m.data), `"type":"done"`)
+	}, time.Second)
+	require.Equal(t, "matched", status, "the pushed-back frame must be delivered despite the pump having exited")
+	require.Equal(t, pushed.data, matched.data, "the delivered frame must be the pending pushback, in order")
+}
+
 func TestWSReceiveAliasesMatch(t *testing.T) {
 	url := newWSTestServer(t, func(conn *websocket.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
