@@ -457,6 +457,117 @@ func TestWSExchangeFromGoal(t *testing.T) {
 	}
 }
 
+// TestShouldMatchAllBatch pins the rule that decides whether a wsStepsCase
+// receive carries MatchAll=true. Match-all is emitted only when the receive type
+// is a declared batch's item_type (the server may send a batch the pump
+// decomposes), AND no assert references that batch's items_path (a batch-level
+// assert applied per item would false-fail). See ws_cases.go.
+func TestShouldMatchAllBatch(t *testing.T) {
+	proto := func() *project.Protocol {
+		return &project.Protocol{TypePath: "type", Batches: map[string]*project.ProtocolBatch{
+			"device:ack-batch": {ItemType: "device:ack", ItemsPath: "payload.items"},
+		}}
+	}
+	tests := []struct {
+		name     string
+		proto    *project.Protocol
+		recvType string
+		asserts  map[string]any
+		want     bool
+	}{
+		{
+			name:     "batch item type with per-item assert -> match all",
+			proto:    proto(),
+			recvType: "device:ack",
+			asserts:  map[string]any{"payload.approved": true},
+			want:     true,
+		},
+		{
+			name:     "batch item type arrival-only -> match all",
+			proto:    proto(),
+			recvType: "device:ack",
+			asserts:  nil,
+			want:     true,
+		},
+		{
+			name:     "non-batch receive type -> first match",
+			proto:    proto(),
+			recvType: "device:nack",
+			asserts:  map[string]any{"payload.approved": true},
+			want:     false,
+		},
+		{
+			name:     "assert equals items path -> batch-level, decline match all",
+			proto:    proto(),
+			recvType: "device:ack",
+			asserts:  map[string]any{"payload.items": "x"},
+			want:     false,
+		},
+		{
+			name:     "assert under items path -> batch-level, decline match all",
+			proto:    proto(),
+			recvType: "device:ack",
+			asserts:  map[string]any{"payload.items.0.id": "x"},
+			want:     false,
+		},
+		{
+			name:     "nil protocol -> first match",
+			proto:    nil,
+			recvType: "device:ack",
+			want:     false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := shouldMatchAllBatch(tc.proto, tc.recvType, tc.asserts)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestWSCasesEmitsMatchAllForBatchItemType is the end-to-end pin: when the goal's
+// receive type is a declared batch item_type, the emitted ws_flow receive step
+// carries MatchAll=true (so the executor asserts every decomposed item). The
+// per-item assert "payload.approved" does not reference the items path, so the
+// guard passes. Verified RED by removing the shouldMatchAllBatch call.
+func TestWSCasesEmitsMatchAllForBatchItemType(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync", Timeout: 5}},
+		}, Batches: map[string]*project.ProtocolBatch{
+			"device:ack-batch": {ItemType: "device:ack", ItemsPath: "payload.items"},
+		}},
+	}}}
+	cases := WSCases(cfg, "send device:command, verify device:ack approved=true")
+	require.Len(t, cases, 1, "exchange should produce exactly one Steps case")
+	require.Len(t, cases[0].Steps, 3)
+	recv := cases[0].Steps[2]
+	assert.Equal(t, "ws_receive", recv.Action)
+	assert.Equal(t, "device:ack", recv.Type, "receive type is the batch item_type")
+	assert.True(t, recv.MatchAll, "receive of a batch item_type must carry MatchAll so every item is asserted")
+}
+
+// TestWSCasesDeclinesMatchAllForBatchLevelAssert pins the guard: when the only
+// assert references the batch's items_path, match-all is declined (the assert is
+// batch-level) and the receive falls back to first-match.
+func TestWSCasesDeclinesMatchAllForBatchLevelAssert(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {},
+		}, Batches: map[string]*project.ProtocolBatch{
+			"device:ack-batch": {ItemType: "device:ack", ItemsPath: "payload.items"},
+		}},
+	}}}
+	// "payload.items" is the batch items_path -> batch-level assert.
+	cases := WSCases(cfg, "send device:command, verify device:ack payload.items=x")
+	require.Len(t, cases, 1)
+	recv := cases[0].Steps[2]
+	assert.Equal(t, "device:ack", recv.Type)
+	assert.False(t, recv.MatchAll, "a batch-level (items_path) assert must decline match_all")
+}
+
 // TestWSCasesCollidingTypesDedupToOneCase pins the cross-source ID-collision
 // behavior in the new Steps shape: two decisive types that sanitize to the same
 // ID (a handshake await_type "devices-sync" and a goal-named "devices:sync",

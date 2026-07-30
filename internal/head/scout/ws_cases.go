@@ -247,6 +247,10 @@ func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]
 // await_type is auto-awaited by the executor on the ws_connect step (via the
 // Role field), so no separate handshake step is emitted. Asserts are derived
 // from the goal (path→value map) and may be nil for arrival-only receives.
+//
+// When the receive type is a declared batch's item_type, the receive step carries
+// MatchAll=true so the executor asserts EVERY decomposed item, not just the first
+// (the false-pass hole match_all closes). See shouldMatchAllBatch for the guard.
 func wsStepsCase(svc project.Service, role string, r *project.ProtocolRole, ex wsExchange) agent.TestCase {
 	// One connection per role; the executor namespaces connection-table keys by
 	// <caseID>:<connectionID>, so the same role name is stable within this case
@@ -269,9 +273,46 @@ func wsStepsCase(svc project.Service, role string, r *project.ProtocolRole, ex w
 		Steps: []agent.TestStep{
 			{Action: "ws_connect", ConnectionID: connID, Role: role},
 			{Action: "ws_send", ConnectionID: connID, Message: wsSendBody(ex.sendType)},
-			{Action: "ws_receive", ConnectionID: connID, Type: ex.recvType, Asserts: ex.asserts, Timeout: timeout},
+			{Action: "ws_receive", ConnectionID: connID, Type: ex.recvType, Asserts: ex.asserts, Timeout: timeout, MatchAll: shouldMatchAllBatch(svc.Protocol, ex.recvType, ex.asserts)},
 		},
 	}
+}
+
+// shouldMatchAllBatch reports whether a ws_receive of recvType should carry
+// MatchAll=true. It returns true when recvType is a declared batch's item_type —
+// meaning the server may send a BATCH of recvType frames that the read pump
+// decomposes into N synthetic item frames, so first-match would assert only
+// item #1 while match_all asserts every item (closing the false-pass hole).
+//
+// Guard: if any assert key references a matching batch's items_path (the key is
+// the items_path or a sub-path under it), the assert is BATCH-LEVEL, not
+// per-item — applying it to each decomposed item would false-fail, so match_all
+// is declined and the receive falls back to first-match. A nil protocol, empty
+// recvType, or no matching batch yields false (plain single-frame receive).
+func shouldMatchAllBatch(proto *project.Protocol, recvType string, asserts map[string]any) bool {
+	if proto == nil || recvType == "" || len(proto.Batches) == 0 {
+		return false
+	}
+	var itemsPaths []string
+	for _, b := range proto.Batches {
+		if b != nil && b.ItemType == recvType {
+			itemsPaths = append(itemsPaths, b.ItemsPath)
+		}
+	}
+	if len(itemsPaths) == 0 {
+		return false
+	}
+	// Decline when an assert is batch-level (references an items_path). Per-item
+	// payload keys are fine: each decomposed item is {"type":..,"payload":<elt>},
+	// so "payload.x" reaches into the element.
+	for k := range asserts {
+		for _, p := range itemsPaths {
+			if p != "" && (k == p || strings.HasPrefix(k, p+".")) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // wsSendBody builds the JSON payload for a ws_send step: a {"type": "<typ>"}
