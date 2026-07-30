@@ -156,6 +156,25 @@ case ends (normal exit, timeout, or cancellation). Parallel cases are isolated.
   `ws_receive` are documented under [Field assertions](#field-assertions) (M2).
   `text`/`binary` framing is documented under [Framing](#framing) (M2).
 
+## Repair
+
+When a WebSocket case fails, the Examiner diagnoses it with a correctable
+`redispatch_hint` so the in-session repair loop (Examiner→Scout) can emit a
+corrected flow. The WS hints (D2) are:
+
+| Hint | Meaning | What Scout repairs |
+|---|---|---|
+| `handshake` | A declared/role handshake did not arrive or the awaited type is wrong | the `ws_receive` await `type` (or the connect `role`/handshake) |
+| `ws_shape` | The `ws_send` message envelope/payload does not match the protocol | the `ws_send` `message` |
+| `ws_match` | A `ws_receive` matched nothing decisive, or an `assert`/`match_all` predicate failed | the `ws_receive` `type`/`aliases`/`asserts`/`match_all` |
+
+For a WS failure Scout emits a corrected `steps` array (the full
+`ws_connect`/`ws_send`/`ws_receive`/`ws_disconnect` flow) via `repair_case`,
+changing only the step field the hint implicates. HTTP hints
+(`endpoint_drift`/`auth`/`shape`) and HTTP repair are unchanged; a WS connect to
+the wrong URL/role is still `endpoint_drift`. Non-correctable failures use
+`none` and are not repaired.
+
 ## Protocol Declaration
 
 A service may declare its stable WebSocket protocol facts via an optional
