@@ -26,8 +26,8 @@ func judgeTools() []llm.Tool {
 			"reasoning":              map[string]any{"type": "string"},
 			"redispatch_hint": map[string]any{
 				"type":        "string",
-				"enum":        []any{"none", "endpoint_drift", "auth", "shape"},
-				"description": "For a fail: the correctable root cause a replacement case could address. 'none' unless the failure is clearly correctable.",
+				"enum":        []any{"none", "endpoint_drift", "auth", "shape", "handshake", "ws_shape", "ws_match"},
+				"description": "For a fail: the correctable root cause a replacement case could address. 'none' unless the failure is clearly correctable. WS failures use 'handshake' (await mismatch), 'ws_shape' (wrong ws_send envelope), or 'ws_match' (wrong ws_receive type/assert/match_all).",
 			},
 		}),
 	}}
