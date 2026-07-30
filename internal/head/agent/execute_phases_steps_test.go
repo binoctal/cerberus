@@ -310,6 +310,114 @@ func TestRunStepsMultiConnection(t *testing.T) {
 		"the case must open two distinct connections (accepts=%d)", accepts.Load())
 }
 
+// TestRunStepsOptionalHandshakeSuppressesAwaitForLaterReceive is the deterministic
+// proof of the optional-handshake suppress-auto-await fix. The server pushes the
+// role's AwaitType frame to the client ON CONNECT (modeling a broker that
+// broadcasts current presence / initial-sync at join). The case then explicitly
+// ws_receive's that same type as the decisive assertion.
+//
+// WITHOUT the suppress fix, doConnect's optional-handshake auto-await MATCHES and
+// CONSUMES the connect-time push, so the later ws_receive finds nothing and times
+// out — a false fail (the server demonstrably sent the frame). WITH the fix,
+// runSteps sees the later receive on the same connection/type and tells the
+// connect to suppress its auto-await; the frame stays buffered and the explicit
+// receive catches it. Deterministic, no wall-clock dependency, single connection.
+//
+// Scope: suppression is OPTIONAL-handshake only. A mandatory handshake's connect
+// consumes the AwaitType by design (the redundant receive is dropped at assembly),
+// so mandatory is covered by TestConnectRoleHandshakeSuccess and unchanged here.
+func TestRunStepsOptionalHandshakeSuppressesAwaitForLaterReceive(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		// Presence push on join: the frame the role awaits AND the case receives.
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"presence:online"}`))
+		_, _, _ = conn.Read(ctx) // keep the socket open
+	})
+
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "presence:online", Optional: true, Timeout: 2}},
+		}}
+	wsIdx := protocolIndexForURL(t, url, p)
+
+	tc := &TestCase{
+		ID:     "tc-opt-suppress",
+		Target: url,
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "c1"},
+			{Action: "ws_receive", ConnectionID: "c1", Type: "presence:online", Timeout: 2},
+		},
+	}
+
+	se := newStepExecutionWithIdx(t, tc, wsIdx)
+	result := se.runSteps()
+
+	require.Equal(t, StepPassed, result.Status,
+		"later ws_receive must catch the connect-time push; without suppress the connect consumed it")
+	ws, ok := result.Result.(types.WSResult)
+	require.True(t, ok, "final step result must be a WSResult")
+	require.Contains(t, ws.MatchedMessage, "presence:online",
+		"the explicit receive must have matched the buffered push")
+}
+
+// TestSuppressAwaitTypesMap unit-tests the runSteps pre-scan that decides which
+// await types a ws_connect must skip because a later ws_receive on the SAME
+// connection will assert them (Type + Aliases). Receives on OTHER connections
+// and non-receive steps do not contribute. Pure and deterministic.
+func TestSuppressAwaitTypesMap(t *testing.T) {
+	steps := []TestStep{
+		{Action: "ws_connect", ConnectionID: "c1", Role: "web"},
+		{Action: "ws_connect", ConnectionID: "c2"},
+		{Action: "ws_receive", ConnectionID: "c1", Type: "presence:online", Aliases: []string{"presence:join"}},
+		{Action: "ws_send", ConnectionID: "c2", Message: `{"type":"x"}`},
+		{Action: "ws_receive", ConnectionID: "c2", Type: "echo"},
+	}
+	got := suppressAwaitTypes(steps)
+	require.ElementsMatch(t, []string{"presence:online", "presence:join"}, got["c1"],
+		"c1 connect must suppress the type + aliases its later receive asserts")
+	require.ElementsMatch(t, []string{"echo"}, got["c2"], "c2 connect must suppress its later receive type")
+	// A connection with no later receive is absent (no suppression).
+	_, ok := got["c3"]
+	require.False(t, ok, "connection with no later receive must have no suppress set")
+}
+
+// TestRunStepsMandatoryHandshakeNotSuppressed locks the scope boundary: even when
+// a later ws_receive on the same connection asserts the AwaitType, a MANDATORY
+// handshake's connect must STILL run its auto-await and consume the frame (the
+// redundant receive is dropped at assembly, not here). The server pushes the
+// AwaitType on connect; the mandatory connect consumes it (SeenMessages carries
+// it), so the case does NOT suppress. This preserves the mandatory/optional
+// semantics split (see cccmemory ws-handshake-optional-vs-mandatory-semantics).
+func TestRunStepsMandatoryHandshakeNotSuppressed(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"presence:online"}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	p := &project.Protocol{TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "presence:online", Optional: false, Timeout: 2}},
+		}}
+	wsIdx := protocolIndexForURL(t, url, p)
+	tc := &TestCase{
+		ID:     "tc-mandatory-no-suppress",
+		Target: url,
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "c1"},
+			{Action: "ws_receive", ConnectionID: "c1", Type: "presence:online", Timeout: 1},
+		},
+	}
+	se := newStepExecutionWithIdx(t, tc, wsIdx)
+	result := se.runSteps()
+
+	// The mandatory connect consumed the push, so the later receive times out and
+	// the case FAILS — proving suppress did NOT fire for a mandatory handshake.
+	require.NotEqual(t, StepPassed, result.Status,
+		"mandatory handshake must not be suppressed; the connect should consume the AwaitType")
+}
+
 func TestStepToActionReceiveAliases(t *testing.T) {
 	action, err := stepToAction(&TestCase{Target: "ws://x"}, TestStep{
 		Action: "ws_receive", ConnectionID: "c1", Type: "session:output",

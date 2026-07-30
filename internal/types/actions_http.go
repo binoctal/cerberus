@@ -189,6 +189,14 @@ type WSConnectAction struct {
 	// discriminator params, and handshake the executor expands. When set,
 	// CredentialRef is ignored and the role's declaration drives auth + params.
 	Role string `json:"role,omitempty"`
+	// SuppressAwaitTypes lists handshake await-types the connect must NOT
+	// auto-await, because a later ws_receive on the SAME connection will assert
+	// them as the decisive step. Set only by the deterministic Steps runner for an
+	// OPTIONAL handshake: the connect's best-effort await would otherwise stall
+	// the case for the handshake timeout (the signal arrives only on a later
+	// peer-connect step) or consume a connect-time push the later receive needs.
+	// Mandatory handshakes ignore this (their connect consumes by design).
+	SuppressAwaitTypes []string `json:"suppress_await_types,omitempty"`
 }
 
 func (a WSConnectAction) GetActionType() ActionType { return ActionWSConnect }

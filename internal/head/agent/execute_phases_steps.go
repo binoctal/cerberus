@@ -33,6 +33,45 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 	}
 }
 
+// suppressAwaitTypes pre-scans a case's Steps and returns, per connection_id,
+// the set of message types a ws_receive on that connection will assert (Type +
+// Aliases). The deterministic Steps runner attaches this set to each ws_connect
+// so an OPTIONAL handshake can skip its connect-time auto-await when a later
+// explicit receive is the decisive assertion of the same type — avoiding both a
+// pointless full-timeout stall and consuming a frame the later receive needs.
+// Receives always follow a connection's connect (one cannot receive on an
+// unconnected id), so "all receives on this connection" == "later receives".
+func suppressAwaitTypes(steps []TestStep) map[string][]string {
+	sets := map[string]map[string]bool{}
+	for _, s := range steps {
+		if s.Action != "ws_receive" {
+			continue
+		}
+		set, ok := sets[s.ConnectionID]
+		if !ok {
+			set = map[string]bool{}
+			sets[s.ConnectionID] = set
+		}
+		if s.Type != "" {
+			set[s.Type] = true
+		}
+		for _, a := range s.Aliases {
+			if a != "" {
+				set[a] = true
+			}
+		}
+	}
+	out := make(map[string][]string, len(sets))
+	for conn, set := range sets {
+		list := make([]string, 0, len(set))
+		for t := range set {
+			list = append(list, t)
+		}
+		out[conn] = list
+	}
+	return out
+}
+
 // runSteps executes a deterministic multi-step WS case: each step runs via the
 // shared executor under the case context (caseIDKey already set by executeStep).
 // Steps citing the SAME connection_id share one connection; steps citing
@@ -43,6 +82,7 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 // upgraded exchange for the Examiner.
 func (se *stepExecution) runSteps() StepResult {
 	r := se.loop
+	suppress := suppressAwaitTypes(se.tc.Steps)
 	var evidence []Evidence
 	var lastAction types.TypedAction
 	var lastResult types.ExecutorResult
@@ -50,6 +90,16 @@ func (se *stepExecution) runSteps() StepResult {
 		action, err := stepToAction(se.tc, s)
 		if err != nil {
 			return se.failureResult(err, 1)
+		}
+		// Tell an optional-handshake connect which await-types a later receive on
+		// the same connection will assert, so its auto-await can be suppressed.
+		if s.Action == "ws_connect" {
+			if ca, ok := action.(types.WSConnectAction); ok {
+				if suppressed := suppress[s.ConnectionID]; len(suppressed) > 0 {
+					ca.SuppressAwaitTypes = suppressed
+					action = ca
+				}
+			}
 		}
 		result := r.executor.Execute(se.ctx, action)
 		r.recordEvidence(se.ctx, se.traceID, "steps", action, result)

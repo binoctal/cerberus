@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -358,6 +359,21 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// both at once (readMatching has returned and released readMu before e.mu).
 	var seen []string
 	if role != nil && role.Handshake != nil {
+		awaitType := role.Handshake.AwaitType
+		// Suppress the connect-time auto-await for an OPTIONAL handshake when a
+		// later ws_receive on this same connection will assert the same type. The
+		// optional await is best-effort: left running, it either stalls the case
+		// for the full handshake timeout (a peer-join signal arrives only on a
+		// later peer-connect step, which this sequential runner blocks on), or —
+		// when the server pushes the type at join — it matches and CONSUMES the
+		// frame, leaving the decisive later receive nothing to match (false fail).
+		// Skipping it keeps the buffered frame for the explicit receive. The
+		// connection is already stored and alive. MANDATORY handshakes are NOT
+		// suppressed: their connect consumes the AwaitType by design and the
+		// redundant receive is dropped at assembly (sanitizeSelfHandshakeReawait).
+		if role.Handshake.Optional && awaitType != "" && slices.Contains(a.SuppressAwaitTypes, awaitType) {
+			return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, Latency: time.Since(start)}
+		}
 		entry, ok := e.lookup(key)
 		if !ok {
 			return types.WSResult{OK: false, URL: preInjectionURL, Err: "ws handshake: connection vanished", Latency: time.Since(start)}
@@ -367,7 +383,6 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 		if proto.TypePath != "" {
 			path = proto.TypePath
 		}
-		awaitType := role.Handshake.AwaitType
 		hsTimeout := time.Duration(role.Handshake.Timeout) * time.Second
 		matched, hsSeen, hsStatus := readMatching(entry, func(m wsMsg) bool {
 			return matchType(hsFraming, m.data, awaitType, path)

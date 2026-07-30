@@ -106,6 +106,24 @@ func TestWSConnectActionRoleRoundTrip(t *testing.T) {
 	}
 }
 
+func TestWSConnectActionSuppressAwaitTypesRoundTrip(t *testing.T) {
+	envelope, err := MarshalAction(&WSConnectAction{
+		URL: "ws://x", ConnectionID: "c1", Role: "web",
+		SuppressAwaitTypes: []string{"presence:online", "presence:join"},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var c WSConnectAction
+	if err := json.Unmarshal(envelope.Raw, &c); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(c.SuppressAwaitTypes) != 2 ||
+		c.SuppressAwaitTypes[0] != "presence:online" || c.SuppressAwaitTypes[1] != "presence:join" {
+		t.Fatalf("suppress_await_types round-trip lost: %+v", c.SuppressAwaitTypes)
+	}
+}
+
 func TestWSReceiveActionAssertRoundTrip(t *testing.T) {
 	envelope, err := MarshalAction(&WSReceiveAction{
 		ConnectionID: "c1", Type: "approval",
