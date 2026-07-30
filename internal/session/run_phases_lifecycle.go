@@ -90,4 +90,9 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 	// Include coverage contract and assessment if present
 	rp.summary.Contract = rp.session.Contract
 	rp.summary.Assessment = rp.session.Assessment
+
+	// Include observability-only coverage recovery (D1 spec §6.6). Does not
+	// affect the verdict or exit code; rendered as a report annotation.
+	rp.summary.RepairedCoverage = rp.session.RepairedCoverage
+	rp.summary.CoverageRecovered = rp.session.CoverageRecovered
 }

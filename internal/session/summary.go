@@ -42,6 +42,13 @@ type SessionSummary struct {
 	Contract   *contract.Contract   `json:"contract,omitempty"`
 	Assessment *contract.Assessment `json:"assessment,omitempty"`
 
+	// Coverage recovery (observability-only, D1 spec §6.6 [R10]). RepairedCoverage
+	// is the post-AutoTest-dispatch measurement; CoverageRecovered flags it met the
+	// gate. The Agent Assessment.Reached stays unchanged — this is a report
+	// annotation, not a verdict change. Persisted via the stats JSON blob.
+	RepairedCoverage  *contract.CoverageMeasurement `json:"repaired_coverage,omitempty"`
+	CoverageRecovered bool                          `json:"coverage_recovered,omitempty"`
+
 	// Resource usage.
 	TotalTokens int    `json:"total_tokens"`
 	Duration    string `json:"duration"`
@@ -188,12 +195,25 @@ func (s *SessionSummary) String() string {
   Pending review: %d
   Reflections stored: %d (failure + success)
   Total tokens: ~%dK
-  Duration: %s`,
+  Duration: %s%s`,
 		s.Passed, s.Failed, s.Skipped, s.Uncertain, s.Recovered,
 		s.PendingReview,
 		s.ReflectionsStored,
 		s.TotalTokens/1000,
-		s.Duration)
+		s.Duration,
+		s.coverageRecoveredLine())
+}
+
+// coverageRecoveredLine renders the observability-only recovery annotation
+// (D1 spec §6.6): "Agent coverage X% (not reached) → repaired to Y% (recovered)".
+// Empty unless CoverageRecovered with both measurements present. It never alters
+// the Agent gate verdict or any case count.
+func (s *SessionSummary) coverageRecoveredLine() string {
+	if !s.CoverageRecovered || s.RepairedCoverage == nil || s.Assessment == nil {
+		return ""
+	}
+	return fmt.Sprintf("\n  Coverage: %.0f%% (not reached) → repaired to %.0f%% (recovered)",
+		s.Assessment.CoveragePct*100, s.RepairedCoverage.Pct*100)
 }
 
 // ToJSON returns the summary as JSON.
