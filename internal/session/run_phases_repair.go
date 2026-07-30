@@ -5,9 +5,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/memory"
@@ -29,69 +31,192 @@ const defaultCoverageDispatchGaps = 3
 // repairInput mirrors scout.RepairInput for the repairPlanFn seam signature.
 type repairInput = scout.RepairInput
 
-// executeRepairLoop closes the in-session Examiner->Scout loop (feature #3):
-// each round, collect failures with an actionable RedispatchHint, ask Scout for
-// targeted replacements (Replaces), run only those, and re-judge. Bounded by a
-// round cap (default 2), the no-progress guard (Task 5; see computeStuck), and
-// the inherited token-budget backstop — a DecideWithTools that exhausts the
-// budget returns an error, RepairPlan returns (nil, err), and the loop breaks
-// via the error branch below (no new budget API). Any error logs and breaks to
-// Consolidate — repair never aborts the run.
+// executeRepairLoop closes the in-session repair loop with TWO independent
+// axes (D1 spec §6.3, §7): a fail-hint axis (Examiner→Scout→Agent→re-judge,
+// feature #3, unchanged) and a coverage axis (AutoTest dispatch, D1). Each round
+// runs whichever axes have work. The loop is bounded by a round cap (default 2),
+// the fail no-progress guard (computeStuck), coverage no-progress (delta ≤ 0),
+// and the shared escalation gate / budget backstop (added in T7). Any error
+// logs and breaks to Consolidate — repair never aborts the run.
 func (rp *runPhase) executeRepairLoop() error {
 	maxRounds := config.ResolveReplanMaxRounds(rp.session.Config.Settings)
+	if rp.session.repairTargeted == nil {
+		rp.session.repairTargeted = map[coverKey]bool{}
+	}
+	// coverageStalled is set when the coverage axis cannot make further progress
+	// (no gaps, no delta, or AutoTest disabled/DryRun); it suppresses re-running
+	// the coverage axis in later rounds while the fail axis may still continue.
+	coverageStalled := false
 
 	for round := 1; round <= maxRounds; round++ {
 		// Recompute stuck each round from the latest verdicts. This is what
 		// bounds duplicate processing across rounds: a target whose replacement
 		// re-fails with the same hint becomes stuck and is dropped here.
 		stuck := computeStuck(rp.verdicts)
-		eligible := rp.eligibleFailures(stuck)
-		if len(eligible) == 0 {
+		failEligible := rp.eligibleFailures(stuck)
+		hasCov := rp.hasCoverageGap() && !coverageStalled && !rp.session.CoverageRecovered
+		if len(failEligible) == 0 && !hasCov {
 			break
 		}
-		rp.session.Logger.Info("repair round", zap.Int("round", round), zap.Int("eligible", len(eligible)))
+		rp.session.Logger.Info("repair round",
+			zap.Int("round", round),
+			zap.Int("fail_eligible", len(failEligible)),
+			zap.Bool("coverage_axis", hasCov))
 
-		replacements, err := rp.callRepairPlan(eligible)
-		if err != nil {
-			rp.session.Logger.Warn("repair plan failed; stopping repair loop", zap.Error(err))
-			return nil
+		if len(failEligible) > 0 {
+			rp.runFailRepairAxis(failEligible)
 		}
-		if len(replacements) == 0 {
-			rp.session.Logger.Info("repair plan produced no replacements; stopping")
-			return nil
-		}
-
-		// Append + persist so resume sees them. A SavePlan failure must break —
-		// otherwise PersistFinalVerdicts could write verdicts referencing cases
-		// not in the plan.
-		rp.plan.Cases = append(rp.plan.Cases, replacements...)
-		if err := rp.session.Store.SavePlan(rp.ctx, rp.session.ID, rp.plan); err != nil {
-			rp.session.Logger.Warn("save plan (repair) failed; stopping repair loop", zap.Error(err))
-			return nil
-		}
-
-		// Execute only the replacements.
-		loop := rp.buildAgentLoop()
-		subPlan := &agent.TestPlan{Goal: rp.plan.Goal, Cases: replacements, ProjectURL: rp.plan.ProjectURL}
-		repResults, err := loop.ExecutePlan(rp.ctx, subPlan, rp.session.ID)
-		if err != nil {
-			rp.session.Logger.Warn("repair execute failed; stopping repair loop", zap.Error(err))
-			return nil
-		}
-
-		// Re-judge only the replacement results; merge.
-		repVerdicts, _, err := rp.buildExaminer().Examine(rp.ctx, repResults, rp.session.ID, rp.session.Config.Project.Name)
-		if err != nil {
-			rp.session.Logger.Warn("repair re-judge failed; stopping repair loop", zap.Error(err))
-			return nil
-		}
-		rp.results = append(rp.results, repResults...)
-		rp.verdicts = append(rp.verdicts, repVerdicts...)
-		if _, err := examiner.PersistFinalVerdicts(rp.ctx, rp.session.Store, rp.session.Logger, rp.session.ID, repVerdicts); err != nil {
-			rp.session.Logger.Warn("persist repair verdicts failed", zap.Error(err))
+		if hasCov && !rp.runCoverageAxis(rp.session.repairTargeted) {
+			coverageStalled = true
 		}
 	}
 	return nil
+}
+
+// runFailRepairAxis runs one fail-hint repair round: ask Scout for targeted
+// replacements, run only those, re-judge, and merge. Errors log and stop THIS
+// axis only (they no longer short-circuit the coverage axis). Spec §6.3 keeps
+// the two axes independent per round.
+func (rp *runPhase) runFailRepairAxis(eligible []scout.RepairInput) {
+	replacements, err := rp.callRepairPlan(eligible)
+	if err != nil {
+		rp.session.Logger.Warn("repair plan failed; stopping fail-repair axis", zap.Error(err))
+		return
+	}
+	if len(replacements) == 0 {
+		rp.session.Logger.Info("repair plan produced no replacements; stopping fail-repair axis")
+		return
+	}
+
+	// Append + persist so resume sees them. A SavePlan failure stops the axis —
+	// otherwise PersistFinalVerdicts could write verdicts referencing cases not
+	// in the plan.
+	rp.plan.Cases = append(rp.plan.Cases, replacements...)
+	if err := rp.session.Store.SavePlan(rp.ctx, rp.session.ID, rp.plan); err != nil {
+		rp.session.Logger.Warn("save plan (repair) failed; stopping fail-repair axis", zap.Error(err))
+		return
+	}
+
+	// Execute only the replacements.
+	loop := rp.buildAgentLoop()
+	subPlan := &agent.TestPlan{Goal: rp.plan.Goal, Cases: replacements, ProjectURL: rp.plan.ProjectURL}
+	repResults, err := loop.ExecutePlan(rp.ctx, subPlan, rp.session.ID)
+	if err != nil {
+		rp.session.Logger.Warn("repair execute failed; stopping fail-repair axis", zap.Error(err))
+		return
+	}
+
+	// Re-judge only the replacement results; merge.
+	repVerdicts, _, err := rp.buildExaminer().Examine(rp.ctx, repResults, rp.session.ID, rp.session.Config.Project.Name)
+	if err != nil {
+		rp.session.Logger.Warn("repair re-judge failed; stopping fail-repair axis", zap.Error(err))
+		return
+	}
+	rp.results = append(rp.results, repResults...)
+	rp.verdicts = append(rp.verdicts, repVerdicts...)
+	if _, err := examiner.PersistFinalVerdicts(rp.ctx, rp.session.Store, rp.session.Logger, rp.session.ID, repVerdicts); err != nil {
+		rp.session.Logger.Warn("persist repair verdicts failed", zap.Error(err))
+	}
+}
+
+// runCoverageAxis runs one coverage-repair round (D1 spec §6.3): skip when
+// AutoTest cannot write (DryRun/off/disabled) [R4]; measure the shared `before`
+// (1 provider run), select eligible gaps, dispatch AutoTest.RepairGaps (N
+// per-gap verify runs), re-measure (1 run) → set RepairedCoverage/
+// CoverageRecovered + mark gaps targeted. Returns whether coverage progressed
+// (delta > 0); false stalls the coverage axis for later rounds.
+func (rp *runPhase) runCoverageAxis(targeted map[coverKey]bool) bool {
+	mode := autotest.SafetyMode(rp.session.AutoTestSafety)
+	if mode != autotest.SafetyAuto && mode != autotest.SafetyApprove {
+		// DryRun/off/disabled: AutoTest writes nothing → coverage cannot
+		// progress and must not produce a misleading RepairedCoverage ([R4]).
+		return false
+	}
+
+	before, _ := rp.measureCoverageReport()
+	gaps := rp.coverageEligibility(targeted, before)
+	if len(gaps) == 0 {
+		return false
+	}
+
+	prev := rp.coverageBaseline()
+	at := rp.buildAutoTest()
+	at.RepairGaps(rp.ctx, rp.session.ProjectDir, before, gaps)
+
+	_, after := rp.measureCoverageReport()
+	rp.session.RepairedCoverage = &after
+	for _, g := range gaps {
+		targeted[coverKey{File: g.File, Func: g.Func}] = true
+	}
+
+	threshold := 0.0
+	if rp.session.Contract != nil {
+		threshold = rp.session.Contract.CoverageGate.LineThreshold
+	}
+	// Observability-only: never flips the Agent Assessment or any case verdict.
+	rp.session.CoverageRecovered = after.Known && after.Pct >= threshold
+
+	return after.Known && after.Pct-prev > 0
+}
+
+// coverageBaseline is the coverage progress reference: round 1 uses the
+// Agent-only Assessment.CoveragePct; later rounds use the last RepairedCoverage
+// measurement (spec §6.3). All values are 0–1 fractions.
+func (rp *runPhase) coverageBaseline() float64 {
+	if rp.session.RepairedCoverage != nil {
+		return rp.session.RepairedCoverage.Pct
+	}
+	if rp.session.Assessment != nil {
+		return rp.session.Assessment.CoveragePct
+	}
+	return 0
+}
+
+// measureCoverageReport runs the coverage provider ONCE and returns the raw
+// report (for gap reuse) + measurement. It uses the coverageProvider seam when
+// set (tests — shared with buildAutoTest so the per-round RunCoverage cost is
+// observable); otherwise the session language provider via lineCoverageReport.
+func (rp *runPhase) measureCoverageReport() (*autotest.CoverageReport, contract.CoverageMeasurement) {
+	if rp.coverageProvider != nil {
+		report, err := rp.coverageProvider.RunCoverage(rp.ctx, rp.session.ProjectDir)
+		if err != nil || report == nil {
+			return nil, contract.CoverageMeasurement{Known: false}
+		}
+		return report, measurementFromReport(report)
+	}
+	return rp.session.lineCoverageReport(rp.ctx)
+}
+
+// buildAutoTest constructs the AutoTest used by the coverage repair dispatch
+// (spec §6.5): provider + generator from the session language (or the injected
+// test seams), the session escalation gate, the FS writer, and SafetyMode from
+// settings. Reused by the repair loop only.
+func (rp *runPhase) buildAutoTest() *autotest.AutoTest {
+	mode := autotest.SafetyMode(rp.session.AutoTestSafety)
+	provider := rp.coverageProvider
+	if provider == nil {
+		provider = coverageProviderForSession(rp.session)
+	}
+	gen := rp.autotestGenerator
+	if gen == nil {
+		gen = generatorForLanguage(detectLanguage(rp.session.ProjectDir),
+			rp.session.driverFor(&rp.session.scoutDriver), rp.session.Logger)
+	}
+	return autotest.NewAutoTest(provider, gen,
+		autotest.NewEscalationGateAdapter(rp.session.Gate), nil, mode, rp.session.Logger)
+}
+
+// generatorForLanguage builds the language-specific test generator. Shared by
+// the coverage repair dispatch (buildAutoTest) and the Phase-4 AutoTest.
+func generatorForLanguage(lang string, driver *ai.Driver, logger *zap.Logger) autotest.TestGenerator {
+	switch lang {
+	case "node":
+		return autotest.NewNodeTestGenerator(driver)
+	case "python":
+		return autotest.NewPythonTestGenerator(driver)
+	default: // "go" or fallback
+		return autotest.NewGoTestGenerator(driver, logger)
+	}
 }
 
 // callRepairPlan routes through the repairPlanFn seam when set (tests), else

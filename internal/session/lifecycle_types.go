@@ -78,6 +78,12 @@ type Session struct {
 	// (spec §5.3, §6.6 [R10]).
 	CoverageRecovered bool
 
+	// repairTargeted is the in-memory set of gaps the coverage repair loop has
+	// already dispatched AutoTest for this run (set by the loop, read by the
+	// Phase-4 gap exclusion). NOT persisted — resume does not re-run the loop
+	// (spec §8).
+	repairTargeted map[coverKey]bool
+
 	// Per-head drivers. When nil, the shared Driver is used.
 	scoutDriver    *ai.Driver
 	agentDriver    *ai.Driver
