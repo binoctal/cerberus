@@ -195,25 +195,48 @@ mutation and breaks the "repair never aborts the run" invariant.
 | 2 | Escalation gate + explicit token-budget backstop in repair loop | small | **in D1** |
 | 3 | Dedup coordination edge (covered-set shared repair↔AutoTest) | small | **in D1** |
 | 4 | AutoTest coverage delta folded back into `Assessment` (final `AssessCoverage`) | 1 call | **in D1** |
-| 5 | Repair loop *dispatches* AutoTest as a tool for a mechanical gap | medium | **Phase 2, gated** |
+| 5 | Repair loop *dispatches* AutoTest as the coverage mechanism | medium | **PROMOTED to D1 core (was Phase 2)** |
 
-Item 5 is deferred because it conflicts with the D1 invariant "the gate measures
-the Agent's tests only" (design 2026-07-17 D1): an in-loop AutoTest dispatch would
-pollute the Agent-gate unless measured on a separate track. Open it only if
-mechanical-gap coverage proves necessary after D1 ships, and then keep its
-measurement off the Agent-gate.
+> **Correction (2026-07-30).** Item 5 was promoted from Phase 2 to the D1 core
+> mechanism after a blocking finding (§6.4): TestCase execution (http/ws/process)
+> does NOT raise the ProjectDir unit-coverage gate (`coverageForSession` runs
+> `go test -coverprofile`/jest over the source tree). Only written unit-test files
+> raise it — and writing unit-test files is AutoTest's domain, not Scout/Agent's.
+> So routing coverage gaps to Scout (emit TestCases that "exercise" uncovered code)
+> is infeasible; the repair loop MUST dispatch AutoTest's generator for coverage
+> inputs. There is no alternative mechanism.
 
-**Not absorbed** (this IS the cost of b): merging AutoTest's file-mutation state
-into verdict-loop ownership; strategy-selection as a first-class loop concern.
+**Not absorbed** (this IS the cost of b): merging AutoTest's standalone Phase-4
+pass / file-mutation state into verdict-loop ownership; strategy-selection as a
+first-class concern beyond the two known strategies (Scout+Agent for fail-hints,
+AutoTest for coverage-hints).
 
-### 6.2 D1 concrete scope
+### 6.2 D1 concrete scope (revised)
 
-1. Coverage gap → repair-loop eligibility: `Assessment.Gaps` (kind `coverage`)
-   derives synthetic `RepairInput`s; re-judge calls `AssessCoverage` (Agent-only
-   measurement, D1 invariant held).
-2. AutoTest gap ranking → contract-priority-weighted.
-3. Repair loop wired to `escalation.Gate` + explicit `TokenBudget` backstop.
-4. Covered-set dedup + AutoTest delta folded into final `Assessment`.
+D1 makes `executeRepairLoop` a **two-strategy loop**: fail-hints route to
+Scout→Agent→Examine (unchanged); coverage-hints route to **AutoTest generation**
+(dispatched, safety rail intact). Both share one round loop, one eligibility, one
+termination.
+
+1. **Coverage eligibility** (NEW): when `sess.Assessment.Reached==false`, the loop
+   runs the coverage provider, collects `CoverageGap`s, ranks by
+   `contract.Priorities` × estimated gain, dedups against a targeted-set.
+2. **Coverage dispatch** (NEW): `AutoTest.RepairGaps(ctx, dir, gaps)` writes +
+   verifies unit tests for the selected gaps (revert-on-no-gain, escalation-gated
+   — AutoTest's existing safety, unchanged).
+3. **Re-measure on a separate track** (NEW): after dispatch, `lineCoverage` again →
+   `sess.RepairedCoverage` (a `CoverageMeasurement`). This is **Agent+AutoTest**
+   coverage, distinct from the Agent-only `sess.Assessment` (D1 invariant held:
+   the Agent verdict is never overwritten).
+4. **Recovered outcome** (NEW): if `RepairedCoverage.Pct >= LineThreshold` →
+   coverage contract marked **recovered** (mirrors fail-repair's recovered
+   semantics; the original Agent `Reached=false` verdict stays).
+5. **Termination adds a coverage axis**: round cap + fail no-progress
+   (`computeStuck`) + **coverage no-progress** (`RepairedCoverage` delta ≤ 0) +
+   escalation gate + explicit budget backstop (absorbed #2).
+6. Absorbed cleanly: contract-priority gap ranking (#1), escalation+budget (#2),
+   targeted-set dedup (#3). Item #4 (fold AutoTest into Assessment) is **redefined
+   as the separate `RepairedCoverage` track** — NOT folded into the Agent gate.
 
 ### 6.3 "Uncovered region" granularity — DECIDED: reuse `CoverageGap{File, Func}`
 
@@ -224,6 +247,25 @@ gives (Func when populated, File-only when empty); covered-set key = `(File, Fun
 **progress measured at the aggregate gate (line-pct delta via `AssessCoverage`),
 not per-target** — this keeps the Go-line-vs-Node/Python-function asymmetry out of
 termination correctness.
+
+### 6.4 Blocker finding (2026-07-30) — TestCase execution cannot raise the gate
+
+Discovered while writing the D1 spec. `coverageForSession` (`internal/session/
+coverage.go:51`) measures **source-tree unit-test coverage** (Go: `go test
+-coverprofile`; Node/Python: jest/coverage) over `ProjectDir`. Only unit-test
+*files written into ProjectDir* raise this number. Examiner-repair-loop products
+are `TestCase`s (http/ws/process_exec) that exercise a *running target* — they do
+not enter ProjectDir's unit-test suite, so they move the gate by **zero**.
+
+Consequence: the original D1 premise ("route coverage gaps to Scout, emit
+TestCases that exercise uncovered code") is infeasible. Coverage recovery
+fundamentally requires writing unit-test files = AutoTest's generator. This
+**promotes absorbed item #5 (dispatch AutoTest) from Phase 2 to the D1 core
+mechanism** — there is no alternative. D1's repair loop is therefore a
+two-strategy loop (Scout+Agent for fail-hints, AutoTest for coverage-hints), but
+it still stops short of merging AutoTest's standalone Phase-4 pass, preserving
+the "repair never aborts the run" invariant by keeping AutoTest's file-mutation
+state internal to the dispatch call.
 
 ## 7. Coverage hint "uncovered region" granularity: file vs function
 
