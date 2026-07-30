@@ -13,13 +13,24 @@ import (
 	"github.com/binoctal/cerberus/internal/head/examiner"
 )
 
-// lineCoverage returns the Examiner-phase coverage measurement, using an injected
-// override when present (tests); otherwise the default coverageForSession.
+// lineCoverage returns the Examiner-phase coverage measurement, reusing
+// lineCoverageReport so the provider runs once and only the measurement is
+// projected out (no regression to assessCoverageIfContract).
 func (s *Session) lineCoverage(ctx context.Context) contract.CoverageMeasurement {
+	_, m := s.lineCoverageReport(ctx)
+	return m
+}
+
+// lineCoverageReport runs the Examiner-phase coverage provider ONCE and returns
+// BOTH the raw CoverageReport (reused by the coverage repair loop for gap
+// detection) and the derived CoverageMeasurement. It honors an injected
+// override (tests): when coverageFn is set it returns (nil, measurement) — the
+// stub supplies only a measurement, and callers tolerate a nil report.
+func (s *Session) lineCoverageReport(ctx context.Context) (*autotest.CoverageReport, contract.CoverageMeasurement) {
 	if s.coverageFn != nil {
-		return s.coverageFn(ctx, s)
+		return nil, s.coverageFn(ctx, s)
 	}
-	return coverageForSession(ctx, s)
+	return coverageReportForSession(ctx, s)
 }
 
 // assessCoverageIfContract runs the objective coverage assessment against the
@@ -43,12 +54,21 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 	}
 }
 
-// coverageForSession runs the language-specific coverage provider and returns a
-// CoverageMeasurement. Pct is normalized to a 0–1 fraction (matching
-// Gate.LineThreshold). Known is true only when the provider succeeded and the
-// coverage denominator is non-zero; a provider error yields Known=false so the
-// objective gate is skipped instead of forcing a false not-reached on a fake 0.
+// coverageForSession returns only the measurement, delegating to
+// coverageReportForSession so the provider runs once. Kept as a thin wrapper
+// for existing callers/tests.
 func coverageForSession(ctx context.Context, sess *Session) contract.CoverageMeasurement {
+	_, m := coverageReportForSession(ctx, sess)
+	return m
+}
+
+// coverageReportForSession runs the language-specific coverage provider and
+// returns BOTH the raw report (for gap reuse) and the measurement. Pct is
+// normalized to a 0–1 fraction (matching Gate.LineThreshold). Known is true
+// only when the provider succeeded and the coverage denominator is non-zero; a
+// provider error yields Known=false so the objective gate is skipped instead of
+// forcing a false not-reached on a fake 0.
+func coverageReportForSession(ctx context.Context, sess *Session) (*autotest.CoverageReport, contract.CoverageMeasurement) {
 	markers := make(map[string]bool)
 	if _, err := os.Stat(filepath.Join(sess.ProjectDir, "package.json")); err == nil {
 		markers["package.json"] = true
@@ -75,9 +95,15 @@ func coverageForSession(ctx context.Context, sess *Session) contract.CoverageMea
 	provider := autotest.NewCoverageProviderForLanguage(lang, nil, sess.Logger)
 	report, err := provider.RunCoverage(ctx, sess.ProjectDir)
 	if err != nil || report == nil {
-		return contract.CoverageMeasurement{Known: false}
+		return nil, contract.CoverageMeasurement{Known: false}
 	}
+	return report, measurementFromReport(report)
+}
 
+// measurementFromReport derives the normalized CoverageMeasurement from a raw
+// provider report. Unit is "line" (Go) or "function" (Node/Python); Pct is a
+// 0–1 fraction; Known is false when nothing measurable was collected.
+func measurementFromReport(report *autotest.CoverageReport) contract.CoverageMeasurement {
 	unit := report.CoverageUnit
 	if unit == "" {
 		unit = "function"
