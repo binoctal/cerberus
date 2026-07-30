@@ -94,3 +94,21 @@ func TestAssembleRepair_HTTPUnchangedByStepsBranch(t *testing.T) {
 	assert.Equal(t, `{"b":1}`, c.Body)
 	assert.Empty(t, c.Steps, "HTTP repair has no Steps")
 }
+
+// TestBuildRepairPrompt_WSFailureIncludesSteps: for a WS failure (case with
+// Steps), the repair prompt renders the failed flow and tells the LLM to emit
+// `steps`. Negative: omitting the WS branch omits the steps from the prompt (RED).
+func TestBuildRepairPrompt_WSFailureIncludesSteps(t *testing.T) {
+	prompt := (&Scout{}).buildRepairPrompt("g", []RepairInput{
+		{Case: agent.TestCase{ID: "ws-1", Action: "ws_flow", Target: "wss://x", Service: "ws",
+			Expectation: "receives hello",
+			Steps: []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: "web", URL: "wss://x"},
+				{Action: "ws_receive", ConnectionID: "web", Type: "hello"},
+			}},
+			Hint: agent.HintWsMatch, Reasoning: "decisive receive matched nothing"},
+	})
+	assert.Contains(t, prompt, "ws-1")
+	assert.Contains(t, prompt, "ws_receive", "the failed flow's steps are shown")
+	assert.Contains(t, prompt, "steps", "prompt instructs emitting steps for a WS repair")
+}

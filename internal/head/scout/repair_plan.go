@@ -217,9 +217,20 @@ func (s *Scout) buildRepairPrompt(goal string, failures []RepairInput) string {
 	var b []byte
 	b = append(b, fmt.Sprintf("Goal: %s\n\nYou are repairing failed test cases. For EACH failed case below, emit ONE repair_case tool call with the corrected fields (set `replaces` to the failed case's ID). Only change what the diagnosis indicates; keep the rest.\n\n", goal)...)
 	for i, f := range failures {
-		b = append(b, fmt.Sprintf("## Failure %d (replaces=%s)\n- target: %s %s (service=%s)\n- body: %q\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n\n",
-			i+1, f.Case.ID, f.Case.Method, f.Case.Target, f.Case.Service,
-			f.Case.Body, f.Case.Expectation, f.Hint, f.Reasoning)...)
+		b = append(b, fmt.Sprintf("## Failure %d (replaces=%s)\n", i+1, f.Case.ID))
+		if len(f.Case.Steps) > 0 {
+			// WebSocket failure: render the failed flow and ask for corrected steps.
+			b = append(b, fmt.Sprintf("- service: %s\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n- failed flow (steps):\n",
+				f.Case.Service, f.Case.Expectation, f.Hint, f.Reasoning))
+			for j, st := range f.Case.Steps {
+				b = append(b, fmt.Sprintf("    %d. %s\n", j+1, stepOneLine(st)))
+			}
+			b = append(b, "\nRepair this WS case by emitting the corrected `steps` array; fix only the step field the hint implicates and keep connection_ids consistent.\n\n")
+		} else {
+			b = append(b, fmt.Sprintf("- target: %s %s (service=%s)\n- body: %q\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n\n",
+				f.Case.Method, f.Case.Target, f.Case.Service,
+				f.Case.Body, f.Case.Expectation, f.Hint, f.Reasoning)...)
+		}
 	}
 	return ai.NewPrompt().
 		System(promptRepairSystem).
@@ -229,6 +240,23 @@ func (s *Scout) buildRepairPrompt(goal string, failures []RepairInput) string {
 		Build()
 }
 
-const promptRepairSystem = `You are a test-repair agent. Given failed cases with an Examiner diagnosis, emit exactly one corrected test case per failure via the repair_case tool. Correct only what the diagnosis indicates (wrong path/method = endpoint_drift; credentials = auth; payload = shape). Set ` + "`replaces`" + ` to the failed case's ID.`
+// stepOneLine renders a TestStep compactly for the repair prompt.
+func stepOneLine(st agent.TestStep) string {
+	switch st.Action {
+	case "ws_connect":
+		return fmt.Sprintf("ws_connect connection_id=%s role=%s url=%s", st.ConnectionID, st.Role, st.URL)
+	case "ws_send":
+		return fmt.Sprintf("ws_send connection_id=%s message=%s", st.ConnectionID, st.Message)
+	case "ws_receive":
+		return fmt.Sprintf("ws_receive connection_id=%s type=%s aliases=%v asserts=%v match_all=%v",
+			st.ConnectionID, st.Type, st.Aliases, st.Asserts, st.MatchAll)
+	case "ws_disconnect":
+		return fmt.Sprintf("ws_disconnect connection_id=%s", st.ConnectionID)
+	default:
+		return st.Action
+	}
+}
+
+const promptRepairSystem = `You are a test-repair agent. Given failed cases with an Examiner diagnosis, emit exactly one corrected test case per failure via the repair_case tool. Correct only what the diagnosis indicates (wrong path/method = endpoint_drift; credentials = auth; payload = shape). For a WebSocket case, emit the corrected ` + "`steps`" + ` array and fix only the step field the hint implicates: handshake → the ws_receive await type (or the connect role/handshake); ws_shape → the ws_send message; ws_match → the ws_receive type/aliases/asserts/match_all. Keep connection_ids and step order consistent. Set ` + "`replaces`" + ` to the failed case's ID.`
 
 const promptRepairToolGuide = `Emit ONE repair_case TOOL CALL PER FAILED CASE. Do not output JSON.`
