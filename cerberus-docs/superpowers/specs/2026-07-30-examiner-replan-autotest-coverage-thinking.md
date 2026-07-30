@@ -275,10 +275,19 @@ The data model dissolves the binary. `autotest.CoverageGap` (types.go:57) is:
 type CoverageGap struct { File, Func string; Reason string }
 ```
 
-— shared by Go / Node / Python providers, carrying BOTH file and function. Go's
-`Gaps()` emits `File+Func` for uncovered functions and `File`-only for the
-no-test-file case (coverage_go.go:103/133/136). So "file or function" is not a
-language split to design around — it is a field that is sometimes populated.
+— shared by Go / Node / Python providers, carrying BOTH file and a `Func` field.
+So "file or function" is not a language split to design around — it is a field
+that is sometimes populated.
+
+> **Correction (2026-07-30, review pass):** `Func` is **overloaded, not uniformly
+> a function name.** On Go's zero-cover path it is a `file:line` anchor
+> (`fmt.Sprintf("%s:L%d", filepath.Base(ln.File), ln.Start)`, e.g. `foo.go:L42` —
+> `coverage_go.go:103`); only `NoTestFileGaps` populates a real function name
+> (`coverage_go.go:133`). The D1 spec rev 2 keys the targeted-set on the **raw
+> `(File, Func)` tuple exactly as emitted** (anchor or name), and ranks gaps by
+> estimated gain rather than a function-granularity assumption. The "function-level
+> target" framing below should be read as "Func-populated target," where Func may
+> be an anchor.
 
 ### 7.1 Target granularity (what becomes a RepairInput / covered-set key)
 
