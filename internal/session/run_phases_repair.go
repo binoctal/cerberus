@@ -306,6 +306,22 @@ func (rp *runPhase) eligibleFailures(stuck map[string]bool) []scout.RepairInput 
 	return out
 }
 
+// isRepairable reports whether the repair_case mechanism can produce a valid
+// corrected replacement for this case type: a plain HTTP case (Method set,
+// Action empty) or a WebSocket flow (Steps). Other executor types
+// (process_exec/build, code_*, browser, file, mcp_call, wait, navigate) have no
+// corresponding repair_case shape — attempting to repair them would silently
+// produce a broken HTTP-shaped replacement, so they must be skipped.
+func isRepairable(tc *agent.TestCase) bool {
+	if tc == nil {
+		return false
+	}
+	if len(tc.Steps) > 0 {
+		return true // WebSocket flow
+	}
+	return tc.Method != "" && tc.Action == "" // plain HTTP
+}
+
 // computeStuck returns the set of normalized targets that have made no progress:
 // a replacement (Replaces != "") that re-failed with the SAME RedispatchHint as
 // its predecessor. A changed hint (e.g. drift->auth) is progress and is NOT
