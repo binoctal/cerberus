@@ -36,6 +36,7 @@ headers, or subprotocols as the target requires. When the service declares a
 | `decisive` | bool | no | Set true on the receive that should pass the case; defaults to false (intermediate) |
 | `assert` | map[string]any | no | Path-to-value equality checks on the matched message (see [Field assertions](#field-assertions)) |
 | `aliases` | []string | no | Additional routing types that also satisfy the receive — a frame matching `type` OR any `aliases` succeeds; for protocols that emit one message under several wire types (e.g. `session:output` vs `session:output-batch`). Asserts apply to whichever frame matched. |
+| `match_all` | bool | no | Collect EVERY consecutive matching frame in the arrival burst (e.g. every item of a decomposed batch) and evaluate `assert` against EACH. Passes only when every frame satisfies every assert; the first failing item (1-based, named in the error) fails the receive. Without `assert` it is arrival-only per item (collect + count). See [Match-all receives](#match-all-receives). |
 
 Non-matching messages are kept as evidence. At most one `decisive=true`
 receive per case.
@@ -91,6 +92,40 @@ Design rationale and rejected alternatives (action-side vs. Examiner-side,
 `ws_assert` vs. `assert` on `ws_receive`, array paths, `null` semantics) are
 in the M2 field-assertions design spec:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-field-assertions-design.md`](../superpowers/specs/2026-07-21-ws-field-assertions-design.md).
+
+#### Match-all receives
+
+`match_all: true` flips matching from "first matching frame" to "every matching
+frame in the arrival burst". The receive collects ALL consecutive matching
+frames — most usefully, every item produced by decomposing a declared batch
+frame (see the [batch-decomposition design spec](../superpowers/specs/2026-07-30-ws-batching-decomposition-design.md))
+— and evaluates `assert` against EACH. The receive
+passes only when every collected frame satisfies every assert; the first failing
+item fails the receive with `receive: assert <path> failed at item <i>:
+expected <v>, got <actual>` (`<i>` is 1-based). Without `assert` it is
+arrival-only per item (collect + count; all arrived = pass).
+
+```yaml
+protocol:
+  batches:
+    event-batch: { item_type: event, items_path: payload.events }
+ws_receive:
+  connection_id: conn1
+  type: event
+  match_all: true
+  assert:
+    payload.ok: true      # must hold for EVERY event in the batch
+```
+
+This is the only way to assert "every item satisfies P" when the item count is
+unknown at authoring time (you cannot author N receives without knowing N).
+Result fields: `matched_count` is the number of frames collected; the first
+frame is in `matched_message`, the rest in `matched_messages`.
+
+**Burst boundary.** The burst ends at the first non-matching frame (which is
+re-buffered for the next receive — it is NOT lost) or after a short idle grace
+(~10ms) following the last matching frame. Every `match_all` receive pays one
+grace. `match_all` is orthogonal to `decisive`.
 
 ### `ws_disconnect`
 | Field | Type | Required | Description |
