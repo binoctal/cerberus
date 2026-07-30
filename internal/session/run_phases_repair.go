@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"sort"
 
 	"go.uber.org/zap"
@@ -8,6 +9,7 @@ import (
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/config"
+	"github.com/binoctal/cerberus/internal/escalation"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
@@ -49,6 +51,9 @@ func (rp *runPhase) executeRepairLoop() error {
 	coverageStalled := false
 
 	for round := 1; round <= maxRounds; round++ {
+		if !rp.repairRoundAllowed(round) {
+			break
+		}
 		// Recompute stuck each round from the latest verdicts. This is what
 		// bounds duplicate processing across rounds: a target whose replacement
 		// re-fails with the same hint becomes stuck and is dropped here.
@@ -73,7 +78,29 @@ func (rp *runPhase) executeRepairLoop() error {
 	return nil
 }
 
-// runFailRepairAxis runs one fail-hint repair round: ask Scout for targeted
+// repairRoundAllowed is the explicit per-round gate (D1 spec §6.4): the loop
+// stops when the token budget is exhausted, or when the escalation gate returns
+// Abort/SkipCase (a human-in-the-loop abort point — NoOpGate continues in CLI
+// mode). This replaces the implicit "DecideWithTools error path" budget backstop.
+func (rp *runPhase) repairRoundAllowed(round int) bool {
+	budget := rp.session.Driver.Budget()
+	if budget.Exhausted() {
+		rp.session.Logger.Info("repair loop: budget exhausted; stopping",
+			zap.Int("remaining", budget.Remaining()))
+		return false
+	}
+	decision := rp.session.Gate.Check(rp.ctx, escalation.Event{
+		Type:      "budget_warning",
+		Message:   fmt.Sprintf("repair loop round %d: %d tokens remaining", round, budget.Remaining()),
+		SessionID: rp.session.ID,
+	})
+	if decision.Action == escalation.DecisionAbort || decision.Action == escalation.DecisionSkipCase {
+		rp.session.Logger.Info("repair loop: escalation aborted the loop", zap.String("action", decision.Action))
+		return false
+	}
+	return true
+}
+
 // replacements, run only those, re-judge, and merge. Errors log and stop THIS
 // axis only (they no longer short-circuit the coverage axis). Spec §6.3 keeps
 // the two axes independent per round.
