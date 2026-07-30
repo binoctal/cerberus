@@ -43,3 +43,24 @@ func TestSteerPromptMentionsAssert(t *testing.T) {
 		}
 	}
 }
+
+func TestSteerPromptMentionsMatchAll(t *testing.T) {
+	// match_all is the only way to assert "every item satisfies P" when the
+	// item count is unknown at authoring time. If the Steer prompt does not
+	// surface it, the LLM never authors it and the feature is unreachable.
+	for _, want := range []string{"match_all", "every item"} {
+		if !contains(promptSteerSystem, want) {
+			t.Fatalf("steer prompt missing %q", want)
+		}
+	}
+}
+
+func TestSteerPromptMentionsBatches(t *testing.T) {
+	// The pump decomposes a declared batch into per-item frames; the LLM must
+	// know to await the item type (not the batch type) when a batch is declared.
+	for _, want := range []string{"batches", "item type"} {
+		if !contains(promptSteerSystem, want) {
+			t.Fatalf("steer prompt missing %q", want)
+		}
+	}
+}
