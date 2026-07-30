@@ -159,3 +159,23 @@ func TestRepairPlan_WSFailure_EndToEnd(t *testing.T) {
 	assert.Equal(t, "ws_receive", c.Steps[2].Action)
 	assert.Equal(t, "hello", c.Steps[2].Type, "the corrected receive type is carried")
 }
+
+// TestAssembleRepair_EmptyStepsFallsBackToHTTP: a repair_case with an empty
+// steps array (degenerate emission) does NOT build a ws_flow case — it falls
+// back to the HTTP shape. Guards the len(steps) > 0 boundary so a 0-step
+// emission never yields an empty-flow WS case.
+func TestAssembleRepair_EmptyStepsFallsBackToHTTP(t *testing.T) {
+	failures := []RepairInput{
+		{Case: agent.TestCase{ID: "x", Target: "/u", Method: "GET"}, Hint: agent.HintShape, Reasoning: "r"},
+	}
+	calls := []llm.ToolCall{
+		{Name: "repair_case", Input: map[string]any{
+			"replaces": "x", "method": "GET", "path": "/u", "steps": []any{},
+		}},
+	}
+	out := assembleRepair(calls, failures)
+	require.Len(t, out, 1)
+	assert.Empty(t, out[0].Steps, "empty steps → HTTP shape, not a ws_flow")
+	assert.Equal(t, "GET", out[0].Method)
+	assert.NotEqual(t, "ws_flow", out[0].Action)
+}
