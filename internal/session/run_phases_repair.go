@@ -132,12 +132,16 @@ func (rp *runPhase) runFailRepairAxis(eligible []scout.RepairInput) {
 		return
 	}
 
-	// Re-judge only the replacement results; merge.
-	repVerdicts, _, err := rp.buildExaminer().Examine(rp.ctx, repResults, rp.session.ID, rp.session.Config.Project.Name)
+	// Re-judge only the replacement results; merge. The Examiner also runs
+	// Reflexion (Learn) on the replacement results — those reflections ARE
+	// persisted by Learn; accumulate the count so the summary's
+	// ReflectionsStored is honest (it was previously discarded with _).
+	repVerdicts, repReflections, err := rp.buildExaminer().Examine(rp.ctx, repResults, rp.session.ID, rp.session.Config.Project.Name)
 	if err != nil {
 		rp.session.Logger.Warn("repair re-judge failed; stopping fail-repair axis", zap.Error(err))
 		return
 	}
+	rp.reflections += repReflections
 	rp.results = append(rp.results, repResults...)
 	rp.verdicts = append(rp.verdicts, repVerdicts...)
 	if _, err := examiner.PersistFinalVerdicts(rp.ctx, rp.session.Store, rp.session.Logger, rp.session.ID, repVerdicts); err != nil {
