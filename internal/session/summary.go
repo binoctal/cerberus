@@ -3,6 +3,8 @@ package session
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -53,6 +55,11 @@ type SessionSummary struct {
 	TotalTokens int    `json:"total_tokens"`
 	Duration    string `json:"duration"`
 	DurationMs  int64  `json:"duration_ms"`
+
+	// FailureHints is the per-cause breakdown of correctable failures (non-none
+	// redispatch_hint on independent Fail units), surfaced so the report shows
+	// what the repair loop acted on. Nil when there are no correctable failures.
+	FailureHints map[string]int `json:"failure_hints,omitempty"`
 }
 
 // plannedCaseCount returns the number of real role units in a plan, excluding
@@ -127,6 +134,15 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 			if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
 				continue // fallback/replacement result, not an independent unit
 			}
+			// Tally correctable failure causes (non-none hint on a Fail unit).
+			// Recovered primaries still count — their hint is the cause that was
+			// repaired.
+			if v.Status == examiner.StatusFail && v.RedispatchHint != agent.HintNone {
+				if s.FailureHints == nil {
+					s.FailureHints = map[string]int{}
+				}
+				s.FailureHints[string(v.RedispatchHint)]++
+			}
 			if tc != nil && recoveredPrimaryIDs[tc.ID] {
 				// Reclassified out of Failed into Recovered (FallbackFor or
 				// Replaces recovery — the primary is counted once, as Recovered).
@@ -195,13 +211,45 @@ func (s *SessionSummary) String() string {
   Pending review: %d
   Reflections stored: %d (failure + success)
   Total tokens: ~%dK
-  Duration: %s%s`,
+  Duration: %s%s%s`,
 		s.Passed, s.Failed, s.Skipped, s.Uncertain, s.Recovered,
 		s.PendingReview,
 		s.ReflectionsStored,
 		s.TotalTokens/1000,
 		s.Duration,
-		s.coverageRecoveredLine())
+		s.coverageRecoveredLine(),
+		s.failureHintsLine())
+}
+
+// failureHintsLine renders the correctable-failure cause breakdown, e.g.
+// "Failure causes: 2 endpoint_drift, 1 ws_match". Empty when no correctable
+// failures.
+func (s *SessionSummary) failureHintsLine() string {
+	if len(s.FailureHints) == 0 {
+		return ""
+	}
+	type kv struct {
+		hint string
+		n    int
+	}
+	// Deterministic order: descending count, then alphabetical.
+	parts := make([]kv, 0, len(s.FailureHints))
+	for h, n := range s.FailureHints {
+		parts = append(parts, kv{h, n})
+	}
+	sort.Slice(parts, func(i, j int) bool {
+		if parts[i].n != parts[j].n {
+			return parts[i].n > parts[j].n
+		}
+		return parts[i].hint < parts[j].hint
+	})
+	var b strings.Builder
+	b.WriteString("\n  Failure causes:")
+	for _, p := range parts {
+		fmt.Fprintf(&b, " %d %s,", p.n, p.hint)
+	}
+	out := b.String()
+	return out[:len(out)-1] // trim trailing comma
 }
 
 // coverageRecoveredLine renders the observability-only recovery annotation
