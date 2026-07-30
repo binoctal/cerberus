@@ -34,8 +34,15 @@ type Actor struct {
 	Name        string        `yaml:"name"`
 	Credentials CredentialRef `yaml:"credentials"`
 	Auth        *AuthFlow     `yaml:"auth,omitempty"`
-	Entry       string        `yaml:"entry,omitempty"`
-	Service     string        `yaml:"service,omitempty"`
+	// GeneratedPathParams declares url-param -> generator for runtime-synthesized
+	// path values (e.g. clientId: uuid). Unlike auth.path_params (captured from a
+	// login response), these are generated locally at session setup — useful for
+	// endpoints that expect a client-chosen id ({clientId}). Resolved values merge
+	// into Credentials.PathParams and template {name} in the service URL at WS
+	// connect. Non-secret; versionable in project.yaml. Supported generator: uuid.
+	GeneratedPathParams map[string]string `yaml:"generated_path_params,omitempty"`
+	Entry               string            `yaml:"entry,omitempty"`
+	Service             string            `yaml:"service,omitempty"`
 }
 
 type CredentialRef struct {

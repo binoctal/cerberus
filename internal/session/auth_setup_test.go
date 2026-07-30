@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"go.uber.org/zap"
@@ -15,6 +16,9 @@ import (
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
+
+// uuidRE matches a canonical hyphenated v4 uuid (8-4-4-4-12 hex).
+var uuidRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func newAuthLoginServer(t *testing.T, token string) *httptest.Server {
 	t.Helper()
@@ -250,5 +254,65 @@ func TestResolveActorAuth_NoPathParamsLeavesNil(t *testing.T) {
 
 	if s.Config.Actors[0].Credentials.PathParams != nil {
 		t.Fatalf("Credentials.PathParams = %v, want nil when none declared", s.Config.Actors[0].Credentials.PathParams)
+	}
+}
+
+// Generated path params: a NO-AUTH actor declaring generated_path_params still
+// gets a synthesized value merged into Credentials.PathParams — generation is
+// independent of the auth flow (a client may connect to /ws/{clientId} with no
+// login at all). Proves the new pass runs for actors the auth loop skips.
+func TestResolveActorAuth_GeneratedPathParamsForNoAuthActor(t *testing.T) {
+	s := &Session{
+		Config: &project.Config{
+			Actors: []project.Actor{{
+				Name:                "web",
+				GeneratedPathParams: map[string]string{"clientId": "uuid"},
+			}},
+		},
+		Logger: zap.NewNop(),
+	}
+	s.resolveActorAuth(context.Background())
+
+	pp := s.Config.Actors[0].Credentials.PathParams
+	if v, ok := pp["clientId"]; !ok || !uuidRE.MatchString(v) {
+		t.Fatalf("Credentials.PathParams[clientId] = %q (%v), want a uuid", v, ok)
+	}
+}
+
+// An actor with BOTH captured (auth.path_params) and generated path params keeps
+// BOTH after resolution — generated values merge into PathParams rather than
+// clobbering the auth-captured ones.
+func TestResolveActorAuth_CapturedAndGeneratedCoexist(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"token":"T","config":{"userId":"user_1"}}`)
+	}))
+	defer srv.Close()
+
+	s := &Session{
+		Config: &project.Config{
+			Services: []project.Service{{Name: "api", URL: srv.URL}},
+			Actors: []project.Actor{{
+				Name:    "u",
+				Service: "api",
+				Auth: &project.AuthFlow{
+					Login:      project.AuthLogin{Method: "POST", Path: "/login"},
+					TokenFrom:  "token",
+					InjectAs:   "Authorization: Bearer {token}",
+					PathParams: map[string]string{"userId": "config.userId"},
+				},
+				GeneratedPathParams: map[string]string{"clientId": "uuid"},
+			}},
+		},
+		Logger: zap.NewNop(),
+	}
+	s.resolveActorAuth(context.Background())
+
+	pp := s.Config.Actors[0].Credentials.PathParams
+	if pp["userId"] != "user_1" {
+		t.Fatalf("captured userId lost after generated-params pass: %q", pp["userId"])
+	}
+	if v := pp["clientId"]; !uuidRE.MatchString(v) {
+		t.Fatalf("generated clientId missing/invalid after merge: %q", v)
 	}
 }

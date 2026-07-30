@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -1903,6 +1904,55 @@ func TestConnectTemplatedURL(t *testing.T) {
 	if strings.Contains(ws.URL, "JWT-VALUE") {
 		t.Fatalf("WSResult.URL leaks auth token: %s", ws.URL)
 	}
+}
+
+// TestConnectTemplatedGeneratedPathParam closes the loop on runtime-generated
+// path params (roadmap #2): the value synthesized by project.ResolveGeneratedPathParams
+// (the same function session setup calls) flows through ActorPathParams into
+// resolveURLParams and reaches the dialed URL. The server observes a uuid-shaped
+// path segment — proving generation + templating + dial work end to end, with
+// no executor change beyond what F3 already provides.
+func TestConnectTemplatedGeneratedPathParam(t *testing.T) {
+	wsURL, latestPath := newWSTestServerCapturePath(t)
+	dialedURL := wsURL + "/{clientId}"
+
+	// Simulate session setup: resolve the declared generator to a concrete uuid.
+	resolved, err := project.ResolveGeneratedPathParams(map[string]string{"clientId": "uuid"})
+	if err != nil {
+		t.Fatalf("resolve generated: %v", err)
+	}
+	idx := &WSProtocolIndex{
+		ByHost:          map[string]*project.Protocol{hostOf(t, wsURL): {}},
+		ActorPathParams: map[string]map[string]string{"web": resolved},
+	}
+	ex := NewWebSocketExecutor(zap.NewNop(), idx)
+	res := ex.Execute(context.Background(), types.WSConnectAction{URL: dialedURL, ConnectionID: "c1", CredentialRef: "web"})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.Success() {
+		t.Fatalf("connect failed: %+v", res)
+	}
+	got := latestPath()
+	// The dialed path is /<uuid> (the capture server registers on "/", so the
+	// path is exactly the templated segment). It must NOT still hold {clientId}
+	// and must be a uuid.
+	if strings.Contains(got, "{clientId}") || strings.Contains(got, "%7BclientId%7D") {
+		t.Fatalf("placeholder not substituted in dialed path: %s", got)
+	}
+	// Strip the leading "/" to get the segment and assert uuid shape.
+	seg := strings.TrimPrefix(got, "/")
+	if !uuidShape(seg) {
+		t.Fatalf("dialed path segment %q is not a generated uuid", seg)
+	}
+	// WSResult.URL also reflects the substituted path.
+	if !strings.Contains(ws.URL, seg) {
+		t.Fatalf("WSResult.URL %q does not carry the generated path segment %q", ws.URL, seg)
+	}
+}
+
+// uuidShape reports whether s is a canonical hyphenated uuid.
+func uuidShape(s string) bool {
+	re := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	return re.MatchString(s)
 }
 
 // TestConnectTemplatedURLUnresolved proves that a {param} placeholder with no

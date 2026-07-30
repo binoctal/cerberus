@@ -62,6 +62,39 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 			zap.Int("value_len", len(res.HeaderValue)),
 		)
 	}
+	// Generated path params are independent of the auth flow (a no-auth actor may
+	// still need a client-generated id), so they get their own pass AFTER auth
+	// resolution — generated values merge into whatever PathParams already exist.
+	s.resolveGeneratedPathParams()
+}
+
+// resolveGeneratedPathParams synthesizes runtime values (e.g. uuid) for every
+// actor that declares generated_path_params, merging them into
+// Credentials.PathParams so the WS connect layer templates {name} placeholders
+// in the service URL. Runs for ALL actors regardless of auth. An unknown
+// generator should never reach here (config validation guards it); if it does,
+// the param is left unresolved and resolveURLParams errors at connect.
+func (s *Session) resolveGeneratedPathParams() {
+	for i := range s.Config.Actors {
+		a := &s.Config.Actors[i]
+		if len(a.GeneratedPathParams) == 0 {
+			continue
+		}
+		resolved, err := project.ResolveGeneratedPathParams(a.GeneratedPathParams)
+		if err != nil {
+			s.Logger.Warn("generated path params failed; degrading",
+				zap.String("actor", a.Name),
+				zap.Error(err),
+			)
+			continue
+		}
+		if a.Credentials.PathParams == nil {
+			a.Credentials.PathParams = make(map[string]string)
+		}
+		for name, val := range resolved {
+			a.Credentials.PathParams[name] = val
+		}
+	}
 }
 
 // discoverActorAuth infers an AuthFlow for an actor with no auth: block and
