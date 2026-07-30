@@ -84,14 +84,33 @@ func repairTools() []llm.Tool {
 	return []llm.Tool{
 		{
 			Name:        "repair_case",
-			Description: "Emit a corrected test case that replaces one failed case. One call per failed case.",
-			InputSchema: llm.ObjSchema([]any{"replaces", "method", "path"}, map[string]any{
+			Description: "Emit a corrected test case that replaces one failed case. One call per failed case. For an HTTP case use method/path/service/body/expectation; for a WebSocket case use `steps` (the corrected ws_connect/ws_send/ws_receive/ws_disconnect flow) and leave the HTTP fields empty.",
+			InputSchema: llm.ObjSchema([]any{"replaces"}, map[string]any{
 				"replaces":    map[string]any{"type": "string", "description": "ID of the failed case this replaces"},
 				"method":      map[string]any{"type": "string"},
 				"path":        map[string]any{"type": "string"},
 				"service":     map[string]any{"type": "string"},
 				"body":        map[string]any{"type": "string"},
 				"expectation": map[string]any{"type": "string"},
+				"steps": map[string]any{
+					"type":        "array",
+					"description": "WebSocket flow: the corrected steps (omit for HTTP cases).",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"action":        map[string]any{"type": "string", "enum": []any{"ws_connect", "ws_send", "ws_receive", "ws_disconnect"}},
+							"connection_id": map[string]any{"type": "string"},
+							"role":          map[string]any{"type": "string"},
+							"url":           map[string]any{"type": "string"},
+							"message":       map[string]any{"type": "string"},
+							"type":          map[string]any{"type": "string"},
+							"aliases":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"asserts":       map[string]any{"type": "object"},
+							"match_all":     map[string]any{"type": "boolean"},
+							"timeout":       map[string]any{"type": "integer"},
+						},
+					},
+				},
 			}),
 		},
 	}
