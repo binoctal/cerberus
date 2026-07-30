@@ -1873,6 +1873,105 @@ func TestWSBatchDecomposition_NoBatchDeclIsBackwardsCompat(t *testing.T) {
 	require.Contains(t, ws.MatchedMessage, "session:output-batch")
 }
 
+// eventBatchProtocol is the batch declaration shared by the match-all tests:
+// an "event-batch" frame decomposes into N "event" item frames, one per element
+// of payload.events.
+func eventBatchProtocol() *project.Protocol {
+	return &project.Protocol{TypePath: "type", Batches: map[string]*project.ProtocolBatch{
+		"event-batch": {ItemType: "event", ItemsPath: "payload.events"},
+	}}
+}
+
+// TestWSReceiveMatchAll_AllItemsPass proves a match-all receive collects EVERY
+// decomposed item in the burst and passes when the assert holds for all of them.
+// Contracts: MatchedCount == N, MatchedMessages carries all N frames. Without
+// match-all this would collect one frame (MatchedCount 0) → RED on the count.
+func TestWSReceiveMatchAll_AllItemsPass(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[`+
+				`{"id":"a","ok":true},{"id":"b","ok":true},{"id":"c","ok":true}]}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, eventBatchProtocol()))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "event", MatchAll: true,
+		Assert: map[string]any{"payload.ok": true}, Timeout: 2,
+	})
+	ws, ok := res.(types.WSResult)
+	require.True(t, ok && ws.OK, "match-all receive should pass when all items satisfy the assert: %+v", res)
+	require.Equal(t, 3, ws.MatchedCount, "match-all must collect all 3 items, not just the first")
+	// Layout: first frame in MatchedMessage, the rest in MatchedMessages (no
+	// Evidence duplication). Together they cover all 3 collected items.
+	require.Len(t, ws.MatchedMessages, 2, "rest frames after the first land in MatchedMessages")
+	require.Contains(t, ws.MatchedMessage, `"id":"a"`, "first collected frame is first in arrival order")
+}
+
+// TestWSReceiveMatchAll_OneBadItemFails is the negative contract: when one item
+// in the burst violates the assert, the receive FAILS and names the 1-based item
+// index. This is the false-pass hole match-all closes — a normal (first-match)
+// receive would match item #1 (ok:true) and PASS, missing the bad item. Verified
+// RED by running with MatchAll honored as no-op (first-match) before impl.
+func TestWSReceiveMatchAll_OneBadItemFails(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[`+
+				`{"id":"a","ok":true},{"id":"b","ok":false},{"id":"c","ok":true}]}}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, eventBatchProtocol()))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "event", MatchAll: true,
+		Assert: map[string]any{"payload.ok": true}, Timeout: 2,
+	})
+	ws, ok := res.(types.WSResult)
+	require.True(t, ok, "expected WSResult")
+	require.False(t, ws.OK, "match-all must fail when item #2 violates the assert (the hole this closes)")
+	require.Contains(t, ws.Err, "item 2", "error must name the 1-based failing item index; got %q", ws.Err)
+}
+
+// TestWSReceiveMatchAll_PushbackPreservesNextFrame proves the burst terminator —
+// a non-matching frame that ends the burst — is re-buffered (pushback) for the
+// next consumer instead of being lost to seen. After match-all collects the
+// event items, a later "done" frame must still be receivable.
+func TestWSReceiveMatchAll_PushbackPreservesNextFrame(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[`+
+				`{"id":"a","ok":true},{"id":"b","ok":true}]}}`))
+		_ = conn.Write(ctx, websocket.MessageText, []byte(`{"type":"done"}`))
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := NewWebSocketExecutor(zap.NewNop(), protocolIndexForURL(t, url, eventBatchProtocol()))
+	ctx := context.Background()
+	require.True(t, ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"}).Success(), "connect failed")
+
+	r1 := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "event", MatchAll: true,
+		Assert: map[string]any{"payload.ok": true}, Timeout: 2,
+	})
+	ws1, ok := r1.(types.WSResult)
+	require.True(t, ok && ws1.OK && ws1.MatchedCount == 2, "match-all should collect 2 items: %+v", r1)
+
+	// The "done" frame ended the burst via pushback; it must reach this receive.
+	r2 := ex.Execute(ctx, types.WSReceiveAction{ConnectionID: "c1", Type: "done", Timeout: 2})
+	ws2, ok := r2.(types.WSResult)
+	require.True(t, ok && ws2.OK, "trailing non-match frame must be preserved for the next receive: %+v", r2)
+	require.Contains(t, ws2.MatchedMessage, "done")
+}
+
 func TestWSReceiveAliasesMatch(t *testing.T) {
 	url := newWSTestServer(t, func(conn *websocket.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

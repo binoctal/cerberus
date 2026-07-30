@@ -247,6 +247,17 @@ type WSReceiveAction struct {
 	// means no assertions (M1 arrival-only behavior). Constrained equality only
 	// — no expression engine.
 	Assert map[string]any `json:"assert,omitempty"`
+	// MatchAll changes matching from "first matching frame" to "every matching
+	// frame in the arrival burst": the receive collects ALL consecutive matching
+	// frames (e.g. every item of a pump-decomposed batch) and evaluates Assert
+	// against EACH. The receive passes only when every collected frame satisfies
+	// every assert; the first failing item (1-based index named in the error)
+	// fails the receive. Without Assert it is arrival-only per item (collect +
+	// count). The burst ends at a non-matching frame (re-buffered for the next
+	// consumer) or a short grace gap after the last item. False (default) keeps
+	// first-match semantics. Useful for "every item satisfies P" contracts where
+	// the item count is unknown at authoring time.
+	MatchAll bool `json:"match_all,omitempty"`
 }
 
 func (a WSReceiveAction) GetActionType() ActionType { return ActionWSReceive }

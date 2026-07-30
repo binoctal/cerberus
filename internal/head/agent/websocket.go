@@ -50,13 +50,40 @@ type wsMsg struct {
 // drain the msgs channel under readMu — they never call conn.Read directly, so
 // concurrent reads are structurally impossible.
 type wsEntry struct {
-	conn     *websocket.Conn
-	ctx      context.Context   // per-case ctx; cancellation closes the conn
-	protocol *project.Protocol // service protocol resolved at connect; nil = M0
-	msgs     chan wsMsg        // buffered (256); pump pushes every inbound frame
-	pumpErr  error             // set when the pump exits (read error / ctx done)
-	done     chan struct{}     // closed when the pump has exited
-	readMu   sync.Mutex        // serializes channel consumption (one consumer at a time)
+	conn       *websocket.Conn
+	ctx        context.Context   // per-case ctx; cancellation closes the conn
+	protocol   *project.Protocol // service protocol resolved at connect; nil = M0
+	msgs       chan wsMsg        // buffered (256); pump pushes every inbound frame
+	pumpErr    error             // set when the pump exits (read error / ctx done)
+	done       chan struct{}     // closed when the pump has exited
+	readMu     sync.Mutex        // serializes channel consumption (one consumer at a time)
+	pending    wsMsg             // a frame peeked then put back by readMatchingAll
+	hasPending bool              // pending holds a frame when true
+}
+
+// matchAllGrace is the idle gap that ends a MatchAll burst. It covers the pump's
+// atomic batch push race (the consumer may grab item #1 mid-push and see an
+// instantaneously-empty channel before #2 lands) and defines the burst boundary
+// for back-to-back same-type batches. Every MatchAll receive pays one grace.
+const matchAllGrace = 10 * time.Millisecond
+
+// popBuffered returns the next already-buffered frame WITHOUT blocking: the
+// pushback slot first (set by readMatchingAll when it ended a burst on a
+// non-match), then one non-blocking channel read. Returns (zero, false) when
+// nothing is buffered. Preserves frame order across pushback.
+func (entry *wsEntry) popBuffered() (wsMsg, bool) {
+	if entry.hasPending {
+		m := entry.pending
+		entry.hasPending = false
+		entry.pending = wsMsg{}
+		return m, true
+	}
+	select {
+	case m := <-entry.msgs:
+		return m, true
+	default:
+		return wsMsg{}, false
+	}
 }
 
 // WebSocketExecutor handles persistent WebSocket connections and primitives.
@@ -241,18 +268,16 @@ func readMatching(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration)
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	for {
-		// Drain already-buffered frames without blocking.
-		draining := true
-		for draining {
-			select {
-			case m := <-entry.msgs:
-				if match(m) {
-					return m, seen, "matched"
-				}
-				seen = append(seen, frameForResult(framingOf(entry), m.data))
-			default:
-				draining = false
+		// Drain already-buffered frames (pushback slot first) without blocking.
+		for {
+			m, ok := entry.popBuffered()
+			if !ok {
+				break
 			}
+			if match(m) {
+				return m, seen, "matched"
+			}
+			seen = append(seen, frameForResult(framingOf(entry), m.data))
 		}
 		// No buffered match; wait for a new frame, the timeout, or pump exit.
 		select {
@@ -265,6 +290,96 @@ func readMatching(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration)
 			return matched, seen, "timeout"
 		case <-entry.done:
 			return matched, seen, "closed"
+		}
+	}
+}
+
+// readMatchingAll is the MatchAll variant: it collects EVERY consecutive
+// matching frame in the arrival burst rather than stopping at the first. It
+// shares readMu with readMatching (one consumer at a time). Semantics:
+//
+//   - Phase 1 (first match): drain buffered + block up to timeout for the first
+//     matching frame. Non-matching frames seen before it are recorded in seen
+//     (same loss semantics as readMatching). Timeout/closed before any match →
+//     that status with no matched frames.
+//   - Phase 2 (burst): drain consecutive matching frames non-blocking. A
+//     non-matching frame ENDS the burst and is pushed back (pending) so the next
+//     consumer receives it. When the buffer is empty, wait one matchAllGrace for
+//     another frame: match ⇒ keep collecting; non-match ⇒ pushback + done;
+//     grace/timeout/pump-exit ⇒ done with what was collected.
+//
+// Returns all matched frames (valid when status == "matched"), the non-matching
+// frames seen before the first match, and a status ("matched"/"timeout"/"closed").
+func readMatchingAll(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration) (matched []wsMsg, seen []string, status string) {
+	entry.readMu.Lock()
+	defer entry.readMu.Unlock()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	render := func(m wsMsg) string { return frameForResult(framingOf(entry), m.data) }
+	// Phase 1: reach the first matching frame.
+	for {
+		// Drain buffered (pushback first) non-blocking; record non-matches as seen.
+		for {
+			m, ok := entry.popBuffered()
+			if !ok {
+				break
+			}
+			if match(m) {
+				matched = append(matched, m)
+				goto burst
+			}
+			seen = append(seen, render(m))
+		}
+		// No buffered match; block for one frame, the timeout, or pump exit.
+		select {
+		case m := <-entry.msgs:
+			if match(m) {
+				matched = append(matched, m)
+				goto burst
+			}
+			seen = append(seen, render(m))
+		case <-timer.C:
+			return nil, seen, "timeout"
+		case <-entry.done:
+			return nil, seen, "closed"
+		}
+	}
+burst:
+	// Phase 2: collect the rest of the burst.
+	for {
+		// Drain consecutive matching frames non-blocking; pushback ends the burst.
+		for {
+			m, ok := entry.popBuffered()
+			if !ok {
+				break
+			}
+			if match(m) {
+				matched = append(matched, m)
+				continue
+			}
+			entry.pending = m
+			entry.hasPending = true
+			return matched, seen, "matched"
+		}
+		// Buffer empty; grace-wait for one more frame.
+		grace := time.NewTimer(matchAllGrace)
+		select {
+		case m := <-entry.msgs:
+			grace.Stop()
+			if match(m) {
+				matched = append(matched, m)
+				// Loop: drain any more that arrived behind it.
+			} else {
+				entry.pending = m
+				entry.hasPending = true
+				return matched, seen, "matched"
+			}
+		case <-grace.C:
+			return matched, seen, "matched"
+		case <-timer.C:
+			return matched, seen, "matched"
+		case <-entry.done:
+			return matched, seen, "matched"
 		}
 	}
 }
@@ -787,6 +902,9 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 		timeout = 10 * time.Second
 	}
 	want := append([]string{a.Type}, a.Aliases...)
+	if a.MatchAll {
+		return e.doReceiveMatchAll(entry, framing, path, want, a, start)
+	}
 	matched, seen, status := readMatching(entry, func(m wsMsg) bool {
 		return matchAnyType(framing, m.data, want, path)
 	}, timeout)
@@ -831,5 +949,64 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	default: // "closed"
 		// The pump exited (peer close or ctx cancel); the connection is dead.
 		return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", entry.pumpErr), SeenMessages: seen, Latency: time.Since(start)}
+	}
+}
+
+// doReceiveMatchAll handles a MatchAll receive: collect every consecutive
+// matching frame in the burst (readMatchingAll) and evaluate Assert against EACH
+// collected frame. The receive passes only when every frame satisfies every
+// assert; the first failing item (1-based index named in Err) fails the receive.
+// Without Assert (or non-json framing) it is arrival-only per item.
+func (e *WebSocketExecutor) doReceiveMatchAll(entry *wsEntry, framing, path string, want []string, a types.WSReceiveAction, start time.Time) types.ExecutorResult {
+	timeout := time.Duration(a.Timeout) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	frames, seen, status := readMatchingAll(entry, func(m wsMsg) bool {
+		return matchAnyType(framing, m.data, want, path)
+	}, timeout)
+	switch status {
+	case "timeout":
+		errMsg := fmt.Sprintf("receive: timed out awaiting %q", a.Type)
+		if len(a.Aliases) > 0 {
+			errMsg = fmt.Sprintf("%s (aliases: %v)", errMsg, a.Aliases)
+		}
+		return types.WSResult{OK: false, Err: errMsg, SeenMessages: seen, Latency: time.Since(start)}
+	case "closed":
+		return types.WSResult{OK: false, Err: fmt.Sprintf("receive: %v", entry.pumpErr), SeenMessages: seen, Latency: time.Since(start)}
+	}
+	// status == "matched" ⇒ at least one frame collected (readMatchingAll only
+	// reaches the burst phase after the first match). Render every frame once.
+	rendered := make([]string, len(frames))
+	for i, f := range frames {
+		rendered[i] = frameForResult(framing, f.data)
+	}
+	if framing == "" || framing == "json" {
+		for i, f := range frames {
+			p, exp, act, ok, _ := checkAsserts(f.data, a.Assert)
+			if !ok {
+				// Failing frame goes first (MatchedMessage); the rest are evidence.
+				others := append([]string{}, rendered[:i]...)
+				others = append(others, rendered[i+1:]...)
+				return types.WSResult{
+					OK:              false,
+					Err:             fmt.Sprintf("receive: assert %s failed at item %d: expected %v, got %v", p, i+1, exp, act),
+					MatchedMessage:  rendered[i],
+					MatchedMessages: others,
+					MatchedCount:    len(frames),
+					SeenMessages:    seen,
+					Latency:         time.Since(start),
+				}
+			}
+		}
+	}
+	// All items satisfy the asserts (or no asserts / non-json: arrival-only).
+	return types.WSResult{
+		OK:              true,
+		MatchedMessage:  rendered[0],
+		MatchedMessages: rendered[1:],
+		MatchedCount:    len(frames),
+		SeenMessages:    seen,
+		Latency:         time.Since(start),
 	}
 }

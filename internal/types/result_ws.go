@@ -37,8 +37,15 @@ type WSResult struct {
 	OK  bool   `json:"success"`
 	URL string `json:"url"`
 	// MatchedMessage is the message that satisfied a WSReceive match (empty for
-	// connect/send/disconnect).
+	// connect/send/disconnect). Under MatchAll it holds the FIRST matched frame
+	// (or the FAILING frame on an assert error) for back-compat readers.
 	MatchedMessage string `json:"matched_message,omitempty"`
+	// MatchedMessages are all frames collected by a MatchAll receive (every item
+	// of a burst). Empty for non-MatchAll receives and for connect/send/disconnect.
+	MatchedMessages []string `json:"matched_messages,omitempty"`
+	// MatchedCount is the number of frames a MatchAll receive collected. Zero for
+	// non-MatchAll receives (use MatchedMessage presence for single-match counts).
+	MatchedCount int `json:"matched_count,omitempty"`
 	// SeenMessages are non-matching messages observed while WSReceive scanned.
 	SeenMessages []string `json:"seen_messages,omitempty"`
 	// Messages is the legacy combined list (kept for back-compat readers).
@@ -59,8 +66,8 @@ func (r WSResult) Summary() string {
 	if !r.OK {
 		status = "error"
 	}
-	matched := 0
-	if r.MatchedMessage != "" {
+	matched := r.MatchedCount
+	if matched == 0 && r.MatchedMessage != "" {
 		matched = 1
 	}
 	conn := ""
@@ -74,6 +81,7 @@ func (r WSResult) Evidence() EvidenceData {
 	if r.MatchedMessage != "" {
 		all = append(all, "matched: "+r.MatchedMessage)
 	}
+	all = append(all, r.MatchedMessages...)
 	all = append(all, r.SeenMessages...)
 	all = append(all, r.Messages...)
 	return EvidenceData{Type: "ws_messages", Content: truncate(joinStrings(all, "\n"), 10000)}
