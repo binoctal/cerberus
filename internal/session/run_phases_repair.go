@@ -1,14 +1,30 @@
 package session
 
 import (
+	"sort"
+
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/autotest"
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/head/scout"
 	"github.com/binoctal/cerberus/internal/memory"
 )
+
+// coverKey identifies a coverage gap by its raw (File, Func) tuple exactly as
+// emitted by the coverage provider. Func is overloaded: a file:line anchor
+// (foo.go:L42) on Go's zero-cover path, or a function name on the no-test-file
+// path. It is keyed raw (never normalized) so anchors round-trip. See D1 spec
+// §6.1 (region unit, [R5]).
+type coverKey struct {
+	File, Func string
+}
+
+// defaultCoverageDispatchGaps caps how many coverage gaps the repair loop
+// dispatches AutoTest for per round (spec §4, decision table; v1 default 3).
+const defaultCoverageDispatchGaps = 3
 
 // repairInput mirrors scout.RepairInput for the repairPlanFn seam signature.
 type repairInput = scout.RepairInput
@@ -149,4 +165,83 @@ func computeStuck(verdicts []examiner.FinalVerdict) map[string]bool {
 		}
 	}
 	return stuck
+}
+
+// hasCoverageGap reports whether the session has a KNOWN coverage gap: an
+// Assessment carrying a Gap{Kind:"coverage"}. Scope/pathtype gaps and a !Known
+// measurement (provider failure) do NOT qualify — the coverage axis can only
+// recover a known shortfall (D1 spec §4 trigger, [R1]). Nil Contract/Assessment
+// ⇒ false.
+func (rp *runPhase) hasCoverageGap() bool {
+	sess := rp.session
+	if sess.Contract == nil || sess.Assessment == nil {
+		return false
+	}
+	for _, g := range sess.Assessment.Gaps {
+		if g.Kind == "coverage" {
+			return true
+		}
+	}
+	return false
+}
+
+// coverageGaps discovers candidate coverage gaps from the shared before report.
+// It uses the coverageGapFn seam when set (tests inject deterministic gaps);
+// otherwise it builds the language provider and calls Gaps(before) plus Go
+// NoTestFileGaps(ProjectDir), mirroring autotest_run.go gap discovery.
+func (rp *runPhase) coverageGaps(before *autotest.CoverageReport) []autotest.CoverageGap {
+	if rp.coverageGapFn != nil {
+		return rp.coverageGapFn(before)
+	}
+	provider := coverageProviderForSession(rp.session)
+	gaps := provider.Gaps(before)
+	if gcp, ok := provider.(*autotest.GoCoverageProvider); ok {
+		gaps = append(gaps, gcp.NoTestFileGaps(rp.session.ProjectDir)...)
+	}
+	return gaps
+}
+
+// coverageEligibility selects coverage gaps to dispatch AutoTest for this round.
+// It drops gaps already targeted (dedup by raw (File,Func)) and gaps with an
+// empty File, ranks by estimated gain (Go: zero-cover block count in gap.File
+// descending; Node/Python: uniform — stable discovery order), and caps at the
+// dispatch MaxGaps. Pure over (targeted, before). See D1 spec §6.1, §4 [R5][R8].
+func (rp *runPhase) coverageEligibility(targeted map[coverKey]bool, before *autotest.CoverageReport) []autotest.CoverageGap {
+	all := rp.coverageGaps(before)
+	var cand []autotest.CoverageGap
+	for _, g := range all {
+		if g.File == "" {
+			continue
+		}
+		if targeted[coverKey{File: g.File, Func: g.Func}] {
+			continue
+		}
+		cand = append(cand, g)
+	}
+	goLang := detectLanguage(rp.session.ProjectDir) == "go"
+	sort.SliceStable(cand, func(i, j int) bool {
+		if !goLang {
+			return false // uniform: keep stable discovery order
+		}
+		return zeroCoverBlocks(cand[i].File, before) > zeroCoverBlocks(cand[j].File, before)
+	})
+	if defaultCoverageDispatchGaps > 0 && len(cand) > defaultCoverageDispatchGaps {
+		cand = cand[:defaultCoverageDispatchGaps]
+	}
+	return cand
+}
+
+// zeroCoverBlocks counts profile entries in before for file that have Count==0
+// — Go's estimated-gain signal (more zero-cover blocks ⇒ more recoverable).
+func zeroCoverBlocks(file string, before *autotest.CoverageReport) int {
+	if before == nil {
+		return 0
+	}
+	n := 0
+	for _, ln := range before.Profile {
+		if ln.File == file && ln.Count == 0 {
+			n++
+		}
+	}
+	return n
 }

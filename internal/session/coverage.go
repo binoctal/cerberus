@@ -69,35 +69,46 @@ func coverageForSession(ctx context.Context, sess *Session) contract.CoverageMea
 // provider error yields Known=false so the objective gate is skipped instead of
 // forcing a false not-reached on a fake 0.
 func coverageReportForSession(ctx context.Context, sess *Session) (*autotest.CoverageReport, contract.CoverageMeasurement) {
-	markers := make(map[string]bool)
-	if _, err := os.Stat(filepath.Join(sess.ProjectDir, "package.json")); err == nil {
-		markers["package.json"] = true
-	}
-	if _, err := os.Stat(filepath.Join(sess.ProjectDir, "requirements.txt")); err == nil {
-		markers["requirements.txt"] = true
-	}
-	if _, err := os.Stat(filepath.Join(sess.ProjectDir, "pyproject.toml")); err == nil {
-		markers["pyproject.toml"] = true
-	}
-
-	var sourceFile string
-	if matches, _ := filepath.Glob(filepath.Join(sess.ProjectDir, "*.go")); len(matches) > 0 {
-		sourceFile = matches[0]
-	} else if matches, _ := filepath.Glob(filepath.Join(sess.ProjectDir, "*.js")); len(matches) > 0 {
-		sourceFile = matches[0]
-	} else if matches, _ := filepath.Glob(filepath.Join(sess.ProjectDir, "*.ts")); len(matches) > 0 {
-		sourceFile = matches[0]
-	} else if matches, _ := filepath.Glob(filepath.Join(sess.ProjectDir, "*.py")); len(matches) > 0 {
-		sourceFile = matches[0]
-	}
-
-	lang := autotest.DetectLanguage(sourceFile, markers)
-	provider := autotest.NewCoverageProviderForLanguage(lang, nil, sess.Logger)
+	provider := coverageProviderForSession(sess)
 	report, err := provider.RunCoverage(ctx, sess.ProjectDir)
 	if err != nil || report == nil {
 		return nil, contract.CoverageMeasurement{Known: false}
 	}
 	return report, measurementFromReport(report)
+}
+
+// detectLanguage identifies the project language from projectDir via package
+// markers and a source-file extension. Shared by the coverage provider path
+// and the coverage repair axis so language detection is not duplicated.
+func detectLanguage(projectDir string) string {
+	markers := make(map[string]bool)
+	if _, err := os.Stat(filepath.Join(projectDir, "package.json")); err == nil {
+		markers["package.json"] = true
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, "requirements.txt")); err == nil {
+		markers["requirements.txt"] = true
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, "pyproject.toml")); err == nil {
+		markers["pyproject.toml"] = true
+	}
+
+	var sourceFile string
+	if matches, _ := filepath.Glob(filepath.Join(projectDir, "*.go")); len(matches) > 0 {
+		sourceFile = matches[0]
+	} else if matches, _ := filepath.Glob(filepath.Join(projectDir, "*.js")); len(matches) > 0 {
+		sourceFile = matches[0]
+	} else if matches, _ := filepath.Glob(filepath.Join(projectDir, "*.ts")); len(matches) > 0 {
+		sourceFile = matches[0]
+	} else if matches, _ := filepath.Glob(filepath.Join(projectDir, "*.py")); len(matches) > 0 {
+		sourceFile = matches[0]
+	}
+	return autotest.DetectLanguage(sourceFile, markers)
+}
+
+// coverageProviderForSession builds the language-specific coverage provider
+// for a session (nil runner; RunCoverage is only used on the measure paths).
+func coverageProviderForSession(sess *Session) autotest.CoverageProvider {
+	return autotest.NewCoverageProviderForLanguage(detectLanguage(sess.ProjectDir), nil, sess.Logger)
 }
 
 // measurementFromReport derives the normalized CoverageMeasurement from a raw
