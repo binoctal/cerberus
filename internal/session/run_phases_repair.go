@@ -356,6 +356,11 @@ func (rp *runPhase) hasCoverageGap() bool {
 // otherwise it builds the language provider and calls Gaps(before) plus Go
 // NoTestFileGaps(ProjectDir), mirroring autotest_run.go gap discovery.
 func (rp *runPhase) coverageGaps(before *autotest.CoverageReport) []autotest.CoverageGap {
+	if before == nil {
+		// No report (provider failure) → no selectable gaps. Also guards the
+		// production provider.Gaps(nil) path from a nil-Profile dereference.
+		return nil
+	}
 	if rp.coverageGapFn != nil {
 		return rp.coverageGapFn(before)
 	}

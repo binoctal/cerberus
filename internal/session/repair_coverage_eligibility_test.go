@@ -123,3 +123,20 @@ func TestCoverageEligibility_AnchorKeyedRaw(t *testing.T) {
 	got2 := rp.coverageEligibility(targeted2, &autotest.CoverageReport{CoverageUnit: "line"})
 	assert.Len(t, got2, 1, "normalized Func does not match raw anchor → gap kept")
 }
+
+func TestCoverageEligibility_NilBefore_NoGaps(t *testing.T) {
+	// Provider failure yields a nil before report; coverageGaps must short-circuit
+	// (no gaps) rather than call provider.Gaps(nil) which would panic on a nil
+	// Profile dereference in production. Spec §8: provider failure → axis skips.
+	rp, cleanup := newTestRunPhase(t)
+	defer cleanup()
+	rp.session.ProjectDir = goTempDir(t)
+	called := false
+	rp.coverageGapFn = func(_ *autotest.CoverageReport) []autotest.CoverageGap {
+		called = true
+		return []autotest.CoverageGap{{File: "a.go", Func: "a.go:L1", Reason: autotest.ReasonZeroCover}}
+	}
+	got := rp.coverageEligibility(nil, nil) // before == nil
+	assert.Empty(t, got, "nil before report → no gaps selectable")
+	assert.False(t, called, "gap discovery short-circuited on nil before (no provider.Gaps(nil))")
+}
