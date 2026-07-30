@@ -3,6 +3,7 @@ package scout
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -214,27 +215,27 @@ func repairTools() []llm.Tool {
 // (original case + diagnosis), and the tool guide. Mirrors runAIPlanning's
 // ai.NewPrompt() usage.
 func (s *Scout) buildRepairPrompt(goal string, failures []RepairInput) string {
-	var b []byte
-	b = append(b, fmt.Sprintf("Goal: %s\n\nYou are repairing failed test cases. For EACH failed case below, emit ONE repair_case tool call with the corrected fields (set `replaces` to the failed case's ID). Only change what the diagnosis indicates; keep the rest.\n\n", goal)...)
+	var b strings.Builder
+	fmt.Fprintf(&b, "Goal: %s\n\nYou are repairing failed test cases. For EACH failed case below, emit ONE repair_case tool call with the corrected fields (set `replaces` to the failed case's ID). Only change what the diagnosis indicates; keep the rest.\n\n", goal)
 	for i, f := range failures {
-		b = append(b, fmt.Sprintf("## Failure %d (replaces=%s)\n", i+1, f.Case.ID))
+		fmt.Fprintf(&b, "## Failure %d (replaces=%s)\n", i+1, f.Case.ID)
 		if len(f.Case.Steps) > 0 {
 			// WebSocket failure: render the failed flow and ask for corrected steps.
-			b = append(b, fmt.Sprintf("- service: %s\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n- failed flow (steps):\n",
-				f.Case.Service, f.Case.Expectation, f.Hint, f.Reasoning))
+			fmt.Fprintf(&b, "- service: %s\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n- failed flow (steps):\n",
+				f.Case.Service, f.Case.Expectation, f.Hint, f.Reasoning)
 			for j, st := range f.Case.Steps {
-				b = append(b, fmt.Sprintf("    %d. %s\n", j+1, stepOneLine(st)))
+				fmt.Fprintf(&b, "    %d. %s\n", j+1, stepOneLine(st))
 			}
-			b = append(b, "\nRepair this WS case by emitting the corrected `steps` array; fix only the step field the hint implicates and keep connection_ids consistent.\n\n")
+			b.WriteString("\nRepair this WS case by emitting the corrected `steps` array; fix only the step field the hint implicates and keep connection_ids consistent.\n\n")
 		} else {
-			b = append(b, fmt.Sprintf("- target: %s %s (service=%s)\n- body: %q\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n\n",
+			fmt.Fprintf(&b, "- target: %s %s (service=%s)\n- body: %q\n- expectation: %s\n- diagnosis hint: %s\n- reasoning: %s\n\n",
 				f.Case.Method, f.Case.Target, f.Case.Service,
-				f.Case.Body, f.Case.Expectation, f.Hint, f.Reasoning)...)
+				f.Case.Body, f.Case.Expectation, f.Hint, f.Reasoning)
 		}
 	}
 	return ai.NewPrompt().
 		System(promptRepairSystem).
-		Context(string(b)).
+		Context(b.String()).
 		Task("Emit one repair_case tool call per failed case above.").
 		Output(promptRepairToolGuide).
 		Build()
