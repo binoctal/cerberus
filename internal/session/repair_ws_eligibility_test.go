@@ -52,3 +52,27 @@ func TestEligibleFailures_WSCaseNoneHintNotEligible(t *testing.T) {
 	out := rp.eligibleFailures(map[string]bool{})
 	assert.Empty(t, out, "none-hint WS failure is not eligible")
 }
+
+// TestEligibleFailures_SkipsNonRepairableTypes: a Fail verdict with a hint on a
+// case type the repair mechanism cannot fix (process_exec, code, browser, ...)
+// is NOT collected — otherwise repair_case would emit a broken HTTP-shaped
+// replacement. HTTP and WS hint-failures remain eligible. Negative: without
+// the isRepairable guard the process_exec case is collected (RED).
+func TestEligibleFailures_SkipsNonRepairableTypes(t *testing.T) {
+	rp, cleanup := newTestRunPhase(t)
+	defer cleanup()
+	rp.verdicts = []examiner.FinalVerdict{
+		// process_exec with a (mis-categorized) hint → skipped (not repairable).
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintShape,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "p1", Action: "process_exec", Target: "go build ./..."}}},
+		// HTTP with a hint → eligible.
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintEndpointDrift,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "h1", Method: "GET", Target: "/u"}}},
+		// code_analyze with a hint → skipped.
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintShape,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "c1", Action: "code_analyze"}}},
+	}
+	out := rp.eligibleFailures(map[string]bool{})
+	require.Len(t, out, 1, "only the HTTP case is repairable")
+	assert.Equal(t, "h1", out[0].Case.ID)
+}

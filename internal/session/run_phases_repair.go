@@ -295,6 +295,12 @@ func (rp *runPhase) eligibleFailures(stuck map[string]bool) []scout.RepairInput 
 		if tc == nil {
 			continue
 		}
+		if !isRepairable(tc) {
+			// The repair_case tool can only emit HTTP or WS shapes; skip case
+			// types it cannot correctly replace (process_exec, code, browser,
+			// ...) rather than produce a broken HTTP-shaped replacement.
+			continue
+		}
 		if replacedIDs[tc.ID] {
 			continue
 		}
