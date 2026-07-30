@@ -31,6 +31,36 @@ func TestBuildEvidenceContextIncludesWSMessages(t *testing.T) {
 	}
 }
 
+// TestBuildEvidenceContextIncludesMatchAllItems verifies the judge sees EVERY
+// item a match_all receive collected, not just the first. WSResult splits a
+// match-all burst into MatchedMessage (first) + MatchedMessages (rest) +
+// MatchedCount; if buildEvidenceContext renders only MatchedMessage, a 3-item
+// batch success shows one item and the judge cannot verify "all items" —
+// inviting an uncertain/low-confidence verdict on a real pass.
+func TestBuildEvidenceContextIncludesMatchAllItems(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{Name: "every event ok", Target: "ws://x/ws"},
+		Status:   agent.StepPassed,
+		Result: types.WSResult{
+			OK:             true,
+			MatchedCount:   3,
+			MatchedMessage: `{"type":"event","payload":{"id":"a","ok":true}}`,
+			MatchedMessages: []string{
+				`{"type":"event","payload":{"id":"b","ok":true}}`,
+				`{"type":"event","payload":{"id":"c","ok":true}}`,
+			},
+		},
+	}
+	got := j.buildEvidenceContext(res)
+	if !strings.Contains(got, `"id":"b"`) || !strings.Contains(got, `"id":"c"`) {
+		t.Fatalf("evidence missing non-first match-all items:\n%s", got)
+	}
+	if !strings.Contains(got, "3") {
+		t.Fatalf("evidence missing the matched item count:\n%s", got)
+	}
+}
+
 // TestBuildEvidenceContextIncludesStepTrace verifies that a MULTI-step (Steps /
 // ws_flow) case surfaces its per-step evidence to the judge. runSteps sets
 // StepResult.Result to the LAST step (often an inert ws_disconnect) and

@@ -177,6 +177,24 @@ func (j *Judge) buildEvidenceContext(r agent.StepResult) string {
 				}
 				b = append(b, fmt.Sprintf("WS Matched Message: %s\n", msg)...)
 			}
+			// MatchAll receives split the burst into MatchedMessage (first) +
+			// MatchedMessages (rest); surface the rest and the count so the
+			// judge can verify "every item" contracts, not just the first item.
+			if len(res.MatchedMessages) > 0 {
+				b = append(b, fmt.Sprintf("WS Matched Items (%d total, first shown above):\n", res.MatchedCount)...)
+				for i, m := range res.MatchedMessages {
+					if i >= 10 { // cap noise from large batches
+						b = append(b, fmt.Sprintf("... and %d more matched items\n", len(res.MatchedMessages)-i)...)
+						break
+					}
+					if len(m) > 1000 {
+						m = m[:1000] + "\n... (truncated)"
+					}
+					b = append(b, fmt.Sprintf("  - %s\n", m)...)
+				}
+			} else if res.MatchedCount > 0 {
+				b = append(b, fmt.Sprintf("WS Matched Items: %d\n", res.MatchedCount)...)
+			}
 			for i, seen := range res.SeenMessages {
 				if i >= 5 { // cap noise from heartbeats
 					b = append(b, fmt.Sprintf("... and %d more seen messages\n", len(res.SeenMessages)-5)...)
