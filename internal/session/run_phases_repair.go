@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"sort"
 
 	"go.uber.org/zap"
 
@@ -374,9 +373,10 @@ func (rp *runPhase) coverageGaps(before *autotest.CoverageReport) []autotest.Cov
 
 // coverageEligibility selects coverage gaps to dispatch AutoTest for this round.
 // It drops gaps already targeted (dedup by raw (File,Func)) and gaps with an
-// empty File, ranks by estimated gain (Go: zero-cover block count in gap.File
-// descending; Node/Python: uniform — stable discovery order), and caps at the
-// dispatch MaxGaps. Pure over (targeted, before). See D1 spec §6.1, §4 [R5][R8].
+// empty File, ranks by estimated gain via autotest.RankByGain (Go: zero-cover
+// block count in gap.File descending; Node/Python: uniform — stable discovery
+// order), and caps at the dispatch MaxGaps. Pure over (targeted, before). See
+// D1 spec §6.1, §4 [R5][R8].
 func (rp *runPhase) coverageEligibility(targeted map[coverKey]bool, before *autotest.CoverageReport) []autotest.CoverageGap {
 	all := rp.coverageGaps(before)
 	var cand []autotest.CoverageGap
@@ -389,30 +389,9 @@ func (rp *runPhase) coverageEligibility(targeted map[coverKey]bool, before *auto
 		}
 		cand = append(cand, g)
 	}
-	goLang := detectLanguage(rp.session.ProjectDir) == "go"
-	sort.SliceStable(cand, func(i, j int) bool {
-		if !goLang {
-			return false // uniform: keep stable discovery order
-		}
-		return zeroCoverBlocks(cand[i].File, before) > zeroCoverBlocks(cand[j].File, before)
-	})
+	cand = autotest.RankByGain(cand, before)
 	if defaultCoverageDispatchGaps > 0 && len(cand) > defaultCoverageDispatchGaps {
 		cand = cand[:defaultCoverageDispatchGaps]
 	}
 	return cand
-}
-
-// zeroCoverBlocks counts profile entries in before for file that have Count==0
-// — Go's estimated-gain signal (more zero-cover blocks ⇒ more recoverable).
-func zeroCoverBlocks(file string, before *autotest.CoverageReport) int {
-	if before == nil {
-		return 0
-	}
-	n := 0
-	for _, ln := range before.Profile {
-		if ln.File == file && ln.Count == 0 {
-			n++
-		}
-	}
-	return n
 }
