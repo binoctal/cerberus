@@ -1,10 +1,12 @@
 package autotest
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 // TestRankByGain_LineProfile: with a line-coverage profile, gaps rank by
@@ -60,4 +62,44 @@ func TestRankByGain_StableForEqualGain(t *testing.T) {
 	ranked := RankByGain(gaps, before)
 	assert.Equal(t, "a.go", ranked[0].File, "equal gain → stable input order")
 	assert.Equal(t, "b.go", ranked[1].File)
+}
+
+// profileGapProvider returns a line-profile before report (with controlled
+// zero-cover blocks per file) and a fixed gap list, so AutoTest.Run's ranking
+// is observable.
+type profileGapProvider struct {
+	gaps    []CoverageGap
+	profile []CoverageLine
+}
+
+func (p *profileGapProvider) RunCoverage(context.Context, string) (*CoverageReport, error) {
+	return &CoverageReport{Pass: true, CoverageUnit: "line", LineCoveragePct: 10, Profile: p.profile}, nil
+}
+func (p *profileGapProvider) Gaps(*CoverageReport) []CoverageGap { return p.gaps }
+
+// TestAutoTest_Run_RanksByGainBeforeCap: Phase-4 Run ranks gaps by estimated
+// gain BEFORE the MaxGaps cap, so the highest-gain gaps survive over FIFO.
+// Replaces the FIFO "future revision" noted at autotest_run.go:32.
+func TestAutoTest_Run_RanksByGainBeforeCap(t *testing.T) {
+	provider := &profileGapProvider{
+		profile: []CoverageLine{
+			{File: "big.go", Start: 1, Count: 0}, {File: "big.go", Start: 2, Count: 0}, {File: "big.go", Start: 3, Count: 0},
+			{File: "mid.go", Start: 1, Count: 0}, {File: "mid.go", Start: 2, Count: 0},
+			{File: "low.go", Start: 1, Count: 0},
+		},
+		gaps: []CoverageGap{
+			{File: "low.go", Func: "low.go:L1"}, // FIFO would take this first
+			{File: "mid.go", Func: "mid.go:L1"},
+			{File: "big.go", Func: "big.go:L1"}, // highest gain
+		},
+	}
+	a := NewAutoTest(provider, stubGen{"package p"}, allowGate{}, &memoryWriter{}, SafetyDryRun, zap.NewNop())
+	a.MaxGaps = 2
+
+	rep, err := a.Run(context.Background(), ".")
+	require.NoError(t, err)
+	require.Len(t, rep.Gaps, 2, "capped to MaxGaps=2")
+	// big.go (3) and mid.go (2) survive; low.go (1) is dropped under the cap.
+	assert.Equal(t, "big.go", rep.Gaps[0].File)
+	assert.Equal(t, "mid.go", rep.Gaps[1].File)
 }

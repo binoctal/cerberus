@@ -28,8 +28,10 @@ func (a *AutoTest) Run(ctx context.Context, projectDir string) (*AutoTestReport,
 	// excluded gaps do not consume cap slots.
 	rep.Gaps = a.withoutExcluded(rep.Gaps)
 	// Cap gaps generated per run: a large codebase can have hundreds of gaps;
-	// generating tests for all of them would be slow and expensive. Take the
-	// first MaxGaps (>0). A future revision can rank by estimated coverage gain.
+	// generating tests for all of them would be slow and expensive. Rank by
+	// estimated coverage gain (Go: zero-cover block count per file) so the
+	// highest-gain gaps survive the cap, then take the first MaxGaps (>0).
+	rep.Gaps = RankByGain(rep.Gaps, before)
 	if a.MaxGaps > 0 && len(rep.Gaps) > a.MaxGaps {
 		rep.Gaps = rep.Gaps[:a.MaxGaps]
 	}
