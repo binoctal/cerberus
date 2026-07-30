@@ -430,6 +430,59 @@ func TestStepToActionReceiveAliases(t *testing.T) {
 	require.Equal(t, []string{"session:output-batch"}, wr.Aliases)
 }
 
+// TestStepToActionReceiveMatchAll proves the deterministic Steps runner
+// propagates TestStep.MatchAll to WSReceiveAction.MatchAll. Without this wiring,
+// match_all is unreachable in the Steps path (the primary WS flow mechanism) —
+// the field would silently default false and a match-all receive would behave as
+// first-match. (The executor-level match_all tests bypass stepToAction, so they
+// cannot catch this gap.)
+func TestStepToActionReceiveMatchAll(t *testing.T) {
+	action, err := stepToAction(&TestCase{Target: "ws://x"}, TestStep{
+		Action: "ws_receive", ConnectionID: "c1", Type: "event",
+		MatchAll: true, Asserts: map[string]any{"payload.ok": true}, Timeout: 2,
+	})
+	require.NoError(t, err)
+	wr, ok := action.(types.WSReceiveAction)
+	require.True(t, ok)
+	require.True(t, wr.MatchAll, "stepToAction must propagate TestStep.MatchAll to WSReceiveAction.MatchAll")
+}
+
+// TestRunStepsMatchAllBatch is the end-to-end proof that match_all works through
+// the deterministic Steps runner: a server sends one batch frame, the protocol
+// declares the batch, and a ws_receive step with MatchAll=true collects every
+// decomposed item. Exercises stepToAction -> runSteps -> executor -> match_all.
+func TestRunStepsMatchAllBatch(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = conn.Write(ctx, websocket.MessageText,
+			[]byte(`{"type":"event-batch","payload":{"events":[`+
+				`{"id":"a","ok":true},{"id":"b","ok":true},{"id":"c","ok":true}]}}`))
+		_, _, _ = conn.Read(ctx) // block until close
+	})
+	p := &project.Protocol{TypePath: "type", Batches: map[string]*project.ProtocolBatch{
+		"event-batch": {ItemType: "event", ItemsPath: "payload.events"},
+	}}
+	wsIdx := protocolIndexForURL(t, url, p)
+	tc := &TestCase{
+		ID:     "tc-matchall-batch",
+		Target: url,
+		Steps: []TestStep{
+			{Action: "ws_connect", ConnectionID: "c1"},
+			{Action: "ws_receive", ConnectionID: "c1", Type: "event", MatchAll: true,
+				Asserts: map[string]any{"payload.ok": true}, Timeout: 2},
+		},
+	}
+	se := newStepExecutionWithIdx(t, tc, wsIdx)
+	result := se.runSteps()
+
+	require.Equal(t, StepPassed, result.Status,
+		"match-all receive over a decomposed batch should pass the Steps case")
+	ws, ok := result.Result.(types.WSResult)
+	require.True(t, ok, "final step result must be a WSResult")
+	require.Equal(t, 3, ws.MatchedCount, "match-all via Steps must collect all 3 items")
+}
+
 // TestStepToActionWSConnectURL covers the per-step dial URL fallback: an empty
 // TestStep.URL falls back to tc.Target (the common case), while a non-empty
 // TestStep.URL overrides it so a single case can dial peers at different

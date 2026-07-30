@@ -72,6 +72,7 @@ type TestStep struct {
 	Type         string         `json:"type,omitempty"`          // For ws_receive: expected message type
 	Aliases      []string       `json:"aliases,omitempty"`       // ws_receive: additional matching types
 	Asserts      map[string]any `json:"asserts,omitempty"`       // For ws_receive: field assertions
+	MatchAll     bool           `json:"match_all,omitempty"`     // ws_receive: collect every matching item in the burst (see WSReceiveAction.MatchAll)
 	Timeout      int            `json:"timeout,omitempty"`       // ws_receive: seconds (0 ⇒ executor default)
 }
 
