@@ -1,13 +1,17 @@
 package scout
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 // TestRepairTools_HasStepsArray: repair_case carries an optional `steps` array
@@ -111,4 +115,47 @@ func TestBuildRepairPrompt_WSFailureIncludesSteps(t *testing.T) {
 	assert.Contains(t, prompt, "ws-1")
 	assert.Contains(t, prompt, "ws_receive", "the failed flow's steps are shown")
 	assert.Contains(t, prompt, "steps", "prompt instructs emitting steps for a WS repair")
+}
+
+// TestRepairPlan_WSFailure_EndToEnd: the full Scout.RepairPlan path for a WS
+// failure. The mock LLM emits a repair_case with corrected `steps`; RepairPlan
+// returns a ws_flow TestCase (Steps carried, Replaces bound). This ties the
+// prompt, the repair_case tool, and assembleRepair together end-to-end.
+func TestRepairPlan_WSFailure_EndToEnd(t *testing.T) {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("repairing failed test cases", []llm.ToolCall{
+		{Name: "repair_case", Input: map[string]any{
+			"replaces":    "ws-1",
+			"service":     "ws",
+			"expectation": "receives hello",
+			"steps": []any{
+				map[string]any{"action": "ws_connect", "connection_id": "web", "url": "wss://x"},
+				map[string]any{"action": "ws_send", "connection_id": "web", "message": `{"join":"room1"}`},
+				map[string]any{"action": "ws_receive", "connection_id": "web", "type": "hello"},
+			},
+		}},
+	})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+	sct := NewScout(driver, setupTestStore(t), &project.Config{
+		Project: project.ProjectMeta{Name: "ws-repair"},
+	}, zap.NewNop())
+
+	failures := []RepairInput{
+		{Case: agent.TestCase{ID: "ws-1", Action: "ws_flow", Target: "wss://x", Service: "ws",
+			Steps: []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: "web"},
+				{Action: "ws_receive", ConnectionID: "web", Type: "wrong_type"},
+			}},
+			Hint: agent.HintWsMatch, Reasoning: "decisive receive matched nothing"},
+	}
+	out, err := sct.RepairPlan(context.Background(), "g", failures)
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+
+	c := out[0]
+	assert.Equal(t, "ws-1", c.Replaces)
+	assert.Equal(t, "ws_flow", c.Action)
+	require.Len(t, c.Steps, 3)
+	assert.Equal(t, "ws_receive", c.Steps[2].Action)
+	assert.Equal(t, "hello", c.Steps[2].Type, "the corrected receive type is carried")
 }
