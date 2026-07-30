@@ -30,6 +30,11 @@ const (
 	HintEndpointDrift RedispatchHint = "endpoint_drift" // wrong path/method/verb
 	HintAuth          RedispatchHint = "auth"           // missing/bad credentials or scheme
 	HintShape         RedispatchHint = "shape"          // wrong payload/contract shape
+	// HintCoverage is SESSION-SYNTHESIZED (D1 spec §5.1): the coverage gate was
+	// not reached. It is never LLM-emitted and never parsed from judge output;
+	// persisted verdicts carry it via JSON struct tags. parseRedispatchHint
+	// rejects "coverage" (collapses to HintNone).
+	HintCoverage RedispatchHint = "coverage"
 )
 
 // TestCase represents a single testable operation.

@@ -19,6 +19,10 @@ func TestAssembleJudge_ParsesRedispatchHint(t *testing.T) {
 		"none":           agent.HintNone,
 		"":               agent.HintNone,
 		"bogus":          agent.HintNone,
+		// "coverage" is a session-synthesized hint (D1 spec §5.1). The LLM never
+		// emits it and the parser must NOT accept it — it round-trips via JSON, not
+		// via parseRedispatchHint. Negative: accepting it here flips this to RED.
+		"coverage": agent.HintNone,
 	}
 	for in, want := range cases {
 		input := map[string]any{"status": "fail", "reasoning": "r"}
@@ -32,5 +36,17 @@ func TestAssembleJudge_ParsesRedispatchHint(t *testing.T) {
 		if jr.RedispatchHint != want {
 			t.Fatalf("input %q: want hint %q, got %q", in, want, jr.RedispatchHint)
 		}
+	}
+}
+
+// TestHintCoverage_EnumExists_ParserRejects: the HintCoverage enum value exists
+// for session-synthesized verdicts (D1 spec §5.1), but parseRedispatchHint never
+// returns it — "coverage" is NOT in the LLM-emitted set and collapses to HintNone.
+func TestHintCoverage_EnumExists_ParserRejects(t *testing.T) {
+	if agent.HintCoverage != "coverage" {
+		t.Fatalf("HintCoverage constant = %q, want %q", agent.HintCoverage, "coverage")
+	}
+	if got := parseRedispatchHint("coverage"); got != agent.HintNone {
+		t.Fatalf("parseRedispatchHint(\"coverage\") = %q, want HintNone (not LLM-emittable)", got)
 	}
 }
