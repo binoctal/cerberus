@@ -68,6 +68,16 @@ type Session struct {
 	Contract   *contract.Contract
 	Assessment *contract.Assessment
 
+	// RepairedCoverage is the post-AutoTest-dispatch coverage (Agent + AutoTest
+	// tests), measured inside the coverage repair loop. It is a SEPARATE track
+	// from Assessment (the Agent-only gate) so the Agent verdict is never
+	// overwritten by AutoTest files. Observability-only (D1 invariant, spec §5.3).
+	RepairedCoverage *contract.CoverageMeasurement
+	// CoverageRecovered is observability-only: RepairedCoverage met the contract
+	// threshold. It does NOT flip the Agent Assessment or any case verdict
+	// (spec §5.3, §6.6 [R10]).
+	CoverageRecovered bool
+
 	// Per-head drivers. When nil, the shared Driver is used.
 	scoutDriver    *ai.Driver
 	agentDriver    *ai.Driver
