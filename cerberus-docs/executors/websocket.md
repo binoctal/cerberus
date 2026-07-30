@@ -173,6 +173,20 @@ connect, the role's `credential_ref` actor supplies the values. An unresolved
 placeholder (no captured value) fails the connect with a clear error. Values are
 substituted as-is (path-safe ids only).
 
+**Generated path params.** For endpoints that expect a client-chosen id in the
+URL (`ws://h/ws/{clientId}`) with no login response to capture it from, an actor
+may declare `generated_path_params` as `{url-param: generator}`. Values are
+synthesized locally at session setup (stable per session, not per connect) and
+merge into the same `{param}` resolution as `auth.path_params` above. Non-secret;
+versionable in `project.yaml`. Supported generator: `uuid`. A name declared as
+both captured (`auth.path_params`) and generated is rejected by validation.
+
+```yaml
+actors:
+  - name: web-actor
+    generated_path_params: { clientId: uuid }   # {clientId} resolved per session
+```
+
 ```yaml
 services:
   - name: open-agents-realtime
@@ -201,7 +215,7 @@ The protocol declaration may be written **inline** on the service (`protocol:`),
 or **referenced** by name (`protocol_ref: <name>`) from a standalone file
 `.cerberus/protocols/<name>.yaml` loaded at config time. The two are mutually
 exclusive. A referenced file is a YAML serialization of the same `Protocol`
-fields documented here (framing, type_path, auth, roles) and behaves identically
+fields documented here (framing, type_path, auth, roles, batches) and behaves identically
 once loaded. See the [project configuration reference](../configuration/project.md).
 
 ### Executor-authoritative auth (strip-then-inject)
@@ -348,6 +362,41 @@ fails immediately with `receive: assert requires json framing`.
 Design rationale (why exact-match over receive-next, why base64 over hex) and
 the dogfooding recourse are in the M2 framing design spec:
 [`cerberus-docs/superpowers/specs/2026-07-21-ws-framing-design.md`](../superpowers/specs/2026-07-21-ws-framing-design.md).
+
+### Batches
+
+A realtime server may send a SINGLE batch frame carrying N logical messages
+(e.g. `{"type":"session:output-batch","payload":{"lines":["a","b"]}}` = two
+`session:output` items). Declare `protocol.batches` to have the read pump
+decompose such a frame into N per-item frames automatically, so `ws_receive` of
+the item type matches each item individually (no per-callsite change). json
+framing only; a batch under `text`/`binary` framing is rejected by validation.
+
+```yaml
+protocol:
+  type_path: type
+  batches:
+    session:output-batch:           # the batch routing type (at type_path)
+      item_type: session:output     # routing key applied to each expanded item
+      items_path: payload.lines     # dotted JSON path to the array
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `batches.<type>.item_type` | string | yes | Routing key applied to each expanded item frame. Must not itself be a batch key (no recursion). |
+| `batches.<type>.items_path` | string | yes | Dotted JSON path to the array within the batch frame (e.g. `payload.lines`). |
+
+Each array element becomes the whole `payload` of a synthetic json frame
+`{"type": <item_type>, "payload": <element>}`, pushed in array order. A missing,
+non-array, or empty `items_path` degrades to passing the batch frame through
+unexpanded (a receive can still match the batch type as a whole). Once a batch is
+declared, `ws_receive` of the item type sees the items (not the raw batch); to
+assert EVERY item satisfies a predicate, set `match_all: true` on the receive
+(see [Match-all receives](#match-all-receives)).
+
+Design rationale (pump-side expansion, single-level recursion guard) is in the
+batch-decomposition design spec:
+[`cerberus-docs/superpowers/specs/2026-07-30-ws-batching-decomposition-design.md`](../superpowers/specs/2026-07-30-ws-batching-decomposition-design.md).
 
 ### Scout-generated cases (M3-2)
 
