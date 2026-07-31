@@ -14,11 +14,14 @@ import (
 	"github.com/binoctal/cerberus/internal/protocoldiscover"
 )
 
-// mockProtocolDriver mirrors mockDriver in main_auth_test.go: a deterministic
-// LLM client wired to the ai.Driver so protocoldiscover.Infer is exercised
-// without any network. resp is the JSON the "model" returns for any prompt.
-func mockProtocolDriver(resp string) *ai.Driver {
-	mock := llm.NewMockClient(map[string]string{"default": resp})
+// mockProtocolDriver wires a deterministic tool-call response into the ai.Driver
+// so protocoldiscover.Infer is exercised without any network. input is the
+// protocol_draft tool-call payload the "model" returns for any prompt.
+func mockProtocolDriver(input map[string]any) *ai.Driver {
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("default", []llm.ToolCall{
+		{Name: "protocol_draft", Input: input},
+	})
 	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
 }
 
@@ -45,9 +48,15 @@ func writeProtocolFrom(t *testing.T, workDir, name, content string) string {
 	return name
 }
 
-// validProtocolJSON is a model response that yields a protocol passing
-// project.ValidateProtocol: query-auth carried by actor "u".
-const validProtocolJSON = `{"found": true, "framing": "json", "type_path": "type", "auth": {"strategy":"query","param":"token","credential_ref":"u"}, "notes": "ok"}`
+// validProtocolInput is a protocol_draft tool payload that yields a protocol
+// passing project.ValidateProtocol: query-auth carried by actor "u".
+var validProtocolInput = map[string]any{
+	"found":     true,
+	"framing":   "json",
+	"type_path": "type",
+	"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "u"},
+	"notes":     "ok",
+}
 
 const protocolFixture = "actors:\n  - name: u\n    credentials: {email: a@b.c}\n"
 
@@ -61,7 +70,7 @@ func TestRunProtocolInfer_DryRunDoesNotWrite(t *testing.T) {
 		DryRun:  true,
 		confirm: func(string) bool { return true },
 	}
-	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolJSON), opts); err != nil {
+	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolInput), opts); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	_, err := os.Stat(filepath.Join(workDir, ".cerberus", "protocols", "ws.yaml"))
@@ -80,7 +89,7 @@ func TestRunProtocolInfer_WriteOnConfirm(t *testing.T) {
 		DryRun:  false,
 		confirm: func(string) bool { return true },
 	}
-	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolJSON), opts); err != nil {
+	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolInput), opts); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(workDir, ".cerberus", "protocols", "ws.yaml"))
@@ -119,7 +128,7 @@ func TestRunProtocolInfer_OverwriteRequiresConfirm(t *testing.T) {
 		DryRun:  false,
 		confirm: func(string) bool { return false },
 	}
-	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolJSON), opts); err != nil {
+	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolInput), opts); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	after, _ := os.ReadFile(filepath.Join(protDir, "ws.yaml"))
@@ -137,7 +146,7 @@ func TestRunProtocolInfer_PathTraversalRejected(t *testing.T) {
 		From:    from,
 		confirm: func(string) bool { return true },
 	}
-	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolJSON), opts); err == nil {
+	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolInput), opts); err == nil {
 		t.Fatal("want error for path-traversal --name")
 	}
 	// Nothing written outside the protocols dir.
@@ -156,7 +165,7 @@ func TestRunProtocolInfer_NoProtocolIsNotError(t *testing.T) {
 		confirm: func(string) bool { return true },
 	}
 	// {"found": false} -> protocoldiscover.ErrNoProtocol; command reports and exits 0.
-	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(`{"found": false}`), opts); err != nil {
+	if err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(map[string]any{"found": false}), opts); err != nil {
 		t.Fatalf("ErrNoProtocol must not be returned as error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(workDir, ".cerberus", "protocols", "ws.yaml")); !os.IsNotExist(err) {
@@ -180,7 +189,7 @@ func TestRunProtocolInfer_EmptyFromDirErrors(t *testing.T) {
 		DryRun:  true,
 		confirm: func(string) bool { return true },
 	}
-	err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolJSON), opts)
+	err := runProtocolInfer(context.Background(), workDir, mockProtocolDriver(validProtocolInput), opts)
 	if err == nil {
 		t.Fatal("want error for empty --from dir, got nil")
 	}

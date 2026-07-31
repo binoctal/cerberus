@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
 
@@ -67,57 +68,43 @@ type inferHandshake struct {
 // the service the draft targets; it is used only to label the prompt (the actor
 // list for credential_ref validation comes from cfg).
 //
+// The model is required to call the protocol_draft tool. Three terminal states:
+//   - found=false (or omitted): the model explicitly signalled "no WS protocol
+//     here" -> ErrNoProtocol. Distinct from drift so the command can exit 0.
+//   - drift (zero tool calls): the model produced no tool call at all -> a
+//     hard error. Not reported as ErrNoProtocol.
+//   - a populated tool call: parsed by argsToProtocol then validated.
+//
 // On a parse failure the returned error is a static message that does NOT
-// include the raw LLM response (Driver.Decide embeds it; we hide it). On a
-// validation failure the cause is wrapped. When the model reports no protocol
-// is described it returns ErrNoProtocol.
+// include the raw tool args. On a validation failure the cause is wrapped.
 func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile) (*project.Protocol, error) {
 	if driver == nil {
 		return nil, errors.New("nil driver")
 	}
 
 	prompt := buildInferPrompt(serviceName, inputs)
-
-	var out inferOutput
-	if err := driver.Decide(ctx, prompt, &out); err != nil {
-		// Driver.Decide's error embeds the raw response; do not propagate it.
-		return nil, errors.New("could not parse LLM output into Protocol")
+	res, err := driver.DecideWithTools(ctx, prompt, []llm.Tool{protocolDraftTool()})
+	if err != nil {
+		return nil, errors.New("could not run protocol inference")
+	}
+	if len(res.ToolCalls) == 0 {
+		// Drift: the model produced no tool call. This is NOT "no protocol
+		// found" — that is signalled explicitly by found=false below. Drift
+		// is a hard error, aligned with the S2 ADR's drift policy.
+		return nil, errors.New("model produced no protocol tool call")
 	}
 
-	if !out.Found {
+	input := res.ToolCalls[0].Input
+	// Safe read: the model may omit `found`; a missing flag is treated as
+	// "not found" rather than panicking on a failed type assertion.
+	if found, _ := input["found"].(bool); !found {
 		return nil, ErrNoProtocol
 	}
 
-	p := &project.Protocol{
-		Framing:  out.Framing,
-		TypePath: out.TypePath,
-	}
-	if out.Auth != nil {
-		p.Auth = &project.ProtocolAuth{
-			Strategy:      out.Auth.Strategy,
-			Param:         out.Auth.Param,
-			CredentialRef: out.Auth.CredentialRef,
-		}
-	}
-	// Initialize p.Roles before assigning into it; project.Protocol's Roles
-	// map is nil on construction and the loop below writes by key.
-	if len(out.Roles) > 0 {
-		p.Roles = map[string]*project.ProtocolRole{}
-	}
-	for name, r := range out.Roles {
-		role := &project.ProtocolRole{
-			CredentialRef: r.CredentialRef,
-			Params:        r.Params,
-			Headers:       r.Headers,
-			Subprotocols:  r.Subprotocols,
-		}
-		if r.Handshake != nil {
-			role.Handshake = &project.RoleHandshake{
-				AwaitType: r.Handshake.AwaitType,
-				Timeout:   r.Handshake.Timeout,
-			}
-		}
-		p.Roles[name] = role
+	p, err := argsToProtocol(input)
+	if err != nil {
+		// Malformed args; do not propagate the raw map in the error.
+		return nil, errors.New("could not parse model output")
 	}
 
 	if err := project.ValidateProtocol(p, actorsOf(cfg)); err != nil {

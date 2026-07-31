@@ -2,8 +2,6 @@ package protocoldiscover
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -21,7 +19,7 @@ func TestInfer_ReturnsValidatedProtocol(t *testing.T) {
 		Services: []project.Service{{Name: "rt", URL: "http://x"}},
 		Actors:   []project.Actor{{Name: "web"}},
 	}
-	driver := mockDriver(t, map[string]any{
+	driver := mockToolDriver(t, map[string]any{
 		"found":     true,
 		"framing":   "json",
 		"type_path": "type",
@@ -37,14 +35,14 @@ func TestInfer_ReturnsValidatedProtocol(t *testing.T) {
 	assert.Equal(t, "web", p.Auth.CredentialRef)
 }
 
-func TestInfer_NoProtocol(t *testing.T) {
-	driver := mockDriver(t, map[string]any{"found": false})
+func TestInfer_FoundFalse_ReturnsErrNoProtocol(t *testing.T) {
+	driver := mockToolDriver(t, map[string]any{"found": false})
 	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
 	assert.ErrorIs(t, err, ErrNoProtocol)
 }
 
 func TestInfer_InvalidCredentialRefFailsValidation(t *testing.T) {
-	driver := mockDriver(t, map[string]any{
+	driver := mockToolDriver(t, map[string]any{
 		"found": true, "framing": "json",
 		"auth": map[string]any{"strategy": "query", "param": "token", "credential_ref": "ghost"},
 	})
@@ -59,7 +57,7 @@ func TestInfer_InvalidCredentialRefFailsValidation(t *testing.T) {
 // original code constructed p with a nil Roles map).
 func TestInfer_RolesPopulated(t *testing.T) {
 	cfg := cfgWithService()
-	driver := mockDriver(t, map[string]any{
+	driver := mockToolDriver(t, map[string]any{
 		"found":     true,
 		"framing":   "json",
 		"type_path": "type",
@@ -84,14 +82,32 @@ func TestInfer_RolesPopulated(t *testing.T) {
 	assert.Equal(t, 5, role.Handshake.Timeout)
 }
 
-// TestInfer_UnparseableHidesRaw mirrors authdiscover's leak guard: a parse
-// failure must return a static message and must NOT embed the raw LLM body.
-func TestInfer_UnparseableHidesRaw(t *testing.T) {
-	driver := mockDriverRaw(t, "not json at all SECRET-MARKER-XYZ")
+// TestInfer_ZeroToolCalls_IsHardErrorNotErrNoProtocol is the negative-verification
+// guard for drift: when the model returns no tool call, Infer must surface a hard
+// error rather than collapsing into the clean not-found path. This RED-fails if
+// a future change reports drift as ErrNoProtocol.
+func TestInfer_ZeroToolCalls_IsHardErrorNotErrNoProtocol(t *testing.T) {
+	driver := mockEmptyDriver(t)
 	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
 	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "SECRET-MARKER-XYZ")
-	assert.False(t, errors.Is(err, ErrNoProtocol), "parse failure must not be reported as ErrNoProtocol")
+	require.NotErrorIs(t, err, ErrNoProtocol, "drift (zero tool calls) is a hard error, not a clean not-found")
+}
+
+// TestInfer_InvalidCredentialRef_IsHardError guards the validation-failure path:
+// the tool call parsed but referenced a nonexistent actor. The error must carry
+// the validation cause, must NOT be ErrNoProtocol, and must not leak the raw
+// tool input.
+func TestInfer_InvalidCredentialRef_IsHardError(t *testing.T) {
+	driver := mockToolDriver(t, map[string]any{
+		"found":     true,
+		"framing":   "json",
+		"type_path": "type",
+		"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "ghost"},
+	})
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrNoProtocol)
+	assert.NotContains(t, err.Error(), "raw", "error must not leak raw LLM response")
 }
 
 func cfgWithService() *project.Config {
@@ -101,22 +117,21 @@ func cfgWithService() *project.Config {
 	}
 }
 
-// mockDriver builds an *ai.Driver whose Decide parses the JSON-encoded form of
-// out. It mirrors the authdiscover test helper (driverReturning): a canned
-// llm.MockClient keyed on "default" wrapped in ai.NewDriver. No real LLM is
-// contacted, and no credential values are sent anywhere.
-func mockDriver(t *testing.T, out any) *ai.Driver {
+// mockToolDriver presets a single protocol_draft tool call returned regardless
+// of prompt (key "default" matches any prompt per MockClient.matchKey).
+func mockToolDriver(t *testing.T, input map[string]any) *ai.Driver {
 	t.Helper()
-	raw, err := json.Marshal(out)
-	require.NoError(t, err)
-	return mockDriverRaw(t, string(raw))
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("default", []llm.ToolCall{
+		{Name: "protocol_draft", Input: input},
+	})
+	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
 }
 
-// mockDriverRaw wraps an arbitrary canned response (used by the unparseable
-// test, which needs non-JSON input).
-func mockDriverRaw(t *testing.T, resp string) *ai.Driver {
+// mockEmptyDriver returns no tool calls (simulates drift).
+func mockEmptyDriver(t *testing.T) *ai.Driver {
 	t.Helper()
-	mock := llm.NewMockClient(map[string]string{"default": resp})
+	mock := llm.NewMockClient(nil) // no SetToolResponse -> empty ToolCalls
 	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
 }
 
