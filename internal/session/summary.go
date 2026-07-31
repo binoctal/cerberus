@@ -60,6 +60,10 @@ type SessionSummary struct {
 	// redispatch_hint on independent Fail units), surfaced so the report shows
 	// what the repair loop acted on. Nil when there are no correctable failures.
 	FailureHints map[string]int `json:"failure_hints,omitempty"`
+	// NonRepairableFailures counts correctable failures (non-none hint) on case
+	// types the repair mechanism cannot fix (process_exec, code_*, browser, ...).
+	// Surfaced so an operator understands why the repair loop skipped them.
+	NonRepairableFailures int `json:"non_repairable_failures,omitempty"`
 }
 
 // plannedCaseCount returns the number of real role units in a plan, excluding
@@ -142,6 +146,10 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 					s.FailureHints = map[string]int{}
 				}
 				s.FailureHints[string(v.RedispatchHint)]++
+				if tc != nil && !isRepairable(tc) {
+					// Correctable cause but a case type repair_case cannot emit.
+					s.NonRepairableFailures++
+				}
 			}
 			if tc != nil && recoveredPrimaryIDs[tc.ID] {
 				// Reclassified out of Failed into Recovered (FallbackFor or
@@ -211,14 +219,24 @@ func (s *SessionSummary) String() string {
   Pending review: %d
   Reflections stored: %d (failure + success)
   Total tokens: ~%dK
-  Duration: %s%s%s`,
+  Duration: %s%s%s%s`,
 		s.Passed, s.Failed, s.Skipped, s.Uncertain, s.Recovered,
 		s.PendingReview,
 		s.ReflectionsStored,
 		s.TotalTokens/1000,
 		s.Duration,
 		s.coverageRecoveredLine(),
-		s.failureHintsLine())
+		s.failureHintsLine(),
+		s.nonRepairableLine())
+}
+
+// nonRepairableLine notes how many correctable failures were skipped because
+// their case type is not repairable (process_exec, code, ...). Empty when 0.
+func (s *SessionSummary) nonRepairableLine() string {
+	if s.NonRepairableFailures == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n  Non-repairable by type: %d", s.NonRepairableFailures)
 }
 
 // failureHintsLine renders the correctable-failure cause breakdown, e.g.

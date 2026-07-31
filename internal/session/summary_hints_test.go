@@ -57,3 +57,31 @@ func TestSessionSummary_NoFailureHintsWhenClean(t *testing.T) {
 	assert.Nil(t, s.FailureHints)
 	assert.NotContains(t, s.String(), "Failure causes")
 }
+
+// TestSessionSummary_NonRepairableFailures: correctable failures on case types
+// the repair mechanism cannot fix (process_exec, code_*, ...) are counted as
+// NonRepairableFailures and surfaced in the report, so an operator understands
+// why the repair loop did not act on them.
+func TestSessionSummary_NonRepairableFailures(t *testing.T) {
+	verdicts := []examiner.FinalVerdict{
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintShape,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "p1", Action: "process_exec", Target: "go build ./..."}}},
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintEndpointDrift,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "h1", Method: "GET", Target: "/u"}}},
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintShape,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "c1", Action: "code_analyze"}}},
+		// No hint and pass → not counted.
+		{Status: examiner.StatusFail, RedispatchHint: agent.HintNone,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "n1", Method: "GET", Target: "/x"}}},
+		{Status: examiner.StatusPass,
+			StepResult: agent.StepResult{TestCase: &agent.TestCase{ID: "ok", Method: "GET", Target: "/y"}}},
+	}
+	results := []agent.StepResult{}
+	for _, v := range verdicts {
+		results = append(results, v.StepResult)
+	}
+	s := FromResults("g", "", len(verdicts), results, verdicts, 0, 0, 0)
+	assert.Equal(t, 2, s.NonRepairableFailures, "process_exec + code_analyze are non-repairable")
+	out := s.String()
+	assert.Contains(t, out, "Non-repairable by type: 2")
+}
