@@ -27,12 +27,18 @@ type SourceFile struct {
 // inferOutput is the JSON shape the LLM must return (mirrors authdiscover's
 // discoverOutput). The Driver deserializes the response into this struct.
 type inferOutput struct {
-	Found    bool                  `json:"found"`
-	Framing  string                `json:"framing"`
-	TypePath string                `json:"type_path"`
-	Auth     *inferAuth            `json:"auth,omitempty"`
-	Roles    map[string]*inferRole `json:"roles,omitempty"`
-	Notes    string                `json:"notes"`
+	Found    bool                   `json:"found"`
+	Framing  string                 `json:"framing"`
+	TypePath string                 `json:"type_path"`
+	Auth     *inferAuth             `json:"auth,omitempty"`
+	Roles    map[string]*inferRole  `json:"roles,omitempty"`
+	Batches  map[string]*inferBatch `json:"batches,omitempty"`
+	Notes    string                 `json:"notes"`
+}
+
+type inferBatch struct {
+	ItemType  string `json:"item_type"`
+	ItemsPath string `json:"items_path"`
 }
 
 type inferAuth struct {
@@ -52,6 +58,7 @@ type inferRole struct {
 type inferHandshake struct {
 	AwaitType string `json:"await_type"`
 	Timeout   int    `json:"timeout"`
+	Optional  bool   `json:"optional"`
 }
 
 // Infer asks the LLM to draft a protocol description from the given inputs,
