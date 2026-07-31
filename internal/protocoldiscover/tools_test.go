@@ -73,3 +73,41 @@ func TestArgsToProtocol_OmitsAbsentOptionals(t *testing.T) {
 	assert.Nil(t, p.Batches)
 	assert.Nil(t, p.Auth)
 }
+
+func TestProtocolDraftTool_SchemaCoversAllStructures(t *testing.T) {
+	tool := protocolDraftTool()
+	assert.Equal(t, "protocol_draft", tool.Name)
+
+	top := tool.InputSchema
+	assert.Equal(t, "object", top["type"])
+	props := top["properties"].(map[string]any)
+
+	for _, field := range []string{"found", "framing", "type_path", "auth", "roles", "batches", "notes"} {
+		assert.Contains(t, props, field, "schema missing top-level field %q", field)
+	}
+
+	// roles.<role>.handshake must expose `optional` (peer-gated conditional
+	// handshake). Navigate the nested object schema.
+	rolesProp := props["roles"].(map[string]any)
+	assert.Equal(t, "object", rolesProp["type"])
+	rolesProps := rolesProp["additionalProperties"].(map[string]any)
+	roleProps := rolesProps["properties"].(map[string]any)
+	handshake := roleProps["handshake"].(map[string]any)
+	handshakeProps := handshake["properties"].(map[string]any)
+	assert.Contains(t, handshakeProps, "optional", "handshake schema must expose optional")
+
+	// batches.<key> exposes item_type + items_path.
+	batchesProp := props["batches"].(map[string]any)
+	batchesProps := batchesProp["additionalProperties"].(map[string]any)
+	batchProps := batchesProps["properties"].(map[string]any)
+	assert.Contains(t, batchProps, "item_type")
+	assert.Contains(t, batchProps, "items_path")
+}
+
+func TestProtocolDraftTool_SchemaHasNoPathParam(t *testing.T) {
+	tool := protocolDraftTool()
+	props := tool.InputSchema["properties"].(map[string]any)
+	for _, banned := range []string{"path_params", "url", "path"} {
+		assert.NotContains(t, props, banned, "path-param concerns belong to the actor/auth layer, not Protocol")
+	}
+}

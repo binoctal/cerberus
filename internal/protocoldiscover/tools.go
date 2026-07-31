@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
 
@@ -62,4 +63,55 @@ func argsToProtocol(input map[string]any) (*project.Protocol, error) {
 		}
 	}
 	return p, nil
+}
+
+// protocolDraftTool is the typed tool Infer offers the LLM. Its InputSchema is
+// hand-written (cerberus has no struct->schema reflection; this mirrors Scout's
+// tools.go). The schema is the inferable subset of project.Protocol plus a
+// `found` flag that lets the model explicitly signal "no WS protocol here"
+// (distinct from drift — see Infer's zero-tool-call handling).
+func protocolDraftTool() llm.Tool {
+	str := func() map[string]any { return map[string]any{"type": "string"} }
+	return llm.Tool{
+		Name:        "protocol_draft",
+		Description: "Draft a WebSocket protocol declaration from the provided docs/source. Call this once; set found=false if no WS protocol is described.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"found":     map[string]any{"type": "boolean", "description": "true if a WS protocol is described; false otherwise."},
+				"framing":   map[string]any{"type": "string", "enum": []any{"json", "text", "binary"}},
+				"type_path": map[string]any{"type": "string", "description": "Dotted JSON path to the routing key (e.g. \"type\", \"payload.kind\")."},
+				"auth": map[string]any{"type": "object", "properties": map[string]any{
+					"strategy":       map[string]any{"type": "string", "enum": []any{"query", "header", "subprotocol"}},
+					"param":          str(),
+					"credential_ref": str(),
+				}},
+				"roles": map[string]any{
+					"type":        "object",
+					"description": "Named connection types (e.g. web, bridge). Keys are role names.",
+					"additionalProperties": map[string]any{"type": "object", "properties": map[string]any{
+						"credential_ref": str(),
+						"params":         map[string]any{"type": "object"},
+						"headers":        map[string]any{"type": "object"},
+						"subprotocols":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"handshake": map[string]any{"type": "object", "description": "Mandatory/best-effort post-connect exchange.", "properties": map[string]any{
+							"await_type": str(),
+							"timeout":    map[string]any{"type": "number"},
+							"optional":   map[string]any{"type": "boolean", "description": "true = best-effort: a timeout still succeeds the connect (peer-gated handshake)."},
+						}},
+					}},
+				},
+				"batches": map[string]any{
+					"type":        "object",
+					"description": "Batch decomposition: when a frame's routing key matches a key here, expand the array at items_path into item_type frames.",
+					"additionalProperties": map[string]any{"type": "object", "properties": map[string]any{
+						"item_type":  str(),
+						"items_path": str(),
+					}},
+				},
+				"notes": str(),
+			},
+			"required": []any{"found"},
+		},
+	}
 }
