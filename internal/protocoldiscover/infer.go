@@ -135,24 +135,22 @@ func actorsOf(cfg *project.Config) []project.Actor {
 	return cfg.Actors
 }
 
-// buildInferPrompt assembles the prompt (PROVISIONAL content — tune via
-// dogfooding). It MUST inline the JSON shape because ai.Driver.Decide does not
-// inject the schema into the prompt — it only parses the response. It never
-// includes credential values; credential_ref names an actor, it is not a token.
+// buildInferPrompt assembles the prompt. It describes WHAT to recognize and
+// leaves the JSON shape to the protocol_draft tool schema (the tool definition
+// carries it; the prompt no longer hand-writes a shape block). It never
+// includes credential values — credential_ref names an actor, it is not a token.
 func buildInferPrompt(serviceName string, inputs []SourceFile) string {
 	var b strings.Builder
 	b.WriteString("You are drafting a WebSocket protocol description for a cerberus test config.\n")
-	b.WriteString("From the docs/message examples below, infer: the wire framing, the routing-key path, how auth is attached, and any connection roles.\n")
+	b.WriteString("Read the docs/source below and call the protocol_draft tool once with what you infer.\n")
 	fmt.Fprintf(&b, "The target service is %q.\n\n", serviceName)
-	b.WriteString("Respond with ONLY a JSON object of this shape:\n")
-	b.WriteString("{\n")
-	b.WriteString("  \"found\": <true if a WS protocol is described, false otherwise>,\n")
-	b.WriteString("  \"framing\": \"json\",                      // json | text | binary\n")
-	b.WriteString("  \"type_path\": \"type\",                    // dotted path to the routing key\n")
-	b.WriteString("  \"auth\": {\"strategy\":\"query\",\"param\":\"token\",\"credential_ref\":\"<actor>\"},\n")
-	b.WriteString("  \"roles\": {\"web\": {\"credential_ref\":\"<actor>\",\"params\":{\"type\":\"web\"},\"handshake\":{\"await_type\":\"ready\",\"timeout\":5}}},\n")
-	b.WriteString("  \"notes\": \"one-line rationale\"\n")
-	b.WriteString("}\n\n")
+	b.WriteString("Recognize and fill these structures where present:\n")
+	b.WriteString("- Wire framing (json/text/binary) and the envelope: the dotted path to the message routing key (e.g. a {type,payload,...} envelope -> type_path \"type\").\n")
+	b.WriteString("- How auth is attached (query param / header / subprotocol) and which actor supplies it.\n")
+	b.WriteString("- Connection roles: distinct connection types (e.g. web, bridge) and their discriminator params/headers/subprotocols.\n")
+	b.WriteString("- Post-connect handshake: a message the server sends (or you must send) right after connect. If it is peer-gated (only sent when a peer socket is online), set handshake.optional=true so a timeout does not fail the connect.\n")
+	b.WriteString("- Message batching: if the server coalesces frames (e.g. emits a batch type carrying an array), record the batch routing key with item_type (per-item routing key) and items_path (dotted path to the array).\n\n")
+	b.WriteString("If no WebSocket protocol is described, call protocol_draft with found=false.\n")
 	b.WriteString("credential_ref MUST name an actor that exists in project.yaml — NEVER invent one, and NEVER include real credential values or tokens.\n\n")
 	for _, f := range inputs {
 		b.WriteString("--- " + filepath.Base(f.Path) + " ---\n")

@@ -120,6 +120,21 @@ func mockDriverRaw(t *testing.T, resp string) *ai.Driver {
 	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
 }
 
+func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
+	prompt := buildInferPrompt("rt", []SourceFile{{Path: "room.ts", Content: "..."}})
+
+	// The four in-scope structures must be called out so the model knows to
+	// populate the corresponding tool fields.
+	for _, want := range []string{"envelope", "batch", "handshake", "role"} {
+		assert.Contains(t, prompt, want, "prompt must guide recognition of %q", want)
+	}
+	// The prompt must no longer hand-write a JSON shape block (the tool schema
+	// now carries the shape). The legacy marker was the literal `"found":`.
+	assert.NotContains(t, prompt, `"found":`, "prompt must not hand-write the JSON shape; the tool schema owns it")
+	// credential_ref safety constraint must remain.
+	assert.Contains(t, prompt, "credential_ref")
+}
+
 // TestTruncateContent_RuneSafe guards against byte-slicing a multi-byte rune at
 // the truncation point: the output must remain valid UTF-8. "世界" is 2 runes /
 // 6 bytes; byte-slicing at an odd boundary would split the second rune.
