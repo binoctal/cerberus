@@ -179,3 +179,34 @@ func TestAssembleRepair_EmptyStepsFallsBackToHTTP(t *testing.T) {
 	assert.Equal(t, "GET", out[0].Method)
 	assert.NotEqual(t, "ws_flow", out[0].Action)
 }
+
+// TestAssembleRepair_DropsMalformedWSSteps: a repair_case whose steps contain
+// an action outside {ws_connect, ws_send, ws_receive, ws_disconnect} is dropped
+// rather than producing a broken ws_flow. Valid steps are still assembled.
+func TestAssembleRepair_DropsMalformedWSSteps(t *testing.T) {
+	failures := []RepairInput{
+		{Case: agent.TestCase{ID: "ws-1", Action: "ws_flow",
+			Steps: []agent.TestStep{{Action: "ws_connect"}}}, Hint: agent.HintWsMatch},
+	}
+	// Valid steps → replacement produced.
+	valid := []llm.ToolCall{{Name: "repair_case", Input: map[string]any{
+		"replaces": "ws-1",
+		"steps": []any{
+			map[string]any{"action": "ws_connect", "connection_id": "web"},
+			map[string]any{"action": "ws_receive", "connection_id": "web", "type": "hello"},
+		},
+	}}}
+	out := assembleRepair(valid, failures)
+	require.Len(t, out, 1, "valid steps → replacement")
+
+	// One malformed action (typo) → whole emission dropped.
+	malformed := []llm.ToolCall{{Name: "repair_case", Input: map[string]any{
+		"replaces": "ws-1",
+		"steps": []any{
+			map[string]any{"action": "ws_connect", "connection_id": "web"},
+			map[string]any{"action": "ws_sendx"}, // not a real WS verb
+		},
+	}}}
+	out2 := assembleRepair(malformed, failures)
+	assert.Empty(t, out2, "malformed WS step action → emission dropped, not a broken flow")
+}

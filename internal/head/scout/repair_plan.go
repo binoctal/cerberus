@@ -57,18 +57,38 @@ func assembleRepair(calls []llm.ToolCall, failures []RepairInput) []agent.TestCa
 		if !ok || used[idx] {
 			continue
 		}
+		steps := parseRepairSteps(call)
+		if len(steps) > 0 && !validWSSteps(steps) {
+			// Malformed WS repair emission (an unknown step action) — skip it
+			// rather than emit a broken ws_flow that would just fail again.
+			continue
+		}
 		used[idx] = true
-		out = append(out, repairCaseFromCall(call, id))
+		out = append(out, repairCaseFromCall(call, id, steps))
 	}
 	return out
 }
 
+// validWSSteps reports whether every step action is a real WS verb. A repair_case
+// whose steps contain any other action is malformed and is dropped.
+func validWSSteps(steps []agent.TestStep) bool {
+	for _, s := range steps {
+		switch s.Action {
+		case "ws_connect", "ws_send", "ws_receive", "ws_disconnect":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // repairCaseFromCall builds the corrected TestCase from a repair_case emission.
-// When the call carries a `steps` array (a WebSocket flow), it builds a WS case
-// (Action=ws_flow, Steps) mirroring Scout's plan assembly; otherwise it builds
-// the HTTP shape (Target/Method/Body). Replaces binds it to the failed case.
-func repairCaseFromCall(call llm.ToolCall, replaces string) agent.TestCase {
-	if steps := parseRepairSteps(call); len(steps) > 0 {
+// When steps is non-empty (a WebSocket flow), it builds a WS case (Action=
+// ws_flow, Steps) mirroring Scout's plan assembly; otherwise it builds the HTTP
+// shape (Target/Method/Body). Replaces binds it to the failed case. Steps are
+// pre-parsed and validated by the caller (assembleRepair).
+func repairCaseFromCall(call llm.ToolCall, replaces string, steps []agent.TestStep) agent.TestCase {
+	if len(steps) > 0 {
 		return agent.TestCase{
 			ID:          fmt.Sprintf("repair-%s", replaces),
 			Name:        fmt.Sprintf("repair %s", replaces),
