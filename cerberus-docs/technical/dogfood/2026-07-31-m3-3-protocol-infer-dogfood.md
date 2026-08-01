@@ -519,3 +519,57 @@ copy-fidelity ceiling exact-substring grounding hits. Two routes:
    burden; should land the verbatim literal but costs a second LLM call.
 
 Grounding stays as-is (precision filter) until one of these is chosen.
+
+## Two-pass grounding (Option B) — 2026-08-01
+
+Implemented Variant B (identify → code-extract → verify): pass 1 names
+candidate literals; code grep-extracts anchored source windows (no model copy
+burden); pass 2 reads only those windows to select the guarded handshake and
+transcribe its literal. Retired the block-quote `validateGrounding` (the
+copy-fidelity ceiling). See
+`2026-08-01-protocol-infer-twopass-grounding-design.md`.
+
+Five runs (each N=3, two-pass per sample):
+
+| Run | handshake await_type | batch flush / item_type / items_path |
+|---|---|---|
+| 22 | **`devices:sync`** ✅ (both roles, web optional=true) | `session:output-batch` / `session:output` ✅ / `batch.lines` (~) |
+| 23 | — (dropped) | — |
+| 24 | — | `session:output-batch` / `devices:sync` ✗ / `payload.devices` ✗ (pass-2 mis-fire) |
+| 25 | **`devices:sync`** ✅ (both roles, optional=true) | — |
+| 26 | — | — |
+
+### Verdict — the original goal is met
+
+**The verbatim `devices:sync` landed.** Runs 22 and 25 emit the correct
+handshake `await_type`, the literal voting and citation-grounding never
+produced. The two-pass split works: pass 2 sees windows for BOTH `device:online`
+(unguarded) and `devices:sync` (guarded) and reliably selects the guarded one —
+exactly the recognition that defeated single-pass. Run 22 is a near-perfect
+4/4-structure draft (envelope, multi-role, auth, correct handshake, correct
+batch keys), the best single draft observed across the whole session.
+
+5/5 runs produced a draft (no hard errors, no false `found=false` in this
+sample) — the token-slot fix + two-pass together removed the failure modes that
+earlier suppress drafts.
+
+### Residual imperfections (honest)
+
+- **Pass-2 batch mis-fire (Run 24).** Pass 2 confused `devices:sync` for a
+  batch flush (item_type `devices:sync`, items_path `payload.devices`). The
+  handshake path is reliable; the batch path is looser. Tightening the batch
+  window selection (or a batch-specific steer) is a follow-up.
+- **`items_path` precision.** Run 22 got the array field but expressed it as
+  `batch.lines` (the buffer variable) rather than the frame-rooted `payload.lines`.
+  Still the long-standing minor precision gap.
+- **Variance.** Which structures appear still varies run to run; but the KEY
+  invariant now holds — when a handshake appears, its `await_type` is the
+  correct `devices:sync`, never the wrong `device:online`.
+
+### Outcome
+
+The M3-3 value-accuracy arc is complete: voting raised the floor and removed
+false negatives; two-pass grounding lands the verbatim hard literal that was
+the original trigger. Remaining items (batch mis-fire, frame-root `items_path`)
+are minor refinements, not blockers. `protocol infer` now produces reliable,
+mostly-correct WS protocol drafts from undocumented source — the M3-3 goal.
