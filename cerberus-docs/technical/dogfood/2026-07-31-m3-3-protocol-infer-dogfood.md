@@ -381,3 +381,64 @@ with that future change (best-of-N over grounded samples).
 
 The T1–T4 pipeline plus voting is the new baseline; further value-accuracy
 gains now require the architectural follow-up, not more prompt wording.
+
+## Grounded literals — 2026-08-01
+
+Implemented citation + source-existence validation: `protocol_draft` now
+carries a verbatim `source` quote on each handshake and batch, and
+`validateGrounding` rejects samples whose quote is not a substring of the input
+corpus (`reasonUngrounded`, dropped by voting). The intent was to land the
+verbatim `devices:sync` that voting could not. Re-ran the same target with the
+new default (`--samples 3`, now with grounding).
+
+Setup unchanged; `build/cerberus` rebuilt after the grounding change.
+
+Eight runs (each internally N=3):
+
+| Run | Outcome | handshake | batches |
+|---|---|---|---|
+| 14 | draft | — | — |
+| 15 | hard error: "1 parse, 2 invalid" | — | — |
+| 16 | draft | — | — |
+| 17 | no protocol found (ErrNoProtocol) | — | — |
+| 18 | hard error: "1 parse, 2 invalid" | — | — |
+| 19 | draft | — | — |
+| 20 | no protocol found | — | — |
+| 21 | no protocol found | — | — |
+
+### Findings — a net regression
+
+- **0/8 drafts contained a batch or a handshake.** Compare the voting pass
+  (Runs 9–13): batches appeared in 3/4 drafts and `items_path` was reliably
+  correct. Grounding suppressed both hard structures entirely.
+- **No "ungrounded" reason appeared in any run.** The model is not citing-then-
+  getting-rejected; it is **omitting** the structures up front. The prompt's
+  stern "a snippet not found verbatim is rejected" makes the model opt out
+  rather than attempt a quote it is unsure it can match exactly.
+- **False negatives rose.** "no protocol found" hit 3/8 (vs 0/5 in the voting
+  pass). The added friction pushes more samples toward `found=false` or
+  invalid. Drafts that do print are roles+auth+envelope only.
+
+### Verdict
+
+The grounding mechanism works mechanically (it would reject an invented
+literal), but its behavioural side effect defeats the purpose: rather than
+ground the hard literals, the model drops them. Exact-match citation is too
+strict for the model's copy fidelity, and the threat of rejection pushes it
+toward omission. Net effect is **worse than voting-alone** (lost batching, more
+false negatives).
+
+This is a genuine negative result, not a tuning issue. Two paths forward:
+
+1. **Soften the matcher + the wording** — a whitespace-normalizing substring
+   match, and prompt copy that frames the citation as helpful rather than a
+   rejection threat. May reduce opt-out, but the model's core uncertainty about
+   verbatim copy is unchanged.
+2. **Two-stage locate→read (the deferred Option B)** — the locate call returns
+   the grounded span; the read call transcribes off that anchored span. This
+   does not require the model to copy a long verbatim snippet in one shot, so
+   it should not trigger the opt-out. This is now the recommended next step;
+   citation-grounding is retired as the approach.
+
+Grounding citation stays in the tree as a reversible experiment; the voting
+baseline (Runs 9–13) remains the better default until Option B lands.
