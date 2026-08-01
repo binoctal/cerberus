@@ -10,6 +10,8 @@ import (
 type MockClient struct {
 	responses     map[string]string
 	toolResponses map[string][]ToolCall
+	toolSequences map[string][][]ToolCall
+	toolSeqIdx    map[string]int
 }
 
 func NewMockClient(responses map[string]string) *MockClient {
@@ -26,6 +28,20 @@ func (m *MockClient) SetToolResponse(key string, calls []ToolCall) {
 	m.toolResponses[key] = calls
 }
 
+// SetToolResponseSequence presets a rotating tool_use sequence for a prompt
+// key. Each matching Complete call advances to the next element; when the
+// sequence is exhausted the last element is held. A sequence takes precedence
+// over a single-fixture SetToolResponse for the same key. This lets tests
+// represent run-to-run variance (successive identical prompts yielding
+// different drafts), which the single-fixture setter cannot.
+func (m *MockClient) SetToolResponseSequence(key string, sequence [][]ToolCall) {
+	if m.toolSequences == nil {
+		m.toolSequences = map[string][][]ToolCall{}
+		m.toolSeqIdx = map[string]int{}
+	}
+	m.toolSequences[key] = sequence
+}
+
 func (m *MockClient) Complete(ctx context.Context, req Request) (*Response, error) {
 	key := m.matchKey(strings.Join(func() []string {
 		var contents []string
@@ -35,7 +51,7 @@ func (m *MockClient) Complete(ctx context.Context, req Request) (*Response, erro
 		return contents
 	}(), " "))
 
-	if calls, ok := m.toolResponses[key]; ok {
+	if calls, ok := m.nextToolCalls(key); ok {
 		return &Response{
 			Content:    "",
 			ToolCalls:  calls,
@@ -99,12 +115,34 @@ func (m *MockClient) Stream(ctx context.Context, req Request) (<-chan StreamEven
 	return ch, nil
 }
 
+// nextToolCalls resolves the tool calls for a matched key. A rotating sequence
+// (if present) takes precedence over a single-fixture response; the sequence
+// index advances per call and clamps to the last element when exhausted.
+func (m *MockClient) nextToolCalls(key string) ([]ToolCall, bool) {
+	if seq, ok := m.toolSequences[key]; ok {
+		idx := m.toolSeqIdx[key]
+		if idx >= len(seq) {
+			idx = len(seq) - 1
+		} else {
+			m.toolSeqIdx[key] = idx + 1
+		}
+		return seq[idx], true
+	}
+	if calls, ok := m.toolResponses[key]; ok {
+		return calls, true
+	}
+	return nil, false
+}
+
 func (m *MockClient) matchKey(input string) string {
 	// Exact match takes priority — preserves TestMockClient_MatchKeyConsultsToolResponses.
 	if _, ok := m.responses[input]; ok {
 		return input
 	}
 	if _, ok := m.toolResponses[input]; ok {
+		return input
+	}
+	if _, ok := m.toolSequences[input]; ok {
 		return input
 	}
 	// Substring fallback for tool responses only. Supports the common test
@@ -127,8 +165,12 @@ func (m *MockClient) matchKey(input string) string {
 	// "default" fallback for tool responses, mirroring the text-response
 	// default idiom. Lets tests preset a single tool-call fixture that matches
 	// any prompt (e.g. the ReAct steer tests), instead of having to key on a
-	// prompt substring.
+	// prompt substring. Consults both the single-fixture map and the rotating
+	// sequence store so a sequence-only "default" also matches any prompt.
 	if _, ok := m.toolResponses["default"]; ok {
+		return "default"
+	}
+	if _, ok := m.toolSequences["default"]; ok {
 		return "default"
 	}
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(input)))[:8]
