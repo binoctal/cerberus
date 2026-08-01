@@ -66,11 +66,11 @@ func TestInfer_RolesPopulated(t *testing.T) {
 			"web": map[string]any{
 				"credential_ref": "web",
 				"params":         map[string]any{"type": "web"},
-				"handshake":      map[string]any{"await_type": "ready", "timeout": 5},
+				"handshake":      map[string]any{"await_type": "ready", "timeout": 5, "source": "if (ready) ws.send({type: 'ready'})"},
 			},
 		},
 	})
-	p, err := Infer(context.Background(), driver, cfg, "rt", nil, 1)
+	p, err := Infer(context.Background(), driver, cfg, "rt", []SourceFile{{Path: "room.ts", Content: "if (ready) ws.send({type: 'ready'})"}}, 1)
 	require.NoError(t, err)
 	require.NotNil(t, p)
 	require.Contains(t, p.Roles, "web")
@@ -245,17 +245,20 @@ func TestInfer_Voting_PicksHigherScored(t *testing.T) {
 		"auth": map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
 	}
 	complete := validInput()
+	handshakeQuote := "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"
+	batchQuote := "type: 'session:output-batch', payload: { lines }"
 	complete["roles"] = map[string]any{
 		"web": map[string]any{
 			"credential_ref": "web",
-			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5},
+			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5, "source": handshakeQuote},
 		},
 	}
 	complete["batches"] = map[string]any{
-		"session:output-batch": map[string]any{"item_type": "session:output", "items_path": "payload.lines"},
+		"session:output-batch": map[string]any{"item_type": "session:output", "items_path": "payload.lines", "source": batchQuote},
 	}
 	driver := mockSequenceDriver(t, []map[string]any{partial, complete, partial})
-	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
+	corpus := []SourceFile{{Content: handshakeQuote + "\n" + batchQuote}}
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", corpus, 3)
 	require.NoError(t, err)
 	require.NotNil(t, p)
 	require.Contains(t, p.Roles, "web", "must pick the complete (scored-higher) draft")
@@ -291,6 +294,97 @@ func TestInfer_SamplesClampsToOne(t *testing.T) {
 	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 0)
 	require.NoError(t, err)
 	require.NotNil(t, p)
+}
+
+func TestValidateGrounding_HandshakeSourcePresent(t *testing.T) {
+	input := map[string]any{
+		"roles": map[string]any{"web": map[string]any{
+			"handshake": map[string]any{"await_type": "devices:sync", "source": "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"},
+		}},
+	}
+	inputs := []SourceFile{{Content: "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"}}
+	assert.NoError(t, validateGrounding(input, inputs))
+}
+
+func TestValidateGrounding_HandshakeSourceAbsent(t *testing.T) {
+	input := map[string]any{
+		"roles": map[string]any{"web": map[string]any{
+			"handshake": map[string]any{"await_type": "devices:sync", "source": "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"},
+		}},
+	}
+	err := validateGrounding(input, []SourceFile{{Content: "totally unrelated source"}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ungrounded")
+	// Leak guard: the raw quote must not echo back in the error.
+	assert.NotContains(t, err.Error(), "devices:sync")
+}
+
+func TestValidateGrounding_HandshakeMissingSource(t *testing.T) {
+	input := map[string]any{
+		"roles": map[string]any{"web": map[string]any{
+			"handshake": map[string]any{"await_type": "devices:sync"},
+		}},
+	}
+	err := validateGrounding(input, []SourceFile{{Content: "whatever"}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ungrounded")
+}
+
+func TestValidateGrounding_BatchSourceChecked(t *testing.T) {
+	good := map[string]any{
+		"batches": map[string]any{"session:output-batch": map[string]any{
+			"item_type": "session:output", "items_path": "payload.lines",
+			"source": "type: 'session:output-batch', payload: { lines }",
+		}},
+	}
+	assert.NoError(t, validateGrounding(good, []SourceFile{{Content: "type: 'session:output-batch', payload: { lines }"}}))
+
+	bad := map[string]any{
+		"batches": map[string]any{"session:output-batch": map[string]any{
+			"source": "type: 'session:output-batch', payload: { lines }",
+		}},
+	}
+	err := validateGrounding(bad, []SourceFile{{Content: "no match here"}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ungrounded")
+}
+
+func TestValidateGrounding_NoHardLiterals(t *testing.T) {
+	// No handshake, no batches -> nothing to ground -> nil regardless of inputs.
+	assert.NoError(t, validateGrounding(map[string]any{"found": true, "framing": "json"}, nil))
+}
+
+func TestInferOnce_UngroundedHandshake(t *testing.T) {
+	cfg := cfgWithService()
+	driver := mockToolDriver(t, map[string]any{
+		"found":     true,
+		"framing":   "json",
+		"type_path": "type",
+		"roles": map[string]any{"web": map[string]any{
+			"credential_ref": "web",
+			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5, "source": "NOT IN INPUTS"},
+		}},
+	})
+	s := inferOnce(context.Background(), driver, cfg, "rt", []SourceFile{{Content: "unrelated"}})
+	assert.Equal(t, outcomeFailed, s.outcome)
+	assert.Equal(t, reasonUngrounded, s.reason)
+}
+
+func TestInferOnce_GroundedHandshake(t *testing.T) {
+	cfg := cfgWithService()
+	quote := "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"
+	driver := mockToolDriver(t, map[string]any{
+		"found":     true,
+		"framing":   "json",
+		"type_path": "type",
+		"roles": map[string]any{"web": map[string]any{
+			"credential_ref": "web",
+			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5, "source": quote},
+		}},
+	})
+	s := inferOnce(context.Background(), driver, cfg, "rt", []SourceFile{{Content: quote}})
+	assert.Equal(t, outcomeFound, s.outcome)
+	require.NotNil(t, s.proto)
 }
 
 func TestScoreProtocol_CompleteBeatsPartial(t *testing.T) {

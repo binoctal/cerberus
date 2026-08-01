@@ -77,10 +77,11 @@ const (
 type failReason string
 
 const (
-	reasonDrift   failReason = "drift"
-	reasonParse   failReason = "parse"
-	reasonInvalid failReason = "invalid"
-	reasonInfra   failReason = "infra"
+	reasonDrift      failReason = "drift"
+	reasonParse      failReason = "parse"
+	reasonInvalid    failReason = "invalid"
+	reasonInfra      failReason = "infra"
+	reasonUngrounded failReason = "ungrounded"
 )
 
 // sample is the result of one inference attempt.
@@ -122,7 +123,63 @@ func inferOnce(ctx context.Context, driver *ai.Driver, cfg *project.Config, serv
 		// so it is safe to surface as actionable detail.
 		return sample{outcome: outcomeFailed, reason: reasonInvalid, detail: err.Error()}
 	}
+	if err := validateGrounding(input, inputs); err != nil {
+		return sample{outcome: outcomeFailed, reason: reasonUngrounded, detail: err.Error()}
+	}
 	return sample{outcome: outcomeFound, proto: p}
+}
+
+// validateGrounding checks that every hard literal the model cited — a role
+// handshake's await_type and a batch's flush block — is backed by a verbatim
+// source quote that actually appears in the input files. It reads the raw tool
+// input map (not the assembled Protocol) so the transient `source` evidence
+// never enters project.Protocol. A handshake/batch present without a source
+// quote, or whose quote is not a substring of the joined input corpus, is
+// "ungrounded". The error names only the failure mode; it never includes the
+// raw quote or any model payload.
+func validateGrounding(input map[string]any, inputs []SourceFile) error {
+	var corp strings.Builder
+	for _, f := range inputs {
+		corp.WriteString(f.Content)
+	}
+	corpus := corp.String()
+
+	if roles, ok := input["roles"].(map[string]any); ok {
+		for _, r := range roles {
+			rm, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			hs, ok := rm["handshake"].(map[string]any)
+			if !ok {
+				continue
+			}
+			src, _ := hs["source"].(string)
+			if strings.TrimSpace(src) == "" {
+				return errors.New("handshake await_type ungrounded: no source quote")
+			}
+			if !strings.Contains(corpus, src) {
+				return errors.New("handshake await_type ungrounded: source quote not found in inputs")
+			}
+		}
+	}
+
+	if batches, ok := input["batches"].(map[string]any); ok {
+		for _, b := range batches {
+			bm, ok := b.(map[string]any)
+			if !ok {
+				continue
+			}
+			src, _ := bm["source"].(string)
+			if strings.TrimSpace(src) == "" {
+				return errors.New("batch flush block ungrounded: no source quote")
+			}
+			if !strings.Contains(corpus, src) {
+				return errors.New("batch flush block ungrounded: source quote not found in inputs")
+			}
+		}
+	}
+	return nil
 }
 
 // selectProtocol applies the voting rules to N samples:
@@ -205,7 +262,7 @@ func summarizeFailures(samples []sample) string {
 		}
 	}
 	var parts []string
-	for _, r := range []failReason{reasonInfra, reasonDrift, reasonParse, reasonInvalid} {
+	for _, r := range []failReason{reasonInfra, reasonDrift, reasonParse, reasonInvalid, reasonUngrounded} {
 		if counts[r] > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", counts[r], r))
 		}
