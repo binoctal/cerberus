@@ -134,15 +134,15 @@ func inferOnce(ctx context.Context, driver *ai.Driver, cfg *project.Config, serv
 // source quote that actually appears in the input files. It reads the raw tool
 // input map (not the assembled Protocol) so the transient `source` evidence
 // never enters project.Protocol. A handshake/batch present without a source
-// quote, or whose quote is not a substring of the joined input corpus, is
-// "ungrounded". The error names only the failure mode; it never includes the
-// raw quote or any model payload.
+// quote, or whose quote is not a (whitespace-normalized) substring of the
+// joined input corpus, is "ungrounded". The error names only the failure mode;
+// it never includes the raw quote or any model payload.
 func validateGrounding(input map[string]any, inputs []SourceFile) error {
 	var corp strings.Builder
 	for _, f := range inputs {
 		corp.WriteString(f.Content)
 	}
-	corpus := corp.String()
+	corpus := normalizeWS(corp.String())
 
 	if roles, ok := input["roles"].(map[string]any); ok {
 		for _, r := range roles {
@@ -158,7 +158,7 @@ func validateGrounding(input map[string]any, inputs []SourceFile) error {
 			if strings.TrimSpace(src) == "" {
 				return errors.New("handshake await_type ungrounded: no source quote")
 			}
-			if !strings.Contains(corpus, src) {
+			if !strings.Contains(corpus, normalizeWS(src)) {
 				return errors.New("handshake await_type ungrounded: source quote not found in inputs")
 			}
 		}
@@ -174,12 +174,21 @@ func validateGrounding(input map[string]any, inputs []SourceFile) error {
 			if strings.TrimSpace(src) == "" {
 				return errors.New("batch flush block ungrounded: no source quote")
 			}
-			if !strings.Contains(corpus, src) {
+			if !strings.Contains(corpus, normalizeWS(src)) {
 				return errors.New("batch flush block ungrounded: source quote not found in inputs")
 			}
 		}
 	}
 	return nil
+}
+
+// normalizeWS collapses every run of whitespace (spaces, tabs, newlines) into a
+// single space and trims the ends. validateGrounding compares normalized
+// corpus against normalized quotes so a substantively-correct quote with
+// different indentation than the source still matches (copy fidelity), while a
+// genuine misquote (different tokens) still fails.
+func normalizeWS(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // selectProtocol applies the voting rules to N samples:

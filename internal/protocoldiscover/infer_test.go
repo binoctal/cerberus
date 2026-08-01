@@ -349,6 +349,21 @@ func TestValidateGrounding_BatchSourceChecked(t *testing.T) {
 	assert.Contains(t, err.Error(), "ungrounded")
 }
 
+func TestValidateGrounding_HandshakeSourceWhitespaceTolerant(t *testing.T) {
+	// The model often quotes a snippet with different indentation than the
+	// source. Substantively-correct quotes must still match (copy fidelity),
+	// while genuine misquotes (wrong type/call-form) are still rejected because
+	// the token sequence differs.
+	input := map[string]any{
+		"roles": map[string]any{"web": map[string]any{
+			"handshake": map[string]any{"await_type": "device:online", "source": "this.broadcastToWeb({\n          type: 'device:online',\n          payload: { devi"},
+		}},
+	}
+	// Source has different indentation but the same tokens.
+	corpus := "    this.broadcastToWeb({\n\t\ttype: 'device:online',\n      payload: { devi"
+	assert.NoError(t, validateGrounding(input, []SourceFile{{Content: corpus}}))
+}
+
 func TestValidateGrounding_NoHardLiterals(t *testing.T) {
 	// No handshake, no batches -> nothing to ground -> nil regardless of inputs.
 	assert.NoError(t, validateGrounding(map[string]any{"found": true, "framing": "json"}, nil))
