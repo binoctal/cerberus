@@ -66,20 +66,16 @@ func TestInfer_RolesPopulated(t *testing.T) {
 			"web": map[string]any{
 				"credential_ref": "web",
 				"params":         map[string]any{"type": "web"},
-				"handshake":      map[string]any{"await_type": "ready", "timeout": 5, "source": "if (ready) ws.send({type: 'ready'})"},
 			},
 		},
 	})
-	p, err := Infer(context.Background(), driver, cfg, "rt", []SourceFile{{Path: "room.ts", Content: "if (ready) ws.send({type: 'ready'})"}}, 1)
+	p, err := Infer(context.Background(), driver, cfg, "rt", nil, 1)
 	require.NoError(t, err)
 	require.NotNil(t, p)
 	require.Contains(t, p.Roles, "web")
 	role := p.Roles["web"]
 	assert.Equal(t, "web", role.CredentialRef)
 	assert.Equal(t, map[string]string{"type": "web"}, role.Params)
-	require.NotNil(t, role.Handshake)
-	assert.Equal(t, "ready", role.Handshake.AwaitType)
-	assert.Equal(t, 5, role.Handshake.Timeout)
 }
 
 // TestInfer_ZeroToolCalls_IsHardErrorNotErrNoProtocol is the negative-verification
@@ -237,32 +233,25 @@ func TestInfer_Voting_AbsorbsParseFailure(t *testing.T) {
 	require.NotNil(t, p)
 }
 
-// TestInfer_Voting_PicksHigherScored: a complete draft beats a partial one when
-// both are present.
+// TestInfer_Voting_PicksHigherScored: a draft covering more roles beats a
+// thinner one when both are present (scoreProtocol rewards role coverage).
+// Avoids handshake/batch so pass 2 is not engaged — this test is about voting.
 func TestInfer_Voting_PicksHigherScored(t *testing.T) {
 	partial := map[string]any{
 		"found": true, "framing": "json", "type_path": "type",
-		"auth": map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+		"auth":  map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+		"roles": map[string]any{"web": map[string]any{"credential_ref": "web"}},
 	}
 	complete := validInput()
-	handshakeQuote := "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"
-	batchQuote := "type: 'session:output-batch', payload: { lines }"
 	complete["roles"] = map[string]any{
-		"web": map[string]any{
-			"credential_ref": "web",
-			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5, "source": handshakeQuote},
-		},
-	}
-	complete["batches"] = map[string]any{
-		"session:output-batch": map[string]any{"item_type": "session:output", "items_path": "payload.lines", "source": batchQuote},
+		"web":    map[string]any{"credential_ref": "web"},
+		"bridge": map[string]any{"credential_ref": ""},
 	}
 	driver := mockSequenceDriver(t, []map[string]any{partial, complete, partial})
-	corpus := []SourceFile{{Content: handshakeQuote + "\n" + batchQuote}}
-	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", corpus, 3)
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
 	require.NoError(t, err)
 	require.NotNil(t, p)
-	require.Contains(t, p.Roles, "web", "must pick the complete (scored-higher) draft")
-	require.NotNil(t, p.Roles["web"].Handshake)
+	require.Contains(t, p.Roles, "bridge", "must pick the complete (more-roles) draft")
 }
 
 // TestInfer_Voting_AllNotFoundIsErrNoProtocol: unanimous found=false is still a
@@ -296,110 +285,79 @@ func TestInfer_SamplesClampsToOne(t *testing.T) {
 	require.NotNil(t, p)
 }
 
-func TestValidateGrounding_HandshakeSourcePresent(t *testing.T) {
-	input := map[string]any{
-		"roles": map[string]any{"web": map[string]any{
-			"handshake": map[string]any{"await_type": "devices:sync", "source": "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"},
-		}},
-	}
-	inputs := []SourceFile{{Content: "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"}}
-	assert.NoError(t, validateGrounding(input, inputs))
+// mockTwoPassDriver presets pass-1 (protocol_draft) and pass-2 (confirm_signals)
+// fixtures. pass1 routes on the pass-1 prompt substring; pass2 on the pass-2
+// "ANCHORED SOURCE WINDOWS" substring.
+func mockTwoPassDriver(t *testing.T, pass1, pass2 map[string]any) *ai.Driver {
+	t.Helper()
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("drafting a WebSocket protocol description", []llm.ToolCall{{Name: "protocol_draft", Input: pass1}})
+	mock.SetToolResponse("ANCHORED SOURCE WINDOWS", []llm.ToolCall{{Name: "confirm_signals", Input: pass2}})
+	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
 }
 
-func TestValidateGrounding_HandshakeSourceAbsent(t *testing.T) {
-	input := map[string]any{
-		"roles": map[string]any{"web": map[string]any{
-			"handshake": map[string]any{"await_type": "devices:sync", "source": "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"},
-		}},
-	}
-	err := validateGrounding(input, []SourceFile{{Content: "totally unrelated source"}})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ungrounded")
-	// Leak guard: the raw quote must not echo back in the error.
-	assert.NotContains(t, err.Error(), "devices:sync")
-}
-
-func TestValidateGrounding_HandshakeMissingSource(t *testing.T) {
-	input := map[string]any{
-		"roles": map[string]any{"web": map[string]any{
-			"handshake": map[string]any{"await_type": "devices:sync"},
-		}},
-	}
-	err := validateGrounding(input, []SourceFile{{Content: "whatever"}})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ungrounded")
-}
-
-func TestValidateGrounding_BatchSourceChecked(t *testing.T) {
-	good := map[string]any{
-		"batches": map[string]any{"session:output-batch": map[string]any{
-			"item_type": "session:output", "items_path": "payload.lines",
-			"source": "type: 'session:output-batch', payload: { lines }",
-		}},
-	}
-	assert.NoError(t, validateGrounding(good, []SourceFile{{Content: "type: 'session:output-batch', payload: { lines }"}}))
-
-	bad := map[string]any{
-		"batches": map[string]any{"session:output-batch": map[string]any{
-			"source": "type: 'session:output-batch', payload: { lines }",
-		}},
-	}
-	err := validateGrounding(bad, []SourceFile{{Content: "no match here"}})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ungrounded")
-}
-
-func TestValidateGrounding_HandshakeSourceWhitespaceTolerant(t *testing.T) {
-	// The model often quotes a snippet with different indentation than the
-	// source. Substantively-correct quotes must still match (copy fidelity),
-	// while genuine misquotes (wrong type/call-form) are still rejected because
-	// the token sequence differs.
-	input := map[string]any{
-		"roles": map[string]any{"web": map[string]any{
-			"handshake": map[string]any{"await_type": "device:online", "source": "this.broadcastToWeb({\n          type: 'device:online',\n          payload: { devi"},
-		}},
-	}
-	// Source has different indentation but the same tokens.
-	corpus := "    this.broadcastToWeb({\n\t\ttype: 'device:online',\n      payload: { devi"
-	assert.NoError(t, validateGrounding(input, []SourceFile{{Content: corpus}}))
-}
-
-func TestValidateGrounding_NoHardLiterals(t *testing.T) {
-	// No handshake, no batches -> nothing to ground -> nil regardless of inputs.
-	assert.NoError(t, validateGrounding(map[string]any{"found": true, "framing": "json"}, nil))
-}
-
-func TestInferOnce_UngroundedHandshake(t *testing.T) {
-	cfg := cfgWithService()
-	driver := mockToolDriver(t, map[string]any{
-		"found":     true,
-		"framing":   "json",
-		"type_path": "type",
+// TestInferOnce_TwoPassLandsGroundedAwaitType: pass 1 named the wrong literal
+// (device:online); pass 2 selects the guarded devices:sync off the windows.
+func TestInferOnce_TwoPassLandsGroundedAwaitType(t *testing.T) {
+	corpus := "setTimeout connect\nif (onlineDevices.length > 0) ws.send type devices:sync\nbroadcastToWeb type device:online"
+	pass1 := map[string]any{
+		"found": true, "framing": "json", "type_path": "type",
 		"roles": map[string]any{"web": map[string]any{
 			"credential_ref": "web",
-			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5, "source": "NOT IN INPUTS"},
+			"handshake":      map[string]any{"await_type": "device:online", "timeout": 5},
 		}},
-	})
-	s := inferOnce(context.Background(), driver, cfg, "rt", []SourceFile{{Content: "unrelated"}})
-	assert.Equal(t, outcomeFailed, s.outcome)
-	assert.Equal(t, reasonUngrounded, s.reason)
-}
-
-func TestInferOnce_GroundedHandshake(t *testing.T) {
-	cfg := cfgWithService()
-	quote := "if (onlineDevices.length > 0) { ws.send({type: 'devices:sync'})"
-	driver := mockToolDriver(t, map[string]any{
-		"found":     true,
-		"framing":   "json",
-		"type_path": "type",
-		"roles": map[string]any{"web": map[string]any{
-			"credential_ref": "web",
-			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5, "source": quote},
-		}},
-	})
-	s := inferOnce(context.Background(), driver, cfg, "rt", []SourceFile{{Content: quote}})
+	}
+	pass2 := map[string]any{
+		"handshake": map[string]any{"present": true, "await_type": "devices:sync"},
+		"batch":     map[string]any{"present": false},
+	}
+	driver := mockTwoPassDriver(t, pass1, pass2)
+	s := inferOnce(context.Background(), driver, cfgWithService(), "rt", []SourceFile{{Content: corpus}})
 	assert.Equal(t, outcomeFound, s.outcome)
 	require.NotNil(t, s.proto)
+	require.NotNil(t, s.proto.Roles["web"].Handshake)
+	assert.Equal(t, "devices:sync", s.proto.Roles["web"].Handshake.AwaitType, "pass 2 overrode the wrong pass-1 literal")
+}
+
+// TestInferOnce_TwoPassDropsUnconfirmedHandshake: pass 2 says no guarded send
+// -> handshake dropped, sample still Found.
+func TestInferOnce_TwoPassDropsUnconfirmedHandshake(t *testing.T) {
+	corpus := "broadcastToWeb type device:online"
+	pass1 := map[string]any{
+		"found": true, "framing": "json", "type_path": "type",
+		"roles": map[string]any{"web": map[string]any{
+			"credential_ref": "web",
+			"handshake":      map[string]any{"await_type": "device:online", "timeout": 5},
+		}},
+	}
+	pass2 := map[string]any{
+		"handshake": map[string]any{"present": false},
+		"batch":     map[string]any{"present": false},
+	}
+	driver := mockTwoPassDriver(t, pass1, pass2)
+	s := inferOnce(context.Background(), driver, cfgWithService(), "rt", []SourceFile{{Content: corpus}})
+	assert.Equal(t, outcomeFound, s.outcome)
+	assert.Nil(t, s.proto.Roles["web"].Handshake, "unconfirmed handshake dropped")
+}
+
+// TestInferOnce_TwoPassInventsNoCandidate: pass-1 await_type is not in the
+// corpus -> no window -> pass 2 not called -> handshake dropped (absent, not
+// failure), sample Found.
+func TestInferOnce_TwoPassInventsNoCandidate(t *testing.T) {
+	pass1 := map[string]any{
+		"found": true, "framing": "json", "type_path": "type",
+		"roles": map[string]any{"web": map[string]any{
+			"credential_ref": "web",
+			"handshake":      map[string]any{"await_type": "totally-made-up", "timeout": 5},
+		}},
+	}
+	// Only a pass-1 fixture; pass 2 must not be reached.
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponse("drafting a WebSocket protocol description", []llm.ToolCall{{Name: "protocol_draft", Input: pass1}})
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+	s := inferOnce(context.Background(), driver, cfgWithService(), "rt", []SourceFile{{Content: "unrelated source"}})
+	assert.Equal(t, outcomeFound, s.outcome)
+	assert.Nil(t, s.proto.Roles["web"].Handshake, "invented await_type has no window -> handshake dropped")
 }
 
 func TestScoreProtocol_CompleteBeatsPartial(t *testing.T) {
@@ -478,15 +436,13 @@ func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	// Handshake cue names the conditional/guarded-send pattern (dogfood: a
 	// peer-gated devices:sync guarded by `if (peers.length > 0)` was missed).
 	assert.Contains(t, prompt, "guarded", "handshake cue must name the conditional-send pattern")
-	// await_type must be the verbatim type literal, not paraphrased (dogfood:
-	// model emitted "device:online" instead of the source's "devices:sync").
-	assert.Contains(t, prompt, "verbatim", "handshake cue must demand the verbatim type literal")
+	// await_type cue: pass 1 names a best-guess literal; pass 2 verifies.
 
-	// Grounding: the prompt must require a verbatim source quote for the
-	// handshake (guard + type literal) and the batch flush block, copied so it
-	// can be substring-matched against the inputs.
-	assert.Contains(t, prompt, "handshake.source", "prompt must require a handshake source quote")
-	assert.Contains(t, prompt, "batch ... source", "prompt must require a batch flush-block source quote")
+	// Two-pass grounding: pass 1 names candidate literals; a second pass
+	// verifies them. The prompt must not demand a verbatim source block quote
+	// (the copy burden moved to code-extract + pass 2).
+	assert.NotContains(t, prompt, "handshake.source", "pass-1 prompt must not require a handshake source quote")
+	assert.Contains(t, prompt, "second pass", "prompt must mention the verifying second pass")
 
 	// Token-slot steer: when auth carries a param (e.g. ?token=), a role must
 	// not also declare that name as a param/header/subprotocol — ValidateProtocol

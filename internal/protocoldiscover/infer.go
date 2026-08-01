@@ -77,11 +77,10 @@ const (
 type failReason string
 
 const (
-	reasonDrift      failReason = "drift"
-	reasonParse      failReason = "parse"
-	reasonInvalid    failReason = "invalid"
-	reasonInfra      failReason = "infra"
-	reasonUngrounded failReason = "ungrounded"
+	reasonDrift   failReason = "drift"
+	reasonParse   failReason = "parse"
+	reasonInvalid failReason = "invalid"
+	reasonInfra   failReason = "infra"
 )
 
 // sample is the result of one inference attempt.
@@ -123,72 +122,18 @@ func inferOnce(ctx context.Context, driver *ai.Driver, cfg *project.Config, serv
 		// so it is safe to surface as actionable detail.
 		return sample{outcome: outcomeFailed, reason: reasonInvalid, detail: err.Error()}
 	}
-	if err := validateGrounding(input, inputs); err != nil {
-		return sample{outcome: outcomeFailed, reason: reasonUngrounded, detail: err.Error()}
+	// Two-pass grounding: when the draft carries a handshake or batch, run a
+	// second pass that reads anchored source windows to confirm the hard
+	// literals (e.g. select the guarded devices:sync over an unguarded
+	// device:online). A pass-2 infra/drift failure drops only this sample.
+	if hasHardStructure(p) {
+		conf, failed := refineSignals(ctx, driver, p, inputs)
+		if failed {
+			return sample{outcome: outcomeFailed, reason: reasonInfra}
+		}
+		mergeConfirmation(p, conf)
 	}
 	return sample{outcome: outcomeFound, proto: p}
-}
-
-// validateGrounding checks that every hard literal the model cited — a role
-// handshake's await_type and a batch's flush block — is backed by a verbatim
-// source quote that actually appears in the input files. It reads the raw tool
-// input map (not the assembled Protocol) so the transient `source` evidence
-// never enters project.Protocol. A handshake/batch present without a source
-// quote, or whose quote is not a (whitespace-normalized) substring of the
-// joined input corpus, is "ungrounded". The error names only the failure mode;
-// it never includes the raw quote or any model payload.
-func validateGrounding(input map[string]any, inputs []SourceFile) error {
-	var corp strings.Builder
-	for _, f := range inputs {
-		corp.WriteString(f.Content)
-	}
-	corpus := normalizeWS(corp.String())
-
-	if roles, ok := input["roles"].(map[string]any); ok {
-		for _, r := range roles {
-			rm, ok := r.(map[string]any)
-			if !ok {
-				continue
-			}
-			hs, ok := rm["handshake"].(map[string]any)
-			if !ok {
-				continue
-			}
-			src, _ := hs["source"].(string)
-			if strings.TrimSpace(src) == "" {
-				return errors.New("handshake await_type ungrounded: no source quote")
-			}
-			if !strings.Contains(corpus, normalizeWS(src)) {
-				return errors.New("handshake await_type ungrounded: source quote not found in inputs")
-			}
-		}
-	}
-
-	if batches, ok := input["batches"].(map[string]any); ok {
-		for _, b := range batches {
-			bm, ok := b.(map[string]any)
-			if !ok {
-				continue
-			}
-			src, _ := bm["source"].(string)
-			if strings.TrimSpace(src) == "" {
-				return errors.New("batch flush block ungrounded: no source quote")
-			}
-			if !strings.Contains(corpus, normalizeWS(src)) {
-				return errors.New("batch flush block ungrounded: source quote not found in inputs")
-			}
-		}
-	}
-	return nil
-}
-
-// normalizeWS collapses every run of whitespace (spaces, tabs, newlines) into a
-// single space and trims the ends. validateGrounding compares normalized
-// corpus against normalized quotes so a substantively-correct quote with
-// different indentation than the source still matches (copy fidelity), while a
-// genuine misquote (different tokens) still fails.
-func normalizeWS(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
 
 // selectProtocol applies the voting rules to N samples:
@@ -271,7 +216,7 @@ func summarizeFailures(samples []sample) string {
 		}
 	}
 	var parts []string
-	for _, r := range []failReason{reasonInfra, reasonDrift, reasonParse, reasonInvalid, reasonUngrounded} {
+	for _, r := range []failReason{reasonInfra, reasonDrift, reasonParse, reasonInvalid} {
 		if counts[r] > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", counts[r], r))
 		}
@@ -388,8 +333,8 @@ func buildInferPrompt(serviceName string, actors []string, inputs []SourceFile) 
 	b.WriteString("- Wire framing (json/text/binary) and the envelope: the dotted path to the message routing key (e.g. a {type,payload,...} envelope -> type_path \"type\").\n")
 	b.WriteString("- How auth is attached (query param / header / subprotocol) and which actor supplies it.\n")
 	b.WriteString("- Connection roles: distinct connection types (e.g. web, bridge) and their discriminator params/headers/subprotocols. A role's params/headers/subprotocols must NOT reuse the auth param name — auth occupies that token slot (e.g. if auth is `?token=`, no role may declare a `token` param); reuse is a config collision and will be rejected.\n")
-	b.WriteString("- Post-connect handshake: a message sent in the connect/open handler (NOT in the message handler) right after connect. A send there guarded by a condition (e.g. only when a peer is online — `if (peers.length > 0) ws.send({type: X})`) is a peer-gated handshake: set optional=true so a timeout still succeeds the connect; an unconditional send is a mandatory handshake (optional=false). Set await_type to the EXACT `type:` string literal that send emits — copy it verbatim from the source (e.g. `devices:sync`), do not paraphrase or invent a name. You MUST also set handshake.source to a verbatim source snippet that contains BOTH the guard condition AND the emitted `type:` literal (copied exactly, contiguous, as it appears in the source); a snippet not found verbatim in the source is rejected.\n")
-	b.WriteString("- Message batching: look for a timer/coalesce pattern — a handler that buffers items and flushes them on a setTimeout (or interval) as a DIFFERENT routing key (e.g. session:output buffered, then flushed as session:output-batch). Record the FLUSH key as the batch key, item_type as the original per-item routing key, and items_path as the FULL dotted path from the frame root to the array (e.g. `payload.lines`, not just `lines`). You MUST set the batch ... source field to a verbatim snippet of the flush-emit block (the line that types the batch routing key and holds the payload array); a snippet not found verbatim in the source is rejected.\n\n")
+	b.WriteString("- Post-connect handshake: a message sent in the connect/open handler (NOT in the message handler) right after connect. A send there guarded by a condition (e.g. only when a peer is online — `if (peers.length > 0) ws.send({type: X})`) is a peer-gated handshake: set optional=true so a timeout still succeeds the connect; an unconditional send is a mandatory handshake (optional=false). Set await_type to your best guess at the `type:` literal that send emits (e.g. `devices:sync`); a second pass verifies it against the source, so pick the candidate you think most likely.\n")
+	b.WriteString("- Message batching: look for a timer/coalesce pattern — a handler that buffers items and flushes them on a setTimeout (or interval) as a DIFFERENT routing key (e.g. session:output buffered, then flushed as session:output-batch). Record the FLUSH key as the batch key, item_type as the original per-item routing key, and items_path as the FULL dotted path from the frame root to the array (e.g. `payload.lines`, not just `lines`). A second pass verifies the flush details against the source.\n\n")
 	b.WriteString("If no WebSocket protocol is described, call protocol_draft with found=false.\n")
 	if len(actors) > 0 {
 		fmt.Fprintf(&b, "credential_ref MUST be one of the actors declared in project.yaml: %s. Leave credential_ref empty rather than inventing a name, and NEVER include real credential values or tokens.\n\n", strings.Join(actors, ", "))
