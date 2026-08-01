@@ -1,0 +1,22 @@
+# Reconstructed from the Run-22 dogfood table row (not a literal run capture):
+# handshake devices:sync (web, optional=true); batch session:output-batch /
+# session:output; items_path batch.lines (imprecise vs payload.lines).
+framing: json
+type_path: type
+auth:
+  strategy: query
+  param: token
+  credential_ref: ""
+roles:
+  web:
+    credential_ref: ""
+    params:
+      type: web
+    handshake:
+      await_type: devices:sync
+      timeout: 5000
+      optional: true
+batches:
+  session:output-batch:
+    item_type: session:output
+    items_path: batch.lines

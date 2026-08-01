@@ -1,0 +1,16 @@
+framing: json
+type_path: type
+auth:
+  strategy: query
+  param: token
+  credential_ref: ""
+roles:
+  bridge:
+    credential_ref: ""
+    params:
+      deviceId: '{{deviceId}}'
+      type: bridge
+  web:
+    credential_ref: ""
+    params:
+      type: web
