@@ -469,3 +469,53 @@ Two-stage locate→read (Option B) remains a future option but is no longer the
 immediate recommendation — the citation path is viable once these two fixes
 land. The debug instrumentation was temporary and has been removed; the
 grounding code (schema `source`, `validateGrounding`, prompt) stays.
+
+### Post-fix re-run — both fixes landed, residual characterized
+
+Landed both fixes (token-slot prompt steer; whitespace-normalizing matcher)
+and re-ran 5 + 2 diagnostic runs.
+
+**Token-slot steer worked.** No more `invalid` (token-collision) hard errors;
+every draft that printed had clean role params (`type`, `deviceId`) with no
+`token`. This kill confirmed the dominant pre-existing failure.
+
+**Matcher tolerance worked.** Whitespace-only quote differences no longer
+false-reject.
+
+**Residual — substantive copy fidelity (not whitespace).** Hard structures
+(batch/handshake) STILL appear in 0/5 winning drafts. Diagnostic shows why:
+the model substantively *paraphrases* the cited block, so the normalized
+substring match correctly rejects it. Observed misquotes:
+
+- Flush block quoted as `payload: { sessionId, lines }` vs source
+  `payload: { sessionId, lines: batch.lines, timestamp: Date.now() }`.
+- Flush call form quoted as `ws.send(JSON.stringify({...}))` vs source
+  `this.broadcastToWeb({...})`.
+
+These are genuine token differences (not indentation), so grounding is right
+to reject — but the consequence is that structure-bearing samples rarely
+survive, and the voting winner is a clean envelope+roles+auth draft.
+
+**Net posture after fixes.** `protocol infer` is now a *high-precision,
+low-recall* drafting aid for the hard structures: it emits envelope, roles,
+and auth reliably and correctly (the original M3-3 blank-page win), and emits
+handshake/batch only when the model can verbatim-copy their source block —
+which is rare. It does NOT hallucinate the wrong `await_type` anymore (a
+wrong one is dropped rather than emitted), but it also rarely emits the right
+one. This is a defensible posture for a human-review drafting tool, but it
+does not achieve the original "land verbatim `devices:sync`" goal.
+
+**What would actually land the hard literals.** The model cannot reliably
+verbatim-transcribe a multi-line block in one shot — that is exactly the
+copy-fidelity ceiling exact-substring grounding hits. Two routes:
+
+1. **Literal-only grounding (raise recall).** Match only the specific literal
+   value (`await_type`, the batch flush key, `item_type`) as a `type: '<v>'`
+   string in source, instead of the whole block. Far easier for the model
+   (it usually gets routing keys right), still catches invented type names,
+   but cannot verify `items_path` precision.
+2. **Two-stage locate→read (Option B, raise both).** Locate call returns the
+   grounded span; read call transcribes off it. Removes the one-shot copy
+   burden; should land the verbatim literal but costs a second LLM call.
+
+Grounding stays as-is (precision filter) until one of these is chosen.
