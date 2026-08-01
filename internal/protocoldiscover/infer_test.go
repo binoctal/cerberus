@@ -136,7 +136,7 @@ func mockEmptyDriver(t *testing.T) *ai.Driver {
 }
 
 func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
-	prompt := buildInferPrompt("rt", []SourceFile{{Path: "room.ts", Content: "..."}})
+	prompt := buildInferPrompt("rt", []string{"web", "bridge"}, []SourceFile{{Path: "room.ts", Content: "..."}})
 
 	// The four in-scope structures must be called out so the model knows to
 	// populate the corresponding tool fields.
@@ -148,6 +148,27 @@ func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	assert.NotContains(t, prompt, `"found":`, "prompt must not hand-write the JSON shape; the tool schema owns it")
 	// credential_ref safety constraint must remain.
 	assert.Contains(t, prompt, "credential_ref")
+
+	// The available actor list is injected so the model names a real
+	// credential_ref instead of inventing one (M3-3 dogfood: model guessed
+	// "user", which failed validation).
+	assert.Contains(t, prompt, "web, bridge", "prompt must list the available actors for credential_ref")
+
+	// Batching cue names the timer/flush pattern (dogfood: 50ms setTimeout flush
+	// to a different routing key was missed despite being in the source).
+	assert.Contains(t, prompt, "setTimeout", "batching cue must name the timer-flush pattern")
+
+	// Handshake cue names the conditional/guarded-send pattern (dogfood: a
+	// peer-gated devices:sync guarded by `if (peers.length > 0)` was missed).
+	assert.Contains(t, prompt, "guarded", "handshake cue must name the conditional-send pattern")
+}
+
+// TestBuildInferPrompt_NoActors guards the empty-actor-list path: the prompt
+// must still build (no panic) and steer the model to leave credential_ref blank
+// when no actors are declared.
+func TestBuildInferPrompt_NoActors(t *testing.T) {
+	prompt := buildInferPrompt("rt", nil, []SourceFile{{Path: "room.ts", Content: "..."}})
+	assert.Contains(t, prompt, "credential_ref", "credential_ref guidance must still appear with no actors")
 }
 
 // TestTruncateContent_RuneSafe guards against byte-slicing a multi-byte rune at

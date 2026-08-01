@@ -82,7 +82,7 @@ func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceN
 		return nil, errors.New("nil driver")
 	}
 
-	prompt := buildInferPrompt(serviceName, inputs)
+	prompt := buildInferPrompt(serviceName, actorNames(cfg), inputs)
 	res, err := driver.DecideWithTools(ctx, prompt, []llm.Tool{protocolDraftTool()})
 	if err != nil {
 		return nil, errors.New("could not run protocol inference")
@@ -122,11 +122,27 @@ func actorsOf(cfg *project.Config) []project.Actor {
 	return cfg.Actors
 }
 
+// actorNames returns the declared actor names for prompt injection. The model
+// needs the names (not the full records) to pick a credential_ref that passes
+// validation.
+func actorNames(cfg *project.Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	names := make([]string, 0, len(cfg.Actors))
+	for _, a := range cfg.Actors {
+		names = append(names, a.Name)
+	}
+	return names
+}
+
 // buildInferPrompt assembles the prompt. It describes WHAT to recognize and
 // leaves the JSON shape to the protocol_draft tool schema (the tool definition
 // carries it; the prompt no longer hand-writes a shape block). It never
 // includes credential values — credential_ref names an actor, it is not a token.
-func buildInferPrompt(serviceName string, inputs []SourceFile) string {
+// actors is the project's declared actor names; the prompt lists them so the
+// model picks a real credential_ref instead of inventing one.
+func buildInferPrompt(serviceName string, actors []string, inputs []SourceFile) string {
 	var b strings.Builder
 	b.WriteString("You are drafting a WebSocket protocol description for a cerberus test config.\n")
 	b.WriteString("Read the docs/source below and call the protocol_draft tool once with what you infer.\n")
@@ -135,10 +151,14 @@ func buildInferPrompt(serviceName string, inputs []SourceFile) string {
 	b.WriteString("- Wire framing (json/text/binary) and the envelope: the dotted path to the message routing key (e.g. a {type,payload,...} envelope -> type_path \"type\").\n")
 	b.WriteString("- How auth is attached (query param / header / subprotocol) and which actor supplies it.\n")
 	b.WriteString("- Connection roles: distinct connection types (e.g. web, bridge) and their discriminator params/headers/subprotocols.\n")
-	b.WriteString("- Post-connect handshake: a message the server sends (or you must send) right after connect. If it is peer-gated (only sent when a peer socket is online), set handshake.optional=true so a timeout does not fail the connect.\n")
-	b.WriteString("- Message batching: if the server coalesces frames (e.g. emits a batch type carrying an array), record the batch routing key with item_type (per-item routing key) and items_path (dotted path to the array).\n\n")
+	b.WriteString("- Post-connect handshake: a message the server sends (or you must send) right after connect. A send guarded by a condition (e.g. only when a peer is online — `if (peers.length > 0) ws.send({type: X})`) is a peer-gated handshake: set await_type to X and optional=true so a timeout still succeeds the connect. A send that always fires is a mandatory handshake (optional=false).\n")
+	b.WriteString("- Message batching: look for a timer/coalesce pattern — a handler that buffers items and flushes them on a setTimeout (or interval) as a DIFFERENT routing key (e.g. session:output buffered, then flushed as session:output-batch with the items under an array path). Record the FLUSH key as the batch key, item_type as the original per-item routing key, and items_path as the dotted path to the array.\n\n")
 	b.WriteString("If no WebSocket protocol is described, call protocol_draft with found=false.\n")
-	b.WriteString("credential_ref MUST name an actor that exists in project.yaml — NEVER invent one, and NEVER include real credential values or tokens.\n\n")
+	if len(actors) > 0 {
+		fmt.Fprintf(&b, "credential_ref MUST be one of the actors declared in project.yaml: %s. Leave credential_ref empty rather than inventing a name, and NEVER include real credential values or tokens.\n\n", strings.Join(actors, ", "))
+	} else {
+		b.WriteString("No actors are declared in project.yaml; leave credential_ref empty rather than inventing a name, and NEVER include real credential values or tokens.\n\n")
+	}
 	for _, f := range inputs {
 		b.WriteString("--- " + filepath.Base(f.Path) + " ---\n")
 		b.WriteString(truncateContent(f.Content, 8000))

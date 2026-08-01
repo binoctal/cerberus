@@ -162,3 +162,76 @@ path parameter belongs to the actor/connection layer.
 - The M3-3 trigger (real discovery cost) is addressed: the blank-page cost of
   authoring `type_path`, roles, and auth is removed; the remaining handshake/
   batch authoring is a smaller, targeted prompt improvement.
+
+## Prompt iteration — 2026-08-01
+
+The three prompt iteration points above were applied to `buildInferPrompt`
+(`internal/protocoldiscover/infer.go`): (a) the declared actor names are now
+injected so `credential_ref` picks a real actor; (b) the batching cue names the
+`setTimeout`/timer-flush-to-a-different-routing-key pattern; (c) the handshake
+cue names the conditional/peer-guarded-send pattern (`if (peers.length > 0)
+ws.send(...)` → `optional=true`). The binary was rebuilt and the dogfood
+re-run twice against the same target.
+
+### Run 3 (strengthened prompt)
+
+```yaml
+framing: json
+type_path: type
+auth: { strategy: query, param: token, credential_ref: "" }
+roles:
+  bridge: { credential_ref: user, params: { deviceId: "", type: bridge },
+            handshake: { await_type: session:output-batch, timeout: 5000, optional: true } }
+  web:    { credential_ref: user, params: { type: web },
+            handshake: { await_type: device:online, timeout: 5000, optional: true } }
+batches:
+  session:output-batch: { item_type: session:output, items_path: lines }
+```
+
+### Run 4 (strengthened prompt, variance)
+
+```yaml
+framing: json
+type_path: type
+auth: { strategy: query, param: token, credential_ref: "" }
+roles:
+  bridge: { credential_ref: bridge, params: { deviceId: "", type: bridge } }
+  web:    { credential_ref: user, params: { type: web } }
+batches:
+  session:output-batch: { item_type: session:output, items_path: payload.items }
+```
+
+### Updated coverage
+
+| Structure | Before | After iteration |
+|---|---|---|
+| Envelope / `type_path` | yes | yes (stable) |
+| Multi-role | yes | yes (stable) |
+| Batching | **no** | **yes (stable, 2/2)** — `item_type` correct; `items_path` imprecise (`lines` / `payload.items` vs `payload.lines`) |
+| Conditional handshake | **no** | **partial, unstable (1/2)** — `optional=true` correct when present, but `await_type` wrong (`device:online` vs `devices:sync`); bridge over-fitted a batch key as its handshake |
+
+### Verdict
+
+The batching cue (`setTimeout` flush) **stably closed** that gap: both runs
+emit a correct `session:output-batch` decomposition. The handshake cue
+(`guarded` send) **partially worked**: it produced an `optional:true`
+handshake once, but the `await_type` was hallucinated and the second run
+dropped the handshake entirely — peer-gated conditional sends remain the hard
+case.
+
+### Remaining iteration points
+
+1. **Handshake stability + `await_type` accuracy.** The model grasps
+   "optional handshake" conceptually but invents the await type instead of
+   copying the literal routing key the guarded send emits (`devices:sync`,
+   `room.ts:212`). A cue like "set await_type to the EXACT `type:` value of the
+   guarded send" or a short worked example may help.
+2. **`items_path` precision.** Both runs got the array field but mangled the
+   dotted prefix (`lines` / `payload.items` vs `payload.lines`). The cue should
+   stress "the FULL dotted path from the frame root to the array".
+3. **Role ↔ handshake binding.** Run 3 attached a handshake to `bridge` using a
+   batch routing key — the model conflates "message after connect" with
+   "frequent message". Scoping handshake to "a send in the connect/open handler,
+   not in the message handler" would reduce the over-fit.
+
+The pipeline (T1–T4) needed no change; these are prompt-only refinements.
