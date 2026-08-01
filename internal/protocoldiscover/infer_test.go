@@ -466,6 +466,12 @@ func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	// await_type must be the verbatim type literal, not paraphrased (dogfood:
 	// model emitted "device:online" instead of the source's "devices:sync").
 	assert.Contains(t, prompt, "verbatim", "handshake cue must demand the verbatim type literal")
+
+	// Grounding: the prompt must require a verbatim source quote for the
+	// handshake (guard + type literal) and the batch flush block, copied so it
+	// can be substring-matched against the inputs.
+	assert.Contains(t, prompt, "handshake.source", "prompt must require a handshake source quote")
+	assert.Contains(t, prompt, "batch ... source", "prompt must require a batch flush-block source quote")
 }
 
 // TestBuildInferPrompt_NoActors guards the empty-actor-list path: the prompt
