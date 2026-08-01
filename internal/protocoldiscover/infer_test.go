@@ -487,6 +487,11 @@ func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	// can be substring-matched against the inputs.
 	assert.Contains(t, prompt, "handshake.source", "prompt must require a handshake source quote")
 	assert.Contains(t, prompt, "batch ... source", "prompt must require a batch flush-block source quote")
+
+	// Token-slot steer: when auth carries a param (e.g. ?token=), a role must
+	// not also declare that name as a param/header/subprotocol — ValidateProtocol
+	// rejects the collision. Dogfood: model put `token` in bridge.params.
+	assert.Contains(t, prompt, "token slot", "prompt must steer roles off the auth param name")
 }
 
 // TestBuildInferPrompt_NoActors guards the empty-actor-list path: the prompt
