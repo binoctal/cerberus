@@ -65,10 +65,8 @@ func runBench(n int, binary, healthURL, workdir, name, from, service, samples st
 		if r.outcome != outcomeDraft {
 			// One-line diagnostic on the non-draft tail.
 			firstLine(stderr, stdout)
-			fmt.Fprintf(os.Stderr, "run %d/%d: %s\n", i, n, r.outcome)
-		} else {
-			fmt.Fprintf(os.Stderr, "run %d/%d: %s\n", i, n, r.outcome)
 		}
+		fmt.Fprintf(os.Stderr, "run %d/%d: %s\n", i, n, r.outcome)
 		results = append(results, r)
 	}
 	fmt.Println(formatReport(Aggregate(results, samples)))

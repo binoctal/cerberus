@@ -150,4 +150,11 @@ func TestFormatReport(t *testing.T) {
 			t.Fatalf("report missing %q; got:\n%s", want, out)
 		}
 	}
+	// Overall verdict line: 6/7 structures pass (batch_items_path fails), so
+	// the overall verdict is FAIL and the count reflects numStructures.
+	for _, want := range []string{"Overall: FAIL (", "/7 structures)"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("report missing %q; got:\n%s", want, out)
+		}
+	}
 }

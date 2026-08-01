@@ -238,6 +238,6 @@ func formatReport(rep report) string {
 	if rep.overall {
 		verdict = "PASS"
 	}
-	fmt.Fprintf(&b, "\nOverall: %s (%d/7 structures)\n", verdict, passed)
+	fmt.Fprintf(&b, "\nOverall: %s (%d/%d structures)\n", verdict, passed, numStructures)
 	return b.String()
 }
