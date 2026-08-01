@@ -310,3 +310,74 @@ architecture change rather than further prompt wording:
 These are out of scope for the current task and left as follow-ups. The T1–T4
 pipeline and the structure-recognition gains (batching stable in the prior
 pass) stand; the open work is value accuracy under variance.
+
+## N-sample voting — 2026-08-01
+
+Implemented best-of-N voting (`Infer` now runs `samples` drafts, default 3, and
+`selectProtocol` keeps the highest-scoring validated one; see
+`2026-08-01-protocol-infer-n-sample-voting-design.md`). Re-ran the same target
+with the new default `--samples 3` to test whether voting absorbs the variance
+that swamped the value-accuracy pass above.
+
+Setup unchanged: `open-agents` `wrangler dev` on 8989 (health OK), same
+`.cerberus/project.yaml` (actors `web`/`bridge`/`user`, model
+`claude-sonnet-4-6`), `build/cerberus` rebuilt after the voting change.
+
+```
+cerberus protocol infer --name open-agents \
+  --from apps/api/src/realtime --service api --dry-run
+```
+
+Five runs (each internally N=3):
+
+| Run | Outcome | batches | items_path | handshake await_type |
+|---|---|---|---|---|
+| 9 | draft | `session:output-batch` / item `session:output` | `payload.lines` ✅ | — |
+| 10 | **hard error: "3 invalid"** | — | — | — |
+| 11 | draft | key `session:output` / item `session:line` (wrong) | `payload.lines` ✅ | — |
+| 12 | draft | `session:output-batch` / item `session:output` ✅ | `payload.lines` ✅ | — |
+| 13 | draft | (none) | — | `device:online` ✗ (optional=true ✅) |
+
+### Findings
+
+- **False negatives eliminated.** 0/5 runs returned `found=false`, versus 1/4
+  in the single-shot value-accuracy pass. Voting + the actor-injection cue
+  removed the "model gives up and says no protocol" tail in this sample.
+- **`items_path` stabilized.** Every run that emitted a batch used the correct
+  full dotted path `payload.lines` (3/3), versus `lines`/`payload.items` in the
+  single-shot pass. The frame-root cue, now reinforced by voting off the
+  correct sample, lands reliably.
+- **Batching frequently present and often fully correct.** 3/4 drafts emitted a
+  batch; 2 of those (Runs 9, 12) had the correct flush key + item_type; Run 11
+  had the structure but wrong key/item_type. Structure recognition is solid;
+  value precision of the two routing keys still varies.
+- **Handshake remains the hard case.** Only Run 13 emitted one, and its
+  `await_type` was the hallucinated `device:online` rather than the source's
+  `devices:sync` (`room.ts:212`) — though `optional: true` was correct. Voting
+  raised the floor (a handshake appeared at all) but did NOT fix verbatim
+  `await_type` transcription. This matches the spec's prediction: voting
+  raises the floor without guaranteeing the literal.
+- **New failure mode: unanimous-invalid hard error (Run 10).** All three
+  sub-samples failed validation ("3 invalid"). Voting cannot absorb a
+  unanimous failure; it surfaces it honestly as a hard error (retryable),
+  which trades the single-shot silent false-negative for an occasional
+  all-invalid error — a net improvement (loud + retryable beats quiet + wrong).
+
+### Verdict
+
+Voting measurably raised the floor: across 5 runs, 4 produced a validated draft
+(0 false negatives), `items_path` is reliably correct, and batching is usually
+present and often exact. The single-shot pass's defining risk — variance
+dominating (1/4 false negative, 1/4 parse failure) — is substantially reduced:
+the false-negative tail is gone and the parse-failure tail is absorbed by the
+other two samples.
+
+What voting did NOT solve, as designed: verbatim `await_type` transcription
+(still hallucinated when a handshake appears at all), and the residual
+batch-key/item_type precision variance. These remain the two-step grounding
+extraction follow-up's job — first locate the guarded send / flush call in the
+source, then read the exact literals off that anchored span. Voting composes
+with that future change (best-of-N over grounded samples).
+
+The T1–T4 pipeline plus voting is the new baseline; further value-accuracy
+gains now require the architectural follow-up, not more prompt wording.
