@@ -62,55 +62,185 @@ type inferHandshake struct {
 	Optional  bool   `json:"optional"`
 }
 
-// Infer asks the LLM to draft a protocol description from the given inputs,
-// validates it, and returns it (not written to disk). The driver is passed in
-// so tests inject a mock and Infer never builds LLM clients. serviceName names
-// the service the draft targets; it is used only to label the prompt (the actor
-// list for credential_ref validation comes from cfg).
+// sampleOutcome classifies one inference attempt so the voter can count
+// categories across samples instead of collapsing them into a single error.
+type sampleOutcome int
+
+const (
+	outcomeFound    sampleOutcome = iota // a validated *project.Protocol
+	outcomeNotFound                      // the model signalled found=false
+	outcomeFailed                        // drift / parse / invalid / infra failure
+)
+
+// failReason is a non-leaking diagnostic tag for the all-failed error message.
+// It never carries raw model output.
+type failReason string
+
+const (
+	reasonDrift   failReason = "drift"
+	reasonParse   failReason = "parse"
+	reasonInvalid failReason = "invalid"
+	reasonInfra   failReason = "infra"
+)
+
+// sample is the result of one inference attempt.
+type sample struct {
+	outcome sampleOutcome
+	proto   *project.Protocol // set only when outcome == outcomeFound
+	score   int               // set by selectProtocol when outcome == outcomeFound
+	reason  failReason        // set only when outcome == outcomeFailed
+	detail  string            // safe diagnostic (e.g. validation cause); never a credential value
+}
+
+// inferOnce runs a single protocol_draft inference and classifies the outcome.
+// It never returns an error: every adverse result (drift, parse failure,
+// validation failure, or a DecideWithTools error such as budget/retry/ctx
+// exhaustion) becomes outcomeFailed so the voter can continue with the next
+// sample. Systemic cancellation is handled by the voter's ctx.Err() check
+// between samples, not here.
+func inferOnce(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile) sample {
+	prompt := buildInferPrompt(serviceName, actorNames(cfg), inputs)
+	res, err := driver.DecideWithTools(ctx, prompt, []llm.Tool{protocolDraftTool()})
+	if err != nil {
+		// Per-sample-local: budget/retry/ctx. The voter short-circuits on
+		// ctx.Err() between samples; here we just record and move on.
+		return sample{outcome: outcomeFailed, reason: reasonInfra}
+	}
+	if len(res.ToolCalls) == 0 {
+		return sample{outcome: outcomeFailed, reason: reasonDrift}
+	}
+	input := res.ToolCalls[0].Input
+	if found, _ := input["found"].(bool); !found {
+		return sample{outcome: outcomeNotFound}
+	}
+	p, err := argsToProtocol(input)
+	if err != nil {
+		return sample{outcome: outcomeFailed, reason: reasonParse}
+	}
+	if err := project.ValidateProtocol(p, actorsOf(cfg)); err != nil {
+		// The validation error references actor names, not credential values,
+		// so it is safe to surface as actionable detail.
+		return sample{outcome: outcomeFailed, reason: reasonInvalid, detail: err.Error()}
+	}
+	return sample{outcome: outcomeFound, proto: p}
+}
+
+// selectProtocol applies the voting rules to N samples:
+//   - >=1 Found  -> the highest-scoring Found (ties broken by earliest index).
+//   - 0 Found, >=1 NotFound -> ErrNoProtocol.
+//   - 0 Found, 0 NotFound (all Failed) -> a hard error with reason counts.
 //
-// The model is required to call the protocol_draft tool. Three terminal states:
-//   - found=false (or omitted): the model explicitly signalled "no WS protocol
-//     here" -> ErrNoProtocol. Distinct from drift so the command can exit 0.
-//   - drift (zero tool calls): the model produced no tool call at all -> a
-//     hard error. Not reported as ErrNoProtocol.
-//   - a populated tool call: parsed by argsToProtocol then validated.
+// Scoring is computed here (not in inferOnce) so the modal fields across all
+// Found samples are known for the consensus tie-break.
+func selectProtocol(samples []sample) (*project.Protocol, error) {
+	modalFraming, modalTypePath := modalFields(samples)
+
+	var best *sample
+	for i := range samples {
+		s := &samples[i]
+		if s.outcome != outcomeFound {
+			continue
+		}
+		s.score = scoreProtocol(s.proto, modalFraming, modalTypePath)
+		if best == nil || s.score > best.score {
+			best = s
+		}
+	}
+	if best != nil {
+		return best.proto, nil
+	}
+	for _, s := range samples {
+		if s.outcome == outcomeNotFound {
+			return nil, ErrNoProtocol
+		}
+	}
+	return nil, fmt.Errorf("protocol inference failed across all samples: %s", summarizeFailures(samples))
+}
+
+// modalFields returns the most common Framing and TypePath across Found
+// samples, for the consensus tie-break in scoreProtocol. Empty when no Found
+// samples. Ties are broken deterministically (see modeOf).
+func modalFields(samples []sample) (framing, typePath string) {
+	fcount := map[string]int{}
+	tcount := map[string]int{}
+	for _, s := range samples {
+		if s.outcome != outcomeFound || s.proto == nil {
+			continue
+		}
+		fcount[s.proto.Framing]++
+		tcount[s.proto.TypePath]++
+	}
+	return modeOf(fcount), modeOf(tcount)
+}
+
+// modeOf returns the key with the highest count, breaking ties by the
+// lexicographically smallest key so the result is deterministic regardless of
+// map iteration order. Returns "" when no key has a positive count.
+func modeOf(counts map[string]int) string {
+	var best string
+	bestCount := 0
+	for k, c := range counts {
+		switch {
+		case c > bestCount:
+			best, bestCount = k, c
+		case c == bestCount && c > 0 && (best == "" || k < best):
+			best = k
+		}
+	}
+	return best
+}
+
+// summarizeFailures renders a deterministic "N <reason>" summary of the Failed
+// samples for the all-failed error message. It leaks no raw model output.
+// When exactly one sample failed and it carries a safe diagnostic detail (e.g.
+// a validation cause naming an actor), that detail is appended so the user gets
+// an actionable message; multiple failures are summarized by reason only.
+func summarizeFailures(samples []sample) string {
+	counts := map[failReason]int{}
+	var failed []sample
+	for _, s := range samples {
+		if s.outcome == outcomeFailed {
+			counts[s.reason]++
+			failed = append(failed, s)
+		}
+	}
+	var parts []string
+	for _, r := range []failReason{reasonInfra, reasonDrift, reasonParse, reasonInvalid} {
+		if counts[r] > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[r], r))
+		}
+	}
+	if len(parts) == 0 {
+		return "no samples"
+	}
+	summary := strings.Join(parts, ", ")
+	if len(failed) == 1 && failed[0].detail != "" {
+		summary += ": " + failed[0].detail
+	}
+	return summary
+}
+
+// scoreProtocol ranks a validated draft so the voter can pick the strongest.
+// Full weighting is implemented in a later task; this stub returns 0 so
+// single-sample selection is unaffected.
+func scoreProtocol(p *project.Protocol, modalFraming, modalTypePath string) int {
+	_ = p
+	_ = modalFraming
+	_ = modalTypePath
+	return 0
+}
+
+// Infer asks the LLM to draft a protocol description from the given inputs and
+// returns the strongest validated draft. See inferOnce for the per-sample
+// states and selectProtocol for the voting rules.
 //
-// On a parse failure the returned error is a static message that does NOT
-// include the raw tool args. On a validation failure the cause is wrapped.
+// TEMPORARY: runs a single sample, so behaviour is identical to the pre-voting
+// Infer. A later task adds the `samples` parameter and the N-sample loop.
 func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile) (*project.Protocol, error) {
 	if driver == nil {
 		return nil, errors.New("nil driver")
 	}
-
-	prompt := buildInferPrompt(serviceName, actorNames(cfg), inputs)
-	res, err := driver.DecideWithTools(ctx, prompt, []llm.Tool{protocolDraftTool()})
-	if err != nil {
-		return nil, errors.New("could not run protocol inference")
-	}
-	if len(res.ToolCalls) == 0 {
-		// Drift: the model produced no tool call. This is NOT "no protocol
-		// found" — that is signalled explicitly by found=false below. Drift
-		// is a hard error, aligned with the S2 ADR's drift policy.
-		return nil, errors.New("model produced no protocol tool call")
-	}
-
-	input := res.ToolCalls[0].Input
-	// Safe read: the model may omit `found`; a missing flag is treated as
-	// "not found" rather than panicking on a failed type assertion.
-	if found, _ := input["found"].(bool); !found {
-		return nil, ErrNoProtocol
-	}
-
-	p, err := argsToProtocol(input)
-	if err != nil {
-		// Malformed args; do not propagate the raw map in the error.
-		return nil, errors.New("could not parse model output")
-	}
-
-	if err := project.ValidateProtocol(p, actorsOf(cfg)); err != nil {
-		return nil, fmt.Errorf("model produced an invalid protocol: %w", err)
-	}
-	return p, nil
+	return selectProtocol([]sample{inferOnce(ctx, driver, cfg, serviceName, inputs)})
 }
 
 // actorsOf returns the config's actor list, used to confirm credential_ref

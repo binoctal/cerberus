@@ -117,6 +117,57 @@ func cfgWithService() *project.Config {
 	}
 }
 
+// sampleFromInput drives inferOnce with a single-fixture mock preset to `input`
+// (returned for every call). It is the per-sample classifier test helper.
+func sampleFromInput(t *testing.T, cfg *project.Config, input map[string]any) sample {
+	t.Helper()
+	return inferOnce(context.Background(), mockToolDriver(t, input), cfg, "rt", nil)
+}
+
+func TestInferOnce_Found(t *testing.T) {
+	s := sampleFromInput(t, cfgWithService(), map[string]any{
+		"found":     true,
+		"framing":   "json",
+		"type_path": "type",
+		"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+	})
+	assert.Equal(t, outcomeFound, s.outcome)
+	require.NotNil(t, s.proto)
+	assert.Equal(t, "json", s.proto.Framing)
+}
+
+func TestInferOnce_NotFound(t *testing.T) {
+	s := sampleFromInput(t, cfgWithService(), map[string]any{"found": false})
+	assert.Equal(t, outcomeNotFound, s.outcome)
+}
+
+func TestInferOnce_Drift(t *testing.T) {
+	// No tool fixture -> zero tool calls -> drift.
+	s := inferOnce(context.Background(), mockEmptyDriver(t), cfgWithService(), "rt", nil)
+	assert.Equal(t, outcomeFailed, s.outcome)
+	assert.Equal(t, reasonDrift, s.reason)
+}
+
+func TestInferOnce_ParseError(t *testing.T) {
+	// found=true but the tool args cannot round-trip into inferOutput: a string
+	// (not a map) under roles breaks json.Unmarshal -> parse failure.
+	s := sampleFromInput(t, cfgWithService(), map[string]any{
+		"found": true,
+		"roles": map[string]any{"web": "not-a-map"},
+	})
+	assert.Equal(t, outcomeFailed, s.outcome)
+	assert.Equal(t, reasonParse, s.reason)
+}
+
+func TestInferOnce_Invalid(t *testing.T) {
+	s := sampleFromInput(t, cfgWithService(), map[string]any{
+		"found": true,
+		"auth":  map[string]any{"strategy": "query", "param": "token", "credential_ref": "ghost"},
+	})
+	assert.Equal(t, outcomeFailed, s.outcome)
+	assert.Equal(t, reasonInvalid, s.reason)
+}
+
 // mockToolDriver presets a single protocol_draft tool call returned regardless
 // of prompt (key "default" matches any prompt per MockClient.matchKey).
 func mockToolDriver(t *testing.T, input map[string]any) *ai.Driver {
