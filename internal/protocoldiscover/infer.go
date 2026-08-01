@@ -255,17 +255,33 @@ func scoreProtocol(p *project.Protocol, modalFraming, modalTypePath string) int 
 	return score
 }
 
-// Infer asks the LLM to draft a protocol description from the given inputs and
-// returns the strongest validated draft. See inferOnce for the per-sample
-// states and selectProtocol for the voting rules.
-//
-// TEMPORARY: runs a single sample, so behaviour is identical to the pre-voting
-// Infer. A later task adds the `samples` parameter and the N-sample loop.
-func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile) (*project.Protocol, error) {
+// DefaultInferSamples is the default number of drafts Infer runs before
+// selecting the strongest. N>1 absorbs run-to-run variance (false negatives,
+// parse failures); see 2026-08-01-protocol-infer-n-sample-voting-design.md.
+// Overridable via the protocol infer --samples flag.
+const DefaultInferSamples = 3
+
+// Infer asks the LLM to draft a protocol description from the given inputs,
+// runs `samples` drafts, and returns the strongest validated one. samples < 1
+// is clamped to 1 (single-shot). See inferOnce for the per-sample states and
+// selectProtocol for the voting rules. The three-state contract is preserved:
+// ErrNoProtocol when the consensus is "no protocol here"; a hard error only
+// when every sample failed. Systemic cancellation short-circuits via ctx.Err().
+func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile, samples int) (*project.Protocol, error) {
 	if driver == nil {
 		return nil, errors.New("nil driver")
 	}
-	return selectProtocol([]sample{inferOnce(ctx, driver, cfg, serviceName, inputs)})
+	if samples < 1 {
+		samples = 1
+	}
+	results := make([]sample, 0, samples)
+	for i := 0; i < samples; i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		results = append(results, inferOnce(ctx, driver, cfg, serviceName, inputs))
+	}
+	return selectProtocol(results)
 }
 
 // actorsOf returns the config's actor list, used to confirm credential_ref

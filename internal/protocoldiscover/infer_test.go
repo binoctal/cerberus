@@ -26,7 +26,7 @@ func TestInfer_ReturnsValidatedProtocol(t *testing.T) {
 		"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
 		"notes":     "ok",
 	})
-	p, err := Infer(context.Background(), driver, cfg, "rt", []SourceFile{{Path: "docs.md", Content: "..."}})
+	p, err := Infer(context.Background(), driver, cfg, "rt", []SourceFile{{Path: "docs.md", Content: "..."}}, 1)
 	require.NoError(t, err)
 	require.NotNil(t, p)
 	assert.Equal(t, "json", p.Framing)
@@ -37,7 +37,7 @@ func TestInfer_ReturnsValidatedProtocol(t *testing.T) {
 
 func TestInfer_FoundFalse_ReturnsErrNoProtocol(t *testing.T) {
 	driver := mockToolDriver(t, map[string]any{"found": false})
-	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 1)
 	assert.ErrorIs(t, err, ErrNoProtocol)
 }
 
@@ -46,7 +46,7 @@ func TestInfer_InvalidCredentialRefFailsValidation(t *testing.T) {
 		"found": true, "framing": "json",
 		"auth": map[string]any{"strategy": "query", "param": "token", "credential_ref": "ghost"},
 	})
-	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 1)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match any actor")
 }
@@ -70,7 +70,7 @@ func TestInfer_RolesPopulated(t *testing.T) {
 			},
 		},
 	})
-	p, err := Infer(context.Background(), driver, cfg, "rt", nil)
+	p, err := Infer(context.Background(), driver, cfg, "rt", nil, 1)
 	require.NoError(t, err)
 	require.NotNil(t, p)
 	require.Contains(t, p.Roles, "web")
@@ -88,7 +88,7 @@ func TestInfer_RolesPopulated(t *testing.T) {
 // a future change reports drift as ErrNoProtocol.
 func TestInfer_ZeroToolCalls_IsHardErrorNotErrNoProtocol(t *testing.T) {
 	driver := mockEmptyDriver(t)
-	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 1)
 	require.Error(t, err)
 	require.NotErrorIs(t, err, ErrNoProtocol, "drift (zero tool calls) is a hard error, not a clean not-found")
 }
@@ -104,7 +104,7 @@ func TestInfer_InvalidCredentialRef_IsHardError(t *testing.T) {
 		"type_path": "type",
 		"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "ghost"},
 	})
-	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil)
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 1)
 	require.Error(t, err)
 	require.NotErrorIs(t, err, ErrNoProtocol)
 	assert.NotContains(t, err.Error(), "raw", "error must not leak raw LLM response")
@@ -184,6 +184,113 @@ func mockEmptyDriver(t *testing.T) *ai.Driver {
 	t.Helper()
 	mock := llm.NewMockClient(nil) // no SetToolResponse -> empty ToolCalls
 	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+}
+
+// mockSequenceDriver presets a rotating tool-call sequence (returned across
+// successive calls with any prompt), so a single Infer N-sample run observes
+// variance. Each element is the protocol_draft payload for one sample.
+func mockSequenceDriver(t *testing.T, sequence []map[string]any) *ai.Driver {
+	t.Helper()
+	calls := make([][]llm.ToolCall, len(sequence))
+	for i, in := range sequence {
+		calls[i] = []llm.ToolCall{{Name: "protocol_draft", Input: in}}
+	}
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponseSequence("default", calls)
+	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+}
+
+func validInput() map[string]any {
+	return map[string]any{
+		"found":     true,
+		"framing":   "json",
+		"type_path": "type",
+		"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+	}
+}
+
+// TestInfer_Voting_AbsorbsFalseNegative: one false-negative + two good drafts
+// -> the result is a protocol, NOT ErrNoProtocol. The false-negative tail is
+// outvoted.
+func TestInfer_Voting_AbsorbsFalseNegative(t *testing.T) {
+	driver := mockSequenceDriver(t, []map[string]any{
+		{"found": false}, // false negative
+		validInput(),     // good
+		validInput(),     // good
+	})
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
+	require.NoError(t, err)
+	require.NotNil(t, p)
+	assert.Equal(t, "json", p.Framing)
+}
+
+// TestInfer_Voting_AbsorbsParseFailure: one malformed-args parse failure is
+// skipped; the two good drafts carry the result.
+func TestInfer_Voting_AbsorbsParseFailure(t *testing.T) {
+	driver := mockSequenceDriver(t, []map[string]any{
+		{"found": true, "roles": map[string]any{"web": "not-a-map"}}, // parse fail
+		validInput(),
+		validInput(),
+	})
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
+	require.NoError(t, err)
+	require.NotNil(t, p)
+}
+
+// TestInfer_Voting_PicksHigherScored: a complete draft beats a partial one when
+// both are present.
+func TestInfer_Voting_PicksHigherScored(t *testing.T) {
+	partial := map[string]any{
+		"found": true, "framing": "json", "type_path": "type",
+		"auth": map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+	}
+	complete := validInput()
+	complete["roles"] = map[string]any{
+		"web": map[string]any{
+			"credential_ref": "web",
+			"handshake":      map[string]any{"await_type": "devices:sync", "timeout": 5},
+		},
+	}
+	complete["batches"] = map[string]any{
+		"session:output-batch": map[string]any{"item_type": "session:output", "items_path": "payload.lines"},
+	}
+	driver := mockSequenceDriver(t, []map[string]any{partial, complete, partial})
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
+	require.NoError(t, err)
+	require.NotNil(t, p)
+	require.Contains(t, p.Roles, "web", "must pick the complete (scored-higher) draft")
+	require.NotNil(t, p.Roles["web"].Handshake)
+}
+
+// TestInfer_Voting_AllNotFoundIsErrNoProtocol: unanimous found=false is still a
+// clean not-found, not a hard error.
+func TestInfer_Voting_AllNotFoundIsErrNoProtocol(t *testing.T) {
+	driver := mockSequenceDriver(t, []map[string]any{
+		{"found": false}, {"found": false}, {"found": false},
+	})
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
+	assert.ErrorIs(t, err, ErrNoProtocol)
+}
+
+// TestInfer_Voting_AllFailedIsHardError: unanimous failure is a hard error with
+// reason counts, NOT ErrNoProtocol, and leaks no raw payload.
+func TestInfer_Voting_AllFailedIsHardError(t *testing.T) {
+	driver := mockSequenceDriver(t, []map[string]any{
+		{"found": true, "roles": map[string]any{"web": "not-a-map"}}, // parse
+		{"found": true, "roles": map[string]any{"web": "not-a-map"}}, // parse
+	})
+	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 2)
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrNoProtocol)
+	assert.Contains(t, err.Error(), "parse")
+}
+
+// TestInfer_SamplesClampsToOne: samples < 1 is single-shot and still works.
+func TestInfer_SamplesClampsToOne(t *testing.T) {
+	driver := mockToolDriver(t, validInput())
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 0)
+	require.NoError(t, err)
+	require.NotNil(t, p)
 }
 
 func TestScoreProtocol_CompleteBeatsPartial(t *testing.T) {

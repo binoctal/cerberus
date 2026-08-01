@@ -94,7 +94,7 @@ func runProtocolInfer(ctx context.Context, workDir string, driver *ai.Driver, op
 	if err != nil {
 		return fmt.Errorf("read --from: %w", err)
 	}
-	p, err := protocoldiscover.Infer(ctx, driver, cfg, service, inputs)
+	p, err := protocoldiscover.Infer(ctx, driver, cfg, service, inputs, 1)
 	if errors.Is(err, protocoldiscover.ErrNoProtocol) {
 		fmt.Println("no WebSocket protocol found in the provided inputs")
 		return nil
