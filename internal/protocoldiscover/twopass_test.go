@@ -102,6 +102,38 @@ func TestMergeConfirmation_Batch(t *testing.T) {
 	assert.Empty(t, p.Batches)
 }
 
+func TestCoherentBatch_FlushKeyAndLeafCooccur(t *testing.T) {
+	corpus := "case 'session:output': batchOutput\n...\nflushBatch emits:\n  type: 'session:output-batch', payload: { lines: batch.lines }\n"
+	assert.True(t, coherentBatch(corpus, "session:output-batch", "payload.lines"))
+}
+
+func TestCoherentBatch_LeafFarFromFlushKey(t *testing.T) {
+	// devices lives in a different function from the session:output-batch flush
+	// (the Run-24 mis-fire: pass 2 leaked a handshake literal into the batch).
+	corpus := "sendOnlineDevices:\n  payload: { devices: onlineDevices }\n\n... many lines ...\n\nflushBatch:\n  type: 'session:output-batch', payload: { lines: batch.lines }\n"
+	assert.False(t, coherentBatch(corpus, "session:output-batch", "payload.devices"),
+		"a batch whose items_path leaf does not co-occur with the flush key is incoherent")
+}
+
+func TestCoherentBatch_FlushKeyAbsent(t *testing.T) {
+	assert.False(t, coherentBatch("unrelated", "session:output-batch", "payload.lines"))
+}
+
+func TestParseConfirmation_DropsIncoherentBatch(t *testing.T) {
+	corpus := "sendOnlineDevices payload devices\n\nflushBatch type session:output-batch payload lines"
+	input := map[string]any{
+		"handshake": map[string]any{"present": false},
+		"batch": map[string]any{
+			"present":    true,
+			"flush_key":  "session:output-batch",
+			"item_type":  "devices:sync",    // leaked handshake literal
+			"items_path": "payload.devices", // leaf not near the flush key
+		},
+	}
+	c := parseConfirmation(input, corpus)
+	assert.False(t, c.batchPresent, "incoherent batch (handshake literal leaked) must be dropped")
+}
+
 func TestHasHardStructure(t *testing.T) {
 	assert.False(t, hasHardStructure(&project.Protocol{}))
 	assert.True(t, hasHardStructure(&project.Protocol{Roles: map[string]*project.ProtocolRole{"w": {Handshake: &project.RoleHandshake{}}}}))

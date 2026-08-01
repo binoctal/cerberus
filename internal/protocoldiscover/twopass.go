@@ -170,7 +170,9 @@ func refineSignals(ctx context.Context, driver *ai.Driver, draft *project.Protoc
 
 // parseConfirmation reads the confirm_signals tool input into a
 // signalConfirmation, rejecting literals not present in the corpus (the model
-// may still invent off-window). Leak-safe: carries no raw payload.
+// may still invent off-window) and batches whose flush_key and items_path leaf
+// do not co-occur locally (a pass-2 mis-fire where a handshake literal leaks
+// into the batch). Leak-safe: carries no raw payload.
 func parseConfirmation(input map[string]any, corpus string) signalConfirmation {
 	var c signalConfirmation
 	if hs, ok := input["handshake"].(map[string]any); ok {
@@ -192,9 +194,45 @@ func parseConfirmation(input map[string]any, corpus string) signalConfirmation {
 			if c.itemType != "" && !strings.Contains(corpus, c.itemType) {
 				c.batchPresent = false
 			}
+			// Coherence: the array field must live in the SAME flush emit as
+			// the routing key. A leaf that only appears elsewhere (e.g. a
+			// handshake literal leaked into items_path) is a mis-fire — drop
+			// the batch rather than emit a wrong value.
+			if c.batchPresent && !coherentBatch(corpus, c.flushKey, c.itemsPath) {
+				c.batchPresent = false
+			}
 		}
 	}
 	return c
+}
+
+// coherentBatch reports whether the items_path leaf field appears within
+// ±windowRadius lines of the flush_key in the corpus — i.e. the flush emit
+// block carries the array. This catches pass-2 mis-fires where a literal from
+// a different construct (e.g. the handshake devices:sync) leaks into the
+// batch fields.
+func coherentBatch(corpus, flushKey, itemsPath string) bool {
+	leaf := itemsPath
+	if i := strings.LastIndex(itemsPath, "."); i >= 0 {
+		leaf = itemsPath[i+1:]
+	}
+	if leaf == "" {
+		return false
+	}
+	lines := strings.Split(corpus, "\n")
+	idx := substringLineIndex(lines, flushKey)
+	if idx < 0 {
+		return false
+	}
+	lo := idx - windowRadius
+	if lo < 0 {
+		lo = 0
+	}
+	hi := idx + windowRadius + 1
+	if hi > len(lines) {
+		hi = len(lines)
+	}
+	return strings.Contains(strings.Join(lines[lo:hi], "\n"), leaf)
 }
 
 // mergeConfirmation applies the pass-2 verdict to the draft: keep a handshake
