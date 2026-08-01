@@ -143,13 +143,39 @@ two non-obvious code patterns.
 
 These are prompt-only follow-ups; they do not affect the T1–T4 code.
 
-## Path-param note (out of scope, not an Infer gap)
+## Path-param note (dynamic `/ws/{userId}` is already supported)
 
-The connection URL embeds a runtime id: `/ws/{userId}`. cerberus's `svc.URL` is
-static; a path id must be pre-provisioned (the `generated_path_params: userId:
-uuid` actor field exists for exactly this). This is an actor/auth-discover
-follow-up, **not** a `protocol infer` gap — `Infer` infers wire shape, and a
-path parameter belongs to the actor/connection layer.
+The connection URL embeds a runtime id: `/ws/{userId}`. cerberus already
+handles this via the F3 path-param mechanism — no code gap:
+
+- A service URL may declare a `{name}` path segment, e.g.
+  `ws://localhost:8989/ws/{userId}`.
+- An actor declares `generated_path_params: { userId: uuid }`; session setup
+  (`resolveGeneratedPathParams`) synthesizes a uuid and merges it into
+  `Credentials.PathParams`.
+- At WS connect, `resolveURLParams` (`internal/head/agent/websocket.go:706`)
+  substitutes `{userId}` (both raw and percent-encoded forms) from PathParams.
+  A leftover placeholder is a hard error (clear failure over a silent wrong
+  dial).
+
+This is exercised by `TestConnectTemplatedURL` and the no-auth
+generated-path-param test, so the `/ws/{userId}` shape is covered, not
+theoretical.
+
+For an open-agents integration the remaining gap is **config, not code**:
+
+- `services.api.url` is currently `http://localhost:8989` (no `/ws/{userId}`
+  path, no placeholder). It needs `ws://localhost:8989/ws/{userId}`.
+- The `web` actor needs `generated_path_params: { userId: uuid }` (or a static
+  captured value).
+- Caveat: a uuid `userId` dials successfully (the dev-token backdoor accepts
+  any userId) but lands in an empty `UserRoom` Durable Object — open-agents
+  shards by userId, so `demo_user`'s pre-seeded data is in a different shard.
+  Tests needing existing data should use a static `demo_user`; tests that drive
+  their own state (e.g. via a bridge) can use a generated uuid.
+
+This is an actor/connection-layer concern, **not** a `protocol infer` gap:
+`Infer` infers wire shape, and a URL path segment is not part of that.
 
 ## Outcome
 
