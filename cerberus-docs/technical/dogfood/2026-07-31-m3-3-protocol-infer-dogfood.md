@@ -406,39 +406,66 @@ Eight runs (each internally N=3):
 | 20 | no protocol found | — | — |
 | 21 | no protocol found | — | — |
 
-### Findings — a net regression
+### Initial read — WRONG (kept as a cautionary record)
 
-- **0/8 drafts contained a batch or a handshake.** Compare the voting pass
-  (Runs 9–13): batches appeared in 3/4 drafts and `items_path` was reliably
-  correct. Grounding suppressed both hard structures entirely.
-- **No "ungrounded" reason appeared in any run.** The model is not citing-then-
-  getting-rejected; it is **omitting** the structures up front. The prompt's
-  stern "a snippet not found verbatim is rejected" makes the model opt out
-  rather than attempt a quote it is unsure it can match exactly.
-- **False negatives rose.** "no protocol found" hit 3/8 (vs 0/5 in the voting
-  pass). The added friction pushes more samples toward `found=false` or
-  invalid. Drafts that do print are roles+auth+envelope only.
+The 8-run table above shows 0/8 drafts with a batch or handshake and a rise in
+"no protocol found". An initial analysis concluded grounding was a **net
+regression** caused by the model "opting out" of the hard structures rather
+than risk a rejected quote, and proposed reverting. **That analysis was wrong.**
+It is retained here as a record of a methodology failure, corrected below.
 
-### Verdict
+### Correction — diagnostic re-run with per-sample observability
 
-The grounding mechanism works mechanically (it would reject an invented
-literal), but its behavioural side effect defeats the purpose: rather than
-ground the hard literals, the model drops them. Exact-match citation is too
-strict for the model's copy fidelity, and the threat of rejection pushes it
-toward omission. Net effect is **worse than voting-alone** (lost batching, more
-false negatives).
+The initial read inferred model behaviour from the FINAL draft only. But the
+`source` quotes are discarded after validation, so the final output cannot
+distinguish "model omitted the structure" from "model emitted it and the sample
+was dropped". A temporary env-gated debug pass (`CERBERUS_DEBUG_INFER`) printed
+each sample's raw tool input, source-quote presence, and failure reason. Three
+diagnostic runs overturned the conclusion:
 
-This is a genuine negative result, not a tuning issue. Two paths forward:
+**The model does NOT opt out.** It consistently emitted handshakes and batches
+WITH `source` quotes — including correct quotes of the `session:output-batch`
+flush block and the connect-handler bridge branch. The visible "no structures
+in output" was an artefact of every structure-bearing sample in those runs
+being eliminated by OTHER failures, leaving a structureless sample (or none) as
+the winner.
 
-1. **Soften the matcher + the wording** — a whitespace-normalizing substring
-   match, and prompt copy that frames the citation as helpful rather than a
-   rejection threat. May reduce opt-out, but the model's core uncertainty about
-   verbatim copy is unchanged.
-2. **Two-stage locate→read (the deferred Option B)** — the locate call returns
-   the grounded span; the read call transcribes off that anchored span. This
-   does not require the model to copy a long verbatim snippet in one shot, so
-   it should not trigger the opt-out. This is now the recommended next step;
-   citation-grounding is retired as the approach.
+**The dominant failure is pre-existing and unrelated to grounding:**
+`roles["bridge"].params["token"] collides with auth.param (token slot)`. The
+model puts `token` into the bridge role's `params`; `ValidateProtocol` rejects
+it because auth already occupies the `?token=` slot. This is the SAME failure
+as voting-pass Run 10 ("3 invalid") — it predates grounding and would hurt
+voting too. It accounts for the bulk of the "invalid" samples.
 
-Grounding citation stays in the tree as a reversible experiment; the voting
-baseline (Runs 9–13) remains the better default until Option B lands.
+**Grounding's real (minority) failures split two ways:**
+
+1. **Whitespace false-rejects** — the model quotes e.g. the `device:online`
+   block with different leading indentation than the source, so the exact
+   `strings.Contains` match fails despite the quote being substantively right.
+   This is the copy-fidelity problem, and it is fixable with a whitespace-
+   normalizing matcher.
+2. **Genuine misquotes (correctly rejected)** — e.g. quoting the flush as
+   `ws.send(JSON.stringify({type: 'session:output-batch'...}))` when the source
+   actually uses `this.broadcastToWeb({...})`, or quoting `type:
+   'session:output'` instead of `session:output-batch`. These rejections are
+   grounding doing its job.
+
+### Corrected verdict
+
+Grounding is **not** a net regression and should not be reverted. The model
+engages with it and it catches real misquotes. Two concrete fixes, in priority
+order, address the actual failure modes surfaced:
+
+1. **Steer the model off the `token` param collision.** The biggest win, and it
+   helps voting too: tell the prompt that since auth carries `?token=`, a role
+   must not also declare a `token` param (the token slot is taken). This kills
+   the dominant `invalid` failure.
+2. **Whitespace-normalize the grounding matcher.** Collapse runs of whitespace
+   in both the corpus and the quote before `strings.Contains`, so
+   substantively-correct quotes with off indentation are accepted. Stops the
+   copy-fidelity false-rejects without accepting genuine misquotes.
+
+Two-stage locate→read (Option B) remains a future option but is no longer the
+immediate recommendation — the citation path is viable once these two fixes
+land. The debug instrumentation was temporary and has been removed; the
+grounding code (schema `source`, `validateGrounding`, prompt) stays.
