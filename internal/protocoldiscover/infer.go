@@ -221,13 +221,38 @@ func summarizeFailures(samples []sample) string {
 }
 
 // scoreProtocol ranks a validated draft so the voter can pick the strongest.
-// Full weighting is implemented in a later task; this stub returns 0 so
-// single-sample selection is unaffected.
+// The observed false-negative signature is omission — tail runs drop
+// structures — so the score rewards drafts that recognized more (and harder)
+// structures. Weights are opinionated but simple and intentionally untuned:
+// "more structures beats fewer" is the dominant signal. The consensus bonuses
+// (modalFraming/modalTypePath) only break ties; they never override coverage.
 func scoreProtocol(p *project.Protocol, modalFraming, modalTypePath string) int {
-	_ = p
-	_ = modalFraming
-	_ = modalTypePath
-	return 0
+	if p == nil {
+		return 0
+	}
+	score := 0
+	if p.TypePath != "" {
+		score++
+	}
+	if p.Auth != nil {
+		score++
+	}
+	score += len(p.Roles)
+	score += len(p.Batches) * 2 // batching is a non-obvious structure; weight it
+	handshakeRoles := 0
+	for _, r := range p.Roles {
+		if r != nil && r.Handshake != nil {
+			handshakeRoles++
+		}
+	}
+	score += handshakeRoles * 2 // handshake is the hardest structure; weight it
+	if modalFraming != "" && p.Framing == modalFraming {
+		score++
+	}
+	if modalTypePath != "" && p.TypePath == modalTypePath {
+		score++
+	}
+	return score
 }
 
 // Infer asks the LLM to draft a protocol description from the given inputs and

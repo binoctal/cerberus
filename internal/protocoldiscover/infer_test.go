@@ -186,6 +186,53 @@ func mockEmptyDriver(t *testing.T) *ai.Driver {
 	return ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
 }
 
+func TestScoreProtocol_CompleteBeatsPartial(t *testing.T) {
+	complete := &project.Protocol{
+		Framing: "json", TypePath: "type",
+		Auth: &project.ProtocolAuth{CredentialRef: "web"},
+		Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "devices:sync"}},
+		},
+		Batches: map[string]*project.ProtocolBatch{"session:output-batch": {ItemType: "session:output"}},
+	}
+	partial := &project.Protocol{
+		Framing: "json", TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{"web": {}},
+	}
+	// Pass matching modal fields so the consensus bonus does not confound the
+	// comparison; the coverage weights alone must rank complete > partial.
+	gotComplete := scoreProtocol(complete, "json", "type")
+	gotPartial := scoreProtocol(partial, "json", "type")
+	assert.Greater(t, gotComplete, gotPartial, "a complete draft must outscore a partial one")
+}
+
+func TestScoreProtocol_BatchAndHandshakeWeighted(t *testing.T) {
+	// TypePath +1, Roles +1, Batchesx2 +2, handshakex2 +2, framing consensus +1,
+	// typepath consensus +1 = 8.
+	p := &project.Protocol{
+		Framing: "json", TypePath: "type",
+		Roles: map[string]*project.ProtocolRole{
+			"web": {Handshake: &project.RoleHandshake{AwaitType: "x"}},
+		},
+		Batches: map[string]*project.ProtocolBatch{"b": {ItemType: "i"}},
+	}
+	assert.Equal(t, 8, scoreProtocol(p, "json", "type"))
+}
+
+func TestScoreProtocol_NilSafe(t *testing.T) {
+	assert.Equal(t, 0, scoreProtocol(nil, "json", "type"))
+}
+
+func TestSummarizeFailures_Deterministic(t *testing.T) {
+	got := summarizeFailures([]sample{
+		{outcome: outcomeFailed, reason: reasonParse},
+		{outcome: outcomeFailed, reason: reasonDrift},
+		{outcome: outcomeFailed, reason: reasonDrift},
+		{outcome: outcomeFound, proto: &project.Protocol{}},
+	})
+	assert.Equal(t, "2 drift, 1 parse", got)
+}
+
 func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	prompt := buildInferPrompt("rt", []string{"web", "bridge"}, []SourceFile{{Path: "room.ts", Content: "..."}})
 
