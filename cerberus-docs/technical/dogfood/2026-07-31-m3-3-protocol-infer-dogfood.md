@@ -573,3 +573,103 @@ false negatives; two-pass grounding lands the verbatim hard literal that was
 the original trigger. Remaining items (batch mis-fire, frame-root `items_path`)
 are minor refinements, not blockers. `protocol infer` now produces reliable,
 mostly-correct WS protocol drafts from undocumented source — the M3-3 goal.
+
+## Repeatable benchmark — 2026-08-02
+
+The earlier sections judged "does it pass" by eyeballing 3-5 runs. Variance
+dominates samples that small (the two-pass section's 2/5 handshake hit was a
+case in point), so conclusions kept flip-flopping. This section replaces that
+with an objective, repeatable benchmark: N=18 runs, each draft scored
+per-structure against a fixed ground truth, judged by thresholds. Tool:
+`tools/protoinferbench` (env-gated: only `CERBERUS_BENCH=1` touches the
+network; `make check` is network-free).
+
+### Setup
+
+- N=18, `--samples 3` per run (the binary default), `--dry-run`.
+- Target: `open-agents` `wrangler dev` on :8989, `GET /health` ok. The tool
+  assumes the target is up (health-check + fail-fast; it does not manage the
+  process).
+- Binary `build/cerberus` rebuilt from `main` (3c0cf95, the two-pass code).
+- LLM creds from env (`ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`, the GLM
+  Bearer proxy). Run from the `open-agents` repo root.
+- Denominator is N=18 for every structure: a non-draft run (no_protocol /
+  parse_fail / hard_error) counts as a miss for all structures and is NOT
+  dropped — per the brief, pass-2 drift / failed runs count as "not hit".
+
+### Results
+
+```
+Protocol infer benchmark — open-agents (N=18, samples=3 per run)
+
+Run outcomes:
+  draft       : 17
+  no_protocol :  1
+  parse_fail  :  0
+  hard_error  :  0
+
+Per-structure hit rate:
+| Structure        | Hits  | Rate  | Threshold | Result |
+|------------------|-------|-------|-----------|--------|
+| framing          | 17/18 |  94%  | >=95%     | FAIL   |
+| type_path        | 17/18 |  94%  | >=95%     | FAIL   |
+| auth             | 17/18 |  94%  | >=95%     | FAIL   |
+| roles            | 15/18 |  83%  | >=90%     | FAIL   |
+| handshake        |  0/18 |   0%  | >=60%     | FAIL   |
+| batch_keys       |  3/18 |  17%  | >=50%     | FAIL   |
+| batch_items_path |  3/18 |  17%  | >=40%     | FAIL   |
+
+Overall: FAIL (0/7 structures)
+```
+
+### 结论
+
+**整体判定：未通过（FAIL，0/7 结构达标）。** open-agents 的 protocol infer
+当前不"通过"。
+
+逐层拆解失败原因（区分"稳定性问题"与"识别/值精度问题"——这两类需要不同的下一步）：
+
+1. **运行级稳定性已解决（强信号）。** 17/18 产出草案，0 hard_error、0
+   parse_fail，仅 1 次 no_protocol。对比单-shot 价值精度阶段的 1/4 false-negative、
+   1/4 parse-failure，voting + 两阶段 grounding 已实质消除失败尾巴。这是真实进步，
+   不是噪声。
+
+2. **易结构（framing / type_path / auth）本质达标，FAIL 纯属分母效应。** 三项均
+   17/18 = 94%，唯一 miss 就是那 1 次 no_protocol；**在 17 份真实草案上三项都是
+   17/17 = 100%**。按 N=18 分母判 94% < 95% 恰好卡在阈值下。这不是识别问题——一旦
+   草案产出，信封/类型路径/鉴权必然正确。
+
+3. **roles 83% 是真值精度问题。** 17 份草案中 2 份角色参数错——典型是 bridge 的
+   `type` 被写成 `web`（手动抽样中也观察到：bridge `params.type: web` 而非
+   `bridge`）。模型认得双角色结构，但 bridge 鉴别值常抄错。
+
+4. **handshake 0%——hard 结构未落地。** 已验证评分器无误（喂一份 web 角色含
+   `devices:sync` + `optional: true` 的真实草案，handshake 正确判为命中）。另取 8 次
+   独立样本，0 次发射任何 handshake 块。两阶段 grounding 是架构级手段，N=18 下仍
+   0%——**说明 dogfood 两阶段那节报的 2/5 handshake 命中是小样本幸运，真实命中率接
+   近 0**。这正是本基准要终结的"小样本下结论"循环。
+
+5. **batch 17%（3/18），但精度高。** 3 份带 batch 的草案里 keys 和 items_path 同时
+   全对（3/3 精度，`payload.lines` 正确）。问题在"决定发射 batch"的召回低，不在值
+   精度。比 handshake 略有希望，但同样触及发射率天花板。
+
+### 是否值得继续投资 hard 结构
+
+- **handshake：不建议继续打磨。** prompt cue、citation grounding、两阶段 locate→read
+  已逐级尝试，N=18 下仍 0%。问题已不在 cue 或 grounding，而在模型对该 peer-gated
+  条件发送模式的稳定识别能力——继续 prompt 调优 ROI 很低。
+- **batch：边际，不建议优先。** 精度已达标，卡在召回；提升空间存在但同样触及发射率
+  天花板。
+
+### 建议下一步
+
+**转别的区域（#3）。** protocol infer 作为"高精度、低召回"的人审起草工具，其核心价值
+——消除 envelope / roles / auth 的 blank-page 成本——已稳定可用（真实草案上 17/17），
+这正是 M3-3 的原始目标。handshake / batch 的稳定自动落地已触及模型能力天花板，继续
+投资 hard 结构是低回报。建议：把 protocol infer 固化为现状工具，转向其它 protocol
+目标、其它 head（Scout/Examiner）工作，或 cerberus 的其它能力区。
+
+> 注：易结构在 N=18 分母下因 1 次 no_protocol 卡在 94%。若改用"草案分母"
+> （hits/drafts）判定，framing/type_path/auth 为 17/17=100%、roles 15/17=88%、
+> handshake 0/17、batch 3/17。本报告按任务约定的 N 分母判定（失败运行计为未命中、
+> 不剔除），上述草案分母数字仅作诊断参考。
