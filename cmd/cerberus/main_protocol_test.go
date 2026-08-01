@@ -198,6 +198,48 @@ func TestRunProtocolInfer_EmptyFromDirErrors(t *testing.T) {
 	}
 }
 
+// TestRunProtocolInfer_SamplesDefaultAndPlumbed verifies that runProtocolInfer
+// normalizes a zero Samples to DefaultInferSamples and forwards it to Infer.
+// The sequence mock's first element is a false negative and the rest are good
+// drafts. With the default N=3 the false negative is absorbed and a protocol is
+// produced (and written, since DryRun is false + confirm true); with N=1 it
+// would report "no protocol found" and write nothing. Asserting the file exists
+// therefore pins the normalization + plumbing, not just the absence of error.
+func TestRunProtocolInfer_SamplesDefaultAndPlumbed(t *testing.T) {
+	workDir := t.TempDir()
+	writeProtocolProjectYAML(t, workDir, protocolFixture)
+	from := writeProtocolFrom(t, workDir, "doc.md", "# WS spec\n")
+
+	good := map[string]any{
+		"found":     true,
+		"framing":   "json",
+		"type_path": "type",
+		"auth":      map[string]any{"strategy": "query", "param": "token", "credential_ref": "u"},
+	}
+	seq := [][]llm.ToolCall{
+		{{Name: "protocol_draft", Input: map[string]any{"found": false}}}, // false negative
+		{{Name: "protocol_draft", Input: good}},
+		{{Name: "protocol_draft", Input: good}},
+	}
+	mock := llm.NewMockClient(nil)
+	mock.SetToolResponseSequence("default", seq)
+	driver := ai.NewDriver(mock, ai.NewTokenBudget(200000, 10000))
+
+	// Samples left zero -> runProtocolInfer must normalize to DefaultInferSamples.
+	opts := protocolInferOpts{
+		Name:    "ws",
+		From:    from,
+		DryRun:  false,
+		confirm: func(string) bool { return true },
+	}
+	if err := runProtocolInfer(context.Background(), workDir, driver, opts); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(workDir, ".cerberus", "protocols", "ws.yaml")); err != nil {
+		t.Fatalf("default N=3 must absorb the false negative and write a protocol; stat err=%v", err)
+	}
+}
+
 // Ensure the package compiles against protocoldiscover's public surface.
 var _ = protocoldiscover.ErrNoProtocol
 
@@ -219,7 +261,7 @@ func TestProtocolCmd_Tree(t *testing.T) {
 	if infer == nil {
 		t.Fatal("protocolCmd must register an 'infer' subcommand")
 	}
-	for _, name := range []string{"name", "from", "service", "dry-run"} {
+	for _, name := range []string{"name", "from", "service", "dry-run", "samples"} {
 		if infer.Flags().Lookup(name) == nil {
 			t.Errorf("infer subcommand missing required flag %q", name)
 		}

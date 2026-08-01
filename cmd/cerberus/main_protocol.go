@@ -23,6 +23,7 @@ var (
 	protocolInferFrom    string
 	protocolInferService string
 	protocolInferDryRun  bool
+	protocolInferSamples int
 )
 
 // protocolCmd is the parent for protocol-related subcommands.
@@ -49,6 +50,7 @@ func protocolInferCmd() *cobra.Command {
 				From:    protocolInferFrom,
 				Service: protocolInferService,
 				DryRun:  protocolInferDryRun,
+				Samples: protocolInferSamples,
 				confirm: promptConfirm(os.Stdin, os.Stdout),
 			})
 		},
@@ -57,6 +59,7 @@ func protocolInferCmd() *cobra.Command {
 	cmd.Flags().StringVar(&protocolInferFrom, "from", "", "path to a doc/example file or dir to infer from (required)")
 	cmd.Flags().StringVar(&protocolInferService, "service", "", "service the protocol targets (default: first service)")
 	cmd.Flags().BoolVar(&protocolInferDryRun, "dry-run", false, "print the draft without writing")
+	cmd.Flags().IntVar(&protocolInferSamples, "samples", protocoldiscover.DefaultInferSamples, "number of drafts to run (best-of-N absorbs variance)")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("from")
 	return cmd
@@ -69,6 +72,7 @@ type protocolInferOpts struct {
 	From    string
 	Service string
 	DryRun  bool
+	Samples int
 	confirm func(prompt string) bool
 }
 
@@ -94,7 +98,11 @@ func runProtocolInfer(ctx context.Context, workDir string, driver *ai.Driver, op
 	if err != nil {
 		return fmt.Errorf("read --from: %w", err)
 	}
-	p, err := protocoldiscover.Infer(ctx, driver, cfg, service, inputs, 1)
+	samples := opts.Samples
+	if samples <= 0 {
+		samples = protocoldiscover.DefaultInferSamples
+	}
+	p, err := protocoldiscover.Infer(ctx, driver, cfg, service, inputs, samples)
 	if errors.Is(err, protocoldiscover.ErrNoProtocol) {
 		fmt.Println("no WebSocket protocol found in the provided inputs")
 		return nil
