@@ -157,10 +157,16 @@ func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	// Batching cue names the timer/flush pattern (dogfood: 50ms setTimeout flush
 	// to a different routing key was missed despite being in the source).
 	assert.Contains(t, prompt, "setTimeout", "batching cue must name the timer-flush pattern")
+	// items_path must be the full dotted path from the frame root (dogfood: model
+	// emitted "lines"/"payload.items" instead of "payload.lines").
+	assert.Contains(t, prompt, "frame root", "batching cue must stress the full dotted path from the frame root")
 
 	// Handshake cue names the conditional/guarded-send pattern (dogfood: a
 	// peer-gated devices:sync guarded by `if (peers.length > 0)` was missed).
 	assert.Contains(t, prompt, "guarded", "handshake cue must name the conditional-send pattern")
+	// await_type must be the verbatim type literal, not paraphrased (dogfood:
+	// model emitted "device:online" instead of the source's "devices:sync").
+	assert.Contains(t, prompt, "verbatim", "handshake cue must demand the verbatim type literal")
 }
 
 // TestBuildInferPrompt_NoActors guards the empty-actor-list path: the prompt

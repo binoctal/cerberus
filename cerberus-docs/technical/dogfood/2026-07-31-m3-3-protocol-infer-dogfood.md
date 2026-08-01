@@ -261,3 +261,52 @@ case.
    not in the message handler" would reduce the over-fit.
 
 The pipeline (T1–T4) needed no change; these are prompt-only refinements.
+
+## Value-accuracy pass — 2026-08-01
+
+A second prompt pass targeted the three remaining value-precision gaps:
+handshake `await_type` must be the **verbatim** `type:` literal of the guarded
+send (not paraphrased); the handshake must bind to the **connect/open handler**,
+not the message handler; and `items_path` must be the **full dotted path from
+the frame root**. Four runs were sampled (Runs 5–8):
+
+| Run | Outcome | items_path | handshake await_type |
+|---|---|---|---|
+| 5 | full draft | `payload.lines` ✅ | `session:state` / `device:online` ✗ |
+| 6 | `found=false` (false negative — room.ts is a WS DO) | — | — |
+| 7 | partial (roles + auth only) | — | — |
+| 8 | `could not parse model output` (malformed args) | — | — |
+
+### Findings
+
+- **`items_path` improved.** In Run 5 (the only run that emitted a batch) the
+  value was the correct `payload.lines`, versus `lines` / `payload.items` before
+  the frame-root cue. Sample size is one (variance swallowed the rest), so this
+  is suggestive, not conclusive.
+- **`await_type` did not improve.** Across every run that emitted a handshake
+  the model invented a plausible-but-wrong type name instead of copying the
+  source's `devices:sync` (`room.ts:212`). The verbatim cue is insufficient:
+  the model does not reliably re-localize the guarded-send literal.
+- **Variance dominates.** Four runs produced four different shapes — a correct
+  draft, a false `found=false`, a partial draft, and a parse failure. This is
+  the single biggest quality risk for `protocol infer`; it is not a cue-word
+  problem.
+
+### Conclusion
+
+Prompt copy edits have hit diminishing returns: `items_path` likely improved,
+but `await_type` did not, and run-to-run variance (1/4 false negative, 1/4
+parse failure) swamps both. Reliable value accuracy likely needs an
+architecture change rather than further prompt wording:
+
+- **N-sample voting / best-of-N** — run the draft a few times and merge or pick
+  the consensus, absorbing the false-negative/parse-failure tails.
+- **Two-step extraction** — first locate the guarded send and the flush call in
+  the source (grounding), then read the exact literals off that anchored span,
+  instead of asking one shot to both find and transcribe.
+- **Few-shot** — one worked example of "transcribe the `type:` literal verbatim"
+  may teach the behavior the verbatim cue could not.
+
+These are out of scope for the current task and left as follow-ups. The T1–T4
+pipeline and the structure-recognition gains (batching stable in the prior
+pass) stand; the open work is value accuracy under variance.
