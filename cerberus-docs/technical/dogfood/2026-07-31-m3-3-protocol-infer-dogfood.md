@@ -1,0 +1,164 @@
+# M3-3 `protocol infer` — Signal-Level Dogfood (open-agents) — 2026-07-31
+
+Validated the M3-3 tool-calling pipeline (Tasks 1–4: `argsToProtocol`,
+`protocol_draft` tool, rewritten prompt, `DecideWithTools` + three-state errors)
+against the real, undocumented `open-agents` WebSocket target. This closes the
+M3-3 trigger opened on 2026-07-23 (`2026-07-23-ws-tier2-open-agents.md`), where
+authoring a protocol declaration required discovering four structures by hand.
+
+## Setup
+
+- Target up: `fnm use 22 && cd apps/api && npm run dev` (`wrangler dev --port
+  8989`). Ready in ~1s on local D1 + the `UserRoom` Durable Object.
+- **WS OPEN confirmed** via a deterministic `ws` probe against
+  `ws://localhost:8989/ws/demo_user?type=web&token=demo_token`: `OPEN`, then 0
+  frames in 8s — the peer-gated silence the 2026-07-23 record established (a
+  lone web client gets no `devices:sync`; that is the protocol's defining
+  wrinkle, not a defect).
+- cerberus binary: `build/cerberus` (built 2026-07-31). Run from the
+  `open-agents` repo root so `--from apps/api/src/realtime` resolves.
+- LLM credentials are inherited from the host Claude Code session via
+  `.claude/settings.json` (`ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`, a
+  Bearer-token proxy). cerberus's `providerKey("ANTHROPIC")` falls back to
+  `ANTHROPIC_AUTH_TOKEN` → `AuthSchemeBearer`, so no extra config was needed.
+  Model from `project.yaml`: `claude-sonnet-4-6`.
+- `.cerberus/project.yaml` (in the open-agents repo, untracked) was extended
+  with name-only actors `web`, `bridge`, `user`. The original file had no
+  actors; `ValidateProtocol` rejects a `credential_ref` that names no actor, so
+  actors were added to let a draft through for coverage scoring. `user` covers
+  the model's first-attempt naming (see Run 1).
+
+## Run
+
+```
+cerberus protocol infer --name open-agents \
+  --from apps/api/src/realtime --service api --dry-run
+```
+
+`readInputs` is non-recursive: the model saw only `realtime/room.ts` (~25 KB),
+`rateLimiter.ts`, and `rateLimiter.test.ts`. Both missing structures live inside
+`room.ts`, i.e. **in the model's input scope**.
+
+### Run 1 — three-state error (invalid protocol)
+
+```
+Error: model produced an invalid protocol:
+  roles["web"].credential_ref "user" does not match any actor
+```
+
+This is the desired three-state behaviour: the model emitted a `protocol_draft`
+tool call (so `DecideWithTools` + `argsToProtocol` worked), but named the web
+connection's credential_ref `"user"` (reading it off `/ws/{userId}` /
+`demo_user`). `ValidateProtocol` caught it; the error is clean (no raw LLM
+payload leaked). Re-running after adding a `user` actor produced Run 2. **The
+name variance across runs is itself a finding** — see Prompt iteration points.
+
+### Run 2 — full draft (EXIT 0)
+
+```yaml
+framing: json
+type_path: type
+auth:
+  strategy: query
+  param: token
+  credential_ref: ""
+roles:
+  bridge:
+    credential_ref: ""
+    params:
+      deviceId: '{{deviceId}}'
+      type: bridge
+  web:
+    credential_ref: ""
+    params:
+      type: web
+```
+
+## Per-structure coverage
+
+Scored against the four in-scope structures the 2026-07-23 record discovered by
+hand:
+
+| Structure | Expected (manual discovery) | Drafted? | Note |
+|---|---|---|---|
+| Envelope / `type_path` | `{type,payload,timestamp}` → `type` | **yes** | `framing: json`, `type_path: type` |
+| Multi-role | `web` + `bridge` | **yes** | Both roles, with correct discriminator params (`type:web`/`type:bridge`) and `deviceId` on bridge |
+| Conditional handshake | `devices:sync`, optional (peer-gated) | **no** | No `handshake` block emitted |
+| Batching | `session:output-batch` → item_type `session:output`, items_path `payload.lines` | **no** | No `batches` block emitted |
+
+Auth (`?token=`) is also correct: `auth: {strategy: query, param: token}`.
+
+**Score: 2/4 in-scope structures** (envelope + multi-role). Handshake and
+batching were both missed.
+
+## Why the two structures were missed
+
+Both are present in `room.ts` and were inside the model's input — these are
+**recognition gaps, not input-scope gaps**:
+
+- **Batching** — `room.ts:39-40, 341-344, 474-499`: `session:output` routes to
+  `batchOutput`, which starts a 50ms `setTimeout`; `flushBatch` then emits
+  `{type: 'session:output-batch', payload: {sessionId, lines, timestamp}}`. The
+  batch routing key, `item_type` (`session:output`), and `items_path`
+  (`payload.lines`) are all literally in the source. The model did not map this
+  timer+flush pattern onto the `batches` tool field.
+- **Conditional handshake** — `room.ts:200-220`: on a web connect the server
+  builds `onlineDevices` from attached bridge sockets and **only when
+  `onlineDevices.length > 0`** sends `{type: 'devices:sync', ...}`. The model
+  read the code (it is the same `room.ts` that yielded the roles) but did not
+  classify the conditional post-connect send as a `handshake`.
+
+## Pipeline verdict (Tasks 1–4)
+
+The M3-3 pipeline works end-to-end on a real target:
+
+- `DecideWithTools` returned a `protocol_draft` tool call (no drift).
+- `argsToProtocol` assembled a `*project.Protocol` with no parse error.
+- `ValidateProtocol` fired on the invalid `credential_ref` (Run 1) and the error
+  was the clean three-state message, not `ErrNoProtocol` and not a raw dump.
+- On a valid shape (Run 2) the draft printed under `--dry-run` with nothing
+  written.
+
+No底层 model change is needed; the remaining gap is prompt-side recognition of
+two non-obvious code patterns.
+
+## Prompt iteration points
+
+1. **Inject the actor list into the prompt.** The model cannot know which
+   `credential_ref` names ValidateProtocol will accept; it guessed `"user"` once
+   and left it blank another time. The prompt should list `cfg.Actors[*].Name`
+   so the model picks an existing name (or the prompt iteration should make
+   "leave credential_ref blank when unsure" explicit, since blank passes
+   validation today).
+2. **Strengthen the batching recognition cue.** The current prompt describes
+   batching abstractly ("if the server coalesces frames"). It should call out
+   the concrete `setTimeout`/timer-flush pattern and point the model at
+   `item_type` (the pre-batch type) vs the batch routing key, since both appear
+   verbatim in `room.ts` and were still missed.
+3. **Strengthen the handshake recognition cue for conditional sends.** The
+   prompt mentions a peer-gated handshake, but the model did not connect the
+   `if (onlineDevices.length > 0) ws.send(...)` block to `handshake.optional`.
+   An explicit cue — "a send right after connect that is guarded by a peer/
+   state condition is an `optional: true` handshake" — would help.
+
+These are prompt-only follow-ups; they do not affect the T1–T4 code.
+
+## Path-param note (out of scope, not an Infer gap)
+
+The connection URL embeds a runtime id: `/ws/{userId}`. cerberus's `svc.URL` is
+static; a path id must be pre-provisioned (the `generated_path_params: userId:
+uuid` actor field exists for exactly this). This is an actor/auth-discover
+follow-up, **not** a `protocol infer` gap — `Infer` infers wire shape, and a
+path parameter belongs to the actor/connection layer.
+
+## Outcome
+
+- The M3-3 tool-calling migration (T1–T4) reaches a real undocumented WS target
+  and produces a validated protocol draft; the three-state error path and the
+  clean draft path both behaved as designed.
+- Coverage is 2/4 on the in-scope structures: envelope and multi-role are
+  inferred correctly; conditional handshake and batching are missed despite being
+  in the input — a prompt-recognition gap, with concrete iteration points above.
+- The M3-3 trigger (real discovery cost) is addressed: the blank-page cost of
+  authoring `type_path`, roles, and auth is removed; the remaining handshake/
+  batch authoring is a smaller, targeted prompt improvement.
