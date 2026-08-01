@@ -50,6 +50,7 @@ const (
 	gtAuthParam      = "token"
 	gtRoleWeb        = "web"
 	gtRoleBridge     = "bridge"
+	gtParamTypeKey   = "type"
 	gtWebParamType   = "web"
 	gtBridgePType    = "bridge"
 	gtHandshakeType  = "devices:sync"
@@ -132,11 +133,14 @@ func Score(p *project.Protocol) [numStructures]bool {
 	h[idxTypePath] = p.TypePath == gtTypePath
 	h[idxAuth] = p.Auth != nil && p.Auth.Strategy == gtAuthStrategy && p.Auth.Param == gtAuthParam
 
-	// roles is hit when the primary web role is present with its correct type
-	// discriminator. The bridge role is a secondary peer type that the model
-	// sometimes omits without compromising the roles structure (see Run-22).
+	// roles is hit only when BOTH the web and bridge roles are present, each
+	// with its correct `type` discriminator param. Spec §3 row 4; both roles
+	// are part of the ground truth (a partial set with only web does not count).
 	web, hasWeb := p.Roles[gtRoleWeb]
-	h[idxRoles] = hasWeb && web.Params["type"] == gtWebParamType
+	bridge, hasBridge := p.Roles[gtRoleBridge]
+	h[idxRoles] = hasWeb && hasBridge &&
+		web.Params[gtParamTypeKey] == gtWebParamType &&
+		bridge.Params[gtParamTypeKey] == gtBridgePType
 
 	h[idxHandshake] = hasWeb && web.Handshake != nil &&
 		web.Handshake.AwaitType == gtHandshakeType && web.Handshake.Optional

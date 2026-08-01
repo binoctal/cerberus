@@ -1,6 +1,7 @@
 # Reconstructed from the Run-22 dogfood table row (not a literal run capture):
 # handshake devices:sync (web, optional=true); batch session:output-batch /
 # session:output; items_path batch.lines (imprecise vs payload.lines).
+# Both roles (web + bridge) are present per the dogfood "both roles" note.
 framing: json
 type_path: type
 auth:
@@ -16,6 +17,10 @@ roles:
       await_type: devices:sync
       timeout: 5000
       optional: true
+  bridge:
+    credential_ref: ""
+    params:
+      type: bridge
 batches:
   session:output-batch:
     item_type: session:output
