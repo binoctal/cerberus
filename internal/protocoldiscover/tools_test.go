@@ -104,6 +104,24 @@ func TestProtocolDraftTool_SchemaCoversAllStructures(t *testing.T) {
 	assert.Contains(t, batchProps, "items_path")
 }
 
+func TestProtocolDraftTool_HandshakeAndBatchExposeSource(t *testing.T) {
+	tool := protocolDraftTool()
+	top := tool.InputSchema
+	props := top["properties"].(map[string]any)
+
+	// roles.<role>.handshake.properties.source — the verbatim quote backing
+	// await_type (must include the guard + type literal).
+	rolesProp := props["roles"].(map[string]any)
+	roleProps := rolesProp["additionalProperties"].(map[string]any)["properties"].(map[string]any)
+	handshakeProps := roleProps["handshake"].(map[string]any)["properties"].(map[string]any)
+	assert.Contains(t, handshakeProps, "source", "handshake schema must expose a source quote field")
+
+	// batches.<key>.properties.source — the verbatim flush-emit block.
+	batchesProp := props["batches"].(map[string]any)
+	batchProps := batchesProp["additionalProperties"].(map[string]any)["properties"].(map[string]any)
+	assert.Contains(t, batchProps, "source", "batch schema must expose a source quote field")
+}
+
 func TestProtocolDraftTool_SchemaHasNoPathParam(t *testing.T) {
 	tool := protocolDraftTool()
 	props := tool.InputSchema["properties"].(map[string]any)

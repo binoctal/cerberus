@@ -98,6 +98,7 @@ func protocolDraftTool() llm.Tool {
 							"await_type": str(),
 							"timeout":    map[string]any{"type": "number"},
 							"optional":   map[string]any{"type": "boolean", "description": "true = best-effort: a timeout still succeeds the connect (peer-gated handshake)."},
+							"source":     map[string]any{"type": "string", "description": "Verbatim source snippet proving await_type. MUST include the guard condition (e.g. onlineDevices.length > 0) AND the emitted type: literal, copied exactly."},
 						}},
 					}},
 				},
@@ -107,6 +108,7 @@ func protocolDraftTool() llm.Tool {
 					"additionalProperties": map[string]any{"type": "object", "properties": map[string]any{
 						"item_type":  str(),
 						"items_path": str(),
+						"source":     map[string]any{"type": "string", "description": "Verbatim snippet of the flush emit — the block that types the batch routing key and contains the payload array field."},
 					}},
 				},
 				"notes": str(),
