@@ -54,6 +54,9 @@ func TestBuildConfirmPrompt_ContainsWindowsAndSteer(t *testing.T) {
 	assert.Contains(t, p, "ANCHORED SOURCE WINDOWS")
 	assert.Contains(t, p, "devices:sync")
 	assert.Contains(t, p, "guarded")
+	// items_path must be the full frame-root dotted path, not a buffer var.
+	assert.Contains(t, p, "FRAME ROOT")
+	assert.Contains(t, p, "batch.lines", "prompt must show the buffer-variable anti-example")
 }
 
 func TestRefineSignals_ParsesConfirmation(t *testing.T) {

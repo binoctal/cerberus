@@ -103,7 +103,7 @@ func buildConfirmPrompt(windows []signalWindow) string {
 	}
 	b.WriteString("Call confirm_signals once:\n")
 	b.WriteString("- handshake.present=true ONLY if a window shows a post-connect send guarded by a condition (e.g. `if (peers.length > 0) ws.send(...)`); set await_type to the EXACT type: literal that guarded send emits. Otherwise present=false.\n")
-	b.WriteString("- batch.present=true ONLY if a window shows a timer/flush emit that coalesces items under a DIFFERENT routing key; set flush_key (the flush routing key), item_type (the pre-batch routing key), and items_path (dotted path to the array). Otherwise present=false.\n")
+	b.WriteString("- batch.present=true ONLY if a window shows a timer/flush emit that coalesces items under a DIFFERENT routing key; set flush_key (the flush routing key), item_type (the pre-batch routing key), and items_path as the FULL dotted path from the FRAME ROOT to the array (e.g. `payload.lines` — the key on the emitted frame's payload — NOT a buffer variable name like `batch.lines`). Otherwise present=false.\n")
 	return b.String()
 }
 
