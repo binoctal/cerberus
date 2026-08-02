@@ -95,3 +95,68 @@ func TestBridgeToWebRelay(t *testing.T) {
 		})
 	}
 }
+
+// TestWebToBridgeRouting dogfoods the DO's Web→Bridge routing for every routed
+// type in room.ts:224-252. Per row: connect web+bridge, web sends with
+// payload.deviceId, bridge must receive the same type. Hard-assert: the routed
+// frame reaches the bridge.
+func TestWebToBridgeRouting(t *testing.T) {
+	f := setupOpenAgents(t, false)
+	rows := []string{
+		"session:send", "session:stop", "session:resize", "chat:send",
+		"permission:response", "control:takeover", "config:sync", "rules:sync",
+		"storage:sync", "prompts:sync", "mcp:sync", "mcp:list",
+		"multiagent:start_job", "multiagent:pause_job", "multiagent:cancel_job",
+		"multiagent:start_task", "multiagent:task_assign", "acp:query_status",
+	}
+	for _, typ := range rows {
+		t.Run(typ, func(t *testing.T) {
+			tc := &TestCase{
+				ID:     "tc-w2b-" + typ,
+				Target: "ws://localhost:8989/ws/" + f.userId,
+				Steps: []TestStep{
+					{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+					{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+					{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
+					{Action: "ws_send", ConnectionID: "c-web",
+						Message: fmt.Sprintf(`{"type":%q,"payload":{"deviceId":%q}}`, typ, f.deviceId)},
+					{Action: "ws_receive", ConnectionID: "c-bridge", Type: typ, Timeout: 3},
+				},
+			}
+			se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+			result := se.runSteps()
+			for _, ev := range result.Evidence {
+				t.Logf("%s", ev.Content)
+			}
+			require.Equal(t, StepPassed, result.Status,
+				"web→bridge routing for %q did not pass (dogfood finding)", typ)
+		})
+	}
+}
+
+// TestSessionStartRoundTrip proves the Web→Bridge→Web chain end-to-end: web
+// sends session:start with payload.deviceId, bridge receives it, bridge replies
+// session:created, web receives session:created. Closes the original Finding 4.
+func TestSessionStartRoundTrip(t *testing.T) {
+	f := setupOpenAgents(t, false)
+	tc := &TestCase{
+		ID:     "tc-session-roundtrip",
+		Target: "ws://localhost:8989/ws/" + f.userId,
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+			{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
+			{Action: "ws_send", ConnectionID: "c-web",
+				Message: fmt.Sprintf(`{"type":"session:start","payload":{"deviceId":%q}}`, f.deviceId)},
+			{Action: "ws_receive", ConnectionID: "c-bridge", Type: "session:start", Timeout: 3},
+			{Action: "ws_send", ConnectionID: "c-bridge", Message: `{"type":"session:created"}`},
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "session:created", Timeout: 3},
+		},
+	}
+	se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+	result := se.runSteps()
+	for _, ev := range result.Evidence {
+		t.Logf("%s", ev.Content)
+	}
+	require.Equal(t, StepPassed, result.Status, "session:start round trip did not complete")
+}
