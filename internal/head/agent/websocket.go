@@ -457,41 +457,15 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	} else {
 		preInjectionURL = a.URL
 	}
-	// Role discriminator params (strip-then-inject onto the dial url). A value
-	// equal to roleParamUUIDSentinel is replaced with a freshly generated uuid
-	// (per dial) so a declaration can carry a dynamic identifier it cannot know
-	// ahead of time (e.g. a bridge's deviceId) without a hard-coded literal.
-	for k, v := range roleParams {
-		dialURL = setQueryParam(dialURL, k, resolveRoleParamValue(v))
-	}
-	// Role discriminator headers and subprotocols (strip-then-inject). Guarded
-	// on role != nil because role is only resolved when a.Role != ""; without a
-	// role there is nothing to inject. roleParams above is a nil map in that
-	// case (range is a no-op), but role.Headers would deref a nil pointer.
-	if role != nil {
-		// Headers: remove any LLM-supplied value at this key, then set the
-		// role's. opts.HTTPHeader already carries a.Headers, so this normalizes
-		// to exactly the role's value. Headers never appear in WSResult.URL, so
-		// preInjectionURL is unaffected.
-		for k, v := range role.Headers {
-			opts.HTTPHeader.Del(k)
-			opts.HTTPHeader.Set(k, v)
-		}
-		// Subprotocols: remove any LLM-supplied entry at this name, then append
-		// the role's (exactly one offer reaches the server).
-		for _, s := range role.Subprotocols {
-			opts.Subprotocols = append(removeString(opts.Subprotocols, s), s)
-		}
-	}
+	// Role discriminator params / headers / subprotocols: strip-then-inject the
+	// role's values onto the dial url and opts (no redaction here). See
+	// injectRoleDiscriminators.
+	dialURL = injectRoleDiscriminators(opts, role, roleParams, dialURL)
 	// After role-param injection, recompute preInjectionURL from the final dial
 	// url so the result reflects what was actually dialed (role params present,
 	// token stripped via auth.param). No-op for non-role connects.
 	if len(roleParams) > 0 {
-		if ap := maybeAuthParam(proto); ap != "" {
-			preInjectionURL = stripQuery(dialURL, ap)
-		} else {
-			preInjectionURL = dialURL
-		}
+		preInjectionURL = redactURL(proto, dialURL)
 	}
 	// F3: resolve {param} placeholders in the dial url from the resolved
 	// actor's captured path params. Placed AFTER role-param injection (and its
@@ -513,11 +487,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// when an actor declares path_params but the URL has no placeholder. Only the
 	// auth token is scrubbed — a path id like userId is the endpoint, not a secret.
 	if dialURL != beforeTemplate {
-		if ap := maybeAuthParam(proto); ap != "" {
-			preInjectionURL = stripQuery(dialURL, ap)
-		} else {
-			preInjectionURL = dialURL
-		}
+		preInjectionURL = redactURL(proto, dialURL)
 	}
 	conn, _, err := websocket.Dial(ctx, dialURL, opts)
 	if err != nil {
@@ -537,77 +507,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// ws_connect stays an intermediate step. readMatching drains the pump under
 	// the entry's readMu; only the timeout-failure cleanup takes e.mu, never
 	// both at once (readMatching has returned and released readMu before e.mu).
-	var seen []string
-	if role != nil && role.Handshake != nil {
-		awaitType := role.Handshake.AwaitType
-		// Suppress the connect-time auto-await for an OPTIONAL handshake when a
-		// later ws_receive on this same connection will assert the same type. The
-		// optional await is best-effort: left running, it either stalls the case
-		// for the full handshake timeout (a peer-join signal arrives only on a
-		// later peer-connect step, which this sequential runner blocks on), or —
-		// when the server pushes the type at join — it matches and CONSUMES the
-		// frame, leaving the decisive later receive nothing to match (false fail).
-		// Skipping it keeps the buffered frame for the explicit receive. The
-		// connection is already stored and alive. MANDATORY handshakes are NOT
-		// suppressed: their connect consumes the AwaitType by design and the
-		// redundant receive is dropped at assembly (sanitizeSelfHandshakeReawait).
-		if role.Handshake.Optional && awaitType != "" && slices.Contains(a.SuppressAwaitTypes, awaitType) {
-			return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, Latency: time.Since(start)}
-		}
-		entry, ok := e.lookup(key)
-		if !ok {
-			return types.WSResult{OK: false, URL: preInjectionURL, Err: "ws handshake: connection vanished", Latency: time.Since(start)}
-		}
-		hsFraming := framingOf(entry)
-		path := "type"
-		if proto.TypePath != "" {
-			path = proto.TypePath
-		}
-		hsTimeout := time.Duration(role.Handshake.Timeout) * time.Second
-		matched, hsSeen, hsStatus := readMatching(entry, func(m wsMsg) bool {
-			return matchType(hsFraming, m.data, awaitType, path)
-		}, hsTimeout)
-		switch hsStatus {
-		case "matched":
-			// The matched handshake frame is also evidence: the old loop appended
-			// every frame (including the match) to seen before checking the match.
-			seen = append(hsSeen, frameForResult(hsFraming, matched.data))
-		case "timeout":
-			if role.Handshake.Optional {
-				// Best-effort handshake: the awaited message did not arrive within
-				// the timeout, but the connection is STILL ALIVE (the read pump
-				// keeps running; readMatching released readMu on return). Succeed
-				// without closing so a later ws_send/ws_receive on the same
-				// connection_id works — peer-gated handshakes (e.g. open-agents'
-				// devices:sync) only arrive when a bridge is online. Non-matching
-				// frames seen while waiting are returned as evidence.
-				return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: hsSeen, Latency: time.Since(start)}
-			}
-			// Mandatory handshake timed out: close + remove the connection so a
-			// subsequent ws_send on this id fails as unknown. Closing the conn
-			// stops the pump (its Read errors out); the ctx-cancel cleanup
-			// goroutine is a redundant safety net.
-			e.mu.Lock()
-			if ent, ok := e.conns[key]; ok {
-				_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake timeout")
-				delete(e.conns, key)
-			}
-			e.mu.Unlock()
-			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
-		default: // "closed"
-			// The pump exited (peer close or ctx cancel) before the handshake
-			// completed. The connection is dead regardless of optional/mandatory:
-			// close + remove it so a subsequent ws_send fails as unknown.
-			e.mu.Lock()
-			if ent, ok := e.conns[key]; ok {
-				_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake closed")
-				delete(e.conns, key)
-			}
-			e.mu.Unlock()
-			return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: connection closed awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
-		}
-	}
-	return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: seen, Latency: time.Since(start)}
+	return e.finishConnect(role, proto, a, key, id, preInjectionURL, start)
 }
 
 // injectAuth resolves the declared credential for the already-resolved actor,
@@ -617,6 +517,87 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 // authoritative credential_ref (protocol default, action override, or role) and
 // passes it as `actor`. url.QueryEscape is applied automatically by
 // url.Values.Encode for the query strategy.
+// finishConnect runs the optional mandatory post-connect handshake and returns
+// the final WSResult. It is the tail of doConnect, split out so doConnect is
+// just dial setup. A role with no handshake resolves immediately to a success
+// result. The URL carried by every return is the caller-computed preInjectionURL
+// (the dial url with the auth token scrubbed) — finishConnect never recomputes
+// it, so the redaction contract stays in doConnect's hands.
+func (e *WebSocketExecutor) finishConnect(role *project.ProtocolRole, proto *project.Protocol, a types.WSConnectAction, key, id, preInjectionURL string, start time.Time) types.ExecutorResult {
+	var seen []string
+	if role == nil || role.Handshake == nil {
+		return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: seen, Latency: time.Since(start)}
+	}
+	awaitType := role.Handshake.AwaitType
+	// Suppress the connect-time auto-await for an OPTIONAL handshake when a
+	// later ws_receive on this same connection will assert the same type. The
+	// optional await is best-effort: left running, it either stalls the case
+	// for the full handshake timeout (a peer-join signal arrives only on a
+	// later peer-connect step, which this sequential runner blocks on), or —
+	// when the server pushes the type at join — it matches and CONSUMES the
+	// frame, leaving the decisive later receive nothing to match (false fail).
+	// Skipping it keeps the buffered frame for the explicit receive. The
+	// connection is already stored and alive. MANDATORY handshakes are NOT
+	// suppressed: their connect consumes the AwaitType by design and the
+	// redundant receive is dropped at assembly (sanitizeSelfHandshakeReawait).
+	if role.Handshake.Optional && awaitType != "" && slices.Contains(a.SuppressAwaitTypes, awaitType) {
+		return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, Latency: time.Since(start)}
+	}
+	entry, ok := e.lookup(key)
+	if !ok {
+		return types.WSResult{OK: false, URL: preInjectionURL, Err: "ws handshake: connection vanished", Latency: time.Since(start)}
+	}
+	hsFraming := framingOf(entry)
+	path := "type"
+	if proto.TypePath != "" {
+		path = proto.TypePath
+	}
+	hsTimeout := time.Duration(role.Handshake.Timeout) * time.Second
+	matched, hsSeen, hsStatus := readMatching(entry, func(m wsMsg) bool {
+		return matchType(hsFraming, m.data, awaitType, path)
+	}, hsTimeout)
+	switch hsStatus {
+	case "matched":
+		// The matched handshake frame is also evidence: the old loop appended
+		// every frame (including the match) to seen before checking the match.
+		seen = append(hsSeen, frameForResult(hsFraming, matched.data))
+	case "timeout":
+		if role.Handshake.Optional {
+			// Best-effort handshake: the awaited message did not arrive within
+			// the timeout, but the connection is STILL ALIVE (the read pump
+			// keeps running; readMatching released readMu on return). Succeed
+			// without closing so a later ws_send/ws_receive on the same
+			// connection_id works — peer-gated handshakes (e.g. open-agents'
+			// devices:sync) only arrive when a bridge is online. Non-matching
+			// frames seen while waiting are returned as evidence.
+			return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: hsSeen, Latency: time.Since(start)}
+		}
+		// Mandatory handshake timed out: close + remove the connection so a
+		// subsequent ws_send on this id fails as unknown. Closing the conn
+		// stops the pump (its Read errors out); the ctx-cancel cleanup
+		// goroutine is a redundant safety net.
+		e.mu.Lock()
+		if ent, ok := e.conns[key]; ok {
+			_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake timeout")
+			delete(e.conns, key)
+		}
+		e.mu.Unlock()
+		return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: timed out awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
+	default: // "closed"
+		// The pump exited (peer close or ctx cancel) before the handshake
+		// completed. The connection is dead regardless of optional/mandatory:
+		// close + remove it so a subsequent ws_send fails as unknown.
+		e.mu.Lock()
+		if ent, ok := e.conns[key]; ok {
+			_ = ent.conn.Close(websocket.StatusNormalClosure, "handshake closed")
+			delete(e.conns, key)
+		}
+		e.mu.Unlock()
+		return types.WSResult{OK: false, URL: preInjectionURL, Err: fmt.Sprintf("ws handshake: connection closed awaiting %q", awaitType), SeenMessages: hsSeen, Latency: time.Since(start)}
+	}
+	return types.WSResult{OK: true, URL: preInjectionURL, ConnectionID: id, SeenMessages: seen, Latency: time.Since(start)}
+}
+
 func (e *WebSocketExecutor) injectAuth(ctx context.Context, dialURL string, actor string, auth *project.ProtocolAuth, opts *websocket.DialOptions) (string, string, error) {
 	token, ok := e.tokenFor(actor)
 	if !ok {
@@ -650,6 +631,51 @@ func (e *WebSocketExecutor) injectAuth(ctx context.Context, dialURL string, acto
 // maybeAuthParam returns the protocol's auth.param (the token slot to strip
 // from echoed urls) or "" when there is no declared auth. Used by failure-path
 // url scrubbing and post-role-param preInjectionURL recompute.
+// redactURL returns a secret-free view of dialURL for WSResult.URL: when the
+// protocol declares an auth param, that query slot is stripped; otherwise the
+// url is returned unchanged. Centralizes the strip-or-pass recomputation in
+// doConnect so the redaction cannot drift between call sites.
+func redactURL(proto *project.Protocol, dialURL string) string {
+	if ap := maybeAuthParam(proto); ap != "" {
+		return stripQuery(dialURL, ap)
+	}
+	return dialURL
+}
+
+// injectRoleDiscriminators applies a role's discriminator values onto the dial
+// url and dial options: query params (with the uuid sentinel expanded), headers,
+// and subprotocols, each strip-then-injected so exactly the role's value reaches
+// the server. No redaction here -- these never affect preInjectionURL.
+func injectRoleDiscriminators(opts *websocket.DialOptions, role *project.ProtocolRole, roleParams map[string]string, dialURL string) string {
+	// Role discriminator params: a value equal to roleParamUUIDSentinel is
+	// replaced with a freshly generated uuid (per dial) so a declaration can
+	// carry a dynamic identifier it cannot know ahead of time (e.g. a bridge's
+	// deviceId) without a hard-coded literal.
+	for k, v := range roleParams {
+		dialURL = setQueryParam(dialURL, k, resolveRoleParamValue(v))
+	}
+	// Headers and subprotocols are guarded on role != nil because role is only
+	// resolved when a.Role != ""; without a role there is nothing to inject.
+	// roleParams above is a nil map in that case (range is a no-op), but
+	// role.Headers would deref a nil pointer.
+	if role == nil {
+		return dialURL
+	}
+	// Headers: remove any LLM-supplied value at this key, then set the role's.
+	// opts.HTTPHeader already carries a.Headers, so this normalizes to exactly
+	// the role's value. Headers never appear in WSResult.URL.
+	for k, v := range role.Headers {
+		opts.HTTPHeader.Del(k)
+		opts.HTTPHeader.Set(k, v)
+	}
+	// Subprotocols: remove any LLM-supplied entry at this name, then append the
+	// role's (exactly one offer reaches the server).
+	for _, s := range role.Subprotocols {
+		opts.Subprotocols = append(removeString(opts.Subprotocols, s), s)
+	}
+	return dialURL
+}
+
 func maybeAuthParam(p *project.Protocol) string {
 	if p != nil && p.Auth != nil {
 		return p.Auth.Param
