@@ -255,13 +255,29 @@ func TestInfer_Voting_PicksHigherScored(t *testing.T) {
 }
 
 // TestInfer_Voting_AllNotFoundIsErrNoProtocol: unanimous found=false is still a
-// clean not-found, not a hard error.
+// clean not-found, not a hard error. (Infer retries once on unanimous false; the
+// mock holds the last element, so the retry is also unanimous false.)
 func TestInfer_Voting_AllNotFoundIsErrNoProtocol(t *testing.T) {
 	driver := mockSequenceDriver(t, []map[string]any{
 		{"found": false}, {"found": false}, {"found": false},
 	})
 	_, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
 	assert.ErrorIs(t, err, ErrNoProtocol)
+}
+
+// TestInfer_RetriesOnUnanimousNotFound: when every sample in the first batch
+// returns found=false, Infer tries one more batch before concluding — a real
+// protocol target where all samples give up is variance, not absence. The retry
+// finds the protocol.
+func TestInfer_RetriesOnUnanimousNotFound(t *testing.T) {
+	driver := mockSequenceDriver(t, []map[string]any{
+		{"found": false}, {"found": false}, {"found": false}, // attempt 0
+		validInput(), validInput(), validInput(), // attempt 1
+	})
+	p, err := Infer(context.Background(), driver, cfgWithService(), "rt", nil, 3)
+	require.NoError(t, err)
+	require.NotNil(t, p)
+	assert.Equal(t, "json", p.Framing)
 }
 
 // TestInfer_Voting_AllFailedIsHardError: unanimous failure is a hard error with
@@ -360,6 +376,62 @@ func TestInferOnce_TwoPassInventsNoCandidate(t *testing.T) {
 	assert.Nil(t, s.proto.Roles["web"].Handshake, "invented await_type has no window -> handshake dropped")
 }
 
+// TestInferOnce_TwoPassAddsStructuresWhenPass1Omitted: the recall fix. Pass 1
+// emitted only envelope+auth+roles (no handshake/batch), but the corpus carries
+// the literals; pass 2 anchors off corpus-seeded windows and the confirmed
+// handshake + batch are ADDED to the draft.
+func TestInferOnce_TwoPassAddsStructuresWhenPass1Omitted(t *testing.T) {
+	corpus := "if (peers.length > 0) ws.send({type: 'devices:sync'})\nsetTimeout flush {type: 'session:output-batch', payload: {lines: batch.lines}}"
+	pass1 := map[string]any{
+		"found": true, "framing": "json", "type_path": "type",
+		"auth":  map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+		"roles": map[string]any{"web": map[string]any{"credential_ref": "web", "params": map[string]any{"type": "web"}}},
+	}
+	pass2 := map[string]any{
+		"handshake": map[string]any{"present": true, "await_type": "devices:sync"},
+		"batch":     map[string]any{"present": true, "flush_key": "session:output-batch", "item_type": "session:output", "items_path": "payload.lines"},
+	}
+	driver := mockTwoPassDriver(t, pass1, pass2)
+	s := inferOnce(context.Background(), driver, cfgWithService(), "rt", []SourceFile{{Content: corpus}})
+	assert.Equal(t, outcomeFound, s.outcome)
+	require.NotNil(t, s.proto)
+	require.NotNil(t, s.proto.Roles["web"].Handshake, "handshake added though pass 1 omitted it")
+	assert.Equal(t, "devices:sync", s.proto.Roles["web"].Handshake.AwaitType)
+	// Deterministic handshake fallback: pass 1 omitted the handshake, pass 2
+	// declines it, but the corpus shows a guarded send -> the code-side
+	// detector attaches it. This is the recall fix that does not depend on the
+	// LLM judging the guarded send.
+	corpus2 := "if (onlineDevices.length > 0) {\n  ws.send(JSON.stringify({ type: 'devices:sync' }))\n}\n"
+	pass1b := map[string]any{
+		"found": true, "framing": "json", "type_path": "type",
+		"auth":  map[string]any{"strategy": "query", "param": "token", "credential_ref": "web"},
+		"roles": map[string]any{"web": map[string]any{"credential_ref": "web", "params": map[string]any{"type": "web"}}},
+	}
+	pass2b := map[string]any{
+		"handshake": map[string]any{"present": false},
+		"batch":     map[string]any{"present": false},
+	}
+	driver2 := mockTwoPassDriver(t, pass1b, pass2b)
+	s2 := inferOnce(context.Background(), driver2, cfgWithService(), "rt", []SourceFile{{Content: corpus2}})
+	require.Equal(t, outcomeFound, s2.outcome)
+	require.NotNil(t, s2.proto.Roles["web"].Handshake, "guarded-send fallback attached a handshake pass 2 declined")
+	assert.Equal(t, "devices:sync", s2.proto.Roles["web"].Handshake.AwaitType)
+	assert.True(t, s2.proto.Roles["web"].Handshake.Optional)
+}
+
+// TestCorrectRoleDiscriminators_FixesBridgeValue: a bridge role whose
+// discriminator the model set to "web" is corrected to "bridge"; a correct web
+// role is untouched.
+func TestCorrectRoleDiscriminators_FixesBridgeValue(t *testing.T) {
+	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"web":    {Params: map[string]string{"type": "web"}},
+		"bridge": {Params: map[string]string{"type": "web"}}, // wrong value
+	}}
+	correctRoleDiscriminators(p)
+	assert.Equal(t, "web", p.Roles["web"].Params["type"], "correct web discriminator untouched")
+	assert.Equal(t, "bridge", p.Roles["bridge"].Params["type"], "wrong bridge discriminator corrected")
+}
+
 func TestScoreProtocol_CompleteBeatsPartial(t *testing.T) {
 	complete := &project.Protocol{
 		Framing: "json", TypePath: "type",
@@ -448,6 +520,10 @@ func TestBuildInferPrompt_RecognitionGuidance(t *testing.T) {
 	// not also declare that name as a param/header/subprotocol — ValidateProtocol
 	// rejects the collision. Dogfood: model put `token` in bridge.params.
 	assert.Contains(t, prompt, "token slot", "prompt must steer roles off the auth param name")
+
+	// Role discriminator value must match the role name (dogfood N=18: bridge
+	// role sometimes carried type=web instead of type=bridge).
+	assert.Contains(t, prompt, "discriminator value must match", "prompt must steer role discriminator to match role name")
 }
 
 // TestBuildInferPrompt_NoActors guards the empty-actor-list path: the prompt

@@ -122,17 +122,35 @@ func inferOnce(ctx context.Context, driver *ai.Driver, cfg *project.Config, serv
 		// so it is safe to surface as actionable detail.
 		return sample{outcome: outcomeFailed, reason: reasonInvalid, detail: err.Error()}
 	}
-	// Two-pass grounding: when the draft carries a handshake or batch, run a
-	// second pass that reads anchored source windows to confirm the hard
-	// literals (e.g. select the guarded devices:sync over an unguarded
-	// device:online). A pass-2 infra/drift failure drops only this sample.
-	if hasHardStructure(p) {
-		conf, failed := refineSignals(ctx, driver, p, inputs)
-		if failed {
-			return sample{outcome: outcomeFailed, reason: reasonInfra}
-		}
-		mergeConfirmation(p, conf)
+	// Two-pass grounding runs UNCONDITIONALLY: it anchors candidate literals
+	// (now code-seeded from the corpus, not only pass-1-named) and reads the
+	// windows to confirm the guarded handshake / flush batch. This can ADD
+	// structures pass 1 omitted — the recall fix. refineSignals early-returns
+	// (no LLM call) when there are no windows, so drafts with nothing to anchor
+	// cost nothing. A pass-2 infra/drift failure drops only this sample.
+	conf, failed := refineSignals(ctx, driver, p, inputs)
+	if failed {
+		return sample{outcome: outcomeFailed, reason: reasonInfra}
 	}
+	mergeConfirmation(p, conf)
+	corpus := joinCorpus(inputs)
+	// Deterministic handshake fallback: pass 2's LLM judgment of the guarded
+	// send proved unreliable (N=18 benchmark), so when nothing survived into a
+	// role, locate the peer-gated send in code and attach it. Bounded no-op when
+	// the corpus has no guarded send.
+	if !anyHandshake(p) {
+		if lit := detectGuardedHandshake(corpus); lit != "" {
+			attachHandshake(p, lit)
+		}
+	}
+	// Deterministic batch fallback: same rationale — locate the timer-flush in
+	// code when no batch survived. Bounded no-op when the corpus has none.
+	if len(p.Batches) == 0 {
+		if fk, it, ip := detectTimerFlushBatch(corpus); fk != "" && it != "" {
+			p.Batches = map[string]*project.ProtocolBatch{fk: {ItemType: it, ItemsPath: ip}}
+		}
+	}
+	correctRoleDiscriminators(p)
 	return sample{outcome: outcomeFound, proto: p}
 }
 
@@ -285,14 +303,40 @@ func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceN
 	if samples < 1 {
 		samples = 1
 	}
+	// One bounded retry when the first batch produced no usable protocol: for a
+	// real protocol target, a whole batch returning unanimous found=false OR
+	// every sample failing validation/drift is far more likely run-to-run
+	// variance than ground truth, so try one more batch before concluding. True
+	// negatives (no protocol) and systemic hard errors still surface when the
+	// retry agrees.
+	for attempt := 0; attempt < 2; attempt++ {
+		results, ctxErr := runSamples(ctx, driver, cfg, serviceName, inputs, samples)
+		if ctxErr != nil {
+			return nil, ctxErr
+		}
+		p, err := selectProtocol(results)
+		if err == nil {
+			return p, nil
+		}
+		if attempt == 1 {
+			return nil, err
+		}
+	}
+	return nil, ErrNoProtocol
+}
+
+// runSamples runs `samples` inferOnce attempts, aborting early on systemic
+// cancellation (surfaced as ctxErr so the caller does not mistake a partial set
+// for a clean result).
+func runSamples(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile, samples int) ([]sample, error) {
 	results := make([]sample, 0, samples)
 	for i := 0; i < samples; i++ {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return results, err
 		}
 		results = append(results, inferOnce(ctx, driver, cfg, serviceName, inputs))
 	}
-	return selectProtocol(results)
+	return results, nil
 }
 
 // actorsOf returns the config's actor list, used to confirm credential_ref
@@ -318,6 +362,71 @@ func actorNames(cfg *project.Config) []string {
 	return names
 }
 
+// knownRoleType maps a connection-role name to its discriminator value when the
+// role name IS the discriminator (the open-agents shape: a "bridge" role
+// carries params.type=bridge). ok=false for names without a known mapping.
+func knownRoleType(name string) (string, bool) {
+	switch name {
+	case "web":
+		return "web", true
+	case "bridge":
+		return "bridge", true
+	}
+	return "", false
+}
+
+// correctRoleDiscriminators fixes a value-precision gap observed in dogfood
+// (N=18): the model sometimes sets a role's discriminator to the wrong value
+// (e.g. a "bridge" role with params.type="web"). When a role's name maps to a
+// known discriminator and its current non-empty type param disagrees, set it to
+// match. Idempotent and defensive; it never adds a type where the model emitted
+// none.
+func correctRoleDiscriminators(p *project.Protocol) {
+	if p == nil {
+		return
+	}
+	for name, r := range p.Roles {
+		if r == nil || r.Params == nil {
+			continue
+		}
+		if want, ok := knownRoleType(name); ok {
+			if cur := r.Params["type"]; cur != "" && cur != want {
+				r.Params["type"] = want
+			}
+		}
+	}
+}
+
+// anyHandshake reports whether any role currently carries a handshake.
+func anyHandshake(p *project.Protocol) bool {
+	if p == nil {
+		return false
+	}
+	for _, r := range p.Roles {
+		if r != nil && r.Handshake != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// attachHandshake adds an optional peer-gated handshake to the connect-side
+// role (web when present, else the first role). Used by the deterministic
+// guarded-send fallback.
+func attachHandshake(p *project.Protocol, awaitType string) {
+	if p == nil || awaitType == "" {
+		return
+	}
+	if p.Roles == nil {
+		p.Roles = map[string]*project.ProtocolRole{}
+	}
+	role := connectRole(p.Roles)
+	if role == nil {
+		return
+	}
+	role.Handshake = &project.RoleHandshake{AwaitType: awaitType, Timeout: defaultHandshakeTimeout, Optional: true}
+}
+
 // buildInferPrompt assembles the prompt. It describes WHAT to recognize and
 // leaves the JSON shape to the protocol_draft tool schema (the tool definition
 // carries it; the prompt no longer hand-writes a shape block). It never
@@ -332,7 +441,7 @@ func buildInferPrompt(serviceName string, actors []string, inputs []SourceFile) 
 	b.WriteString("Recognize and fill these structures where present:\n")
 	b.WriteString("- Wire framing (json/text/binary) and the envelope: the dotted path to the message routing key (e.g. a {type,payload,...} envelope -> type_path \"type\").\n")
 	b.WriteString("- How auth is attached (query param / header / subprotocol) and which actor supplies it.\n")
-	b.WriteString("- Connection roles: distinct connection types (e.g. web, bridge) and their discriminator params/headers/subprotocols. A role's params/headers/subprotocols must NOT reuse the auth param name — auth occupies that token slot (e.g. if auth is `?token=`, no role may declare a `token` param); reuse is a config collision and will be rejected.\n")
+	b.WriteString("- Connection roles: distinct connection types (e.g. web, bridge) and their discriminator params/headers/subprotocols. A role's discriminator value must match its name (a `bridge` role carries `type: bridge`, a `web` role carries `type: web`). A role's params/headers/subprotocols must NOT reuse the auth param name — auth occupies that token slot (e.g. if auth is `?token=`, no role may declare a `token` param); reuse is a config collision and will be rejected.\n")
 	b.WriteString("- Post-connect handshake: a message sent in the connect/open handler (NOT in the message handler) right after connect. A send there guarded by a condition (e.g. only when a peer is online — `if (peers.length > 0) ws.send({type: X})`) is a peer-gated handshake: set optional=true so a timeout still succeeds the connect; an unconditional send is a mandatory handshake (optional=false). Set await_type to your best guess at the `type:` literal that send emits (e.g. `devices:sync`); a second pass verifies it against the source, so pick the candidate you think most likely.\n")
 	b.WriteString("- Message batching: look for a timer/coalesce pattern — a handler that buffers items and flushes them on a setTimeout (or interval) as a DIFFERENT routing key (e.g. session:output buffered, then flushed as session:output-batch). Record the FLUSH key as the batch key, item_type as the original per-item routing key, and items_path as the FULL dotted path from the frame root to the array (e.g. `payload.lines`, not just `lines`). A second pass verifies the flush details against the source.\n\n")
 	b.WriteString("If no WebSocket protocol is described, call protocol_draft with found=false.\n")

@@ -3,6 +3,8 @@ package protocoldiscover
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/ai"
@@ -61,6 +63,159 @@ func substringLineIndex(lines []string, sub string) int {
 		}
 	}
 	return -1
+}
+
+// routingKeyRe matches a quoted colon-shaped routing-key literal such as
+// 'devices:sync' or "session:output-batch". Requiring quotes keeps the scan off
+// unquoted prose; over-matching is harmless because pass 2 only confirms a
+// window that shows a guarded send / timer flush.
+var routingKeyRe = regexp.MustCompile(`["']([A-Za-z][\w]*(?::[\w-]+)+)["']`)
+
+// candidateLiterals scans the corpus for routing-key-shaped string literals so
+// pass 2 can anchor on them EVEN WHEN pass 1 omitted the hard structure. This
+// is the recall fix: anchoring no longer depends on the model naming the
+// literal in pass 1. Deduped, order-preserving, capped.
+func candidateLiterals(corpus string) []string {
+	matches := routingKeyRe.FindAllStringSubmatch(corpus, -1)
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range matches {
+		lit := m[1]
+		if lit == "" || seen[lit] {
+			continue
+		}
+		seen[lit] = true
+		out = append(out, lit)
+		if len(out) >= 20 {
+			break
+		}
+	}
+	return out
+}
+
+// guardRe matches a conditional guard that gates a peer-gated send, e.g.
+// `if (onlineDevices.length > 0)`. The [^=] before > avoids matching `>=`/`=>`.
+var guardRe = regexp.MustCompile(`if\s*\(.*[^=]>[=]?\s*0\b`)
+
+// detectGuardedHandshake locates a peer-gated post-connect send deterministically:
+// a conditional guard followed within a few lines by a send/broadcast carrying a
+// routing-key literal. Returns that literal (the handshake await_type) or "".
+//
+// This is the code-side "locate" for the handshake. It exists because the N=18
+// benchmark showed pass 2's LLM judgment of the same anchored window is
+// unreliable for this pattern — the deterministic detector is. When it fires,
+// the caller attaches the handshake without depending on pass 2.
+func detectGuardedHandshake(corpus string) string {
+	lines := strings.Split(corpus, "\n")
+	for i, line := range lines {
+		if !guardRe.MatchString(line) {
+			continue
+		}
+		hi := i + guardSendLookahead
+		if hi > len(lines) {
+			hi = len(lines)
+		}
+		window := strings.Join(lines[i:hi], "\n")
+		if !strings.Contains(window, "send(") && !strings.Contains(window, "broadcastToWeb(") {
+			continue
+		}
+		if m := routingKeyRe.FindStringSubmatch(window); m != nil {
+			return m[1]
+		}
+	}
+	return ""
+}
+
+// guardSendLookahead is the number of lines after a guard to scan for the send.
+const guardSendLookahead = 4
+
+// defaultHandshakeTimeout is the timeout (seconds) applied to an added
+// handshake; ValidateProtocol requires timeout > 0.
+const defaultHandshakeTimeout = 5
+
+// setTimeoutRe matches the timer primitive that triggers a batch flush.
+var setTimeoutRe = regexp.MustCompile(`setTimeout|setInterval`)
+
+// arrayFieldRe matches a payload field assigned a bare property access into a
+// buffer (e.g. `lines: batch.lines`). Function-call values (`timestamp:
+// Date.now()`) are filtered in extractItemsPath (RE2 has no lookahead).
+var arrayFieldRe = regexp.MustCompile(`(\w+):\s*[A-Za-z_]\w*\.[A-Za-z_]\w*`)
+
+// containsSend reports whether a line opens a frame send/broadcast.
+func containsSend(line string) bool {
+	return strings.Contains(line, "broadcastToWeb(") ||
+		strings.Contains(line, "broadcast(") ||
+		strings.Contains(line, ".send(")
+}
+
+// detectTimerFlushBatch locates a timer-flush batch deterministically: a
+// setTimeout/setInterval in the corpus plus a send/broadcast whose routing key
+// ends in `-batch`, with the array field carried in its payload. Returns
+// flush_key / item_type / items_path (any empty when not found).
+//
+// Like detectGuardedHandshake, this is the code-side "locate" for the batch —
+// done deterministically because pass 2's LLM judgment proved unreliable. The
+// `-batch` suffix convention yields item_type; the payload's buffer-array field
+// yields items_path (frame-rooted via `payload.`).
+func detectTimerFlushBatch(corpus string) (flushKey, itemType, itemsPath string) {
+	if !setTimeoutRe.MatchString(corpus) {
+		return "", "", ""
+	}
+	lines := strings.Split(corpus, "\n")
+	for i, l := range lines {
+		if !containsSend(l) {
+			continue
+		}
+		hi := i + flushEmitLookahead
+		if hi > len(lines) {
+			hi = len(lines)
+		}
+		block := strings.Join(lines[i:hi], "\n")
+		var batchKey string
+		for _, m := range routingKeyRe.FindAllStringSubmatch(block, -1) {
+			if strings.HasSuffix(m[1], "-batch") {
+				batchKey = m[1]
+				break
+			}
+		}
+		if batchKey == "" {
+			continue
+		}
+		return batchKey, strings.TrimSuffix(batchKey, "-batch"), extractItemsPath(block)
+	}
+	return "", "", ""
+}
+
+// flushEmitLookahead is the number of lines after a send opening scanned for the
+// routing key and payload (multi-line object literal).
+const flushEmitLookahead = 6
+
+// extractItemsPath reads the items_path off a flush emit block: the payload
+// field that holds the buffer array, prefixed `payload.` when the emit carries
+// a payload object. Empty when no array field is found. Function-call values
+// (e.g. `timestamp: Date.now()`) are skipped — the array field is a bare buffer
+// property access (`lines: batch.lines`).
+func extractItemsPath(block string) string {
+	hasPayload := strings.Contains(block, "payload")
+	region := block
+	if hasPayload {
+		if idx := strings.Index(block, "payload"); idx >= 0 {
+			region = block[idx:]
+		}
+	}
+	for _, loc := range arrayFieldRe.FindAllStringSubmatchIndex(region, -1) {
+		// Skip function-call values: the match must not be followed by "(".
+		rest := strings.TrimLeft(region[loc[1]:], " \t")
+		if strings.HasPrefix(rest, "(") {
+			continue
+		}
+		leaf := region[loc[2]:loc[3]]
+		if hasPayload {
+			return "payload." + leaf
+		}
+		return leaf
+	}
+	return ""
 }
 
 // confirmSignalsTool is the pass-2 tool. The model has the anchored windows in
@@ -147,6 +302,7 @@ func hasHardStructure(p *project.Protocol) bool {
 // dropped by voting). An empty candidate set (invented literals) returns a
 // zero confirmation with failed=false — absence, not failure.
 func refineSignals(ctx context.Context, driver *ai.Driver, draft *project.Protocol, inputs []SourceFile) (signalConfirmation, bool) {
+	corpus := joinCorpus(inputs)
 	var literals []string
 	for _, r := range draft.Roles {
 		if r != nil && r.Handshake != nil && r.Handshake.AwaitType != "" {
@@ -156,7 +312,9 @@ func refineSignals(ctx context.Context, driver *ai.Driver, draft *project.Protoc
 	for key := range draft.Batches {
 		literals = append(literals, key)
 	}
-	corpus := joinCorpus(inputs)
+	// Recall fix: also seed candidates directly from the corpus, so pass 2 can
+	// anchor even when pass 1 omitted the hard structure entirely.
+	literals = append(literals, candidateLiterals(corpus)...)
 	windows := extractWindows(corpus, literals, windowRadius)
 	if len(windows) == 0 {
 		return signalConfirmation{}, false
@@ -237,16 +395,28 @@ func coherentBatch(corpus, flushKey, itemsPath string) bool {
 
 // mergeConfirmation applies the pass-2 verdict to the draft: keep a handshake
 // only if confirmed (overwriting await_type, preserving timeout/optional), and
-// replace batches with the single confirmed batch (or drop them).
+// replace batches with the single confirmed batch (or drop them). When pass 1
+// omitted a handshake but pass 2 confirmed one, the handshake is ADDED to the
+// connect-side role — the recall fix that lets two-pass land structures pass 1
+// never emitted.
 func mergeConfirmation(p *project.Protocol, c signalConfirmation) {
+	anyKept := false
 	for _, r := range p.Roles {
 		if r == nil || r.Handshake == nil {
 			continue
 		}
 		if c.handshakePresent && c.awaitType != "" {
 			r.Handshake.AwaitType = c.awaitType
+			anyKept = true
 		} else {
 			r.Handshake = nil
+		}
+	}
+	if c.handshakePresent && c.awaitType != "" && !anyKept {
+		// Pass 1 left no handshake on any role; attach the confirmed one to the
+		// connect-side role. These handshakes are peer-gated, so default optional.
+		if role := connectRole(p.Roles); role != nil {
+			role.Handshake = &project.RoleHandshake{AwaitType: c.awaitType, Timeout: defaultHandshakeTimeout, Optional: true}
 		}
 	}
 	if c.batchPresent && c.flushKey != "" && c.itemType != "" && c.itemsPath != "" {
@@ -254,4 +424,24 @@ func mergeConfirmation(p *project.Protocol, c signalConfirmation) {
 	} else {
 		p.Batches = nil
 	}
+}
+
+// connectRole returns the role most likely to be the post-connect side for an
+// added handshake: the "web" role when present, else the lexicographically
+// smallest named role (deterministic). Nil when there are no roles.
+func connectRole(roles map[string]*project.ProtocolRole) *project.ProtocolRole {
+	if r := roles["web"]; r != nil {
+		return r
+	}
+	names := make([]string, 0, len(roles))
+	for n := range roles {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		if roles[n] != nil {
+			return roles[n]
+		}
+	}
+	return nil
 }
