@@ -10,154 +10,186 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
+// caseAssembler is the mutable state assemblePlan threads through its tool-call
+// loop: the accumulated cases, the currently-open ws_flow case, and three side
+// tables (covered roles, the sound case that covered each role, HTTP endpoints
+// covered) that WSCasesCovered / HTTPCasesCovered read to suppress redundant
+// deterministic fallbacks. Hoisting this state onto a struct lets the ws_flow
+// flush logic live in a named method instead of a closure capturing five locals.
+type caseAssembler struct {
+	cases        []agent.TestCase
+	open         *agent.TestCase
+	covered      map[string]map[string]bool
+	coveringCase map[string]map[string]string
+	httpCovering map[string]map[string]string
+	svcProtos    map[string]*project.Protocol
+	services     []project.Service
+	goal         string
+	id           int
+}
+
+func newCaseAssembler(goal string, services []project.Service) *caseAssembler {
+	c := &caseAssembler{
+		covered:      map[string]map[string]bool{},
+		coveringCase: map[string]map[string]string{},
+		httpCovering: map[string]map[string]string{},
+		svcProtos:    map[string]*project.Protocol{},
+		services:     services,
+		goal:         goal,
+	}
+	// service -> declared protocol, so flush can judge ws_flow soundness without
+	// re-scanning services per case.
+	for _, s := range services {
+		if s.Protocol != nil {
+			c.svcProtos[s.Name] = s.Protocol
+		}
+	}
+	return c
+}
+
+func (c *caseAssembler) nextID() string {
+	c.id++
+	return fmt.Sprintf("tc-%03d", c.id)
+}
+
+// finalizeOpen flushes the open ws_flow case (if any). A begin_case the LLM
+// opened with no following ws_* calls is dropped (a 0-step ws_flow is not a real
+// case — it would waste an Agent cycle and confuse the Examiner). Otherwise the
+// case is sanitized (self-handshake re-await), judged for soundness, and only a
+// SOUND case marks its connected roles covered (so WSCasesCovered still emits
+// the deterministic fallback for unsound roles). The case is appended either
+// way; soundness only affects the coverage side table.
+func (c *caseAssembler) finalizeOpen() {
+	if c.open == nil {
+		return
+	}
+	open := c.open
+	if open.Action == "ws_flow" && len(open.Steps) == 0 {
+		// A begin_case the LLM opened with no following ws_* calls. Drop it.
+		c.open = nil
+		return
+	}
+	// ws self-handshake re-await: a ws_connect auto-awaits and consumes its
+	// role's Handshake.AwaitType frame (websocket.go readMatching), so a later
+	// ws_receive of that type on the same connection would re-await an
+	// already-consumed frame and time out. The deterministic emitter excludes
+	// this at emit time (ws_cases.go); mirror that for LLM-authored ws_flow
+	// cases before soundness/coverage is judged.
+	sanitizeSelfHandshakeReawait(open, c.svcProtos[open.Service])
+	if open.Service != "" {
+		// A1 unsound-fallback (Phase 1): only a SOUND ws_flow suppresses the
+		// deterministic fallback for the roles it connects. An unsound case (a
+		// ws_receive of an invented type) stays in the plan but does not mark
+		// its roles covered, so WSCasesCovered still emits the deterministic
+		// fallback for them.
+		if llmWSFlowSound(open, c.svcProtos[open.Service], c.goal) {
+			for _, st := range open.Steps {
+				if st.Action == "ws_connect" && st.Role != "" {
+					if c.covered[open.Service] == nil {
+						c.covered[open.Service] = map[string]bool{}
+					}
+					c.covered[open.Service][st.Role] = true
+					// A1 Phase 2: record which sound case covered this role, so
+					// WSCasesCovered can bind a lazy fallback.
+					if c.coveringCase[open.Service] == nil {
+						c.coveringCase[open.Service] = map[string]string{}
+					}
+					c.coveringCase[open.Service][st.Role] = open.ID
+				}
+			}
+		}
+	}
+	c.cases = append(c.cases, *open)
+	c.open = nil
+}
+
+// handle dispatches one directPlan tool call. Unknown/invalid calls are no-ops.
+func (c *caseAssembler) handle(call llm.ToolCall) {
+	switch call.Name {
+	case "test_http_endpoint":
+		c.finalizeOpen()
+		hc := assembleHTTP(call, c.nextID, c.services)
+		if hc.Service != "" && strings.HasPrefix(hc.Target, "/") {
+			if c.httpCovering[hc.Service] == nil {
+				c.httpCovering[hc.Service] = map[string]string{}
+			}
+			if _, dup := c.httpCovering[hc.Service][hc.Target]; !dup {
+				c.httpCovering[hc.Service][hc.Target] = hc.ID
+			}
+		}
+		c.cases = append(c.cases, hc)
+	case "check_invariant":
+		c.finalizeOpen()
+		c.cases = append(c.cases, assembleInvariant(call, c.nextID))
+	case "run_process":
+		c.finalizeOpen()
+		c.cases = append(c.cases, assembleProcess(call, c.nextID))
+	case "analyze_code":
+		c.finalizeOpen()
+		c.cases = append(c.cases, assembleCode(call, c.nextID))
+	case "check_file":
+		c.finalizeOpen()
+		c.cases = append(c.cases, assembleFile(call, c.nextID))
+	case "navigate":
+		c.finalizeOpen()
+		c.cases = append(c.cases, assembleNavigate(call, c.nextID))
+	case "begin_case":
+		c.finalizeOpen()
+		svcName := llm.StrField(call, "service")
+		c.open = &agent.TestCase{
+			ID: c.nextID(), Name: llm.StrField(call, "name"),
+			Expectation: llm.StrField(call, "expectation"), Action: "ws_flow",
+			Service: svcName,
+			// ws_connect dials tc.Target (stepToAction); the LLM emits the
+			// service NAME, so resolve it to the service URL here.
+			Target: serviceURLByName(svcName, c.services),
+		}
+	case "ws_connect":
+		if c.open == nil {
+			return
+		}
+		c.open.Steps = append(c.open.Steps, agent.TestStep{
+			Action: "ws_connect", ConnectionID: llm.StrField(call, "role"), Role: llm.StrField(call, "role"),
+			URL: llm.StrField(call, "url"),
+		})
+	case "ws_send":
+		if c.open == nil {
+			return
+		}
+		c.open.Steps = append(c.open.Steps, agent.TestStep{
+			Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type")),
+		})
+	case "ws_receive":
+		if c.open == nil {
+			return
+		}
+		c.open.Steps = append(c.open.Steps, agent.TestStep{
+			Action: "ws_receive", ConnectionID: llm.StrField(call, "role"),
+			Type: llm.StrField(call, "type"), Aliases: llm.StrSliceField(call, "aliases"),
+			Asserts: llm.MapField(call, "assert"), Timeout: llm.IntField(call, "timeout"),
+		})
+	case "ws_disconnect":
+		if c.open == nil {
+			return
+		}
+		c.open.Steps = append(c.open.Steps, agent.TestStep{
+			Action: "ws_disconnect", ConnectionID: llm.StrField(call, "role"),
+		})
+	}
+}
+
 // assemblePlan converts directPlan tool calls into a TestPlan plus the
 // per-service set of roles already connected by a begin_case+ws_* group
 // (covered), so WSCasesCovered can suppress redundant deterministic connects.
 // Unknown/invalid calls are dropped, never panic.
 func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool, map[string]map[string]string, map[string]map[string]string) {
-	var cases []agent.TestCase
-	covered := map[string]map[string]bool{}
-	// A1 Phase 2: side table mirroring covered, carrying the ID of the sound
-	// LLM case that covered each (svc, role), so WSCasesCovered can emit a lazy
-	// fallback bound to it. covered stays bool; this adds only the binding.
-	coveringCase := map[string]map[string]string{}
-	// A1 #4: HTTP coverage side table — service -> path -> ID of the LLM HTTP
-	// case that covered the endpoint, so HTTPCasesCovered can bind a lazy smoke
-	// fallback to it. Deduped by (service, path): one smoke per endpoint.
-	httpCovering := map[string]map[string]string{}
-	// service -> declared protocol, so flush can judge ws_flow soundness without
-	// re-scanning services per case.
-	svcProtos := map[string]*project.Protocol{}
-	for _, s := range services {
-		if s.Protocol != nil {
-			svcProtos[s.Name] = s.Protocol
-		}
-	}
-	var open *agent.TestCase
-	id := 0
-	nextID := func() string { id++; return fmt.Sprintf("tc-%03d", id) }
-	flush := func() {
-		if open != nil {
-			if open.Action == "ws_flow" && len(open.Steps) == 0 {
-				// A begin_case the LLM opened with no following ws_* calls.
-				// Drop it: a 0-step ws_flow case is not a real case — it would
-				// waste an Agent cycle and confuse the Examiner. (Defense side
-				// of ws_flow emission stability; the prompt handles guidance.)
-				open = nil
-				return
-			}
-			// ws self-handshake re-await: a ws_connect auto-awaits and consumes
-			// its role's Handshake.AwaitType frame (websocket.go readMatching),
-			// so a later ws_receive of that type on the same connection would
-			// re-await an already-consumed frame and time out. The deterministic
-			// emitter excludes this at emit time (ws_cases.go); mirror that for
-			// LLM-authored ws_flow cases before soundness/coverage is judged.
-			sanitizeSelfHandshakeReawait(open, svcProtos[open.Service])
-			if open.Service != "" {
-				// A1 unsound-fallback (Phase 1): only a SOUND ws_flow suppresses
-				// the deterministic fallback for the roles it connects. An unsound
-				// case (a ws_receive of an invented type) stays in the plan but
-				// does not mark its roles covered, so WSCasesCovered still emits
-				// the deterministic fallback for them.
-				if llmWSFlowSound(open, svcProtos[open.Service], goal) {
-					for _, st := range open.Steps {
-						if st.Action == "ws_connect" && st.Role != "" {
-							if covered[open.Service] == nil {
-								covered[open.Service] = map[string]bool{}
-							}
-							covered[open.Service][st.Role] = true
-							// A1 Phase 2: record which sound case covered this
-							// role, so WSCasesCovered can bind a lazy fallback.
-							if coveringCase[open.Service] == nil {
-								coveringCase[open.Service] = map[string]string{}
-							}
-							coveringCase[open.Service][st.Role] = open.ID
-						}
-					}
-				}
-			}
-			cases = append(cases, *open)
-			open = nil
-		}
-	}
-
+	c := newCaseAssembler(goal, services)
 	for _, call := range calls {
-		switch call.Name {
-		case "test_http_endpoint":
-			flush()
-			hc := assembleHTTP(call, nextID, services)
-			if hc.Service != "" && strings.HasPrefix(hc.Target, "/") {
-				if httpCovering[hc.Service] == nil {
-					httpCovering[hc.Service] = map[string]string{}
-				}
-				if _, dup := httpCovering[hc.Service][hc.Target]; !dup {
-					httpCovering[hc.Service][hc.Target] = hc.ID
-				}
-			}
-			cases = append(cases, hc)
-		case "check_invariant":
-			flush()
-			cases = append(cases, assembleInvariant(call, nextID))
-		case "run_process":
-			flush()
-			cases = append(cases, assembleProcess(call, nextID))
-		case "analyze_code":
-			flush()
-			cases = append(cases, assembleCode(call, nextID))
-		case "check_file":
-			flush()
-			cases = append(cases, assembleFile(call, nextID))
-		case "navigate":
-			flush()
-			cases = append(cases, assembleNavigate(call, nextID))
-		case "begin_case":
-			flush()
-			svcName := llm.StrField(call, "service")
-			open = &agent.TestCase{
-				ID: nextID(), Name: llm.StrField(call, "name"),
-				Expectation: llm.StrField(call, "expectation"), Action: "ws_flow",
-				Service: svcName,
-				// ws_connect dials tc.Target (stepToAction); the LLM emits the
-				// service NAME, so resolve it to the service URL here.
-				Target: serviceURLByName(svcName, services),
-			}
-			// ws_* handled in Task 2; high-level-only tests never hit them.
-		case "ws_connect":
-			if open == nil {
-				continue
-			}
-			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_connect", ConnectionID: llm.StrField(call, "role"), Role: llm.StrField(call, "role"),
-				URL: llm.StrField(call, "url"),
-			})
-		case "ws_send":
-			if open == nil {
-				continue
-			}
-			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type")),
-			})
-		case "ws_receive":
-			if open == nil {
-				continue
-			}
-			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_receive", ConnectionID: llm.StrField(call, "role"),
-				Type: llm.StrField(call, "type"), Aliases: llm.StrSliceField(call, "aliases"),
-				Asserts: llm.MapField(call, "assert"), Timeout: llm.IntField(call, "timeout"),
-			})
-		case "ws_disconnect":
-			if open == nil {
-				continue
-			}
-			open.Steps = append(open.Steps, agent.TestStep{
-				Action: "ws_disconnect", ConnectionID: llm.StrField(call, "role"),
-			})
-		}
+		c.handle(call)
 	}
-	flush()
-	cases = fillBody(cases, services) // retained: service.BodyTemplate fill
-	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, covered, coveringCase, httpCovering
+	c.finalizeOpen()
+	cases := fillBody(c.cases, services) // retained: service.BodyTemplate fill
+	return &agent.TestPlan{Goal: goal, Cases: cases, ProjectURL: baseURL}, c.covered, c.coveringCase, c.httpCovering
 }
 
 // --- field helpers live in internal/llm/toolfield.go (shared with Agent) ---
