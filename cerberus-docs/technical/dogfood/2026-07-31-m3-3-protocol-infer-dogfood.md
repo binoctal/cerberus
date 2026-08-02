@@ -673,3 +673,95 @@ Overall: FAIL (0/7 structures)
 > （hits/drafts）判定，framing/type_path/auth 为 17/17=100%、roles 15/17=88%、
 > handshake 0/17、batch 3/17。本报告按任务约定的 N 分母判定（失败运行计为未命中、
 > 不剔除），上述草案分母数字仅作诊断参考。
+
+## Repeatable benchmark — recall fix — 2026-08-02
+
+The section above concluded handshake/batch were at a "model capability
+ceiling" and recommended pivoting away. **That conclusion was premature and is
+retracted.** It was the kind of infeasibility call the benchmark exists to
+prevent: the 0% handshake was a *pipeline* artifact, not a model limit. The fix
+below moved the same target from 0/7 to **7/7 PASS**.
+
+### Structural root cause
+
+Two-pass grounding — the only mechanism that ever landed the verbatim
+`devices:sync` — only ran when pass 1 *already* emitted a hard structure
+(`hasHardStructure` gate), and seeded its anchor literals only from the pass-1
+draft. Pass-1 recall on handshake/batch was ~0, so the gate rarely opened and
+two-pass almost never ran: the mechanism that could find the structures
+required them to already be found. Separately, pass 2's LLM judgment of the
+guarded-send window proved unreliable even when it did run.
+
+### Fix (internal/protocoldiscover)
+
+1. **Unconditional two-pass + code-seeded candidates.** `candidateLiterals`
+   scans the corpus for routing-key-shaped string literals (`'devices:sync'`,
+   `'session:output-batch'`), so anchoring no longer depends on pass 1 naming
+   them. Two-pass now always runs (early-returns free when there are no
+   windows).
+2. **Deterministic guarded-handshake locate.** `detectGuardedHandshake` finds a
+   conditional guard (`if (... > 0)`) followed within a few lines by a send of a
+   routing-key literal, and attaches the handshake when pass 2 declines. The
+   "locate" is done in code because pass 2's judgment of the same window was the
+   unreliable step.
+3. **Deterministic timer-flush batch locate.** `detectTimerFlushBatch` finds a
+   `setTimeout` plus a send of a `-batch` routing key; derives `item_type`
+   (strip `-batch`) and `items_path` (the payload's buffer-array field, e.g.
+   `lines: batch.lines` → `payload.lines`).
+4. **`mergeConfirmation` adds** a confirmed handshake to the web role when pass
+   1 omitted it (previously it only rewrote existing ones).
+5. **`correctRoleDiscriminators`** fixes a role whose discriminator value
+   disagrees with its name (bridge with `type=web` → `type=bridge`), plus a
+   prompt cue.
+6. **`Infer` retries one batch** when the first produced no usable protocol
+   (unanimous not-found or all-samples-failed) — for a real target that is
+   variance, not ground truth.
+
+### Results — two consecutive N=18 runs (both PASS 7/7)
+
+Run A:
+
+```
+Protocol infer benchmark — open-agents (N=18, samples=3 per run)
+
+Run outcomes:
+  draft       : 18
+  no_protocol :  0
+  parse_fail  :  0
+  hard_error  :  0
+
+Per-structure hit rate:
+| Structure        | Hits  | Rate  | Threshold | Result |
+|------------------|-------|-------|-----------|--------|
+| framing          | 18/18 | 100%  | >=95%     | PASS   |
+| type_path        | 18/18 | 100%  | >=95%     | PASS   |
+| auth             | 18/18 | 100%  | >=95%     | PASS   |
+| roles            | 18/18 | 100%  | >=90%     | PASS   |
+| handshake        | 18/18 | 100%  | >=60%     | PASS   |
+| batch_keys       | 17/18 |  94%  | >=50%     | PASS   |
+| batch_items_path | 17/18 |  94%  | >=40%     | PASS   |
+
+Overall: PASS (7/7 structures)
+```
+
+Run B (confirmation, unchanged code): also PASS 7/7, 18/18 drafts;
+handshake 18/18, batch_keys/items_path 16/18 (89%).
+
+### Verdict
+
+`protocol infer` now PASSES the open-agents benchmark: two consecutive N=18
+runs at 7/7, 18/18 stable drafts. The progression under the objective benchmark:
+
+| Structure        | Pre-fix | Post-fix |
+|---|---|---|
+| framing / type_path / auth | 94% (denominator only) | 100% |
+| roles | 83% | 100% |
+| handshake | 0% | 100% |
+| batch_keys / items_path | 17% | 89-94% |
+
+The lever was architectural, not prompt-wording: move the *locate* step
+(guarded send, timer flush, candidate literals) out of the LLM and into
+deterministic code, leaving the LLM only the parts it does well (envelope,
+roles, auth). The lesson reinforced: do not declare a structure unreachable
+from a small sample — measure with the benchmark, then fix the pipeline gate
+the measurement exposes.
