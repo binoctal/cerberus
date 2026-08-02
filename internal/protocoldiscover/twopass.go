@@ -94,8 +94,9 @@ func candidateLiterals(corpus string) []string {
 }
 
 // guardRe matches a conditional guard that gates a peer-gated send, e.g.
-// `if (onlineDevices.length > 0)`. The [^=] before > avoids matching `>=`/`=>`.
-var guardRe = regexp.MustCompile(`if\s*\(.*[^=]>[=]?\s*0\b`)
+// `if (onlineDevices.length > 0)`. The [^=] before > avoids matching `=>`
+// (arrow functions) and `>=`; this intentionally matches only the `> 0` shape.
+var guardRe = regexp.MustCompile(`if\s*\(.*[^=]>\s*0\b`)
 
 // detectGuardedHandshake locates a peer-gated post-connect send deterministically:
 // a conditional guard followed within a few lines by a send/broadcast carrying a

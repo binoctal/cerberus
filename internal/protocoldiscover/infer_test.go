@@ -420,8 +420,8 @@ func TestInferOnce_TwoPassAddsStructuresWhenPass1Omitted(t *testing.T) {
 }
 
 // TestCorrectRoleDiscriminators_FixesBridgeValue: a bridge role whose
-// discriminator the model set to "web" is corrected to "bridge"; a correct web
-// role is untouched.
+// discriminator the model set to "web" (a sibling role name) is corrected to
+// "bridge"; a correct web role is untouched.
 func TestCorrectRoleDiscriminators_FixesBridgeValue(t *testing.T) {
 	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
 		"web":    {Params: map[string]string{"type": "web"}},
@@ -430,6 +430,17 @@ func TestCorrectRoleDiscriminators_FixesBridgeValue(t *testing.T) {
 	correctRoleDiscriminators(p)
 	assert.Equal(t, "web", p.Roles["web"].Params["type"], "correct web discriminator untouched")
 	assert.Equal(t, "bridge", p.Roles["bridge"].Params["type"], "wrong bridge discriminator corrected")
+}
+
+// TestCorrectRoleDiscriminators_PreservesLegitValue: a discriminator that does
+// NOT name a sibling role (e.g. type="browser") is a legitimate value and must
+// NOT be overwritten — guards the over-correction risk flagged in review.
+func TestCorrectRoleDiscriminators_PreservesLegitValue(t *testing.T) {
+	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"web": {Params: map[string]string{"type": "browser"}},
+	}}
+	correctRoleDiscriminators(p)
+	assert.Equal(t, "browser", p.Roles["web"].Params["type"], "legitimate non-sibling value must not be overwritten")
 }
 
 func TestScoreProtocol_CompleteBeatsPartial(t *testing.T) {

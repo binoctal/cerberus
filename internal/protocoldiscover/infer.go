@@ -362,37 +362,32 @@ func actorNames(cfg *project.Config) []string {
 	return names
 }
 
-// knownRoleType maps a connection-role name to its discriminator value when the
-// role name IS the discriminator (the open-agents shape: a "bridge" role
-// carries params.type=bridge). ok=false for names without a known mapping.
-func knownRoleType(name string) (string, bool) {
-	switch name {
-	case "web":
-		return "web", true
-	case "bridge":
-		return "bridge", true
-	}
-	return "", false
-}
-
-// correctRoleDiscriminators fixes a value-precision gap observed in dogfood
-// (N=18): the model sometimes sets a role's discriminator to the wrong value
-// (e.g. a "bridge" role with params.type="web"). When a role's name maps to a
-// known discriminator and its current non-empty type param disagrees, set it to
-// match. Idempotent and defensive; it never adds a type where the model emitted
-// none.
+// correctRoleDiscriminators fixes the cross-role value-precision bug observed
+// in dogfood (N=18): a role whose discriminator param was set to ANOTHER
+// declared role's name (e.g. a "bridge" role with params.type="web" where web
+// is a sibling role). It corrects ONLY when the value names a sibling role, so
+// a legitimate differing value (e.g. type="browser") is never overwritten.
+// Bounded, idempotent, and generalizes to any role names — not just web/bridge.
 func correctRoleDiscriminators(p *project.Protocol) {
 	if p == nil {
 		return
+	}
+	names := make(map[string]bool, len(p.Roles))
+	for n := range p.Roles {
+		names[n] = true
 	}
 	for name, r := range p.Roles {
 		if r == nil || r.Params == nil {
 			continue
 		}
-		if want, ok := knownRoleType(name); ok {
-			if cur := r.Params["type"]; cur != "" && cur != want {
-				r.Params["type"] = want
-			}
+		cur := r.Params["type"]
+		if cur == "" || cur == name {
+			continue
+		}
+		// Only correct when the value is a sibling role's name — the observed
+		// bug shape. Never overwrite a value that could be legitimate.
+		if names[cur] {
+			r.Params["type"] = name
 		}
 	}
 }
