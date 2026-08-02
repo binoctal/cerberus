@@ -68,6 +68,46 @@ Four changes in `internal/protocoldiscover/{infer.go,twopass.go}`:
 - Raising pass-1 recall via further prompt wording alone (exhausted; the fix is
   structural). The prompt cue added in (4) is the last prompt touch.
 
+## Generality scope (validated on open-agents only)
+
+The deterministic detectors are the recall win, but they are shaped to
+open-agents's code conventions. They are **validated only on open-agents** (the
+sole WS target with a protocol declaration in the repo today). Before relying on
+`protocol infer` for a target that does not share these conventions, validate it
+against that target's benchmark — do NOT assume generality from the 7/7 result.
+
+Per-detector assumption and failure mode on a non-matching target (from the
+2026-08-02 overfit review):
+
+- `candidateLiterals` — general and safe. Over-matches are filtered by pass 2;
+  no-op when no colon-shaped string literals exist. **Ship-general.**
+- `detectGuardedHandshake` — matches ONLY the `if (... > 0)` guard shape and
+  returns the FIRST guarded send in corpus order. Safe on open-agents because
+  the connect path precedes the message handlers. A target whose first guarded
+  send lives in a message/rate-limit/heartbeat handler would get a **spurious
+  handshake** (silent wrong output, not a no-op). Misses `.length` truthiness,
+  boolean flags, `>= 1`, `!== 0` guard shapes (recall loss only).
+- `detectTimerFlushBatch` — requires the flush routing key to end in `-batch`
+  and derives `item_type` by stripping `-batch`. No-op (returns nothing) on
+  targets with other flush-key conventions (`:flush`, `:bulk`, prefix `batch:`,
+  arbitrary names) — recall loss, not precision risk. The `setTimeout` gate is
+  necessary-but-not-sufficient.
+- `extractItemsPath` — picks the first `field: <buffer>.<field>` payload entry.
+  Correct on open-agents; can return a non-array sibling leaf on other payload
+  shapes (inline arrays, shorthand, a sibling object field preceding the array).
+  Silent wrong path when the `-batch` detector fires.
+- `correctRoleDiscriminators` — corrects only when a role's `type` value names a
+  SIBLING role (bounded after the review fix); safe on any target.
+- `connectRole` — prefers a role literally named `web`; falls back to the
+  lexicographically smallest. A target without a `web` role attaches an added
+  handshake to an arbitrary role.
+
+**Generalization rule:** broadening any detector (guard shapes, flush-key
+conventions, connect-handler scoping) is itself overfitting when tuned against a
+single target. Such work must be gated on a second, conventionally-diverse WS
+target run through the benchmark. Until then, `protocol infer` is scoped to
+open-agents-style protocols and its output on other targets is draft-only.
+
 ## Testing (TDD)
 
 Pure-function unit tests (no network), added to `twopass_test.go` /

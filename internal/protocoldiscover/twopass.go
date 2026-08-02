@@ -106,6 +106,12 @@ var guardRe = regexp.MustCompile(`if\s*\(.*[^=]>\s*0\b`)
 // benchmark showed pass 2's LLM judgment of the same anchored window is
 // unreliable for this pattern — the deterministic detector is. When it fires,
 // the caller attaches the handshake without depending on pass 2.
+//
+// SCOPE: validated only on open-agents. Matches only the `if (... > 0)` guard
+// shape and returns the FIRST guarded send in corpus order — safe there because
+// the connect path precedes the message handlers. A target whose first guarded
+// send is in a message/rate-limit handler would get a spurious handshake. See
+// the design spec's "Generality scope" before broadening.
 func detectGuardedHandshake(corpus string) string {
 	lines := strings.Split(corpus, "\n")
 	for i, line := range lines {
@@ -158,6 +164,12 @@ func containsSend(line string) bool {
 // done deterministically because pass 2's LLM judgment proved unreliable. The
 // `-batch` suffix convention yields item_type; the payload's buffer-array field
 // yields items_path (frame-rooted via `payload.`).
+//
+// SCOPE: validated only on open-agents. Requires the open-agents `-batch`
+// flush-key convention; no-op (returns "") on other conventions (`:flush`,
+// `:bulk`, prefix naming) — recall loss, not precision risk. extractItemsPath
+// can return a non-array sibling leaf on other payload shapes. See the design
+// spec's "Generality scope" before broadening.
 func detectTimerFlushBatch(corpus string) (flushKey, itemType, itemsPath string) {
 	if !setTimeoutRe.MatchString(corpus) {
 		return "", "", ""
