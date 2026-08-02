@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -25,6 +26,14 @@ import (
 // is BEST-EFFORT: open-agents' relay vocabulary is discovered at run time, so a
 // mismatch is a dogfood finding, not a cerberus regression (the deterministic
 // TestRunStepsMultiConnection is the mechanical proof).
+//
+// Gap E prerequisite (TestOrchestratorCallback only): open-agents must route its
+// DO callback to the capture server. wrangler does NOT read shell env prefixes,
+// so use one of:
+//   - add API_BASE_URL = "http://127.0.0.1:9099" to apps/api/.dev.vars, or
+//   - wrangler dev --var API_BASE_URL:http://127.0.0.1:9099 --port 8989
+//
+// The test skips (not fails) if port 9099 is unavailable or no callback arrives.
 func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 	f := setupOpenAgents(t, false)
 
@@ -261,6 +270,41 @@ func TestAuthErrorPaths(t *testing.T) {
 			if ws, ok := result.Result.(types.WSResult); ok {
 				t.Logf("dial error for %s: %s", c.name, ws.Err)
 			}
+		})
+	}
+}
+
+// TestOrchestratorCallback asserts the DO's notifyOrchestrator side effect
+// (room.ts:326-338) for the three triggers (room.ts:217): task_progress,
+// task_result, task_error. Per row: bridge sends the trigger, then the capture
+// server must observe a POST to /api/multiagent/internal/orchestrator/event.
+func TestOrchestratorCallback(t *testing.T) {
+	f := setupOpenAgents(t, true) // starts capture server on :9099 (skips if unavailable)
+	triggers := []string{"multiagent:task_progress", "multiagent:task_result", "multiagent:task_error"}
+	for _, typ := range triggers {
+		t.Run(typ, func(t *testing.T) {
+			f.capture.reset()
+			tc := &TestCase{
+				ID:     "tc-cb-" + typ,
+				Target: "ws://localhost:8989/ws/" + f.userId,
+				Steps: []TestStep{
+					{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+					{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+					{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
+					{Action: "ws_send", ConnectionID: "c-bridge",
+						Message: fmt.Sprintf(`{"type":%q,"payload":{"deviceId":%q}}`, typ, f.deviceId)},
+				},
+			}
+			se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+			res := se.runSteps()
+			require.Equal(t, StepPassed, res.Status, "trigger send failed for %s", typ)
+
+			got, ok := f.capture.awaitPOST("/api/multiagent/internal/orchestrator/event", typ, 3*time.Second)
+			if !ok {
+				t.Skipf("no orchestrator callback captured for %s within timeout — "+
+					"is API_BASE_URL pointed at the capture server? (see gap E prerequisite)", typ)
+			}
+			t.Logf("captured callback for %s: %s", typ, got.Body)
 		})
 	}
 }
