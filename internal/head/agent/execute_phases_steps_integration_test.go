@@ -160,3 +160,68 @@ func TestSessionStartRoundTrip(t *testing.T) {
 	}
 	require.Equal(t, StepPassed, result.Status, "session:start round trip did not complete")
 }
+
+// TestLifecycleSignals covers three DO lifecycle paths: device:offline on
+// bridge disconnect (room.ts:154-160), sendToBridge silent-drop on an unknown
+// deviceId (room.ts:295), and broadcastToWeb fan-out to two web clients
+// (room.ts:269).
+func TestLifecycleSignals(t *testing.T) {
+	f := setupOpenAgents(t, false)
+	t.Run("device_offline_on_disconnect", func(t *testing.T) {
+		tc := &TestCase{
+			ID:     "tc-offline",
+			Target: "ws://localhost:8989/ws/" + f.userId,
+			Steps: []TestStep{
+				{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+				{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+				{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
+				{Action: "ws_disconnect", ConnectionID: "c-bridge"},
+				{Action: "ws_receive", ConnectionID: "c-web", Type: "device:offline", Timeout: 3},
+			},
+		}
+		se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+		result := se.runSteps()
+		require.Equal(t, StepPassed, result.Status, "device:offline not relayed on bridge disconnect")
+	})
+
+	t.Run("sendToBridge_miss_silent_drop", func(t *testing.T) {
+		// Web sends a routed type with an UNKNOWN deviceId; sendToBridge finds no
+		// socket and drops silently. Assert the bridge receives nothing: the case
+		// FAILS on the receive step (no frame within timeout) — that failure IS the
+		// proof of the silent drop, so we invert the assertion.
+		tc := &TestCase{
+			ID:     "tc-miss",
+			Target: "ws://localhost:8989/ws/" + f.userId,
+			Steps: []TestStep{
+				{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+				{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+				{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
+				{Action: "ws_send", ConnectionID: "c-web",
+					Message: `{"type":"session:send","payload":{"deviceId":"device_does_not_exist"}}`},
+				{Action: "ws_receive", ConnectionID: "c-bridge", Type: "session:send", Timeout: 1},
+			},
+		}
+		se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+		result := se.runSteps()
+		require.NotEqual(t, StepPassed, result.Status,
+			"bridge unexpectedly received a routed frame for an unknown deviceId (drop did not happen)")
+	})
+
+	t.Run("fanout_two_web_clients", func(t *testing.T) {
+		tc := &TestCase{
+			ID:     "tc-fanout",
+			Target: "ws://localhost:8989/ws/" + f.userId,
+			Steps: []TestStep{
+				{Action: "ws_connect", Role: "web", ConnectionID: "c-web-1"},
+				{Action: "ws_connect", Role: "web", ConnectionID: "c-web-2"},
+				{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+				// device:online is broadcast to BOTH web clients.
+				{Action: "ws_receive", ConnectionID: "c-web-1", Type: "device:online", Timeout: 3},
+				{Action: "ws_receive", ConnectionID: "c-web-2", Type: "device:online", Timeout: 3},
+			},
+		}
+		se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+		result := se.runSteps()
+		require.Equal(t, StepPassed, result.Status, "broadcastToWeb did not reach both web clients")
+	})
+}
