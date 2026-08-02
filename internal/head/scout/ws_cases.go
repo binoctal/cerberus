@@ -48,142 +48,152 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		if svc.Protocol == nil || len(svc.Protocol.Roles) == 0 {
 			continue
 		}
-		// Deterministic peer-join relay cases: a role with an OPTIONAL handshake
-		// receives its signal when a peer connects. These are protocol-derivable
-		// (no LLM). A peer-join signal times out on ANY lone connection, so the
-		// redundant single-conn receive of a covered type is suppressed for every
-		// role below (not just the receiver). Coexist with LLM ws_relay (A1): when
-		// a receiver role is already covered by an LLM relay case, the
-		// deterministic relay is redundant and is dropped.
-		relayCases, relayCovered, _ := wsRelayCases(svc)
-		svcCovered := covered[svc.Name]
-		svcCovering := coveringCase[svc.Name]
-		for _, rc := range relayCases {
-			// The receiver role is the first step's Role (A-first connect order).
-			receiver := rc.Steps[0].Role
-			if !svcCovered[receiver] {
-				// Uncovered receiver: emit the deterministic relay as a normal case.
-				cases = append(cases, rc)
-				continue
-			}
+		cases = append(cases, wsCasesForService(svc, goal, covered[svc.Name], coveringCase[svc.Name])...)
+	}
+	return cases
+}
+
+// wsCasesForService emits the deterministic WS cases for one service: the
+// peer-join relay coexistence cases (shared with LLM ws_relay), then a per-role
+// ws_flow case for every role not already connected by an LLM or relay case.
+// svcCovered / svcCovering are this service's slice of the assemblePlan side
+// tables (roles a sound LLM case already connected, and that case's ID).
+func wsCasesForService(svc project.Service, goal string, svcCovered map[string]bool, svcCovering map[string]string) []agent.TestCase {
+	relayCases, relayCovered, _ := wsRelayCases(svc)
+	relayEmitted, relaySignals, relayConnected := relayCoexistence(relayCases, svcCovered, svcCovering, relayCovered)
+	cases := relayEmitted
+	// Iterate roles in sorted name order so the returned slice is deterministic
+	// across runs regardless of map iteration order.
+	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+		if svcCovered[roleName] {
+			// Role-level skip: a ws_relay already connects this role, so
+			// suppress ALL of WSCases' forms for it (connect, connect+receive,
+			// and the ws_flow exchange) to avoid opening redundant sockets.
+			continue
+		}
+		role := svc.Protocol.Roles[roleName]
+		if ex, ok := wsExchangeFromGoal(goal); ok {
+			cases = append(cases, wsStepsCase(svc, roleName, role, ex))
+			continue
+		}
+		// Finding-2: the deterministic relay case already connects this role
+		// (receiver or peer). Its single-conn connect+receive form is redundant
+		// (the connect runs in the relay Steps) and, routed through Steer,
+		// unreliable. Skip the whole form.
+		if relayConnected[roleName] {
+			continue
+		}
+		cases = append(cases, wsFlowConnectCase(svc, roleName, role, goal, relaySignals))
+	}
+	return cases
+}
+
+// relayCoexistence resolves the deterministic peer-join relay cases against what
+// a sound LLM case already covered. Deterministic peer-join relay cases: a role
+// with an OPTIONAL handshake receives its signal when a peer connects
+// (protocol-derivable, no LLM). A peer-join signal times out on ANY lone
+// connection, so the redundant single-conn receive of a covered type is
+// suppressed for every role. Coexist with LLM ws_relay (A1): a receiver already
+// covered by a sound LLM relay case gets a lazy fallback copy instead of a
+// second independent relay.
+//
+// Returns the emitted relay cases (normal + lazy-fallback), the set of
+// peer-join signal types from EMITTED (non-dropped) receivers, and the set of
+// roles an emitted relay opens a socket for. relayConnected is built from
+// emitted cases only (Finding-2): a relay dropped because its receiver is
+// LLM-covered does NOT connect its peers, so they must still emit their own
+// connect.
+func relayCoexistence(relayCases []agent.TestCase, svcCovered map[string]bool, svcCovering map[string]string, relayCovered map[string]map[string]bool) (emitted []agent.TestCase, signals, connected map[string]bool) {
+	signals = map[string]bool{}
+	connected = map[string]bool{}
+	for _, rc := range relayCases {
+		// The receiver role is the first step's Role (A-first connect order).
+		receiver := rc.Steps[0].Role
+		if svcCovered[receiver] {
 			// A1 Phase 2: receiver covered by a sound LLM case. Emit a lazy
 			// fallback copy bound to that case. Priority<0 makes the Agent skip
 			// it by default; it activates the copy only if the primary case
-			// fails at execution (a runtime hole plan-time soundness cannot see).
-			// rc is a value (Steps slice shared read-only — the Agent does not
-			// mutate steps), so a shallow copy is sufficient.
+			// fails at execution (a runtime hole plan-time soundness cannot
+			// see). rc is a value (Steps slice shared read-only — the Agent
+			// does not mutate steps), so a shallow copy is sufficient.
 			if coverer := svcCovering[receiver]; coverer != "" {
 				fb := rc
 				fb.FallbackFor = coverer
 				fb.Priority = -1
-				cases = append(cases, fb)
+				emitted = append(emitted, fb)
 			}
+			continue
 		}
-		relaySignals := map[string]bool{}
-		for receiver, types := range relayCovered {
-			if svcCovered[receiver] {
-				continue
+		// Uncovered receiver: emit the deterministic relay as a normal case and
+		// record the roles its emitted connect steps open sockets for.
+		emitted = append(emitted, rc)
+		for _, s := range rc.Steps {
+			if s.Action == "ws_connect" {
+				connected[s.Role] = true
 			}
-			for typ := range types {
-				relaySignals[typ] = true
-			}
-		}
-		// Finding-2: only EMITTED relay cases open sockets. A relay case is
-		// dropped above when its receiver is LLM-covered (A1 coexistence), so the
-		// peers of a dropped case are NOT connected by any relay and must still
-		// emit their own connect. Build relayConnected from emitted cases only
-		// (deterministic — iterates the sorted relayCases slice). Mirrors the
-		// relayCovered → relaySignals filter directly above.
-		relayConnected := map[string]bool{}
-		for _, rc := range relayCases {
-			if svcCovered[rc.Steps[0].Role] {
-				continue
-			}
-			for _, s := range rc.Steps {
-				if s.Action == "ws_connect" {
-					relayConnected[s.Role] = true
-				}
-			}
-		}
-		// Iterate roles in sorted name order so the returned slice is
-		// deterministic across runs regardless of map iteration order.
-		for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
-			if covered[svc.Name][roleName] {
-				// Role-level skip: a ws_relay already connects this role, so
-				// suppress ALL of WSCases' forms for it (connect, connect+receive,
-				// and the ws_flow exchange) to avoid opening redundant sockets.
-				continue
-			}
-			role := svc.Protocol.Roles[roleName]
-			if ex, ok := wsExchangeFromGoal(goal); ok {
-				cases = append(cases, wsStepsCase(svc, roleName, role, ex))
-				continue
-			}
-			// Finding-2: the deterministic relay case already connects this role
-			// (receiver or peer). Its single-conn connect+receive form is
-			// redundant (the connect runs in the relay Steps) and, routed through
-			// Steer, unreliable. Skip the whole form — a dependent receive would
-			// otherwise dangle without its connect. goal-exchange wsStepsCase
-			// above is preserved.
-			if relayConnected[roleName] {
-				continue
-			}
-			// Finding-2: emit ONE ws_flow Steps case per role. The connect step
-			// and each receive share one connection_id, so within this case they
-			// share one connection-table namespace (<caseID>:<connID>) and the
-			// receives reach the connect's socket. The prior free-form connect
-			// case + DependsOn receive cases had DIFFERENT caseIDs, so a receive
-			// could never resolve the connect's connection (Background does not
-			// broaden the namespace). Routed via runSteps — deterministic, no Steer.
-			//
-			// The connect step carries Role, so the executor auto-awaits the
-			// role's handshake.await_type; the receive steps therefore EXCLUDE
-			// the handshake await_type (already consumed by connect — a separate
-			// receive would re-await it) and any relay signal (covered by a relay
-			// case). A role with no decisive non-handshake type yields a
-			// connect-only Steps case (valid: verifies connect + handshake).
-			handshakeID := ""
-			recvTimeout := 0
-			if role != nil && role.Handshake != nil {
-				handshakeID = sanitizeTypeID(role.Handshake.AwaitType)
-				if role.Handshake.Timeout > 0 {
-					// Reuse the handshake timeout as the receive-await budget so
-					// a slow server cannot hang the case beyond the role's bound.
-					recvTimeout = role.Handshake.Timeout
-				}
-			}
-			steps := []agent.TestStep{{Action: "ws_connect", ConnectionID: roleName, Role: roleName}}
-			for _, typ := range wsDecisiveTypes(role, goal) {
-				if relaySignals[typ] {
-					// The deterministic relay case already receives this
-					// peer-join signal across connections; a single-conn
-					// receive would time out, so skip it.
-					continue
-				}
-				if sanitizeTypeID(typ) == handshakeID {
-					// Awaited and consumed by the connect step's handshake; a
-					// separate receive would re-await an already-consumed
-					// message. This also collapses a goal-named type that
-					// sanitizes to the handshake await_type's ID.
-					continue
-				}
-				steps = append(steps, agent.TestStep{
-					Action: "ws_receive", ConnectionID: roleName, Type: typ, Timeout: recvTimeout,
-				})
-			}
-			cases = append(cases, agent.TestCase{
-				ID:          wsCaseID(svc.Name, roleName, "connect"),
-				Name:        fmt.Sprintf("%s %s connects", svc.Name, roleName),
-				Service:     svc.Name,
-				Target:      svc.URL,
-				Action:      "ws_flow",
-				Expectation: fmt.Sprintf("%s role %s establishes the connection", svc.Name, roleName),
-				Priority:    0.5,
-				Steps:       steps,
-			})
 		}
 	}
-	return cases
+	// Peer-join signal types come only from EMITTED (non-LLM-covered) receivers.
+	for receiver, types := range relayCovered {
+		if svcCovered[receiver] {
+			continue
+		}
+		for typ := range types {
+			signals[typ] = true
+		}
+	}
+	return emitted, signals, connected
+}
+
+// wsFlowConnectCase builds one ws_flow Steps case for a role: a connect step
+// plus one receive step per decisive non-handshake type the role should listen
+// for (excluding peer-join signals already covered by a relay case). The
+// connect step and each receive share one connection_id, so within this case
+// they share one connection-table namespace and the receives reach the
+// connect's socket (Finding-2). The connect step carries Role, so the executor
+// auto-awaits the role's handshake.await_type; the receive steps therefore
+// exclude that type (already consumed by connect) and any relay signal. A role
+// with no decisive non-handshake type yields a connect-only case (valid:
+// verifies connect + handshake).
+func wsFlowConnectCase(svc project.Service, roleName string, role *project.ProtocolRole, goal string, relaySignals map[string]bool) agent.TestCase {
+	handshakeID := ""
+	recvTimeout := 0
+	if role != nil && role.Handshake != nil {
+		handshakeID = sanitizeTypeID(role.Handshake.AwaitType)
+		if role.Handshake.Timeout > 0 {
+			// Reuse the handshake timeout as the receive-await budget so a slow
+			// server cannot hang the case beyond the role's bound.
+			recvTimeout = role.Handshake.Timeout
+		}
+	}
+	steps := []agent.TestStep{{Action: "ws_connect", ConnectionID: roleName, Role: roleName}}
+	for _, typ := range wsDecisiveTypes(role, goal) {
+		if relaySignals[typ] {
+			// The deterministic relay case already receives this peer-join
+			// signal across connections; a single-conn receive would time out.
+			continue
+		}
+		if sanitizeTypeID(typ) == handshakeID {
+			// Awaited and consumed by the connect step's handshake; a separate
+			// receive would re-await an already-consumed message. This also
+			// collapses a goal-named type that sanitizes to the handshake
+			// await_type's ID.
+			continue
+		}
+		steps = append(steps, agent.TestStep{
+			Action: "ws_receive", ConnectionID: roleName, Type: typ, Timeout: recvTimeout,
+		})
+	}
+	return agent.TestCase{
+		ID:          wsCaseID(svc.Name, roleName, "connect"),
+		Name:        fmt.Sprintf("%s %s connects", svc.Name, roleName),
+		Service:     svc.Name,
+		Target:      svc.URL,
+		Action:      "ws_flow",
+		Expectation: fmt.Sprintf("%s role %s establishes the connection", svc.Name, roleName),
+		Priority:    0.5,
+		Steps:       steps,
+	}
 }
 
 // wsRelayCases emits deterministic multi-connection relay Steps cases for the
