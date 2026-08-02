@@ -95,113 +95,22 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 		DurationMs:        elapsed.Milliseconds(),
 	}
 
-	// Pair primary<->fallback via TestCase.FallbackFor, and primary<->replacement
-	// via TestCase.Replaces. A fallback/replacement result is not an independent
-	// tally unit. A primary that is recovered — either because its fallback
-	// recovered (gated on StepResult.Recovered, set only by the FallbackFor
-	// activation path) or because a replacement passed (gated on pass-status) —
-	// is reclassified OUT of Failed into Recovered. Both recovery modes feed the
-	// same recoveredPrimaryIDs set so the counting rule is uniform.
-	recoveredPrimaryIDs := map[string]bool{}
-	nonUnitResultCount := 0
-	for _, r := range results {
-		tc := r.TestCase
-		if tc == nil {
-			continue
-		}
-		if tc.FallbackFor != "" {
-			nonUnitResultCount++
-			if r.Recovered {
-				recoveredPrimaryIDs[tc.FallbackFor] = true
-			}
-		} else if tc.Replaces != "" {
-			nonUnitResultCount++
-			// Recovery here is gated on the Agent-side r.Status (StepPassed),
-			// not the examiner verdict v.Status — mirroring the inherited
-			// FallbackFor gating (r.Recovered is also Agent-side). So an
-			// examiner downgrade of a passed step could in theory still count
-			// as recovered; revisit if the FallbackFor analog is ever tightened.
-			if r.Status == agent.StepPassed {
-				recoveredPrimaryIDs[tc.Replaces] = true
-			}
-		}
-	}
+	// Pair primary<->fallback / primary<->replacement and find recovered
+	// primaries. A fallback/replacement result is not an independent tally unit.
+	recoveredPrimaryIDs, nonUnitResultCount := computeRecoveredPrimaries(results)
 	s.TotalCases = len(results) - nonUnitResultCount
 
 	// Count final outcomes. Prefer examiner verdicts — the final judgment
-	// reflects correctness adjustments (e.g. pass→uncertain) that raw step
+	// reflects correctness adjustments (e.g. pass->uncertain) that raw step
 	// status lacks, and these counts feed user-facing reports. Fall back to
 	// step status only when the Examiner didn't run (no verdicts).
 	if len(verdicts) > 0 {
-		for _, v := range verdicts {
-			tc := v.StepResult.TestCase
-			if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
-				continue // fallback/replacement result, not an independent unit
-			}
-			// Tally correctable failure causes (non-none hint on a Fail unit).
-			// Recovered primaries still count — their hint is the cause that was
-			// repaired.
-			if v.Status == examiner.StatusFail && v.RedispatchHint != agent.HintNone {
-				if s.FailureHints == nil {
-					s.FailureHints = map[string]int{}
-				}
-				s.FailureHints[string(v.RedispatchHint)]++
-				if tc != nil && !isRepairable(tc) {
-					// Correctable cause but a case type repair_case cannot emit.
-					s.NonRepairableFailures++
-				}
-			}
-			if tc != nil && recoveredPrimaryIDs[tc.ID] {
-				// Reclassified out of Failed into Recovered (FallbackFor or
-				// Replaces recovery — the primary is counted once, as Recovered).
-				s.Recovered++
-				continue
-			}
-			switch v.Status {
-			case examiner.StatusPass:
-				s.Passed++
-			case examiner.StatusFail:
-				s.Failed++
-			case examiner.StatusSkip:
-				s.Skipped++
-			case examiner.StatusUncertain:
-				s.Uncertain++
-			}
-		}
+		tallyFromVerdicts(verdicts, recoveredPrimaryIDs, s)
 	} else {
-		for _, r := range results {
-			tc := r.TestCase
-			if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
-				continue
-			}
-			if tc != nil && recoveredPrimaryIDs[tc.ID] {
-				// Reclassified out of Failed into Recovered (FallbackFor or
-				// Replaces recovery — the primary is counted once, as Recovered).
-				s.Recovered++
-				continue
-			}
-			switch r.Status {
-			case agent.StepPassed:
-				s.Passed++
-			case agent.StepFailed:
-				s.Failed++
-			case agent.StepSkipped:
-				s.Skipped++
-			case agent.StepUncertain:
-				s.Uncertain++
-			}
-		}
+		tallyFromResults(results, recoveredPrimaryIDs, s)
 	}
 
-	for _, v := range verdicts {
-		tc := v.StepResult.TestCase
-		if tc != nil && (tc.FallbackFor != "" || tc.Replaces != "") {
-			continue // non-unit (fallback/replacement) — not an independent review unit
-		}
-		if v.NeedsReview() {
-			s.PendingReview++
-		}
-	}
+	s.PendingReview = countPendingReview(verdicts)
 
 	// Coverage: (passed + recovered) roles / total role units * 100. Recovered
 	// counts as covered (the deterministic fallback proved the role viable).
@@ -210,6 +119,134 @@ func FromResults(goal, projectURL string, planCases int, results []agent.StepRes
 	}
 
 	return s
+}
+
+// computeRecoveredPrimaries scans agent results to find primary case IDs that
+// were recovered by a fallback or replacement. It returns the recovered-ID set
+// and the count of non-unit results (fallback/replacement entries that are not
+// independent tally units), so the caller can compute TotalCases.
+//
+// A primary that is recovered — either because its fallback recovered (gated on
+// StepResult.Recovered, set only by the FallbackFor activation path) or because
+// a replacement passed (gated on pass-status) — is reclassified OUT of Failed
+// into Recovered. Both recovery modes feed the same set so the counting rule is
+// uniform.
+func computeRecoveredPrimaries(results []agent.StepResult) (map[string]bool, int) {
+	recovered := map[string]bool{}
+	nonUnit := 0
+	for _, r := range results {
+		tc := r.TestCase
+		if tc == nil {
+			continue
+		}
+		if tc.FallbackFor != "" {
+			nonUnit++
+			if r.Recovered {
+				recovered[tc.FallbackFor] = true
+			}
+		} else if tc.Replaces != "" {
+			nonUnit++
+			// Recovery here is gated on the Agent-side r.Status (StepPassed),
+			// not the examiner verdict v.Status — mirroring the inherited
+			// FallbackFor gating (r.Recovered is also Agent-side). So an
+			// examiner downgrade of a passed step could in theory still count
+			// as recovered; revisit if the FallbackFor analog is ever tightened.
+			if r.Status == agent.StepPassed {
+				recovered[tc.Replaces] = true
+			}
+		}
+	}
+	return recovered, nonUnit
+}
+
+// isNonUnitTestCase reports whether tc is a fallback or replacement result (not
+// an independent tally/review unit). Nil-safe.
+func isNonUnitTestCase(tc *agent.TestCase) bool {
+	return tc != nil && (tc.FallbackFor != "" || tc.Replaces != "")
+}
+
+// tallyFromVerdicts counts final outcomes from examiner verdicts into s. It also
+// tallies correctable failure causes (FailureHints / NonRepairableFailures) and
+// reclassifies recovered primaries out of Failed into Recovered.
+func tallyFromVerdicts(verdicts []examiner.FinalVerdict, recoveredPrimaryIDs map[string]bool, s *SessionSummary) {
+	for _, v := range verdicts {
+		tc := v.StepResult.TestCase
+		if isNonUnitTestCase(tc) {
+			continue // fallback/replacement result, not an independent unit
+		}
+		// Tally correctable failure causes (non-none hint on a Fail unit).
+		// Recovered primaries still count — their hint is the cause that was
+		// repaired.
+		if v.Status == examiner.StatusFail && v.RedispatchHint != agent.HintNone {
+			if s.FailureHints == nil {
+				s.FailureHints = map[string]int{}
+			}
+			s.FailureHints[string(v.RedispatchHint)]++
+			if tc != nil && !isRepairable(tc) {
+				// Correctable cause but a case type repair_case cannot emit.
+				s.NonRepairableFailures++
+			}
+		}
+		if tc != nil && recoveredPrimaryIDs[tc.ID] {
+			// Reclassified out of Failed into Recovered (FallbackFor or
+			// Replaces recovery — the primary is counted once, as Recovered).
+			s.Recovered++
+			continue
+		}
+		switch v.Status {
+		case examiner.StatusPass:
+			s.Passed++
+		case examiner.StatusFail:
+			s.Failed++
+		case examiner.StatusSkip:
+			s.Skipped++
+		case examiner.StatusUncertain:
+			s.Uncertain++
+		}
+	}
+}
+
+// tallyFromResults counts final outcomes from raw agent step status into s, used
+// only when the Examiner did not run. Recovered primaries are reclassified out
+// of Failed into Recovered.
+func tallyFromResults(results []agent.StepResult, recoveredPrimaryIDs map[string]bool, s *SessionSummary) {
+	for _, r := range results {
+		tc := r.TestCase
+		if isNonUnitTestCase(tc) {
+			continue
+		}
+		if tc != nil && recoveredPrimaryIDs[tc.ID] {
+			// Reclassified out of Failed into Recovered (FallbackFor or
+			// Replaces recovery — the primary is counted once, as Recovered).
+			s.Recovered++
+			continue
+		}
+		switch r.Status {
+		case agent.StepPassed:
+			s.Passed++
+		case agent.StepFailed:
+			s.Failed++
+		case agent.StepSkipped:
+			s.Skipped++
+		case agent.StepUncertain:
+			s.Uncertain++
+		}
+	}
+}
+
+// countPendingReview counts verdicts needing human review, skipping non-unit
+// (fallback/replacement) results which are not independent review units.
+func countPendingReview(verdicts []examiner.FinalVerdict) int {
+	n := 0
+	for _, v := range verdicts {
+		if isNonUnitTestCase(v.StepResult.TestCase) {
+			continue
+		}
+		if v.NeedsReview() {
+			n++
+		}
+	}
+	return n
 }
 
 // String returns a human-readable summary.
