@@ -296,6 +296,14 @@ const DefaultInferSamples = 3
 // selectProtocol for the voting rules. The three-state contract is preserved:
 // ErrNoProtocol when the consensus is "no protocol here"; a hard error only
 // when every sample failed. Systemic cancellation short-circuits via ctx.Err().
+//
+// SCOPE: the deterministic handshake/batch fallback detectors are validated
+// only on open-agents-style conventions, and their overfit is now MEASURED
+// (each documented failure mode is pinned by an inverse-golden test in
+// twopass_golden_test.go). Treat drafts for targets that do not share those
+// conventions as DRAFT-ONLY: verify before relying on them. Broadening the
+// detectors requires a second, conventionally-diverse real target — see
+// cerberus-docs/superpowers/specs/2026-08-02-protocol-infer-overfit-confirmation-design.md.
 func Infer(ctx context.Context, driver *ai.Driver, cfg *project.Config, serviceName string, inputs []SourceFile, samples int) (*project.Protocol, error) {
 	if driver == nil {
 		return nil, errors.New("nil driver")

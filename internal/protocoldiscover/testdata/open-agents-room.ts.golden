@@ -1,0 +1,689 @@
+// GOLDEN FIXTURE — verbatim excerpt source. Do not edit.
+// Provenance: open-agents apps/api/src/realtime/room.ts (684 lines), the WS dogfood target
+// the protocol-infer detectors were validated against. Captured 2026-08-02 to lock the
+// PASS 7/7 behavior. If open-agents realtime changes meaningfully, update this deliberately.
+// --- BEGIN verbatim source ---
+import { DurableObject } from 'cloudflare:workers';
+import { ConnectionRateLimiter } from './rateLimiter';
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('realtime')
+
+interface Message {
+  type: string;
+  payload: unknown;
+  timestamp: number;
+}
+
+interface Env {
+  DB?: D1Database;
+  JWT_SECRET?: string;
+  API_BASE_URL?: string;
+  INTERNAL_SECRET?: string;
+  ENVIRONMENT?: string;
+}
+
+// Connection metadata stored in WebSocket tags
+interface ConnectionMeta {
+  type: 'web' | 'bridge';
+  deviceId?: string;
+  userId?: string;
+  plan?: string;
+  wsPerMin: number; // plan-based rate limit for this connection
+}
+
+// Security constants
+const MAX_MESSAGE_SIZE = 1024 * 1024; // 1MB hard limit
+const WS_CLOSE_MESSAGE_TOO_LARGE = 1009;
+const WS_CLOSE_POLICY_VIOLATION = 1008;
+
+export class UserRoom extends DurableObject<Env> {
+  private webRateLimiter = new ConnectionRateLimiter(60, 1000);     // Web: fallback 60 msg/s, actual limit per-connection from plan
+  private bridgeRateLimiter = new ConnectionRateLimiter(200, 1000); // Bridge: 200 msg/s
+
+  // Output batching state: sessionId -> { lines, timer }
+  private outputBatches = new Map<string, { lines: string[], timer: ReturnType<typeof setTimeout> }>()
+
+  async alarm(): Promise<void> {
+    // Read alarm data from durable storage (survives DO restarts)
+    const type = await this.ctx.storage.get<string>('__alarm_type')
+    const payloadRaw = await this.ctx.storage.get<string>('__alarm_payload')
+
+    if (!type) return
+
+    // Clean up stored alarm data
+    await this.ctx.storage.delete(['__alarm_type', '__alarm_payload'])
+
+    const payload = payloadRaw ? JSON.parse(payloadRaw) : {}
+    logger.info(`Alarm fired: type=${type}`)
+
+    // Forward alarm to the orchestrator via internal API
+    const apiBase = this.env.API_BASE_URL || ''
+    if (!apiBase) return
+
+    // Decompose alarm: call the async planner decompose route directly
+    if (type === 'decompose') {
+      await fetch(`${apiBase}/api/missions/internal/planner/decompose`, {
+        method: 'POST',
+        headers: this.internalHeaders(),
+        body: JSON.stringify(payload),
+      }).catch(err => logger.error('Decompose alarm callback failed:', err))
+      return
+    }
+
+    await fetch(`${apiBase}/api/missions/internal/orchestrator/alarm`, {
+      method: 'POST',
+      headers: this.internalHeaders(),
+      body: JSON.stringify({ type, payload }),
+    }).catch(err => logger.error('Alarm handler callback failed:', err))
+  }
+
+  /** Schedule a durable alarm (persists to storage, survives DO restarts) */
+  async scheduleAlarm(delayMs: number, type: string, payload: Record<string, unknown> = {}): Promise<void> {
+    // Persist alarm data to durable storage
+    await this.ctx.storage.put({
+      __alarm_type: type,
+      __alarm_payload: JSON.stringify(payload),
+    })
+    this.ctx.storage.setAlarm(Date.now() + delayMs)
+    logger.info(`Alarm scheduled: type=${type} delay=${delayMs}ms`)
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+
+    // SEC-2: trust ONLY the shared INTERNAL_SECRET to know the Worker already
+    // authenticated this request (bridge path DB lookup). The X-Token-Verified
+    // header alone is client-forgable on the web path and must not gate auth.
+    const internalAuth =
+      !!this.env.INTERNAL_SECRET &&
+      request.headers.get('X-Internal-Secret') === this.env.INTERNAL_SECRET;
+
+    // Internal broadcast endpoint (from Workers → DO → WebSocket clients)
+    if (url.pathname === '/broadcast' && request.method === 'POST') {
+      const msg = await request.json() as Message;
+      const payload = msg.payload as { deviceId?: string };
+      if (msg.type === 'workflow:task_assign' && payload.deviceId) {
+        this.sendToBridge(payload.deviceId, msg);
+      } else if (msg.type === 'orchestrator:schedule_alarm') {
+        // Handle alarm scheduling requests from orchestrator
+        const alarmPayload = msg.payload as { delayMs: number; alarmType: string; data: Record<string, unknown> };
+        await this.scheduleAlarm(alarmPayload.delayMs, alarmPayload.alarmType, alarmPayload.data);
+      } else {
+        this.broadcastToWeb(msg);
+      }
+      return new Response('ok');
+    }
+
+    // Verify WebSocket upgrade
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (upgradeHeader !== 'websocket') {
+      return new Response('Expected WebSocket', { status: 426 });
+    }
+
+    // Parse connection parameters
+    const type = url.searchParams.get('type') as 'web' | 'bridge';
+    const deviceId = url.searchParams.get('deviceId');
+    const token = url.searchParams.get('token');
+    const userId = url.pathname.split('/')[2]; // /ws/{userId}
+
+    if (!type || !['web', 'bridge'].includes(type)) {
+      return new Response('Invalid connection type', { status: 400 });
+    }
+
+    if (type === 'bridge' && !deviceId) {
+      return new Response('Bridge requires deviceId', { status: 400 });
+    }
+
+    if (!token) {
+      return new Response('Missing token', { status: 401 });
+    }
+
+    // Verify token (skip only if the Worker authenticated via shared INTERNAL_SECRET)
+    const tokenValid = internalAuth || await this.verifyToken(token, type, userId, deviceId);
+    if (!tokenValid) {
+      return new Response('Invalid token', { status: 401 });
+    }
+
+    // Create WebSocket pair
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+
+    // Create tags for this connection (used to identify connection type)
+    const tags: string[] = [type];
+    if (deviceId) {
+      tags.push(`device:${deviceId}`);
+    }
+
+    // Close any stale bridge connections for the same deviceId before accepting the new one.
+    // This prevents duplicate sockets after bridge reconnects (old socket may linger due to
+    // hibernation delay), which would cause duplicate message delivery and false offline events.
+    if (type === 'bridge' && deviceId) {
+      const existing = this.ctx.getWebSockets(`device:${deviceId}` as `"bridge"`);
+      for (const old of existing) {
+        const oldMeta = old.deserializeAttachment() as ConnectionMeta | null;
+        if (oldMeta?.type === 'bridge' && oldMeta.deviceId === deviceId && old !== server) {
+          logger.info(`Closing stale bridge connection for device ${deviceId}`);
+          old.close(1000, 'Replaced by new connection');
+        }
+      }
+    }
+
+    // Accept the WebSocket with hibernation and tags
+    this.ctx.acceptWebSocket(server, tags as [("web" | "bridge"), ...string[]]);
+
+    // Store metadata using attachment
+    const plan = request.headers.get('X-User-Plan') || 'free';
+    const wsPerMin = parseInt(request.headers.get('X-User-Ws-Per-Min') || '60', 10);
+    const meta: ConnectionMeta = { type, deviceId: deviceId || undefined, userId, plan, wsPerMin };
+    server.serializeAttachment(meta);
+
+    logger.info(`New ${type} connection${deviceId ? ` (device: ${deviceId})` : ''} for user ${userId}`);
+
+    // After connection is established, send current state
+    setTimeout(() => {
+      if (type === 'web') {
+        this.sendOnlineDevices(server);
+      } else if (type === 'bridge' && deviceId) {
+        this.broadcastToWeb({
+          type: 'device:online',
+          payload: { deviceId, deviceName: `Device ${deviceId.slice(-4)}` },
+          timestamp: Date.now(),
+        });
+      }
+    }, 100);
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
+  }
+
+  private sendOnlineDevices(ws: WebSocket): void {
+    const onlineDevices: { deviceId: string }[] = [];
+    const sockets = this.ctx.getWebSockets();
+
+    for (const socket of sockets) {
+      const meta = socket.deserializeAttachment() as ConnectionMeta | null;
+      if (meta?.type === 'bridge' && meta?.deviceId) {
+        onlineDevices.push({ deviceId: meta.deviceId });
+      }
+    }
+
+    logger.info(`Sending ${onlineDevices.length} online devices to new web client`);
+    if (onlineDevices.length > 0) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'devices:sync',
+          payload: { devices: onlineDevices },
+          timestamp: Date.now(),
+        }));
+      } catch (error) {
+        logger.error('Error sending online devices:', error);
+      }
+    }
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const meta = ws.deserializeAttachment() as ConnectionMeta | null;
+    if (!meta) return;
+
+    try {
+      const data = typeof message === 'string' ? message : new TextDecoder().decode(message);
+
+      // Security: message size check (1MB hard limit)
+      if (data.length > MAX_MESSAGE_SIZE) {
+        logger.warn(`SECURITY: action=message_too_large size=${data.length} limit=${MAX_MESSAGE_SIZE} type=${meta.type}`);
+        ws.close(WS_CLOSE_MESSAGE_TOO_LARGE, 'Message too large');
+        return;
+      }
+
+      // Security: rate limiting (bridge connections get higher limit, web uses plan-based limit)
+      const connId = meta.deviceId || meta.userId || 'unknown';
+      const limiter = meta.type === 'bridge'
+        ? this.bridgeRateLimiter
+        : this.webRateLimiter;
+      // Web connections use per-plan ws_per_min (stored in meta), bridge uses default
+      const effectiveMax = meta.type === 'web' ? meta.wsPerMin : undefined;
+      const limitResult = limiter.checkLimit(connId, effectiveMax);
+      if (!limitResult.allowed) {
+        logger.warn(`SECURITY: action=rate_limit_exceeded connId=${connId} type=${meta.type}`);
+        this.sendError(ws, 'RATE_LIMIT_EXCEEDED', 'Too many messages');
+        if (limiter.shouldClose(connId)) {
+          logger.warn(`SECURITY: action=rate_limit_close connId=${connId} violations=${limiter.getViolations(connId)}`);
+          ws.close(WS_CLOSE_POLICY_VIOLATION, 'Rate limit exceeded');
+        }
+        return;
+      }
+
+      // Record WS usage for web connections (non-blocking)
+      if (meta.type === 'web' && meta.userId && this.env.DB) {
+        const today = new Date().toISOString().slice(0, 10)
+        this.env.DB.prepare(`
+          INSERT INTO user_daily_usage (user_id, date, api_requests, ws_messages)
+          VALUES (?, ?, 0, 1)
+          ON CONFLICT(user_id, date) DO UPDATE SET ws_messages = ws_messages + 1
+        `).bind(meta.userId, today).run().catch(() => {})
+      }
+
+      // Warn when approaching rate limit (80% threshold)
+      const maxForType = meta.type === 'bridge' ? 200 : meta.wsPerMin;
+      if (limitResult.remaining <= Math.ceil(maxForType * 0.2) && limitResult.remaining > 0) {
+        this.sendSystemMessage(ws, `[System] Approaching rate limit (${maxForType - limitResult.remaining}/${maxForType} messages/s). Please slow down.`);
+      }
+
+      const msg: Message = JSON.parse(data);
+
+      logger.info(`Received ${msg.type} from ${meta.type}`);
+
+      await this.handleMessage(ws, meta, msg);
+    } catch (error) {
+      // Log only the error message and context — avoid recording
+      // error.stack which exposes internal file paths and implementation.
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error(`Error handling message: ${errMsg} type=${meta?.type} device=${meta?.deviceId} user=${meta?.userId}`);
+
+      // 不重新抛出异常，避免断开连接
+      this.sendError(ws, 'MESSAGE_PROCESSING_ERROR', 'Failed to process message');
+    }
+  }
+
+  async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    const meta = ws.deserializeAttachment() as ConnectionMeta | null;
+    if (!meta) return;
+
+    // Cleanup rate limiter state
+    const connId = meta.deviceId || meta.userId || 'unknown';
+    const limiter = meta.type === 'bridge' ? this.bridgeRateLimiter : this.webRateLimiter;
+    limiter.cleanup(connId);
+
+    logger.info(`Connection closed: ${meta.type}${meta.deviceId ? ` (device: ${meta.deviceId})` : ''}`);
+
+    // If bridge disconnected, notify web clients and trigger task recovery.
+    // Only broadcast offline if no other bridge connection exists for this device
+    // (the bridge may have reconnected with a new socket before the old one closed).
+    if (meta.type === 'bridge' && meta.deviceId) {
+      const remaining = this.ctx.getWebSockets(`device:${meta.deviceId}` as `"bridge"`);
+      const hasOtherBridge = remaining.some(otherWs => {
+        if (otherWs === ws) return false; // skip self (already closing)
+        const m = otherWs.deserializeAttachment() as ConnectionMeta | null;
+        return m?.type === 'bridge' && m?.deviceId === meta.deviceId;
+      });
+
+      if (!hasOtherBridge) {
+        this.broadcastToWeb({
+          type: 'device:offline',
+          payload: { deviceId: meta.deviceId },
+          timestamp: Date.now(),
+        });
+
+        // Notify web clients that all active sessions for this device are disconnected
+        this.broadcastToWeb({
+          type: 'sessions:disconnected',
+          payload: { deviceId: meta.deviceId },
+          timestamp: Date.now(),
+        });
+
+      // Trigger stuck recovery to reclaim assigned tasks for this device
+      const apiBase = this.env.API_BASE_URL || ''
+      if (apiBase) {
+        fetch(`${apiBase}/api/missions/internal/orchestrator/alarm`, {
+          method: 'POST',
+          headers: this.internalHeaders(),
+          body: JSON.stringify({ type: 'stuckRecovery', payload: {} }),
+        }).catch(err => logger.error('Device offline stuck recovery trigger failed:', err))
+      }
+      } // end if (!hasOtherBridge)
+    }
+  }
+
+  async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
+    logger.error('WebSocket error:', error);
+  }
+
+  private async handleMessage(ws: WebSocket, meta: ConnectionMeta, msg: Message): Promise<void> {
+    switch (msg.type) {
+      // session:output gets special batching treatment
+      case 'session:output':
+        if (meta.type === 'bridge') {
+          this.batchOutput(msg);
+        }
+        break;
+
+      // Bridge -> Web messages
+      case 'encrypted':
+      case 'device:online':
+      case 'session:created':
+      case 'session:started':
+      case 'session:stopped':
+      case 'session:error':
+      case 'session:message':
+      case 'session:status':
+      case 'chat:response':
+      case 'chat:thought':
+      case 'chat:permission':
+      case 'permission:request':
+      // ACP protocol messages
+      case 'acp:status':
+      case 'acp:output':
+      case 'acp:tool_call':
+      case 'acp:tool_result':
+      // Agent status & tool calls
+      case 'agent:status':
+      case 'tool:call':
+      case 'session:usage':
+      // Workflow messages — Bridge → Web + notify Orchestrator
+      case 'workflow:task_started':
+      case 'workflow:task_progress':
+      case 'workflow:task_completed':
+      case 'workflow:task_failed':
+      case 'workflow:job_completed':
+      // Workflow task messages — Bridge → Web + callback Workers
+      case 'workflow:task_result':
+      case 'workflow:task_error':
+      // Human-in-the-loop: Agent questions and status updates
+      case 'workflow:task_question':
+      case 'workflow:task_status_update':
+      // Workflow merge progress — Bridge → Web (WS-1)
+      case 'workflow:merge_progress':
+      // Prompt sync ack
+      case 'prompts:synced':
+      // MCP sync ack
+      case 'mcp:synced':
+      case 'mcp:list_response':
+      // Security alerts and scanner sync
+      case 'security:alert':
+      case 'scanner:rules:synced':
+      // Directory browsing
+      case 'device:listDirResult':
+        if (meta.type === 'bridge') {
+          this.broadcastToWeb(msg);
+          // Orchestrator callback for task lifecycle events
+          if (msg.type === 'workflow:task_result' || msg.type === 'workflow:task_error' || msg.type === 'workflow:task_progress' || msg.type === 'workflow:task_question') {
+            this.notifyOrchestrator(msg);
+          }
+        }
+        break;
+
+      // Web -> Bridge messages
+      case 'session:start':
+      case 'session:stop':
+      case 'session:cancel':
+      case 'session:resize':
+      case 'chat:send':
+      case 'permission:response':
+      case 'control:takeover':
+      case 'config:sync':
+      case 'rules:sync':
+      case 'storage:sync':
+      // Prompt sync
+      case 'prompts:sync':
+      // MCP sync
+      case 'mcp:sync':
+      case 'mcp:list':
+      // Workflow commands
+      case 'workflow:start':
+      case 'workflow:pause':
+      case 'workflow:cancel':
+      case 'workflow:start_task':
+      case 'workflow:task_assign':
+      // Human-in-the-loop: User answers and guidance
+      case 'workflow:task_answer':
+      case 'workflow:task_guidance':
+      // ACP status query
+      case 'acp:query_status':
+      // Device management
+      case 'device:restart':
+      // Directory browsing
+      case 'device:listDir':
+        if (meta.type === 'web') {
+          const payload = msg.payload as { deviceId?: string };
+          if (payload.deviceId) {
+            this.sendToBridge(payload.deviceId, msg);
+          } else {
+            this.sendError(ws, 'MISSING_DEVICE_ID', 'Cannot route message without deviceId');
+          }
+        }
+        break;
+
+      // Special handling for session:send
+      case 'session:send':
+        if (meta.type === 'web') {
+          const payload = msg.payload as { deviceId?: string };
+
+          if (!payload.deviceId) {
+            this.sendError(ws, 'MISSING_DEVICE_ID', 'Cannot route message without deviceId');
+            break;
+          }
+
+          this.sendToBridge(payload.deviceId, msg);
+          // Broadcast to other web clients so they can see the input in real-time
+          this.broadcastToWeb(msg, ws);
+        }
+        break;
+
+      // Bridge -> Web ack messages
+      case 'config:synced':
+      case 'rules:synced':
+      case 'storage:synced':
+        if (meta.type === 'bridge') {
+          this.broadcastToWeb(msg);
+        }
+        break;
+
+      default:
+        logger.info(`Unknown message type: ${msg.type}`);
+    }
+  }
+
+  /** Batch session:output messages by sessionId, flush after 50ms */
+  private batchOutput(msg: Message): void {
+    const payload = msg.payload as { sessionId: string; content: string; deviceId?: string };
+    const sessionId = payload.sessionId;
+    if (!sessionId) return;
+
+    const existing = this.outputBatches.get(sessionId);
+    if (existing) {
+      existing.lines.push(payload.content);
+    } else {
+      const batch = { lines: [payload.content], timer: setTimeout(() => this.flushBatch(sessionId), 50) };
+      this.outputBatches.set(sessionId, batch);
+    }
+  }
+
+  /** Flush a batched output buffer and broadcast to web clients */
+  private flushBatch(sessionId: string): void {
+    const batch = this.outputBatches.get(sessionId);
+    if (!batch) return;
+
+    this.outputBatches.delete(sessionId);
+    if (batch.lines.length === 0) return;
+
+    this.broadcastToWeb({
+      type: 'session:output-batch',
+      payload: { sessionId, lines: batch.lines, timestamp: Date.now() },
+      timestamp: Date.now(),
+    });
+  }
+
+  private broadcastToWeb(msg: Message, excludeWs?: WebSocket): void {
+    const allSockets = this.ctx.getWebSockets();
+    const webSockets = allSockets.filter(ws => {
+      if (ws === excludeWs) return false;
+      const meta = ws.deserializeAttachment() as ConnectionMeta | null;
+      return meta?.type === 'web';
+    });
+    
+    for (const ws of webSockets) {
+      try {
+        ws.send(JSON.stringify(msg));
+      } catch (error) {
+        logger.error('Error broadcasting to web client:', error);
+      }
+    }
+  }
+
+  private sendToBridge(deviceId: string, msg: Message): void {
+    const allSockets = this.ctx.getWebSockets();
+    const bridgeSockets = allSockets.filter(ws => {
+      const meta = ws.deserializeAttachment() as ConnectionMeta | null;
+      return meta?.type === 'bridge' && meta?.deviceId === deviceId;
+    });
+
+    if (bridgeSockets.length === 0) {
+      logger.info(`[sendToBridge] Device not found: ${deviceId}`);
+      return;
+    }
+
+    for (const ws of bridgeSockets) {
+      try {
+        ws.send(JSON.stringify(msg));
+        return;
+      } catch (error: unknown) {
+        logger.error(`[sendToBridge] Error sending to device ${deviceId}:`, error);
+      }
+    }
+  }
+
+  private sendError(ws: WebSocket, code: string, message: string): void {
+    try {
+      ws.send(JSON.stringify({
+        type: 'error',
+        payload: { code, message },
+        timestamp: Date.now(),
+      }));
+    } catch (error) {
+      logger.error('Error sending error message:', error);
+    }
+  }
+
+  private sendSystemMessage(ws: WebSocket, message: string): void {
+    try {
+      ws.send(JSON.stringify({
+        type: 'system',
+        payload: { message },
+        timestamp: Date.now(),
+      }));
+    } catch (error) {
+      logger.error('Error sending system message:', error);
+    }
+  }
+
+  private internalHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (this.env.INTERNAL_SECRET) {
+      headers['X-Internal-Secret'] = this.env.INTERNAL_SECRET
+    }
+    return headers
+  }
+
+  private notifyOrchestrator(msg: Message): void {
+    // Fire-and-forget callback to Workers API for orchestrator state updates
+    const apiBase = this.env.API_BASE_URL || '';
+    if (!apiBase) {
+      logger.info('API_BASE_URL not set, skipping orchestrator callback');
+      return;
+    }
+    fetch(`${apiBase}/api/missions/internal/orchestrator/event`, {
+      method: 'POST',
+      headers: this.internalHeaders(),
+      body: JSON.stringify(msg),
+    }).catch(err => logger.error('Orchestrator callback failed:', err));
+  }
+
+  private async verifyToken(
+    token: string,
+    type: 'web' | 'bridge',
+    userId: string,
+    deviceId?: string | null
+  ): Promise<boolean> {
+    // Extracted to module-level pure functions (isValidBridgeToken /
+    // isValidWebToken) so the security-critical branches are unit-testable
+    // without a real Durable Object harness — workerd hard-validates the DO
+    // constructor and pool-workers' isolated storage is incompatible with DO
+    // storage. The functions hold the actual logic; this method delegates.
+    if (type === 'bridge') return isValidBridgeToken(token)
+    return isValidWebToken(token, userId, this.env)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Token validation — exported pure functions so the security-critical branches
+// (SEC-3 demo-token gating, SEC-5 no-exp rejection, signature forgery) are
+// unit-testable without instantiating a Durable Object. Behavior is identical
+// to the previous inlined verifyToken body.
+// ---------------------------------------------------------------------------
+
+// Bridge tokens are validated against the DB at the Worker level before the
+// request reaches the DO. Here we only sanity-check the token format.
+export function isValidBridgeToken(token: string): boolean {
+  if (!token || !token.startsWith('token_')) return false;
+  // Token must be a UUID-based token (token_ + 32-char body)
+  return token.slice(6).length >= 32;
+}
+
+// Web clients use JWT tokens. Returns false for: too short, demo token outside
+// development (SEC-3), malformed structure, invalid HMAC signature, wrong
+// subject, missing exp (SEC-5), or expired exp.
+export async function isValidWebToken(
+  token: string,
+  userId: string,
+  env: { ENVIRONMENT?: string; JWT_SECRET?: string }
+): Promise<boolean> {
+  if (!token || token.length < 10) return false;
+
+  // Allow demo token only in development (SEC-3)
+  if (token === 'demo_token') {
+    return env.ENVIRONMENT === 'development';
+  }
+
+  try {
+    // Verify JWT structure (header.payload.signature)
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    const [, payloadB64, signature] = parts;
+    if (!payloadB64 || !signature) return false;
+
+    // Verify signature using HMAC-SHA256 if JWT_SECRET is available
+    if (env.JWT_SECRET) {
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(env.JWT_SECRET),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['verify']
+      );
+
+      const dataToVerify = `${parts[0]}.${payloadB64}`;
+      // Convert base64url to standard base64
+      const sig = signature.replace(/-/g, '+').replace(/_/g, '/');
+      const sigPadded = sig + '='.repeat((4 - sig.length % 4) % 4);
+      const sigBytes = Uint8Array.from(atob(sigPadded), c => c.charCodeAt(0));
+
+      const valid = await crypto.subtle.verify(
+        'HMAC',
+        key,
+        sigBytes,
+        encoder.encode(dataToVerify)
+      );
+
+      if (!valid) return false;
+    }
+
+    // Decode and verify payload
+    const payloadStr = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payloadStr + '='.repeat((4 - payloadStr.length % 4) % 4);
+    const payload = JSON.parse(atob(padded));
+
+    if (payload.sub !== userId) return false;
+    // SEC-5: reject JWTs without exp (previously `payload.exp && ...` let no-exp tokens through)
+    if (!payload.exp) return false;
+    if (payload.exp < Date.now() / 1000) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
