@@ -4,9 +4,12 @@ package agent
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // TestRunStepsMultiConnectionOpenAgents dogfoods cerberus's multi-connection
@@ -224,4 +227,40 @@ func TestLifecycleSignals(t *testing.T) {
 		result := se.runSteps()
 		require.Equal(t, StepPassed, result.Status, "broadcastToWeb did not reach both web clients")
 	})
+}
+
+// TestAuthErrorPaths asserts the DO/Worker reject bad connects. Each row dials
+// a raw URL (Role empty, nil wsIdx) so the fixture's protocol does NOT inject a
+// good token. Hard-assert: the connect is rejected (StepFailed). Best-effort:
+// the dial error string usually carries the HTTP status (400/401).
+func TestAuthErrorPaths(t *testing.T) {
+	f := setupOpenAgents(t, false) // provisions userId; its wsIdx is NOT used below.
+	cases := []struct {
+		name string
+		url  string // raw dial URL with the bad param
+	}{
+		{"invalid_type", fmt.Sprintf("ws://localhost:8989/ws/%s?type=invalid&token=demo_token", f.userId)},
+		{"bridge_no_deviceId", fmt.Sprintf("ws://localhost:8989/ws/%s?type=bridge&token=%s", f.userId, "token_"+strings.Repeat("0", 32))},
+		{"missing_token", fmt.Sprintf("ws://localhost:8989/ws/%s?type=web", f.userId)},
+		{"bad_bridge_token", fmt.Sprintf("ws://localhost:8989/ws/%s?type=bridge&deviceId=%s&token=token_wrong", f.userId, f.deviceId)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tc := &TestCase{
+				ID:     "tc-auth-" + c.name,
+				Target: c.url,
+				Steps: []TestStep{
+					{Action: "ws_connect", ConnectionID: "c-bad"}, // no Role, no protocol → raw dial
+				},
+			}
+			// nil wsIdx: resolveProtocol short-circuits, no auth injection.
+			se := newStepExecutionWithIdx(t, tc, nil)
+			result := se.runSteps()
+			require.Equal(t, StepFailed, result.Status, "connect %q unexpectedly succeeded", c.name)
+			// Best-effort: surface the dial error (often contains the HTTP status).
+			if ws, ok := result.Result.(types.WSResult); ok {
+				t.Logf("dial error for %s: %s", c.name, ws.Err)
+			}
+		})
+	}
 }
