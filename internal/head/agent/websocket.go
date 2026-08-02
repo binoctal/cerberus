@@ -17,6 +17,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/google/uuid"
+
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 
@@ -455,9 +457,12 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	} else {
 		preInjectionURL = a.URL
 	}
-	// Role discriminator params (strip-then-inject onto the dial url).
+	// Role discriminator params (strip-then-inject onto the dial url). A value
+	// equal to roleParamUUIDSentinel is replaced with a freshly generated uuid
+	// (per dial) so a declaration can carry a dynamic identifier it cannot know
+	// ahead of time (e.g. a bridge's deviceId) without a hard-coded literal.
 	for k, v := range roleParams {
-		dialURL = setQueryParam(dialURL, k, v)
+		dialURL = setQueryParam(dialURL, k, resolveRoleParamValue(v))
 	}
 	// Role discriminator headers and subprotocols (strip-then-inject). Guarded
 	// on role != nil because role is only resolved when a.Role != ""; without a
@@ -650,6 +655,22 @@ func maybeAuthParam(p *project.Protocol) string {
 		return p.Auth.Param
 	}
 	return ""
+}
+
+// roleParamUUIDSentinel is a role param value the executor replaces with a
+// freshly generated uuid at dial time. Dynamic identifiers a static declaration
+// cannot know ahead of time (e.g. a bridge's deviceId) use this sentinel so the
+// declaration stays runnable without a hard-coded literal.
+const roleParamUUIDSentinel = "{{uuid}}"
+
+// resolveRoleParamValue returns the literal role-param value, unless it is the
+// uuid sentinel, in which case a fresh uuid is generated. Generation is per
+// dial: each connection is a distinct client/device.
+func resolveRoleParamValue(v string) string {
+	if v == roleParamUUIDSentinel {
+		return uuid.NewString()
+	}
+	return v
 }
 
 // setQueryParam removes any existing key then sets it to val on the url's query
