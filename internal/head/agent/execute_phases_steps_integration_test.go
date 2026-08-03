@@ -69,19 +69,18 @@ func TestRunStepsMultiConnectionOpenAgents(t *testing.T) {
 func TestBridgeToWebRelay(t *testing.T) {
 	f := setupOpenAgents(t, false)
 	rows := []string{
-		"encrypted", "session:created", "session:started", "session:output",
-		"session:stopped", "session:error", "session:message", "session:status",
-		"chat:response", "chat:thought", "chat:permission", "permission:request",
-		"acp:status", "acp:output", "acp:tool_call", "acp:tool_result",
-		"agent:status", "tool:call", "session:usage",
-		"multiagent:task_started", "multiagent:task_completed",
-		"multiagent:task_failed", "multiagent:job_completed",
-		// task_progress/task_result/task_error are Bridge→Web relays AND trigger
-		// notifyOrchestrator (gap E). Listed here so their web relay is covered;
-		// with API_BASE_URL unset the fetch is a no-op (room.ts:329), and with it
-		// set the fetch misses (no capture server in gap A) and .catch swallows it.
-		"multiagent:task_progress", "multiagent:task_result", "multiagent:task_error",
+		"encrypted", "session:created", "session:started", "session:stopped",
+		"session:error", "session:message", "session:status", "chat:response",
+		"chat:thought", "chat:permission", "permission:request", "acp:status",
+		"acp:output", "acp:tool_call", "acp:tool_result", "agent:status",
+		"tool:call", "session:usage",
+		// workflow:* task lifecycle events are Bridge→Web relays AND trigger notifyOrchestrator (gap E).
+		"workflow:task_started", "workflow:task_progress", "workflow:task_completed",
+		"workflow:task_failed", "workflow:job_completed", "workflow:task_result",
+		"workflow:task_error", "workflow:task_question", "workflow:task_status_update",
+		"workflow:merge_progress",
 		"prompts:synced", "mcp:synced", "mcp:list_response",
+		"security:alert", "scanner:rules:synced", "device:listDirResult",
 		"config:synced", "rules:synced", "storage:synced",
 	}
 	for _, typ := range rows {
@@ -115,11 +114,14 @@ func TestBridgeToWebRelay(t *testing.T) {
 func TestWebToBridgeRouting(t *testing.T) {
 	f := setupOpenAgents(t, false)
 	rows := []string{
-		"session:send", "session:stop", "session:resize", "chat:send",
-		"permission:response", "control:takeover", "config:sync", "rules:sync",
-		"storage:sync", "prompts:sync", "mcp:sync", "mcp:list",
-		"multiagent:start_job", "multiagent:pause_job", "multiagent:cancel_job",
-		"multiagent:start_task", "multiagent:task_assign", "acp:query_status",
+		"session:send", "session:start", "session:stop", "session:cancel",
+		"session:resize", "chat:send", "permission:response", "control:takeover",
+		"config:sync", "rules:sync", "storage:sync", "prompts:sync", "mcp:sync",
+		"mcp:list",
+		"workflow:start", "workflow:pause", "workflow:cancel",
+		"workflow:start_task", "workflow:task_assign", "workflow:task_answer",
+		"workflow:task_guidance",
+		"acp:query_status", "device:restart", "device:listDir",
 	}
 	for _, typ := range rows {
 		t.Run(typ, func(t *testing.T) {
@@ -277,10 +279,10 @@ func TestAuthErrorPaths(t *testing.T) {
 // TestOrchestratorCallback asserts the DO's notifyOrchestrator side effect
 // (room.ts:326-338) for the three triggers (room.ts:217): task_progress,
 // task_result, task_error. Per row: bridge sends the trigger, then the capture
-// server must observe a POST to /api/multiagent/internal/orchestrator/event.
+// server must observe a POST to /api/missions/internal/orchestrator/event.
 func TestOrchestratorCallback(t *testing.T) {
 	f := setupOpenAgents(t, true) // starts capture server on :9099 (skips if unavailable)
-	triggers := []string{"multiagent:task_progress", "multiagent:task_result", "multiagent:task_error"}
+	triggers := []string{"workflow:task_progress", "workflow:task_result", "workflow:task_error"}
 	for _, typ := range triggers {
 		t.Run(typ, func(t *testing.T) {
 			f.capture.reset()
@@ -299,7 +301,7 @@ func TestOrchestratorCallback(t *testing.T) {
 			res := se.runSteps()
 			require.Equal(t, StepPassed, res.Status, "trigger send failed for %s", typ)
 
-			got, ok := f.capture.awaitPOST("/api/multiagent/internal/orchestrator/event", typ, 3*time.Second)
+			got, ok := f.capture.awaitPOST("/api/missions/internal/orchestrator/event", typ, 3*time.Second)
 			if !ok {
 				t.Skipf("no orchestrator callback captured for %s within timeout — "+
 					"is API_BASE_URL pointed at the capture server? (see gap E prerequisite)", typ)
