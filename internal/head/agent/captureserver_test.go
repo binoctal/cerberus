@@ -20,8 +20,8 @@ func TestCaptureServerRoundTrip(t *testing.T) {
 	t.Cleanup(c.stop)
 
 	go func() {
-		resp, err := http.Post(c.base()+"/api/multiagent/internal/orchestrator/event",
-			"application/json", strings.NewReader(`{"type":"multiagent:task_progress"}`))
+		resp, err := http.Post(c.base()+"/api/missions/internal/orchestrator/event",
+			"application/json", strings.NewReader(`{"type":"workflow:task_progress"}`))
 		if err != nil {
 			t.Errorf("post: %v", err)
 			return
@@ -29,7 +29,7 @@ func TestCaptureServerRoundTrip(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 
-	got, ok := c.awaitPOST("/api/multiagent/internal/orchestrator/event", "task_progress", 2*time.Second)
+	got, ok := c.awaitPOST("/api/missions/internal/orchestrator/event", "task_progress", 2*time.Second)
 	if !ok {
 		t.Fatal("awaitPOST: no capture within timeout")
 	}
@@ -39,7 +39,7 @@ func TestCaptureServerRoundTrip(t *testing.T) {
 
 	// reset clears recorded POSTs.
 	c.reset()
-	if _, ok := c.awaitPOST("/api/multiagent/internal/orchestrator/event", "", 100*time.Millisecond); ok {
+	if _, ok := c.awaitPOST("/api/missions/internal/orchestrator/event", "", 100*time.Millisecond); ok {
 		t.Fatal("reset did not clear captured POSTs")
 	}
 }
