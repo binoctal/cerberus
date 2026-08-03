@@ -143,3 +143,40 @@ func TestExtract_SideEffectsAndBatch(t *testing.T) {
 		t.Errorf("no partial edge emitted for batch fixture: %+v", b.Edges)
 	}
 }
+
+func TestExtract_UnmatchedNotify(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "notify-unmatched.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var got struct {
+		Edges []struct {
+			Type        string `json:"type"`
+			Unsupported bool   `json:"unsupported"`
+			SideEffects []struct {
+				Kind string `json:"kind"`
+			} `json:"side_effects"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	var anyUnsupported bool
+	for _, e := range got.Edges {
+		if e.Unsupported {
+			anyUnsupported = true
+			continue
+		}
+		// Relay (broadcastToWeb) edges must NOT inherit a spurious
+		// side_effect from the unmatched notifyOrchestrator call.
+		if len(e.SideEffects) != 0 {
+			t.Errorf("edge %q got spurious side_effects: %+v", e.Type, e.SideEffects)
+		}
+	}
+	if !anyUnsupported {
+		t.Errorf("expected an unsupported:true stub for unmatched notify, got: %+v", got.Edges)
+	}
+}

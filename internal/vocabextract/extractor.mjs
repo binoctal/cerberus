@@ -155,7 +155,7 @@ for (const method of cls.getMethods()) {
     const iff = call.getFirstAncestorByKind(SyntaxKind.IfStatement);
     if (iff) when_types = msgTypeLiterals(iff.getExpression());
 
-    let pool = edges;
+    let pool = [];
     if (when_types.length === 0) {
       const cc = call.getFirstAncestorByKind(SyntaxKind.CaseClause);
       if (cc) {
