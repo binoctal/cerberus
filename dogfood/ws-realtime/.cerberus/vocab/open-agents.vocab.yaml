@@ -1,0 +1,898 @@
+source:
+    files:
+        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/realtime/room.ts
+          hash: 2baddd3f5d01b3a1052f0e81aff4d226312b76c1b9e5663db1353b2b14186c2e
+    protocol_ref: open-agents
+edges:
+    - from_role: ""
+      to_role: bridge
+      type: (dynamic)
+      trigger: fetch_branch
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      source:
+        spans:
+            - start: 102
+              end: 102
+    - from_role: ""
+      to_role: web
+      type: (dynamic)
+      trigger: fetch_branch
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 108
+              end: 108
+    - from_role: ""
+      to_role: web
+      type: device:online
+      trigger: fetch_branch
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 183
+              end: 183
+    - from_role: bridge
+      to_role: web
+      type: device:offline
+      trigger: disconnect_bridge
+      guard: meta.type === 'bridge' && meta.deviceId
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 309
+              end: 309
+    - from_role: bridge
+      to_role: web
+      type: sessions:disconnected
+      trigger: disconnect_bridge
+      guard: meta.type === 'bridge' && meta.deviceId
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 316
+              end: 316
+    - from_role: bridge
+      to_role: web
+      type: encrypted
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: device:online
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:created
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:started
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:stopped
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:error
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:message
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:status
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: chat:response
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: chat:thought
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: chat:permission
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: permission:request
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: acp:status
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: acp:output
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: acp:tool_call
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: acp:tool_result
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: agent:status
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: tool:call
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: session:usage
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_started
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_progress
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      side_effects:
+        - kind: notify_orchestrator
+          when_types:
+            - workflow:task_result
+            - workflow:task_error
+            - workflow:task_progress
+            - workflow:task_question
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_completed
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_failed
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:job_completed
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_result
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      side_effects:
+        - kind: notify_orchestrator
+          when_types:
+            - workflow:task_result
+            - workflow:task_error
+            - workflow:task_progress
+            - workflow:task_question
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_error
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      side_effects:
+        - kind: notify_orchestrator
+          when_types:
+            - workflow:task_result
+            - workflow:task_error
+            - workflow:task_progress
+            - workflow:task_question
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_question
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      side_effects:
+        - kind: notify_orchestrator
+          when_types:
+            - workflow:task_result
+            - workflow:task_error
+            - workflow:task_progress
+            - workflow:task_question
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:task_status_update
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: workflow:merge_progress
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: prompts:synced
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: mcp:synced
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: mcp:list_response
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: security:alert
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: scanner:rules:synced
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: bridge
+      to_role: web
+      type: device:listDirResult
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 395
+              end: 395
+    - from_role: web
+      to_role: bridge
+      type: session:start
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: session:stop
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: session:cancel
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: session:resize
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: chat:send
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: permission:response
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: control:takeover
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: config:sync
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: rules:sync
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: storage:sync
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: prompts:sync
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: mcp:sync
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: mcp:list
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:start
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:pause
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:cancel
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:start_task
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:task_assign
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:task_answer
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: workflow:task_guidance
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: acp:query_status
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: device:restart
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: device:listDir
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
+      source:
+        spans:
+            - start: 437
+              end: 437
+    - from_role: web
+      to_role: bridge
+      type: session:send
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: send_bridge_by_device
+      route_field: payload.deviceId
+      source:
+        spans:
+            - start: 454
+              end: 454
+    - from_role: web
+      to_role: web
+      type: session:send
+      trigger: message_handled
+      guard: meta.type === 'web'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 456
+              end: 456
+    - from_role: bridge
+      to_role: web
+      type: config:synced
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 465
+              end: 465
+    - from_role: bridge
+      to_role: web
+      type: rules:synced
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 465
+              end: 465
+    - from_role: bridge
+      to_role: web
+      type: storage:synced
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 465
+              end: 465
+    - from_role: ""
+      to_role: web
+      type: session:output-batch
+      trigger: flushBatch
+      delivery:
+        mode: broadcast_web
+      source:
+        spans:
+            - start: 497
+              end: 497
+    - from_role: bridge
+      to_role: web
+      type: session:output
+      trigger: message_handled
+      guard: meta.type === 'bridge'
+      delivery:
+        mode: broadcast_web
+      batch:
+        window_ms: 50
+        key: payload.sessionId
+      partial: true
+      source:
+        spans:
+            - start: 344
+              end: 344
