@@ -7,9 +7,18 @@ yaml configs; this is the empirical mapping after the 2026-07-23 dogfood run.
 ## Target architecture (real code)
 
 ```
-client ──ws──► Worker (apps/api/src/worker.ts) ──► UserRoom DO (apps/realtime/src/room.ts)
+client ──ws──► Worker (apps/api/src/worker.ts) ──► UserRoom DO (apps/api/src/realtime/room.ts)
                  /ws/{userId} route + bridge DB auth        hibernatable DO, relays web↔bridge
 ```
+
+> **Correction (2026-08-03):** the running DO is `apps/api/src/realtime/room.ts`
+> (imported by `apps/api/src/worker.ts`). The standalone `apps/realtime/src/room.ts`
+> is a deployment variant with a different (older) vocabulary — it uses `multiagent:*`
+> types and `/api/multiagent/...` paths. The running file uses `workflow:*` types and
+> `/api/missions/...` paths (a `multiagent→workflow`/`missions` rename). Earlier
+> sections of this doc cited `apps/realtime/src/room.ts` and `multiagent:*`; the
+> coverage section below is re-grounded in the running file. The line-cites in the
+> "four facts" table predate this correction and may point at the variant file.
 
 open-agents shards by `userId`: a `web` client and a `bridge` device connect to
 the same `/ws/<userId>` and land in the **same `UserRoom` Durable Object**, which
@@ -52,62 +61,65 @@ Note: `room.ts` `verifyToken` for bridge checks **format only**
 So the static-token smoke config passes the DO's own check but would be rejected
 by the Worker in a non-dev path — fine for local smoke, not for staging.
 
-## Coverage matrix — what cerberus exercises today vs gaps
+## Coverage matrix — what cerberus exercises (running DO: `apps/api/src/realtime/room.ts`)
 
 cerberus WS step vocabulary: `ws_connect{role,connection_id}`,
 `ws_send{connection_id,message}`, `ws_receive{connection_id,type,timeout?,decisive?,assert?,match_all?}`,
-`ws_disconnect{connection_id}`, plus automatic batch decomposition. This is rich
-enough to express most room.ts paths; the gaps below are "not yet authored", not
-"inexpressible" — except the side-effect rows marked §.
+`ws_disconnect{connection_id}`, plus automatic batch decomposition. The
+side-effect rows (§) are asserted via a local HTTP **capture server**
+(`internal/head/agent/captureserver_test.go`, port 9099) with open-agents'
+`API_BASE_URL=http://127.0.0.1:9099`.
 
-### Covered (by `TestRunStepsMultiConnectionOpenAgents`)
+All five gaps A–E are now covered by `//go:build integration` tests in
+`internal/head/agent/execute_phases_steps_integration_test.go` (shared fixture
+`setupOpenAgents` in `openagents_setup_test.go`). Run a single test:
+`go test -tags integration -run <Name> -v ./internal/head/agent/`.
 
-- web connect, bridge connect (hard capability assertion)
-- `device:online` relay (bridge→web on join)
-- `session:start` → `session:created` (best-effort; currently surfaces Finding 4)
+### Covered
 
-### Gap A — Bridge→Web relay (`room.ts:178-220`)
-Inject via `ws_send` on `c-bridge`, assert arrival on `c-web` with `ws_receive`:
-`encrypted`, `session:created/started/output/stopped/error/message/status`,
-`chat:response/thought/permission`, `permission:request`, `acp:status/output/tool_call/tool_result`,
-`agent:status`, `tool:call`, `session:usage`, `multiagent:task_started/progress/completed/failed/job_completed`,
-`multiagent:task_result/task_error` (§ also trigger `notifyOrchestrator`),
-`prompts:synced`, `mcp:synced/list_response`, `config/rules/storage:synced`.
+- **Capability** (`TestRunStepsMultiConnectionOpenAgents`): web + bridge connects
+  to the same `/ws/<userId>` DO; `device:online` relay on bridge join.
+- **Gap A — Bridge→Web relay** (`TestBridgeToWebRelay`, `room.ts:349-401`):
+  `ws_send c-bridge` → `ws_receive c-web`. Covers `encrypted`,
+  `session:created/started/stopped/error/message/status`, `chat:response/thought/permission`,
+  `permission:request`, `acp:status/output/tool_call/tool_result`, `agent:status`,
+  `tool:call`, `session:usage`, the `workflow:task_started/progress/completed/failed`,
+  `workflow:job_completed`, `workflow:task_result/error/question/task_status_update`,
+  `workflow:merge_progress`, `prompts:synced`, `mcp:synced/list_response`,
+  `security:alert`, `scanner:rules:synced`, `device:listDirResult`,
+  `config/rules/storage:synced` — **37/37 PASS**.
+  - `session:output` is intentionally excluded: it is *batched* (`batchOutput`,
+    `room.ts:342-346`), not a plain relay.
+- **Gap B — Web→Bridge routing** (`TestWebToBridgeRouting`, `room.ts:404-458`):
+  `ws_send c-web {type, payload:{deviceId}}` → `ws_receive c-bridge`. Covers
+  `session:start/stop/cancel/resize/send`, `chat:send`, `permission:response`,
+  `control:takeover`, `config/rules/storage:sync`, `prompts:sync`, `mcp:sync/list`,
+  `workflow:start/pause/cancel/start_task/task_assign/task_answer/task_guidance`,
+  `acp:query_status`, `device:restart/listDir` — **24/24 PASS**.
+- **Session round-trip** (`TestSessionStartRoundTrip`): web `session:start` →
+  bridge receives → bridge replies `session:created` → web receives it (closes
+  the original Finding 4).
+- **Gap C — Lifecycle** (`TestLifecycleSignals`): `device:offline` on bridge
+  disconnect; `sendToBridge` silent-drop on unknown `deviceId` (inverted
+  assertion — the miss is the proof); `broadcastToWeb` fan-out to two web
+  clients — **3/3 PASS**.
+- **Gap D — Auth / error** (`TestAuthErrorPaths`, raw dial with `nil` wsIdx so
+  no token is injected): invalid `type` → 400; bridge without `deviceId` → 400;
+  missing token → 401; bad bridge token → 401 — **4/4 PASS** (HTTP status surfaced
+  best-effort in the dial error).
+- **Gap E — Orchestrator callback §** (`TestOrchestratorCallback`, `room.ts:397,575-587`):
+  bridge sends `workflow:task_progress/result/error` → the capture server observes
+  a POST to `/api/missions/internal/orchestrator/event` — **3/3 PASS**. (Trigger
+  condition: `room.ts:397` fires `notifyOrchestrator` for
+  `workflow:task_result/error/progress/question`.) Prerequisite: open-agents must
+  run with `API_BASE_URL=http://127.0.0.1:9099` (wrangler ignores shell-env
+  prefixes — set it in `apps/api/.dev.vars` or via `wrangler dev --var`); the
+  test `t.Skipf`s (not fails) if the callback never arrives.
 
-### Gap B — Web→Bridge routing (`room.ts:224-252`)
-`ws_send` on `c-web` with `payload.deviceId`, assert on `c-bridge`. Includes the
-`session:start` fix (add `payload.deviceId` → expect `sendToBridge` hit): `session:start/send/stop/resize`,
-`chat:send`, `permission:response`, `control:takeover`, `config/rules/storage:sync`,
-`prompts:sync`, `mcp:sync/list`, `multiagent:start_job/pause_job/cancel_job/start_task/task_assign`,
-`acp:query_status`.
+### Still uncovered (deferred)
 
-### Gap C — Lifecycle
-- `device:offline` on bridge disconnect (`room.ts:154-160`): `ws_disconnect c-bridge` → `ws_receive device:offline` on `c-web`.
-- `sendToBridge` miss path: unknown `deviceId` → silent drop (`room.ts:295`); assert no frame arrives.
-- Fan-out: ≥2 web clients, assert `broadcastToWeb` reaches all (`room.ts:269`).
-
-### Gap D — Auth / error paths
-- invalid/missing `type` → 400 (`room.ts:49`)
-- bridge without `deviceId` → 400 (`room.ts:53`)
-- missing token → 401 (`room.ts:57`); bad token → 401 (`worker.ts:365`)
-
-### Gap E — Not observable via WS-only (§)
-- `notifyOrchestrator` fire-and-forget fetch (`room.ts:326-338`) — needs an HTTP
-  or DB assertion against `/api/multiagent/internal/orchestrator/event`.
-- Internal `/broadcast` HTTP→WS endpoint (`room.ts:26-35`) — Worker→DO→clients
-  push; needs an HTTP step, not a WS step.
-
-## Suggested next test cases (highest value first)
-
-1. **`session:start` round-trip** (closes Finding 4): web sends
-   `{"type":"session:start","payload":{"deviceId":"<id>"}}`, bridge replies
-   `session:created` via `ws_send c-bridge`, web `ws_receive session:created`.
-   Proves Web→Bridge→Web routing end-to-end.
-2. **`device:offline` lifecycle**: disconnect bridge, assert `device:offline` on web.
-3. **`multiagent:task_progress` relay + § orchestrator callback**: bridge sends
-   `task_progress`, assert relay on web AND the orchestrator HTTP callback
-   (requires extending the case with an HTTP assertion — Gap E).
-4. **`session:output-batch` (`match_all`)**: bridge sends a
-   `session:output-batch` frame with N lines, web `ws_receive session:output
-   match_all=true assert={payload.<field>: <expected>}` — exercises cerberus's
-   batch decomposition against real open-agents batch framing.
+- `/broadcast` internal HTTP→WS endpoint (`room.ts:98-108`) — Worker→DO→clients
+  push; needs an HTTP step into the DO, a different capability class.
+- `session:output` batching (`batchOutput`, `room.ts:342-346`) — would need a
+  `match_all` assertion against the batched frame shape.
+- `workflow:task_question` as a 4th gap-E trigger (covered indirectly; not a row).
