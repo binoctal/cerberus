@@ -80,3 +80,66 @@ func TestExtract_FallThrough(t *testing.T) {
 		t.Errorf("no web->bridge session:start edge: %+v", got.Edges)
 	}
 }
+
+func TestExtract_SideEffectsAndBatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "sideeffect.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var got struct {
+		Edges []struct {
+			Type        string `json:"type"`
+			SideEffects []struct {
+				Kind      string   `json:"kind"`
+				WhenTypes []string `json:"when_types"`
+			} `json:"side_effects"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	var progress *struct {
+		Type        string `json:"type"`
+		SideEffects []struct {
+			Kind      string   `json:"kind"`
+			WhenTypes []string `json:"when_types"`
+		} `json:"side_effects"`
+	}
+	for i := range got.Edges {
+		if got.Edges[i].Type == "workflow:task_progress" {
+			progress = &got.Edges[i]
+		}
+	}
+	if progress == nil {
+		t.Fatal("no workflow:task_progress edge")
+	}
+	if len(progress.SideEffects) != 1 || progress.SideEffects[0].Kind != "notify_orchestrator" {
+		t.Errorf("side_effects = %+v", progress.SideEffects)
+	}
+
+	out, err = Extract(context.Background(), filepath.Join("testdata", "batch.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var b struct {
+		Edges []struct {
+			Type    string `json:"type"`
+			Partial bool   `json:"partial"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &b); err != nil {
+		t.Fatal(err)
+	}
+	var anyPartial bool
+	for _, e := range b.Edges {
+		if e.Partial {
+			anyPartial = true
+		}
+	}
+	if !anyPartial {
+		t.Errorf("no partial edge emitted for batch fixture: %+v", b.Edges)
+	}
+}
