@@ -154,7 +154,7 @@ func TestProjectConfig_Loads(t *testing.T) {
 		t.Fatalf("auth=%+v", svc.Protocol.Auth)
 	}
 	web := svc.Protocol.Roles["web"]
-	if web == nil || web.Handshake == nil || web.Handshake.AwaitType != "devices:sync" {
+	if web == nil || web.Handshake == nil || web.Handshake.AwaitType != "device:online" {
 		t.Fatalf("web role/handshake=%+v", web)
 	}
 	if len(cfg.Actors) != 1 || cfg.Actors[0].Name != "web-actor" {
