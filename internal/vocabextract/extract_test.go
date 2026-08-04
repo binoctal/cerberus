@@ -180,3 +180,55 @@ func TestExtract_UnmatchedNotify(t *testing.T) {
 		t.Errorf("expected an unsupported:true stub for unmatched notify, got: %+v", got.Edges)
 	}
 }
+
+func TestExtract_PreconditionRoute(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "session-send-gate.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var got struct {
+		Edges []struct {
+			FromRole      string `json:"from_role"`
+			ToRole        string `json:"to_role"`
+			Type          string `json:"type"`
+			RouteField    string `json:"route_field"`
+			OnMissingRoute *struct {
+				Kind string `json:"kind"`
+				Code string `json:"code"`
+			} `json:"on_missing_route"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	// The web->web broadcast edge must declare the deviceId precondition
+	// honestly (route_field + on_missing_route), not hide behind a plain
+	// broadcast_web with no routing metadata.
+	var webToWeb *struct {
+		FromRole      string `json:"from_role"`
+		ToRole        string `json:"to_role"`
+		Type          string `json:"type"`
+		RouteField    string `json:"route_field"`
+		OnMissingRoute *struct {
+			Kind string `json:"kind"`
+			Code string `json:"code"`
+		} `json:"on_missing_route"`
+	}
+	for i := range got.Edges {
+		if got.Edges[i].FromRole == "web" && got.Edges[i].ToRole == "web" && got.Edges[i].Type == "session:send" {
+			webToWeb = &got.Edges[i]
+		}
+	}
+	if webToWeb == nil {
+		t.Fatalf("no web->web session:send edge: %+v", got.Edges)
+	}
+	if webToWeb.RouteField != "payload.deviceId" {
+		t.Errorf("web->web route_field = %q, want payload.deviceId", webToWeb.RouteField)
+	}
+	if webToWeb.OnMissingRoute == nil || webToWeb.OnMissingRoute.Code != "MISSING_DEVICE_ID" {
+		t.Errorf("web->web on_missing_route = %+v, want code MISSING_DEVICE_ID", webToWeb.OnMissingRoute)
+	}
+}

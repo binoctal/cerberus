@@ -65,6 +65,54 @@ function missingRouteOf(call) {
   return codeArg ? { kind: 'send_error', code: codeArg } : null;
 }
 
+// preconditionRouteOf: detect a preceding-sibling guard of the form
+// `if (!payload.<field>) { ...sendError(ws,'<CODE>',...)...; break }` in the
+// same block as the emit call. This is session:send's deviceId gate: the
+// route/broadcast only fires when payload.<field> is present, else sendError.
+// Unlike missingRouteOf (if/else around the call), the guard here is a prior
+// statement in the enclosing block. Returns {route_field, on_missing_route}.
+function preconditionRouteOf(call) {
+  const block = call.getFirstAncestorByKind(SyntaxKind.Block);
+  if (!block) return null;
+  const stmts = block.getStatements();
+  const ownStmt = call.getFirstAncestorByKind(SyntaxKind.ExpressionStatement);
+  let idx = -1;
+  for (let i = 0; i < stmts.length; i++) {
+    if (stmts[i] === ownStmt) { idx = i; break; }
+  }
+  for (let i = idx - 1; i >= 0; i--) {
+    const s = stmts[i];
+    if (s.getKind() !== SyntaxKind.IfStatement) continue;
+    const m = s.getExpression().getText().match(/!\s*payload\.(\w+)/);
+    if (!m) continue;
+    const thenStmt = s.getThenStatement();
+    if (!thenStmt) continue;
+    const errs = thenStmt.getDescendantsOfKind(SyntaxKind.CallExpression)
+      .filter(c => c.getExpression().getText().endsWith('sendError'));
+    if (errs.length === 0) continue;
+    const code = errs[0].getArguments()[1]?.getText().replace(/^['"`]|['"`]$/g, '') || '';
+    return { route_field: 'payload.' + m[1], on_missing_route: { kind: 'send_error', code } };
+  }
+  return null;
+}
+
+// enrichRoute attaches route_field / on_missing_route to an edge from the
+// call site. sendToBridge carries route_field in its first arg; either shape
+// may additionally sit behind a !payload.<field> precondition guard.
+function enrichRoute(e, call, isW2B) {
+  if (isW2B) {
+    const rf = routeFieldOf(call);
+    if (rf) e.route_field = rf;
+    const mr = missingRouteOf(call);
+    if (mr) e.on_missing_route = mr;
+  }
+  const pre = preconditionRouteOf(call);
+  if (pre) {
+    if (!e.route_field) e.route_field = pre.route_field;
+    if (!e.on_missing_route) e.on_missing_route = pre.on_missing_route;
+  }
+}
+
 // Extract `msg.type === 'X'` literals from a binary/OR condition tree.
 function msgTypeLiterals(node) {
   const out = [];
@@ -119,24 +167,14 @@ for (const method of cls.getMethods()) {
     if (cc) {
       for (const t of fallThroughTypes(cc)) {
         const e = make(t);
-        if (isW2B) {
-          const rf = routeFieldOf(call);
-          if (rf) e.route_field = rf;
-          const mr = missingRouteOf(call);
-          if (mr) e.on_missing_route = mr;
-        }
+        enrichRoute(e, call, isW2B);
         edges.push(e);
       }
     } else {
       const arg = call.getArguments().find(a => a.getKind() === SyntaxKind.ObjectLiteralExpression);
       const tp = arg?.getProperties().find(p => p.getKind() === SyntaxKind.PropertyAssignment && p.getName?.() === 'type');
       const edge = { ...make(tp ? lit(tp.getInitializer()) : '(dynamic)'), best_effort: true };
-      if (isW2B) {
-        const rf = routeFieldOf(call);
-        if (rf) edge.route_field = rf;
-        const mr = missingRouteOf(call);
-        if (mr) edge.on_missing_route = mr;
-      }
+      enrichRoute(edge, call, isW2B);
       edges.push(edge);
     }
   }
