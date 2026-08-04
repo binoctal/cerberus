@@ -44,6 +44,13 @@ function roleGuard(node) {
   return { from_role: null, guard: null };
 }
 
+// excludeSenderOf: broadcastToWeb(msg, ws?) excludes the originator when a
+// second argument is present (the DO's private broadcastToWeb(msg, excludeWs)).
+function excludeSenderOf(call, isB2W) {
+  if (!isB2W) return false;
+  return call.getArguments().length > 1;
+}
+
 // sendToBridge route_field: first arg shape like `payload.deviceId`.
 function routeFieldOf(call) {
   const args = call.getArguments();
@@ -157,10 +164,7 @@ for (const method of cls.getMethods()) {
       type, trigger, guard,
       delivery: {
         mode: isB2W ? 'broadcast_web' : 'send_bridge_by_device',
-        // exclude_sender is set when the fan-out skips the originator.
-        // v1 leaves this null (no fixture discriminates it yet); the
-        // field path is preserved so downstream schemas can populate it.
-        exclude_sender: null,
+        exclude_sender: excludeSenderOf(call, isB2W),
       },
       source: { spans: [{ start: line, end: line }] },
     });
@@ -272,6 +276,9 @@ for (const e of edges) {
     if (e.unsupported) ex.unsupported = true;
     if (Array.isArray(e.side_effects) && e.side_effects.length) {
       ex.side_effects = (ex.side_effects || []).concat(e.side_effects);
+    }
+    if (e.delivery && e.delivery.exclude_sender && !ex.delivery.exclude_sender) {
+      ex.delivery.exclude_sender = true;
     }
   } else {
     merged.set(k, e);

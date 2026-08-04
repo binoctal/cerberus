@@ -837,6 +837,7 @@ edges:
       guard: meta.type === 'web'
       delivery:
         mode: broadcast_web
+        exclude_sender: true
       route_field: payload.deviceId
       on_missing_route:
         kind: send_error

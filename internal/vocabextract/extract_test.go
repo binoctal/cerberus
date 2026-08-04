@@ -232,3 +232,47 @@ func TestExtract_PreconditionRoute(t *testing.T) {
 		t.Errorf("web->web on_missing_route = %+v, want code MISSING_DEVICE_ID", webToWeb.OnMissingRoute)
 	}
 }
+
+func TestExtract_ExcludeSender(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "exclude-sender.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var got struct {
+		Edges []struct {
+			Type     string `json:"type"`
+			Delivery struct {
+				Mode          string `json:"mode"`
+				ExcludeSender bool   `json:"exclude_sender"`
+			} `json:"delivery"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	byType := map[string]bool{}
+	for _, e := range got.Edges {
+		byType[e.Type+":"] = false
+		if e.Type == "echo-all" && !e.Delivery.ExcludeSender {
+			t.Errorf("echo-all (broadcastToWeb(msg, ws)) must have exclude_sender=true: %+v", e.Delivery)
+		}
+		if e.Type == "echo-everyone" && e.Delivery.ExcludeSender {
+			t.Errorf("echo-everyone (broadcastToWeb(msg)) must have exclude_sender=false: %+v", e.Delivery)
+		}
+	}
+	var hasEchoAll, hasEchoEveryone bool
+	for _, e := range got.Edges {
+		if e.Type == "echo-all" {
+			hasEchoAll = true
+		}
+		if e.Type == "echo-everyone" {
+			hasEchoEveryone = true
+		}
+	}
+	if !hasEchoAll || !hasEchoEveryone {
+		t.Fatalf("missing edges; echo-all=%v echo-everyone=%v in %+v", hasEchoAll, hasEchoEveryone, got.Edges)
+	}
+}
