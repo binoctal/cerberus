@@ -33,10 +33,10 @@ type VocabFile struct {
 // DO-spontaneous null) bound for ToRole under Trigger. Guard is provenance only;
 // the test generator executes off FromRole.
 type VocabEdge struct {
-	FromRole            string             `yaml:"from_role" json:"from_role"`                     // web | bridge | null
-	ToRole              string             `yaml:"to_role" json:"to_role"`                         // web | bridge
+	FromRole            string             `yaml:"from_role" json:"from_role"` // web | bridge | null
+	ToRole              string             `yaml:"to_role" json:"to_role"`     // web | bridge
 	Type                string             `yaml:"type" json:"type"`
-	Trigger             string             `yaml:"trigger" json:"trigger"`                         // connect_web|connect_bridge|disconnect_bridge|message_handled|broadcast_endpoint
+	Trigger             string             `yaml:"trigger" json:"trigger"` // connect_web|connect_bridge|disconnect_bridge|message_handled|broadcast_endpoint
 	Guard               string             `yaml:"guard,omitempty" json:"guard,omitempty"`
 	Delivery            VocabDelivery      `yaml:"delivery" json:"delivery"`
 	RouteField          string             `yaml:"route_field,omitempty" json:"route_field,omitempty"`
@@ -51,7 +51,7 @@ type VocabEdge struct {
 
 // VocabDelivery declares how a frame is distributed.
 type VocabDelivery struct {
-	Mode          string `yaml:"mode" json:"mode"`                     // broadcast_web | send_bridge_by_device | unicast_web
+	Mode          string `yaml:"mode" json:"mode"` // broadcast_web | send_bridge_by_device | unicast_web
 	ExcludeSender bool   `yaml:"exclude_sender,omitempty" json:"exclude_sender,omitempty"`
 }
 
@@ -63,7 +63,7 @@ type VocabMissingRoute struct {
 
 // VocabSideEffect is an out-of-band action triggered by an edge.
 type VocabSideEffect struct {
-	Kind      string   `yaml:"kind" json:"kind"`                 // notify_orchestrator | stuck_recovery
+	Kind      string   `yaml:"kind" json:"kind"` // notify_orchestrator | stuck_recovery
 	WhenTypes []string `yaml:"when_types,omitempty" json:"when_types,omitempty"`
 }
 

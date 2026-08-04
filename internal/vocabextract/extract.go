@@ -11,22 +11,22 @@ import (
 	"path/filepath"
 )
 
-// NodeRequired is returned when node is not discoverable on PATH. Discovery is
+// ErrNodeRequired is returned when node is not discoverable on PATH. Discovery is
 // a development-time tool; the production cerberus binary stays pure-Go.
-var NodeRequired = errors.New("vocabextract: node not found on PATH (required for TS discovery)")
+var ErrNodeRequired = errors.New("vocabextract: node not found on PATH (required for TS discovery)")
 
 // Extract writes the bundled extractor.mjs + package.json to a temp dir,
 // installs ts-morph if missing, and runs `node extractor.mjs <sourcePath>`.
 // It returns the extractor's stdout (a JSON object with an `edges` array).
 func Extract(ctx context.Context, sourcePath string) (json.RawMessage, error) {
 	if _, err := exec.LookPath("node"); err != nil {
-		return nil, NodeRequired
+		return nil, ErrNodeRequired
 	}
 	dir, err := os.MkdirTemp("", "cerberus-vocab-*")
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	if err := os.WriteFile(filepath.Join(dir, "extractor.mjs"), []byte(extractorSrc), 0644); err != nil {
 		return nil, err
 	}
