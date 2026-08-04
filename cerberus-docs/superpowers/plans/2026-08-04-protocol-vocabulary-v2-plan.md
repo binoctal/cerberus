@@ -406,10 +406,25 @@ This is defensive — session:send's web→web edge is unique today so no real c
 Run: `go test ./internal/vocabextract/ -v`
 Expected: all PASS (echo-all true, echo-everyone false).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Regenerate the dogfood vocab so broadcast edges carry exclude_sender**
+
+The acceptance criterion requires the committed `open-agents.vocab.yaml` to carry `exclude_sender: true` on broadcast edges that pass `ws` (notably session:send web→web). Regenerate (same command shape as Task 1 Step 7):
 
 ```bash
-git add internal/vocabextract/extractor.mjs internal/vocabextract/testdata/exclude-sender.ts internal/vocabextract/extract_test.go
+make build
+cd dogfood/ws-realtime && ../../build/cerberus protocol vocabulary \
+  --name open-agents \
+  --from ../../../open-agents/apps/api/src/realtime/room.ts
+```
+Answer `y` at the overwrite prompt. Verify the session:send web→web edge now has `exclude_sender: true`:
+```bash
+grep -A4 "to_role: web" dogfood/ws-realtime/.cerberus/vocab/open-agents.vocab.yaml | grep exclude_sender
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add internal/vocabextract/extractor.mjs internal/vocabextract/testdata/exclude-sender.ts internal/vocabextract/extract_test.go dogfood/ws-realtime/.cerberus/vocab/open-agents.vocab.yaml
 git -c user.name=binoctal -c user.email=binoctal@gmail.com commit -m "feat(vocabextract): emit delivery.exclude_sender for broadcastToWeb(msg, ws)"
 ```
 
