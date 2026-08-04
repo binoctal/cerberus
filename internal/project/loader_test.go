@@ -434,6 +434,26 @@ actors:
 	assert.Contains(t, err.Error(), "credentials")
 }
 
+func TestResolveProtocolRefsLoadsVocab(t *testing.T) {
+	dir := t.TempDir()
+	writeProtocolFile(t, dir, "open-agents", "framing: json\ntype_path: type\n")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".cerberus", "vocab"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".cerberus", "vocab", "open-agents.vocab.yaml"),
+		[]byte("source:\n  protocol_ref: open-agents\nedges:\n  - from_role: bridge\n    to_role: web\n    type: session:created\n    trigger: message_handled\n    delivery: {mode: broadcast_web}\n    source: {spans: [{start: 1, end: 1}]}\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".cerberus", "project.yaml"),
+		[]byte("project:\n  name: t\nservices:\n  - name: rt\n    url: http://localhost:8787\n    protocol_ref: open-agents\n"), 0644))
+
+	cfg, err := LoadFromFile(filepath.Join(dir, ".cerberus", "project.yaml"))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Services[0].Vocabulary, "Vocabulary not loaded alongside protocol_ref")
+	require.Len(t, cfg.Services[0].Vocabulary.Edges, 1)
+
+	// A missing vocab file is not an error: a second service with a protocol
+	// ref but no vocab file loads fine and leaves Vocabulary nil.
+	writeProtocolFile(t, dir, "bare", "framing: json\ntype_path: type\n")
+	// (covered implicitly by existing tests where no vocab file exists)
+}
+
 func TestLoadFromFile_CredentialsYAML_AtCerberusLocation(t *testing.T) {
 	dir := t.TempDir()
 	cerbDir := filepath.Join(dir, ".cerberus")

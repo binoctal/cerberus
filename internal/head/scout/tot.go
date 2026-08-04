@@ -55,6 +55,7 @@ type ToTPlanner struct {
 	evaluateDriver *ai.Driver // scoring, non-generative (HAIKU tier)
 	config         ToTConfig
 	memory         string // cross-session episodic + semantic context prepended to propose prompts
+	vocabSummary   string // WS routing vocabulary summary prepended to propose prompts
 	logger         *zap.Logger
 }
 
@@ -79,6 +80,11 @@ func NewToTPlanner(proposeDriver, evaluateDriver *ai.Driver, config ToTConfig, l
 // HAIKU tier.
 func (t *ToTPlanner) SetMemory(memory string) { t.memory = memory }
 
+// SetVocabSummary injects the WS routing vocabulary summary so the ToT
+// propose phase can author ws_* choreography from concrete type names.
+// Empty string is a no-op (non-WS projects get an unchanged prompt).
+func (t *ToTPlanner) SetVocabSummary(s string) { t.vocabSummary = s }
+
 // buildProposeTask renders the propose prompt body, prepending cross-session
 // memory when present so ToT mode composes with Reflexion instead of excluding
 // it. Empty memory yields the bare task (no regression for standalone runs).
@@ -88,15 +94,19 @@ func (t *ToTPlanner) buildProposeTask(parent PlanCandidate, model *project.Proje
 	if t.memory != "" {
 		memoryBlock = fmt.Sprintf("Prior-session memory (apply relevant lessons, avoid repeating past failures):\n%s\n\n", t.memory)
 	}
+	vocabBlock := ""
+	if t.vocabSummary != "" {
+		vocabBlock = fmt.Sprintf("\nWS Routing Vocabulary:%s\n", t.vocabSummary)
+	}
 	return fmt.Sprintf(`Propose %d different test strategies.
 %sParent strategy: %s
 Project Model:
 %s
-
+%s
 Test Goal: %s
 
 Each strategy should focus on a different aspect (happy path, error handling, edge cases, security, etc.) and include concrete test case descriptions.`,
-		t.config.GenerateN, memoryBlock, parent.Description, modelSummary, goal)
+		t.config.GenerateN, memoryBlock, parent.Description, modelSummary, vocabBlock, goal)
 }
 
 // Plan runs the ToT beam search: propose → evaluate → select for MaxSteps rounds.

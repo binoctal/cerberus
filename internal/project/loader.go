@@ -130,6 +130,17 @@ func resolveProtocolRefs(cfg *Config, baseDir string) error {
 			return fmt.Errorf("services[%d]: protocol_ref %q: parse: %w", i, svc.ProtocolRef, err)
 		}
 		svc.Protocol = &p
+		// Load the routing vocabulary alongside the protocol when a vocab file
+		// of the same name exists. Vocab is optional: a missing file is not an
+		// error (the service simply has no Vocabulary for Scout prompt context).
+		vocabPath := filepath.Join(baseDir, ".cerberus", "vocab", svc.ProtocolRef+".vocab.yaml")
+		if vdata, verr := os.ReadFile(vocabPath); verr == nil {
+			var v Vocabulary
+			if perr := yaml.Unmarshal(vdata, &v); perr != nil {
+				return fmt.Errorf("services[%d]: vocab %q: parse: %w", i, svc.ProtocolRef, perr)
+			}
+			svc.Vocabulary = &v
+		}
 		svc.ProtocolRef = ""
 	}
 	return nil

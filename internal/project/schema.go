@@ -28,6 +28,10 @@ type Service struct {
 	// (.cerberus/protocols/<name>.yaml) loaded as this service's Protocol.
 	// Mutually exclusive with Protocol (inline). Empty means use Protocol (or none).
 	ProtocolRef string `yaml:"protocol_ref,omitempty"`
+	// Vocabulary optionally declares this service's WS routing vocabulary
+	// (directed-edge model), loaded alongside Protocol from
+	// .cerberus/vocab/<protocol_ref>.vocab.yaml. Nil when no vocab file exists.
+	Vocabulary *Vocabulary `yaml:"-"`
 }
 
 type Actor struct {
