@@ -1,0 +1,24 @@
+source:
+  files:
+    - path: apps/api/src/realtime/room.ts
+      hash: a3f1c0deadbeef
+  protocol_ref: open-agents
+edges:
+  - from_role: bridge
+    to_role: web
+    type: session:created
+    trigger: message_handled
+    guard: "meta.type === 'bridge'"
+    delivery: { mode: broadcast_web }
+    source: { spans: [{ start: 351, end: 401 }] }
+  - from_role: bridge
+    to_role: web
+    type: workflow:task_progress
+    trigger: message_handled
+    guard: "meta.type === 'bridge'"
+    delivery: { mode: broadcast_web }
+    side_effects:
+      - kind: notify_orchestrator
+        when_types: [workflow:task_progress, workflow:task_result]
+    partial: true
+    source: { spans: [{ start: 372, end: 399 }] }

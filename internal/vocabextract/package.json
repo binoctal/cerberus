@@ -1,0 +1,6 @@
+{
+  "name": "cerberus-vocabextract",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": { "ts-morph": "25.0.0" }
+}

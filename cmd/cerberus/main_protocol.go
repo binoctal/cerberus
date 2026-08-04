@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +19,7 @@ import (
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/protocoldiscover"
+	"github.com/binoctal/cerberus/internal/vocabextract"
 )
 
 var (
@@ -33,7 +37,86 @@ func protocolCmd() *cobra.Command {
 		Short: "Authoring aids for WS protocol declarations",
 	}
 	cmd.AddCommand(protocolInferCmd())
+	cmd.AddCommand(protocolVocabularyCmd())
 	return cmd
+}
+
+var (
+	protocolVocabName string
+	protocolVocabFrom string
+	protocolVocabDry  bool
+)
+
+func protocolVocabularyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "vocabulary",
+		Short: "Extract a WS routing vocabulary from a TypeScript source file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProtocolVocabulary(cmd.Context(), ".", protocolVocabFrom, protocolVocabName,
+				protocolVocabDry, promptConfirm(os.Stdin, os.Stdout))
+		},
+	}
+	cmd.Flags().StringVar(&protocolVocabName, "name", "", "vocab file name (.cerberus/vocab/<name>.vocab.yaml); required")
+	cmd.Flags().StringVar(&protocolVocabFrom, "from", "", "path to the TS source file; required")
+	cmd.Flags().BoolVar(&protocolVocabDry, "dry-run", false, "print the draft without writing")
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("from")
+	return cmd
+}
+
+// runProtocolVocabulary is the testable core. It extracts a vocabulary via
+// vocabextract.Extract, hashes the source file (SHA-256), prints a draft, and
+// on confirmation writes .cerberus/vocab/<name>.vocab.yaml. --dry-run never
+// writes.
+func runProtocolVocabulary(ctx context.Context, workDir, sourcePath, name string, dryRun bool, confirm func(string) bool) error {
+	if err := project.CheckProtocolRefName(name); err != nil {
+		return fmt.Errorf("--name: %w", err)
+	}
+	raw, err := vocabextract.Extract(ctx, sourcePath)
+	if err != nil {
+		return err
+	}
+	var extracted struct {
+		Edges []project.VocabEdge `json:"edges"`
+	}
+	if err := json.Unmarshal(raw, &extracted); err != nil {
+		return fmt.Errorf("parse extractor output: %w", err)
+	}
+	srcPath := sourcePath
+	if !filepath.IsAbs(srcPath) {
+		srcPath = filepath.Join(workDir, srcPath)
+	}
+	srcData, err := os.ReadFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("hash source: %w", err)
+	}
+	sum := sha256.Sum256(srcData)
+	vocab := &project.Vocabulary{
+		Source: project.VocabSource{
+			Files:       []project.VocabFile{{Path: sourcePath, Hash: hex.EncodeToString(sum[:])}},
+			ProtocolRef: name,
+		},
+		Edges: extracted.Edges,
+	}
+	block, _ := yaml.Marshal(vocab)
+	fmt.Printf("Draft vocabulary %q (%d edges):\n%s\n", name, len(vocab.Edges), string(block))
+	if dryRun {
+		return nil
+	}
+	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
+	rel := filepath.Join(".cerberus", "vocab", name+".vocab.yaml")
+	question := fmt.Sprintf("Write draft to %s? [y/N]", rel)
+	if _, statErr := os.Stat(outPath); statErr == nil {
+		question = fmt.Sprintf("%s already exists. Overwrite? [y/N]", rel)
+	}
+	if confirm == nil || !confirm(question) {
+		fmt.Println("aborted; no changes written")
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(outPath, block, 0644)
 }
 
 func protocolInferCmd() *cobra.Command {
