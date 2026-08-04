@@ -3,7 +3,9 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -57,15 +59,22 @@ func TestVocabularyDriven(t *testing.T) {
 			if e.FromRole == "web" && e.ToRole == "web" {
 				receiver = "c-web-2"
 			}
-			// The DO's room.ts gates every web-sourced message on payload.deviceId
-			// (session:send rejects with MISSING_DEVICE_ID before broadcast; routed
-			// types use it to pick the bridge socket). The vocab's route_field
-			// describes routing semantics, not payload validity, so always include
-			// deviceId for from-role=web edges — matching the existing
-			// TestWebToBridgeRouting / TestLifecycleSignals convention.
+			// Build the outbound message. Edges that declare a route_field
+			// (e.g. payload.deviceId) require that field present or the DO
+			// rejects with MISSING_DEVICE_ID before relaying; the vocab now
+			// describes this, so payload shape is driven by RouteField
+			// rather than a from_role heuristic.
 			msg := fmt.Sprintf(`{"type":%q}`, e.Type)
-			if e.FromRole == "web" {
-				msg = fmt.Sprintf(`{"type":%q,"payload":{"deviceId":%q}}`, e.Type, f.deviceId)
+			if e.RouteField != "" {
+				field := strings.TrimPrefix(e.RouteField, "payload.")
+				body, err := json.Marshal(map[string]any{
+					"type":    e.Type,
+					"payload": map[string]any{field: f.deviceId},
+				})
+				if err != nil {
+					t.Fatalf("marshal msg: %v", err)
+				}
+				msg = string(body)
 			}
 			steps = append(steps,
 				TestStep{Action: "ws_send", ConnectionID: sender, Message: msg},
