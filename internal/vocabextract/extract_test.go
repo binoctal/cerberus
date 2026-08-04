@@ -276,3 +276,53 @@ func TestExtract_ExcludeSender(t *testing.T) {
 		t.Fatalf("missing edges; echo-all=%v echo-everyone=%v in %+v", hasEchoAll, hasEchoEveryone, got.Edges)
 	}
 }
+
+func TestExtract_LifecycleTriggers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	find := func(out []byte, wantType string) (map[string]any, bool) {
+		var got struct {
+			Edges []map[string]any `json:"edges"`
+		}
+		if err := json.Unmarshal(out, &got); err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range got.Edges {
+			if e["type"] == wantType {
+				return e, true
+			}
+		}
+		return nil, false
+	}
+
+	out, err := Extract(context.Background(), filepath.Join("testdata", "lifecycle-fetch.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	e, ok := find(out, "broadcast:lifecycle")
+	if !ok {
+		t.Fatalf("no broadcast:lifecycle edge: %s", out)
+	}
+	if e["trigger"] != "fetch_branch" {
+		t.Errorf("fetch trigger = %v, want fetch_branch", e["trigger"])
+	}
+	if e["from_role"] != nil {
+		t.Errorf("fetch from_role = %v, want null", e["from_role"])
+	}
+
+	out, err = Extract(context.Background(), filepath.Join("testdata", "lifecycle-disconnect.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	e, ok = find(out, "device:offline")
+	if !ok {
+		t.Fatalf("no device:offline edge: %s", out)
+	}
+	if e["trigger"] != "disconnect_bridge" {
+		t.Errorf("webSocketClose trigger = %v, want disconnect_bridge", e["trigger"])
+	}
+	if e["from_role"] != "bridge" {
+		t.Errorf("webSocketClose from_role = %v, want bridge", e["from_role"])
+	}
+}
