@@ -39,6 +39,7 @@ func (s *Scout) executeDeepPlanning(ctx context.Context, goal string, model *pro
 	if memory != "" {
 		planner.SetMemory(memory)
 	}
+	planner.SetVocabSummary(renderVocabSummary(s.config.Services))
 
 	return planner.Plan(ctx, goal, model, s.resolveBaseURL())
 }

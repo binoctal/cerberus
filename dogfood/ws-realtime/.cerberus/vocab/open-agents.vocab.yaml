@@ -1,6 +1,6 @@
 source:
     files:
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/realtime/room.ts
+        - path: ../../../open-agents/apps/api/src/realtime/room.ts
           hash: 2baddd3f5d01b3a1052f0e81aff4d226312b76c1b9e5663db1353b2b14186c2e
     protocol_ref: open-agents
 edges:
@@ -823,6 +823,9 @@ edges:
       delivery:
         mode: send_bridge_by_device
       route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
       source:
         spans:
             - start: 454
@@ -834,6 +837,11 @@ edges:
       guard: meta.type === 'web'
       delivery:
         mode: broadcast_web
+        exclude_sender: true
+      route_field: payload.deviceId
+      on_missing_route:
+        kind: send_error
+        code: MISSING_DEVICE_ID
       source:
         spans:
             - start: 456

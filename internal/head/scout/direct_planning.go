@@ -36,6 +36,8 @@ func (s *Scout) buildPlanningContext(model *project.ProjectModel, memory string)
 		planCtx += "\n\n## Previous Test History\n" + memory
 	}
 
+	planCtx += renderVocabSummary(s.config.Services)
+
 	return planCtx
 }
 
