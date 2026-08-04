@@ -191,10 +191,10 @@ func TestExtract_PreconditionRoute(t *testing.T) {
 	}
 	var got struct {
 		Edges []struct {
-			FromRole      string `json:"from_role"`
-			ToRole        string `json:"to_role"`
-			Type          string `json:"type"`
-			RouteField    string `json:"route_field"`
+			FromRole       string `json:"from_role"`
+			ToRole         string `json:"to_role"`
+			Type           string `json:"type"`
+			RouteField     string `json:"route_field"`
 			OnMissingRoute *struct {
 				Kind string `json:"kind"`
 				Code string `json:"code"`
@@ -208,10 +208,10 @@ func TestExtract_PreconditionRoute(t *testing.T) {
 	// honestly (route_field + on_missing_route), not hide behind a plain
 	// broadcast_web with no routing metadata.
 	var webToWeb *struct {
-		FromRole      string `json:"from_role"`
-		ToRole        string `json:"to_role"`
-		Type          string `json:"type"`
-		RouteField    string `json:"route_field"`
+		FromRole       string `json:"from_role"`
+		ToRole         string `json:"to_role"`
+		Type           string `json:"type"`
+		RouteField     string `json:"route_field"`
 		OnMissingRoute *struct {
 			Kind string `json:"kind"`
 			Code string `json:"code"`
@@ -324,5 +324,33 @@ func TestExtract_LifecycleTriggers(t *testing.T) {
 	}
 	if e["from_role"] != "bridge" {
 		t.Errorf("webSocketClose from_role = %v, want bridge", e["from_role"])
+	}
+}
+
+func TestExtract_DynamicType(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "dynamic-type.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var got struct {
+		Edges []struct {
+			Type       string `json:"type"`
+			BestEffort bool   `json:"best_effort"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	var anyDynamic bool
+	for _, e := range got.Edges {
+		if e.Type == "(dynamic)" && e.BestEffort {
+			anyDynamic = true
+		}
+	}
+	if !anyDynamic {
+		t.Errorf("expected a (dynamic) best_effort edge for non-literal broadcast arg, got: %+v", got.Edges)
 	}
 }
