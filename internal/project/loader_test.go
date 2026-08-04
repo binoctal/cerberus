@@ -447,11 +447,6 @@ func TestResolveProtocolRefsLoadsVocab(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg.Services[0].Vocabulary, "Vocabulary not loaded alongside protocol_ref")
 	require.Len(t, cfg.Services[0].Vocabulary.Edges, 1)
-
-	// A missing vocab file is not an error: a second service with a protocol
-	// ref but no vocab file loads fine and leaves Vocabulary nil.
-	writeProtocolFile(t, dir, "bare", "framing: json\ntype_path: type\n")
-	// (covered implicitly by existing tests where no vocab file exists)
 }
 
 func TestLoadFromFile_CredentialsYAML_AtCerberusLocation(t *testing.T) {

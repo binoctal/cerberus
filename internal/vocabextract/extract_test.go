@@ -253,9 +253,7 @@ func TestExtract_ExcludeSender(t *testing.T) {
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatal(err)
 	}
-	byType := map[string]bool{}
 	for _, e := range got.Edges {
-		byType[e.Type+":"] = false
 		if e.Type == "echo-all" && !e.Delivery.ExcludeSender {
 			t.Errorf("echo-all (broadcastToWeb(msg, ws)) must have exclude_sender=true: %+v", e.Delivery)
 		}

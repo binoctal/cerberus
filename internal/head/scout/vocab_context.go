@@ -28,7 +28,6 @@ func renderVocabSummary(services []project.Service) string {
 			label string
 			from  string
 			to    string
-			mode  string
 		}
 		order := []group{}
 		types := map[string][]string{}
@@ -49,7 +48,7 @@ func renderVocabSummary(services []project.Service) string {
 			}
 			key := fmt.Sprintf("%s->%s %s", e.FromRole, e.ToRole, label)
 			if _, ok := types[key]; !ok {
-				order = append(order, group{label: key, from: e.FromRole, to: e.ToRole, mode: e.Delivery.Mode})
+				order = append(order, group{label: key, from: e.FromRole, to: e.ToRole})
 				types[key] = []string{}
 				seen[key] = map[string]bool{}
 			}
