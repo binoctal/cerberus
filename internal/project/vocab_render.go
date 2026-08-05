@@ -1,21 +1,19 @@
-package scout
+package project
 
 import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/binoctal/cerberus/internal/project"
 )
 
-// renderVocabSummary produces a compact, direction-grouped routing summary of
-// every service's WS vocabulary for the planning prompt. It is prompt-only
-// context: the LLM uses concrete type names to author ws_send/ws_receive
-// choreography. Partial / unsupported / non-message_handled edges are counted
-// in a footer rather than listed, so nothing is silently dropped. Returns ""
-// when no service declares a vocabulary (byte-identical prompt for non-WS
-// projects).
-func renderVocabSummary(services []project.Service) string {
+// RenderVocabSummary produces a compact, direction-grouped routing summary of
+// every service's WS vocabulary for the planning/judging prompt. It is
+// prompt-only context: the LLM uses concrete type names to author/judge
+// ws_send/ws_receive choreography. Partial / unsupported / non-message_handled
+// edges are counted in a footer rather than listed, so nothing is silently
+// dropped. Returns "" when no service declares a vocabulary (byte-identical
+// prompt for non-WS projects).
+func RenderVocabSummary(services []Service) string {
 	var b strings.Builder
 	for _, svc := range services {
 		if svc.Vocabulary == nil || len(svc.Vocabulary.Edges) == 0 {
