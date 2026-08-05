@@ -141,3 +141,34 @@ func TestBuildEvidenceContextIncludesHTTPBody(t *testing.T) {
 		t.Fatalf("evidence missing error text:\n%s", gotErr)
 	}
 }
+
+// TestBuildJudgePromptIncludesVocab verifies the judge prompt carries the
+// routing vocabulary when VocabSummary is set, so verdicts on WS cases anchor
+// to concrete legal types instead of expectation prose alone.
+func TestBuildJudgePromptIncludesVocab(t *testing.T) {
+	j := &Judge{config: ExaminerConfig{
+		VocabSummary: "\n\n## WS Routing Vocabulary (realtime, 1 edges)\nbridge->web broadcast_web (1): workflow:task_progress\n",
+	}}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{Name: "relay", Target: "ws://x/ws", Expectation: "web receives progress"},
+		Status:   agent.StepPassed,
+	}
+	got := j.buildJudgePrompt(res)
+	if !strings.Contains(got, "WS Routing Vocabulary") || !strings.Contains(got, "workflow:task_progress") {
+		t.Fatalf("judge prompt missing vocab block:\n%s", got)
+	}
+}
+
+// TestBuildJudgePromptOmitsVocabWhenEmpty verifies the non-WS path is
+// byte-identical to today: an empty VocabSummary adds nothing.
+func TestBuildJudgePromptOmitsVocabWhenEmpty(t *testing.T) {
+	j := &Judge{config: ExaminerConfig{}}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{Name: "relay", Target: "ws://x/ws", Expectation: "ok"},
+		Status:   agent.StepPassed,
+	}
+	got := j.buildJudgePrompt(res)
+	if strings.Contains(got, "WS Routing Vocabulary") {
+		t.Fatalf("non-WS prompt should not mention vocab:\n%s", got)
+	}
+}
