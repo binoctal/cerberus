@@ -8,6 +8,7 @@ import (
 	embedPkg "github.com/binoctal/cerberus/internal/embed"
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 // executeRemainingCases runs the agent execution phase for remaining cases
@@ -61,6 +62,7 @@ func (rp *resumePhase) examineResults() error {
 		examinerCfg.AutoFix = rp.session.Config.Settings.AutoFix
 	}
 	examinerCfg.MaxWorkers = rp.session.MaxWorkers
+	examinerCfg.VocabSummary = project.RenderVocabSummary(rp.session.Config.Services)
 
 	examinerHead := examiner.NewExaminer(rp.session.driverFor(&rp.session.examinerDriver), rp.session.criticDriver, rp.session.Store, examinerCfg, rp.session.Logger)
 
