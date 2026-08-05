@@ -95,7 +95,7 @@ func TestVocabValidation_ToT(t *testing.T) {
 				require.NoError(t, os.WriteFile(
 					filepath.Join(outDir, label+".md"), []byte(dump), 0o644))
 
-				tokens := extractTypeTokens(dump)
+				tokens := extractTypeTokens(scanFields(dump))
 				hits, invented := classifyTypes(tokens, typeSet)
 				t.Logf("[%s] cases=%d tokens=%d hits=%d invented=%d invented-list=%v",
 					label, len(plan.Cases), len(tokens), len(hits), len(invented), invented)
