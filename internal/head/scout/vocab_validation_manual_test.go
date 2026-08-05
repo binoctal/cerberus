@@ -24,21 +24,24 @@ import (
 //
 // Run manually:
 //
-//	ANTHROPIC_API_KEY=... CERBERUS_MODEL=claude-sonnet-5 \
-//	  go test -tags=manual ./internal/head/scout/ -run TestVocabValidation_ToT -v
+//	go test -tags=manual ./internal/head/scout/ -run TestVocabValidation_ToT -v
 //
-// The //go:build manual line keeps this file out of the default build and CI
-// entirely. Under -tags=manual it still skips (does not fail) when either env
-// var is unset, so a manual run without credentials is a clean no-op.
+// Credentials mirror the production resolver (internal/config) but read env
+// only, since Claude Code injects .claude/settings.json into the process env:
+// model from CERBERUS_LLM_MODEL or ANTHROPIC_DEFAULT_SONNET_MODEL; key from
+// CERBERUS_LLM_API_KEY / ANTHROPIC_AUTH_TOKEN (bearer) / ANTHROPIC_API_KEY;
+// base URL from CERBERUS_LLM_BASE_URL or ANTHROPIC_BASE_URL. This reaches the
+// same GLM relay or direct Anthropic endpoint the binary uses. The //go:build
+// manual line keeps this file out of the default build and CI; under
+// -tags=manual it still skips (does not fail) when no credential resolves.
 func TestVocabValidation_ToT(t *testing.T) {
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		t.Skip("ANTHROPIC_API_KEY unset")
+	model := firstNonEmpty(os.Getenv("CERBERUS_LLM_MODEL"), os.Getenv("ANTHROPIC_DEFAULT_SONNET_MODEL"))
+	apiKey, scheme := resolveLLMCred()
+	if model == "" || apiKey == "" {
+		t.Skip("no LLM credential resolved (set .claude/settings.json or CERBERUS_LLM_* / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY)")
 	}
-	model := os.Getenv("CERBERUS_MODEL")
-	if model == "" {
-		t.Skip("CERBERUS_MODEL unset")
-	}
+	baseURL := firstNonEmpty(os.Getenv("CERBERUS_LLM_BASE_URL"), os.Getenv("ANTHROPIC_BASE_URL"))
+	t.Logf("model=%s baseURL=%q authScheme=%s", model, baseURL, scheme)
 
 	cfgPath := filepath.Join("..", "..", "..", "dogfood", "ws-realtime", ".cerberus", "project.yaml")
 	cfg, err := project.LoadFromFile(cfgPath)
@@ -71,7 +74,13 @@ func TestVocabValidation_ToT(t *testing.T) {
 				runCfg := cloneConfigWithVocab(cfg, cond.vocab)
 				store := setupTestStore(t)
 
-				client, err := llm.NewClient(model, apiKey)
+				client, err := llm.NewClientWithConfig(llm.ClientConfig{
+					Model:      model,
+					APIKey:     apiKey,
+					BaseURL:    baseURL,
+					Provider:   os.Getenv("CERBERUS_LLM_PROVIDER"),
+					AuthScheme: scheme,
+				})
 				require.NoError(t, err)
 				driver := ai.NewDriver(client, ai.NewTokenBudget(200000, 10000))
 
@@ -107,4 +116,28 @@ func cloneConfigWithVocab(cfg *project.Config, vocab *project.Vocabulary) *proje
 	}
 	c.Services = svcs
 	return &c
+}
+
+// firstNonEmpty returns its first non-empty argument, or "".
+func firstNonEmpty(vs ...string) string {
+	for _, v := range vs {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// resolveLLMCred mirrors internal/config.resolveAPIKeyWithScheme's env path:
+// CERBERUS_LLM_API_KEY (x-api-key) > ANTHROPIC_AUTH_TOKEN (bearer) >
+// ANTHROPIC_API_KEY (x-api-key). The auth scheme tracks the source so the GLM
+// relay's auth token is sent as Authorization: Bearer.
+func resolveLLMCred() (string, llm.AuthScheme) {
+	if k := os.Getenv("CERBERUS_LLM_API_KEY"); k != "" {
+		return k, llm.AuthSchemeAPIKey
+	}
+	if k := os.Getenv("ANTHROPIC_AUTH_TOKEN"); k != "" {
+		return k, llm.AuthSchemeBearer
+	}
+	return os.Getenv("ANTHROPIC_API_KEY"), llm.AuthSchemeAPIKey
 }
