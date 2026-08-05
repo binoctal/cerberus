@@ -37,16 +37,12 @@ func (j *Judge) Judge(ctx context.Context, result agent.StepResult) (*JudgeResul
 	if v, ok := objectiveVerdict(result, result.TestCase.Expectation); ok {
 		return v, nil
 	}
+	// evidence/expectation are also needed by critique below; buildJudgePrompt
+	// recomputes evidence itself (self-contained, testable), which is cheap
+	// string work and keeps the prompt builder independently unit-testable.
 	evidence := j.buildEvidenceContext(result)
 	expectation := result.TestCase.Expectation
-	task := fmt.Sprintf("Evaluate this test evidence against expectations.\nExpectation: %s", expectation)
-
-	prompt := ai.NewPrompt().
-		System(promptJudgeSystem).
-		Context(evidence).
-		Task(task).
-		Output(promptJudgeToolGuide).
-		Build()
+	prompt := j.buildJudgePrompt(result)
 
 	// Judge site: DecideWithTools + assembleJudge. Error OR zero tool calls
 	// surface as an error (NOT a silent verdict) so the caller (examiner.go)
@@ -77,6 +73,26 @@ func (j *Judge) Judge(ctx context.Context, result agent.StepResult) (*JudgeResul
 	}
 
 	return &judgeResult, nil
+}
+
+// buildJudgePrompt assembles the judge prompt. When VocabSummary is set it is
+// prepended to the evidence so the judge anchors verdicts to the service's
+// concrete legal message types and routing direction. Empty VocabSummary
+// yields a byte-identical prompt (non-WS projects regress nothing). The
+// critic deliberately does NOT receive vocab — it reviews verdict internal
+// consistency, not protocol legality, and stays on the scoring tier.
+func (j *Judge) buildJudgePrompt(result agent.StepResult) string {
+	evidence := j.buildEvidenceContext(result)
+	if j.config.VocabSummary != "" {
+		evidence = j.config.VocabSummary + "\n" + evidence
+	}
+	task := fmt.Sprintf("Evaluate this test evidence against expectations.\nExpectation: %s", result.TestCase.Expectation)
+	return ai.NewPrompt().
+		System(promptJudgeSystem).
+		Context(evidence).
+		Task(task).
+		Output(promptJudgeToolGuide).
+		Build()
 }
 
 // isHighConfidence checks if the result is confident enough to skip critique.

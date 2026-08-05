@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/examiner"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 // buildExaminer constructs the Examiner head from session config. Shared by
@@ -17,6 +18,7 @@ func (rp *runPhase) buildExaminer() *examiner.Examiner {
 		examinerCfg.AutoFix = rp.session.Config.Settings.AutoFix
 	}
 	examinerCfg.MaxWorkers = rp.session.MaxWorkers
+	examinerCfg.VocabSummary = project.RenderVocabSummary(rp.session.Config.Services)
 	return examiner.NewExaminer(rp.session.driverFor(&rp.session.examinerDriver), rp.session.criticDriver, rp.session.Store, examinerCfg, rp.session.Logger)
 }
 
