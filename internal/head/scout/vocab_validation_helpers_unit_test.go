@@ -43,3 +43,39 @@ func TestDumpPlanContainsReceiveType(t *testing.T) {
 		t.Fatalf("dump is not valid TestPlan JSON: %v", err)
 	}
 }
+
+func TestExtractTypeTokens(t *testing.T) {
+	in := `send {"type":"session:start"} then expect device:online and session:output-batch; session:start again`
+	tokens := extractTypeTokens(in)
+	got := map[string]bool{}
+	for _, tk := range tokens {
+		got[tk] = true
+	}
+	want := map[string]bool{"session:start": true, "device:online": true, "session:output-batch": true}
+	for k := range want {
+		if !got[k] {
+			t.Fatalf("extractTypeTokens missing %q, got %v", k, tokens)
+		}
+	}
+	// Dedup: "session:start" appears twice in the input but once in the slice.
+	seen := map[string]int{}
+	for _, tk := range tokens {
+		seen[tk]++
+	}
+	for tk, n := range seen {
+		if n > 1 {
+			t.Fatalf("extractTypeTokens has duplicate %q (%d)", tk, n)
+		}
+	}
+}
+
+func TestClassifyTypes(t *testing.T) {
+	set := map[string]bool{"session:start": true, "device:online": true}
+	hits, invented := classifyTypes([]string{"session:start", "message:received", "device:online"}, set)
+	if len(hits) != 2 {
+		t.Fatalf("hits = %v, want 2", hits)
+	}
+	if len(invented) != 1 || invented[0] != "message:received" {
+		t.Fatalf("invented = %v, want [message:received]", invented)
+	}
+}
