@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 func TestBuildEdgeSteps_WebToBridgeRouteField(t *testing.T) {
@@ -37,8 +38,8 @@ func TestBuildEdgeSteps_NoRouteFieldBareType(t *testing.T) {
 func TestBuildEdgeSteps_WebToWebAddsSecondClient(t *testing.T) {
 	edge := project.VocabEdge{
 		FromRole: "web", ToRole: "web", Type: "session:send",
-		Trigger:   "message_handled",
-		Delivery:  project.VocabDelivery{Mode: "broadcast_web", ExcludeSender: true},
+		Trigger:    "message_handled",
+		Delivery:   project.VocabDelivery{Mode: "broadcast_web", ExcludeSender: true},
 		RouteField: "payload.deviceId",
 	}
 	steps, _ := BuildEdgeSteps(edge, "dev-1")
