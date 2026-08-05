@@ -3,9 +3,7 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,44 +40,10 @@ func TestVocabularyDriven(t *testing.T) {
 			}
 			require.NotEmpty(t, e.FromRole, "message_handled edge needs a from_role")
 
-			// Connect both roles (handshake await device:online is optional).
-			// For web→web broadcast edges the DO excludes the sender from the
-			// broadcast (broadcastToWeb(msg, ws)), so a second web client is
-			// required to observe the relay.
-			steps := []TestStep{
-				{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
-				{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
-				{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
-			}
-			if e.FromRole == "web" && e.ToRole == "web" {
-				steps = append(steps, TestStep{Action: "ws_connect", Role: "web", ConnectionID: "c-web-2"})
-			}
-			sender := "c-" + e.FromRole
-			receiver := "c-" + e.ToRole
-			if e.FromRole == "web" && e.ToRole == "web" {
-				receiver = "c-web-2"
-			}
-			// Build the outbound message. Edges that declare a route_field
-			// (e.g. payload.deviceId) require that field present or the DO
-			// rejects with MISSING_DEVICE_ID before relaying; the vocab now
-			// describes this, so payload shape is driven by RouteField
-			// rather than a from_role heuristic.
-			msg := fmt.Sprintf(`{"type":%q}`, e.Type)
-			if e.RouteField != "" {
-				field := strings.TrimPrefix(e.RouteField, "payload.")
-				body, err := json.Marshal(map[string]any{
-					"type":    e.Type,
-					"payload": map[string]any{field: f.deviceId},
-				})
-				if err != nil {
-					t.Fatalf("marshal msg: %v", err)
-				}
-				msg = string(body)
-			}
-			steps = append(steps,
-				TestStep{Action: "ws_send", ConnectionID: sender, Message: msg},
-				TestStep{Action: "ws_receive", ConnectionID: receiver, Type: e.Type, Timeout: 3},
-			)
+			// Per-edge choreography + outbound message are built by the shared
+			// helper (the single implementation of "how the Agent consumes a
+			// vocab edge"), unit-tested in edge_steps_test.go.
+			steps, _ := BuildEdgeSteps(e, f.deviceId)
 			tc := &TestCase{ID: "tc-vocab-" + e.Type, Target: target, Steps: steps}
 			se := newStepExecutionWithIdx(t, tc, f.wsIdx)
 			res := se.runSteps()
