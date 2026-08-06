@@ -15,7 +15,11 @@ fixed set of 5 WS relay cases (ground truth = pass):
   `membership` dimension block + the "missing dimension → uncertain" guidance)
   vs stripped (`+strip`, `Judge.deriveEnabled = false`).
 
-`drift = Status != pass OR CorrectnessConfidence < 0.9`.
+`drift` is split into four categories (ground truth is `pass` for every case):
+`incorrect` (fail), `honest-uncertain` (uncertain), `under-confident` (pass but
+`conf < 0.9`), `clean` (pass at `conf >= 0.9`). The primary metric is
+`new_drift = incorrect + under-confident`; `old_drift = incorrect +
+honest-uncertain + under-confident` is kept for backward comparison.
 
 The `fanout` case is the direct measurement target: its per-step trace
 (sender `c-web`; recipients `c-bridge`, `c-web-2`; type `workflow:task_progress`)
@@ -48,6 +52,15 @@ go test -tags=manual ./internal/head/examiner/ -run TestExaminerVocabValidation 
 | vocab-strip   | 4          |
 | novocab-dim   | 6          |
 | novocab-strip | 6          |
+
+## Category breakdown (re-bucketed)
+
+| Condition     | incorrect | honest-uncertain | under-confident | old_drift | new_drift |
+|---------------|-----------|------------------|-----------------|-----------|-----------|
+| vocab-dim     | 0         | 3                | 1               | 4         | 1         |
+| vocab-strip   | 0         | 0                | 4               | 4         | 4         |
+| novocab-dim   | 0         | 5                | 1               | 6         | 1         |
+| novocab-strip | 0         | 2                | 4               | 6         | 4         |
 
 ## Conclusion (honest)
 
@@ -92,3 +105,18 @@ just does not reward it.
    is filling the dimension (exclusion probe), not displaying it differently.
 
 Raw per-run output: `runtime/examiner-vocab-validation/*.txt`.
+
+## Correction (2026-08-06, metric split)
+
+The drift metric used above conflated `honest-uncertain` with real errors. Under
+the four-category split, `incorrect` is 0 in every condition — the judge never
+mislabels a pass-case as `fail`. The dimension's effect was to convert
+under-confident passes into honest-uncertain verdicts (it surfaces `sender
+exclusion not probed`, so a fan-out expectation yields `uncertain`). That is
+correct epistemic behavior the old metric penalized.
+
+Under `new_drift` (excluding honest-uncertain): vocab-dim 1 vs vocab-strip 4;
+novocab-dim 1 vs novocab-strip 4. **The dimension does reduce drift — the prior
+"did not reduce drift" conclusion is reversed.** The binding constraint for the
+remaining fanout/routing drift is still the deferred sender-exclusion probe; the
+metric fix changes how we read the dimension, not what it can prove.
