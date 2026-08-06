@@ -37,7 +37,7 @@ Per-case confidence (representative):
 
 ## Why — drift is evidence-limited, not type-limited
 
-The `routing` case expects "every connected web peer except the sender receives the broadcast," but its evidence is a single `MatchedMessage`. That cannot prove fan-out or sender-exclusion, so a careful judge is correctly uncertain/low-confidence — **regardless of whether it knows the legal type set.** Vocabulary cannot repair insufficient evidence.
+The `routing` case expects "every connected web peer except the sender receives the broadcast," but its evidence is a single `MatchedMessage`. That cannot prove fan-out or sender-exclusion, so a careful judge is correctly uncertain/low-confidence — **regardless of whether it knows the legal type set.** Vocabulary cannot repair insufficient evidence; what it shifts on this case is *how* that uncertainty is expressed — `honest-uncertain` (`uncertain`) with vocab vs `under-confident` (sub-0.9 `pass`) without — which is exactly why it moves `new_drift` but not `old_drift`.
 
 The `vague` case ("web should get the running task update pushed to it") is where vocabulary was expected to help most. It passed confidently under **both** conditions: `glm-5.2` infers from the `workflow:task_progress` type name in the evidence alone, without needing the vocab summary to tell it the type is legal. On a strong model with content-shaped evidence, the type knowledge is redundant.
 
@@ -45,7 +45,7 @@ The `vague` case ("web should get the running task update pushed to it") is wher
 
 This is a different regime from the Scout validation (2026-08-05), where vocabulary was **decisive** — it converted abstract prose into concrete, protocol-faithful choreography (0 → 11–16 typed messages). The Examiner judge sits downstream: by the time it sees evidence, the types are already concrete in the frame bodies. Its drift is governed by **evidence sufficiency**, not by type vocabulary.
 
-So the Examiner vocab injection is a **defensive, zero-regression** improvement (confirmed: empty summary → byte-identical prompt; non-WS unaffected), not a drift-reducer on this model. It would be expected to help most with (a) weaker models that cannot infer type legality from names, and (b) expectations that ask the judge to distinguish a legal-but-unobserved type from an invented one — neither of which this case set exercised.
+So the Examiner vocab injection is a **defensive, zero-regression** improvement (confirmed: empty summary → byte-identical prompt; non-WS unaffected). It is **not** a drift-reducer under `old_drift` (3/12 tie) but **does** reduce `new_drift` (3/12 → 1/12) by shifting the `routing` case from `under-confident` to `honest-uncertain` — see Conclusion. It would be expected to help most with (a) weaker models that cannot infer type legality from names, and (b) expectations that ask the judge to distinguish a legal-but-unobserved type from an invented one — neither of which this case set exercised.
 
 ## Conclusion
 
