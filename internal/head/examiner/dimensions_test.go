@@ -3,9 +3,10 @@ package examiner
 import (
 	"testing"
 
-	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/head/agent"
 )
 
 // TestDeriveDimensions_FanOutMembership verifies a ws_flow trace yields one

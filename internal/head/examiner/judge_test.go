@@ -215,7 +215,7 @@ func TestBuildJudgePromptNoDimensionsUnchanged(t *testing.T) {
 // given dimensions from Evidence(). Other methods are stubbed.
 type dimResult struct{ dims []types.Dimension }
 
-func (d dimResult) Success() bool          { return true }
+func (d dimResult) Success() bool           { return true }
 func (d dimResult) Duration() time.Duration { return 0 }
 func (d dimResult) Summary() string         { return "dim stub" }
 func (d dimResult) Evidence() types.EvidenceData {

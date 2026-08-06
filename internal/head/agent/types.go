@@ -121,8 +121,8 @@ type Evidence struct {
 	Content      string `json:"content"`
 	Action       string `json:"action,omitempty"`        // ws_connect|ws_send|ws_receive|...
 	ConnectionID string `json:"connection_id,omitempty"` // WS step's connection
-	MatchedType  string `json:"matched_type,omitempty"`   // ws_receive expected / ws_send sent type
-	Matched      bool   `json:"matched,omitempty"`        // ws_receive observed a matching frame
+	MatchedType  string `json:"matched_type,omitempty"`  // ws_receive expected / ws_send sent type
+	Matched      bool   `json:"matched,omitempty"`       // ws_receive observed a matching frame
 }
 
 // StepResult is the outcome of executing a single TestCase.

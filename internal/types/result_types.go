@@ -23,16 +23,16 @@ type EvidenceData struct {
 // The judge decides whether the fact satisfies a claim; a dimension never
 // carries a verdict, only observed facts.
 type Dimension struct {
-	Kind       string   `json:"kind"`                   // count|membership|ordering|value|presence
-	Label      string   `json:"label"`                  // human/LLM-readable
-	Recipients []string `json:"recipients,omitempty"`   // membership: connections that received
-	Sender     string   `json:"sender,omitempty"`       // membership: connection that sent
-	Excluded   *bool    `json:"excluded,omitempty"`     // membership: only set when actively probed
-	Count      int      `json:"count,omitempty"`        // count
-	Value      string   `json:"value,omitempty"`        // value: "status=200", "approved=true"
-	Present    *bool    `json:"present,omitempty"`      // presence
-	Order      []string `json:"order,omitempty"`        // ordering
-	Note       string   `json:"note,omitempty"`         // short supplement, not the primary signal
+	Kind       string   `json:"kind"`                 // count|membership|ordering|value|presence
+	Label      string   `json:"label"`                // human/LLM-readable
+	Recipients []string `json:"recipients,omitempty"` // membership: connections that received
+	Sender     string   `json:"sender,omitempty"`     // membership: connection that sent
+	Excluded   *bool    `json:"excluded,omitempty"`   // membership: only set when actively probed
+	Count      int      `json:"count,omitempty"`      // count
+	Value      string   `json:"value,omitempty"`      // value: "status=200", "approved=true"
+	Present    *bool    `json:"present,omitempty"`    // presence
+	Order      []string `json:"order,omitempty"`      // ordering
+	Note       string   `json:"note,omitempty"`       // short supplement, not the primary signal
 }
 
 // truncate limits s to maxRunes.
