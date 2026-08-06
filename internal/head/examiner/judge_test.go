@@ -3,6 +3,7 @@ package examiner
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/types"
@@ -171,4 +172,52 @@ func TestBuildJudgePromptOmitsVocabWhenEmpty(t *testing.T) {
 	if strings.Contains(got, "WS Routing Vocabulary") {
 		t.Fatalf("non-WS prompt should not mention vocab:\n%s", got)
 	}
+}
+
+// TestBuildJudgePromptIncludesDimensions verifies that single-step dimensions
+// carried on the result's Evidence() are rendered and trigger the guidance.
+func TestBuildJudgePromptIncludesDimensions(t *testing.T) {
+	j := &Judge{config: ExaminerConfig{}}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{Name: "perm", Target: "https://x", Expectation: "approved is true"},
+		Status:   agent.StepPassed,
+	}
+	res.Result = dimResult{dims: []types.Dimension{{
+		Kind: "value", Label: "approval", Value: "approved=true",
+	}}}
+	got := j.buildJudgePrompt(res)
+	if !strings.Contains(got, "Structured Evidence (by dimension)") {
+		t.Fatalf("prompt missing dimension block:\n%s", got)
+	}
+	if !strings.Contains(got, "approved=true") {
+		t.Fatalf("prompt missing the dimension fact:\n%s", got)
+	}
+	if !strings.Contains(got, "organized by") || !strings.Contains(got, "uncertain") {
+		t.Fatalf("prompt missing the dimension guidance:\n%s", got)
+	}
+}
+
+// TestBuildJudgePromptNoDimensionsUnchanged verifies the zero-regression gate:
+// no dimensions ⇒ no block, no guidance.
+func TestBuildJudgePromptNoDimensionsUnchanged(t *testing.T) {
+	j := &Judge{config: ExaminerConfig{}}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{Name: "n", Target: "https://x", Expectation: "ok"},
+		Status:   agent.StepPassed,
+	}
+	got := j.buildJudgePrompt(res)
+	if strings.Contains(got, "Structured Evidence") || strings.Contains(got, "organized by") {
+		t.Fatalf("no-dimension prompt should not mention dimensions:\n%s", got)
+	}
+}
+
+// dimResult is a minimal ExecutorResult for dimension tests; it returns the
+// given dimensions from Evidence(). Other methods are stubbed.
+type dimResult struct{ dims []types.Dimension }
+
+func (d dimResult) Success() bool          { return true }
+func (d dimResult) Duration() time.Duration { return 0 }
+func (d dimResult) Summary() string         { return "dim stub" }
+func (d dimResult) Evidence() types.EvidenceData {
+	return types.EvidenceData{Type: "stub", Content: "stub", Dimensions: d.dims}
 }

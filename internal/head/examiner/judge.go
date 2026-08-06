@@ -83,6 +83,9 @@ func (j *Judge) Judge(ctx context.Context, result agent.StepResult) (*JudgeResul
 // consistency, not protocol legality, and stays on the scoring tier.
 func (j *Judge) buildJudgePrompt(result agent.StepResult) string {
 	evidence := j.buildEvidenceContext(result)
+	if len(j.dimensionsFor(result)) > 0 {
+		evidence = dimensionGuidance + "\n" + evidence
+	}
 	if j.config.VocabSummary != "" {
 		evidence = j.config.VocabSummary + "\n" + evidence
 	}
@@ -253,6 +256,12 @@ func (j *Judge) buildEvidenceContext(r agent.StepResult) string {
 		// executor crash, etc.) — the target was never exercised. Flag it so the
 		// judge does not mistake it for the system-under-test returning an error.
 		b = append(b, fmt.Sprintf("Step Error (FRAMEWORK — the test harness failed to execute the target; this is NOT the system-under-test responding): %s\n", r.Error)...)
+	}
+
+	// Dimensions: merged from result-carried (source 1) and flow-derived
+	// (source 2). Empty set ⇒ nothing rendered ⇒ byte-identical prompt.
+	if d := renderDimensions(j.dimensionsFor(r)); d != "" {
+		b = append(b, d...)
 	}
 
 	return string(b)
