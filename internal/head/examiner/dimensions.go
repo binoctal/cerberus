@@ -107,7 +107,7 @@ func renderDimensions(dims []types.Dimension) string {
 // sender exclusion requires an active probe (see the spec's "Exclusion requires
 // an active probe"), which is deferred.
 func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
-	senders := map[string]string{}         // type -> sender connectionID
+	senders := map[string]string{}             // type -> sender connectionID
 	recipients := map[string]map[string]bool{} // type -> set of recipient connectionIDs
 	for _, ev := range r.Evidence {
 		if ev.MatchedType == "" {

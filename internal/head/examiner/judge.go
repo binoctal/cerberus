@@ -27,9 +27,9 @@ type Judge struct {
 // NewJudge creates a Judge with main and optional critic drivers.
 func NewJudge(judgeDriver, criticDriver *ai.Driver, config ExaminerConfig) *Judge {
 	return &Judge{
-		judgeDriver:  judgeDriver,
-		criticDriver: criticDriver,
-		config:       config,
+		judgeDriver:   judgeDriver,
+		criticDriver:  criticDriver,
+		config:        config,
 		deriveEnabled: true,
 	}
 }
