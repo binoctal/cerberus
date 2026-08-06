@@ -162,8 +162,33 @@ func buildValidationCases() []validationCase {
 			"workflow:task_progress", `{"taskId":"t1","pct":42}`),
 		mk("vague", "web should get the running task update pushed to it",
 			"workflow:task_progress", `{"taskId":"t1","pct":42}`),
-		mk("routing", "every connected web peer except the sender receives the broadcast",
-			"workflow:task_progress", `{"taskId":"t1","pct":50}`),
+		// routing now carries a real fan-out trace WITH a sender negative-probe,
+		// so deriveDimensions yields a membership dimension with a measured
+		// Excluded (*true: the sender did not receive its own broadcast). This is
+		// the case that previously drifted honest-uncertain on "not probed"; the
+		// probe should let the judge rule confidently.
+		{
+			name: "routing",
+			result: agent.StepResult{
+				TestCase: &agent.TestCase{
+					ID: "vc-routing", Name: "routing", Target: "ws://localhost:8989/ws",
+					Expectation: "every connected web peer except the sender receives the broadcast",
+				},
+				Status:   agent.StepPassed,
+				Attempts: 1,
+				Result: types.WSResult{
+					OK:             true,
+					MatchedMessage: `{"type":"workflow:task_progress","payload":{"pct":50}}`,
+					MatchedCount:   1,
+				},
+				Evidence: []agent.Evidence{
+					{Action: "ws_send", ConnectionID: "c-web", MatchedType: "workflow:task_progress", Content: "ws_send: ok"},
+					{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "workflow:task_progress", Matched: true, Content: "ws_receive: matched"},
+					{Action: "ws_receive", ConnectionID: "c-web-2", MatchedType: "workflow:task_progress", Matched: true, Content: "ws_receive: matched"},
+					{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "workflow:task_progress", Matched: false, ExpectAbsent: true, Content: "ws_receive: timed out (sender excluded)"},
+				},
+			},
+		},
 		mk("lifecycle", "web is told a session was established",
 			"session:created", `{"sessionId":"s1"}`),
 		// fanout carries a real per-step trace so deriveDimensions yields a
