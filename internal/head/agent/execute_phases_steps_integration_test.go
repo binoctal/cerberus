@@ -225,3 +225,37 @@ func TestOrchestratorCallback(t *testing.T) {
 		})
 	}
 }
+
+// TestSenderExclusionProbeLive verifies, on the real open-agents server, the
+// exact probe step Scout's wsRelayCases now appends for the joining peer: after
+// the relay delivers device:online to web, the BRIDGE (the joiner / "sender" of
+// the join event) must NOT receive its own join signal. The ExpectAbsent receive
+// inverts success — a timeout (no frame) is the probe's PASS. This is the live,
+// deterministic proof that the sender-exclusion probe behaves correctly against
+// a real service (Task 2 inversion + Task 5 emitted step), complementary to the
+// synthetic-evidence Examiner validation.
+func TestSenderExclusionProbeLive(t *testing.T) {
+	f := setupOpenAgents(t, false)
+	tc := &TestCase{
+		ID:     "tc-sender-exclusion-probe",
+		Target: "ws://localhost:8989/ws/" + f.userId,
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "c-web"},
+			{Action: "ws_connect", Role: "bridge", ConnectionID: "c-bridge"},
+			// Relay: web receives device:online when bridge joins.
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "device:online", Timeout: 3},
+			// Probe (the step wsRelayCases appends per joining peer): bridge must
+			// NOT receive its own join signal. ExpectAbsent ⇒ timeout is success,
+			// an actual echo is failure.
+			{Action: "ws_receive", ConnectionID: "c-bridge", Type: "device:online",
+				Timeout: 2, ExpectAbsent: true},
+		},
+	}
+	se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+	result := se.runSteps()
+	for _, ev := range result.Evidence {
+		t.Logf("step: %s", ev.Content)
+	}
+	require.Equal(t, StepPassed, result.Status,
+		"relay must deliver device:online to web AND the bridge probe must time out (sender excluded)")
+}
