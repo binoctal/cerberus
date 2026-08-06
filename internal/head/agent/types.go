@@ -124,6 +124,7 @@ type Evidence struct {
 	ConnectionID string `json:"connection_id,omitempty"` // WS step's connection
 	MatchedType  string `json:"matched_type,omitempty"`  // ws_receive expected / ws_send sent type
 	Matched      bool   `json:"matched,omitempty"`       // ws_receive observed a matching frame
+	ExpectAbsent bool   `json:"expect_absent,omitempty"` // ws_receive: this was a negative (sender-exclusion) probe
 }
 
 // StepResult is the outcome of executing a single TestCase.

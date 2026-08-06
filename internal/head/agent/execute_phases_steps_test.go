@@ -600,3 +600,16 @@ func TestStepToActionReceiveExpectAbsent(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, wr.ExpectAbsent, "stepToAction must propagate TestStep.ExpectAbsent to WSReceiveAction.ExpectAbsent")
 }
+
+// TestStepEvidenceExpectAbsentThreaded verifies the probe flag lands on the
+// trace Evidence so the examiner can recognize a negative probe and derive a
+// measured Dimension.Excluded.
+func TestStepEvidenceExpectAbsentThreaded(t *testing.T) {
+	ev := stepEvidence(TestStep{
+		Action: "ws_receive", ConnectionID: "c1", Type: "workflow:task_progress", ExpectAbsent: true,
+	}, types.WSResult{OK: true})
+	require.True(t, ev.ExpectAbsent, "ExpectAbsent must thread onto Evidence")
+	require.Equal(t, "ws_receive", ev.Action)
+	require.Equal(t, "c1", ev.ConnectionID)
+	require.Equal(t, "workflow:task_progress", ev.MatchedType)
+}

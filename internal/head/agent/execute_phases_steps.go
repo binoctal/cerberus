@@ -21,6 +21,7 @@ func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
 	if s.Action == "ws_receive" {
 		ev.MatchedType = s.Type
 		ev.Matched = wsReceiveMatched(result)
+		ev.ExpectAbsent = s.ExpectAbsent
 	}
 	if s.Action == "ws_send" {
 		ev.MatchedType = typeOfSend(s.Message)
