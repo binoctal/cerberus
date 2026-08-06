@@ -11,9 +11,17 @@ import (
 
 // dimensionGuidance is prepended to the evidence context only when the result
 // carries at least one dimension. It is a SOFT instruction — whether the LLM
-// honors "missing dimension → uncertain" is itself the thing the validation
-// measures, not a guarantee.
-const dimensionGuidance = "The evidence below is organized by dimension: count, membership, ordering, value, presence. Map each claim in the expectation to its matching dimension and check the typed fact. If the expectation depends on a dimension for which no evidence is listed, return uncertain with low confidence — do not infer the outcome from unrelated evidence."
+// honors it is itself the thing the validation measures, not a guarantee.
+//
+// The critical distinction is between a DIMENSION the claim references that has
+// no evidence (a real gap ⇒ uncertain) and a dimension that IS present but
+// whose sub-fact is "not measured" (an active probe did not run). The latter is
+// not a gap unless the claim specifically requires that sub-fact: a membership
+// dimension listing recipients satisfies a "reaches both peers" claim even when
+// sender-exclusion is unmeasured, because the claim says nothing about the
+// sender. Without this scoping the judge over-triggers on "not measured" and
+// drifts on recipient-only claims (measured 2026-08-06, fanout case).
+const dimensionGuidance = "The evidence below is organized by dimension: count, membership, ordering, value, presence. Map each claim in the expectation to its matching dimension and check the typed fact. A dimension is satisfied when its measured facts meet the claim. Some sub-facts are marked \"not measured\" (no active probe ran for them): treat that as a neutral scope note, NOT a gap — only return uncertain when the claim specifically requires a sub-fact that is marked \"not measured\". An unmeasured sub-fact the claim does not reference must not lower your confidence, and you must never infer its outcome from the other fields."
 
 // dimensionsFor returns the merged dimension set for a step result: source 1
 // (result-carried, Evidence().Dimensions) and source 2 (flow-derived,
@@ -73,7 +81,7 @@ func renderDimensions(dims []types.Dimension) string {
 				line += fmt.Sprintf("; sender=%s", d.Sender)
 			}
 			if d.Excluded == nil {
-				line += "; sender exclusion not probed"
+				line += "; sender-exclusion not measured"
 			} else if *d.Excluded {
 				line += "; sender excluded"
 			} else {
@@ -108,7 +116,7 @@ func renderDimensions(dims []types.Dimension) string {
 // (sender excluded), echo ⇒ *false (sender received its own broadcast). Pass 1
 // establishes senders + recipients; pass 2 resolves probes against the
 // now-known sender so Evidence ordering does not matter. Without a probe,
-// Excluded stays nil — the honest "sender exclusion not probed" state the judge
+// Excluded stays nil — the honest "sender-exclusion not measured" state the judge
 // already renders.
 func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 	senders := map[string]string{}             // type -> sender connectionID

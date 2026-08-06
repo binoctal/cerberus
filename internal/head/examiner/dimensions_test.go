@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/types"
 )
 
 // TestDeriveDimensions_FanOutMembership verifies a ws_flow trace yields one
@@ -119,4 +120,26 @@ func TestDeriveDimensionsNonSenderProbeIgnored(t *testing.T) {
 	dims := j.deriveDimensions(res)
 	require.Len(t, dims, 1)
 	assert.Nil(t, dims[0].Excluded, "non-sender probe must not settle Excluded")
+}
+
+// TestRenderDimensions_NilExcludedIsNeutralScope locks the over-trigger fix:
+// an unprobed Excluded renders as a neutral "not measured" scope note (not a
+// gap-sounding "not probed"), and the guidance tells the judge an unmeasured
+// sub-fact the claim does not reference must not lower confidence. Together
+// these stop recipient-only claims (e.g. fanout) from drifting on an
+// irrelevant sender-exclusion sub-fact (measured 2026-08-06).
+func TestRenderDimensions_NilExcludedIsNeutralScope(t *testing.T) {
+	out := renderDimensions([]types.Dimension{{
+		Kind: "membership", Label: "broadcast recipients",
+		Recipients: []string{"c-bridge", "c-web-2"}, Sender: "c-web", // Excluded nil
+	}})
+	assert.Contains(t, out, "sender-exclusion not measured",
+		"nil Excluded must render as the neutral scope note")
+	assert.NotContains(t, out, "not probed",
+		"the old gap-sounding phrasing must be gone")
+
+	assert.Contains(t, dimensionGuidance, "not measured",
+		"guidance must reference the render's 'not measured' phrasing")
+	assert.Contains(t, dimensionGuidance, "specifically requires",
+		"guidance must scope uncertainty to sub-facts the claim requires")
 }
