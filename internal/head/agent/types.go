@@ -84,6 +84,7 @@ type TestStep struct {
 	Asserts      map[string]any `json:"asserts,omitempty"`       // For ws_receive: field assertions
 	MatchAll     bool           `json:"match_all,omitempty"`     // ws_receive: collect every matching item in the burst (see WSReceiveAction.MatchAll)
 	Timeout      int            `json:"timeout,omitempty"`       // ws_receive: seconds (0 ⇒ executor default)
+	ExpectAbsent bool           `json:"expect_absent,omitempty"` // ws_receive: assert the type does NOT arrive (sender-exclusion probe)
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.

@@ -68,7 +68,8 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 		return types.WSSendAction{ConnectionID: s.ConnectionID, Message: s.Message}, nil
 	case "ws_receive":
 		return types.WSReceiveAction{ConnectionID: s.ConnectionID, Type: s.Type,
-			Aliases: s.Aliases, Assert: s.Asserts, Timeout: s.Timeout, Decisive: true, MatchAll: s.MatchAll}, nil
+			Aliases: s.Aliases, Assert: s.Asserts, Timeout: s.Timeout, Decisive: true, MatchAll: s.MatchAll,
+			ExpectAbsent: s.ExpectAbsent}, nil
 	case "ws_disconnect":
 		return types.WSDisconnectAction{ConnectionID: s.ConnectionID}, nil
 	default:
