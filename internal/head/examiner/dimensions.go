@@ -23,7 +23,11 @@ func (j *Judge) dimensionsFor(r agent.StepResult) []types.Dimension {
 	if r.Result != nil {
 		s1 = r.Result.Evidence().Dimensions
 	}
-	return mergeDimensions(s1, j.deriveDimensions(r))
+	var s2 []types.Dimension
+	if j.deriveEnabled {
+		s2 = j.deriveDimensions(r)
+	}
+	return mergeDimensions(s1, s2)
 }
 
 // mergeDimensions concatenates two dimension sets, de-duplicating by

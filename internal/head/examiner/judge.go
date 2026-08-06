@@ -18,6 +18,10 @@ type Judge struct {
 	criticDriver *ai.Driver // nil means no Self-Refine
 	config       ExaminerConfig
 	critiqueUsed atomic.Int64 // session-level critique counter (touched by concurrent judges)
+	// deriveEnabled gates source-2 flow-level dimension derivation
+	// (deriveDimensions). Defaults true; the validation harness sets it false to
+	// measure the dimension's effect by stripping it.
+	deriveEnabled bool
 }
 
 // NewJudge creates a Judge with main and optional critic drivers.
@@ -26,6 +30,7 @@ func NewJudge(judgeDriver, criticDriver *ai.Driver, config ExaminerConfig) *Judg
 		judgeDriver:  judgeDriver,
 		criticDriver: criticDriver,
 		config:       config,
+		deriveEnabled: true,
 	}
 }
 

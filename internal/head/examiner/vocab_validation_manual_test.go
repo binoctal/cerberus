@@ -59,12 +59,19 @@ func TestExaminerVocabValidation(t *testing.T) {
 	require.NoError(t, os.MkdirAll(outDir, 0o0755))
 
 	const runsPerCondition = 3
+	// The condition matrix crosses the vocabulary intervention (with/without)
+	// with the dimension intervention (derived vs stripped). The dimension's
+	// independent effect is the +dim vs +strip contrast within one vocab row;
+	// the vocab effect is the column contrast. N=3 each.
 	conditions := []struct {
 		name    string
 		summary string
+		derive  bool
 	}{
-		{"with-vocab", vocabSummary},
-		{"without-vocab", ""},
+		{"vocab-dim", vocabSummary, true},
+		{"vocab-strip", vocabSummary, false},
+		{"novocab-dim", "", true},
+		{"novocab-strip", "", false},
 	}
 
 	var report string
@@ -86,6 +93,7 @@ func TestExaminerVocabValidation(t *testing.T) {
 					ConfThreshold: driftThreshold,
 					VocabSummary:  cond.summary,
 				})
+				judge.deriveEnabled = cond.derive
 
 				driftCount := 0
 				var lines []string
@@ -150,6 +158,31 @@ func buildValidationCases() []validationCase {
 			"workflow:task_progress", `{"taskId":"t1","pct":50}`),
 		mk("lifecycle", "web is told a session was established",
 			"session:created", `{"sessionId":"s1"}`),
+		// fanout carries a real per-step trace so deriveDimensions yields a
+		// membership dimension (sender + 2 recipients). The with-dimensions
+		// condition renders that dimension; the strip condition drops it. This
+		// case is the direct measurement of the dimension's effect on drift.
+		{
+			name: "fanout",
+			result: agent.StepResult{
+				TestCase: &agent.TestCase{
+					ID: "vc-fanout", Name: "fanout", Target: "ws://localhost:8989/ws",
+					Expectation: "the broadcast reaches both other web peers",
+				},
+				Status:   agent.StepPassed,
+				Attempts: 1,
+				Result: types.WSResult{
+					OK:             true,
+					MatchedMessage: `{"type":"workflow:task_progress","payload":{"pct":50}}`,
+					MatchedCount:   1,
+				},
+				Evidence: []agent.Evidence{
+					{Action: "ws_send", ConnectionID: "c-web", MatchedType: "workflow:task_progress", Content: "ws_send: ok"},
+					{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "workflow:task_progress", Matched: true, Content: "ws_receive: matched"},
+					{Action: "ws_receive", ConnectionID: "c-web-2", MatchedType: "workflow:task_progress", Matched: true, Content: "ws_receive: matched"},
+				},
+			},
+		},
 	}
 }
 
