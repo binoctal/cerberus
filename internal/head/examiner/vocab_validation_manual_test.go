@@ -95,18 +95,26 @@ func TestExaminerVocabValidation(t *testing.T) {
 				})
 				judge.deriveEnabled = cond.derive
 
-				driftCount := 0
+				var incorrect, honest, underconf int
 				var lines []string
 				for _, c := range cases {
 					vr, err := judge.Judge(context.Background(), c.result)
 					require.NoError(t, err, "judge failed for case %q", c.name)
-					drift := vr.Status != StatusPass || vr.CorrectnessConfidence < driftThreshold
-					if drift {
-						driftCount++
+					cat := classifyDrift(vr.Status, vr.CorrectnessConfidence, driftThreshold)
+					switch cat {
+					case "incorrect":
+						incorrect++
+					case "honest-uncertain":
+						honest++
+					case "under-confident":
+						underconf++
 					}
-					lines = append(lines, fmt.Sprintf("  %-14s status=%-9s conf=%.2f drift=%v", c.name, vr.Status, vr.CorrectnessConfidence, drift))
+					lines = append(lines, fmt.Sprintf("  %-14s status=%-9s conf=%.2f cat=%s", c.name, vr.Status, vr.CorrectnessConfidence, cat))
 				}
-				summary := fmt.Sprintf("[%s] cases=%d drift=%d", label, len(cases), driftCount)
+				oldDrift := incorrect + honest + underconf
+				newDrift := incorrect + underconf
+				summary := fmt.Sprintf("[%s] cases=%d incorrect=%d honest=%d underconf=%d new_drift=%d old_drift=%d",
+					label, len(cases), incorrect, honest, underconf, newDrift, oldDrift)
 				t.Log(summary)
 				for _, l := range lines {
 					t.Log(l)
