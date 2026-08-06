@@ -2,6 +2,7 @@ package examiner
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -96,9 +97,56 @@ func renderDimensions(dims []types.Dimension) string {
 }
 
 // deriveDimensions produces flow-level dimensions (source 2) from a step
-// result's per-step trace. Stub here (returns nil); the ws_flow membership
-// derivation lands in a follow-up task.
+// result's per-step trace. It derives membership: for each message type that a
+// ws_send sent, the recipients are the connections whose ws_receive matched it,
+// and the sender is the ws_send connection. Excluded is left nil — proving
+// sender exclusion requires an active probe (see the spec's "Exclusion requires
+// an active probe"), which is deferred.
 func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
-	_ = r
-	return nil
+	senders := map[string]string{}         // type -> sender connectionID
+	recipients := map[string]map[string]bool{} // type -> set of recipient connectionIDs
+	for _, ev := range r.Evidence {
+		if ev.MatchedType == "" {
+			continue
+		}
+		switch ev.Action {
+		case "ws_send":
+			if _, ok := senders[ev.MatchedType]; !ok {
+				senders[ev.MatchedType] = ev.ConnectionID
+			}
+			if recipients[ev.MatchedType] == nil {
+				recipients[ev.MatchedType] = map[string]bool{}
+			}
+		case "ws_receive":
+			if ev.Matched {
+				if recipients[ev.MatchedType] == nil {
+					recipients[ev.MatchedType] = map[string]bool{}
+				}
+				recipients[ev.MatchedType][ev.ConnectionID] = true
+			}
+		}
+	}
+	if len(senders) == 0 {
+		return nil
+	}
+	typesSorted := make([]string, 0, len(senders))
+	for t := range senders {
+		typesSorted = append(typesSorted, t)
+	}
+	sort.Strings(typesSorted)
+	out := make([]types.Dimension, 0, len(typesSorted))
+	for _, t := range typesSorted {
+		rcv := make([]string, 0, len(recipients[t]))
+		for c := range recipients[t] {
+			rcv = append(rcv, c)
+		}
+		sort.Strings(rcv)
+		out = append(out, types.Dimension{
+			Kind:       "membership",
+			Label:      t + " recipients",
+			Recipients: rcv,
+			Sender:     senders[t],
+		})
+	}
+	return out
 }
