@@ -2406,3 +2406,96 @@ func TestResolveURLParams(t *testing.T) {
 		})
 	}
 }
+
+// TestWSReceiveExpectAbsentPassesOnTimeout verifies a negative sender-exclusion
+// probe succeeds when the probed type does NOT arrive within the window — the
+// sender was correctly excluded from its own broadcast.
+func TestWSReceiveExpectAbsentPassesOnTimeout(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		write := func(m map[string]any) {
+			b, _ := json.Marshal(m)
+			_ = conn.Write(ctx, websocket.MessageText, b)
+		}
+		// Server sends an unrelated type only — never the probed type.
+		write(map[string]any{"type": "unrelated"})
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "workflow:task_progress", Timeout: 1, ExpectAbsent: true,
+	})
+	ws, ok := res.(types.WSResult)
+	if !ok {
+		t.Fatalf("result type %T, want WSResult", res)
+	}
+	if !ws.OK {
+		t.Fatalf("ExpectAbsent receive should pass on timeout, got failure: %+v", ws)
+	}
+}
+
+// TestWSReceiveExpectAbsentFailsOnEcho verifies a negative probe FAILS when the
+// server wrongly echoes the broadcast back to the sender, and surfaces the
+// echoing frame as evidence.
+func TestWSReceiveExpectAbsentFailsOnEcho(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		write := func(m map[string]any) {
+			b, _ := json.Marshal(m)
+			_ = conn.Write(ctx, websocket.MessageText, b)
+		}
+		write(map[string]any{"type": "workflow:task_progress", "payload": map[string]any{"pct": 50}})
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "workflow:task_progress", Timeout: 2, ExpectAbsent: true,
+	})
+	ws, ok := res.(types.WSResult)
+	if !ok {
+		t.Fatalf("result type %T, want WSResult", res)
+	}
+	if ws.OK {
+		t.Fatalf("ExpectAbsent receive should fail on echo, got success: %+v", ws)
+	}
+	if !strings.Contains(ws.MatchedMessage, "workflow:task_progress") {
+		t.Fatalf("echoing frame should be visible as evidence: %s", ws.MatchedMessage)
+	}
+}
+
+// TestWSReceiveExpectAbsentRejectsMatchAll verifies the incompatible-flag guard:
+// a MatchAll absence-probe is a case-authoring error caught fast with a clear
+// message rather than an ambiguous empty-burst assertion.
+func TestWSReceiveExpectAbsentRejectsMatchAll(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "workflow:task_progress", Timeout: 1,
+		MatchAll: true, ExpectAbsent: true,
+	})
+	ws, ok := res.(types.WSResult)
+	if !ok {
+		t.Fatalf("result type %T, want WSResult", res)
+	}
+	if ws.OK {
+		t.Fatalf("MatchAll+ExpectAbsent should fail fast, got success: %+v", ws)
+	}
+	if !strings.Contains(ws.Err, "expect_absent") {
+		t.Fatalf("error should name the incompatibility: %s", ws.Err)
+	}
+}

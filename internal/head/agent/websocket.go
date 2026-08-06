@@ -955,6 +955,13 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 		timeout = 10 * time.Second
 	}
 	want := append([]string{a.Type}, a.Aliases...)
+	if a.MatchAll && a.ExpectAbsent {
+		// ExpectAbsent is a negative probe (assert the type does NOT arrive). It
+		// is only meaningful on the single-match path: a MatchAll absence-probe
+		// is a case-authoring error (what would "every item of an empty burst"
+		// assert?).
+		return types.WSResult{OK: false, Err: "receive: expect_absent is incompatible with match_all", Latency: time.Since(start)}
+	}
 	if a.MatchAll {
 		return e.doReceiveMatchAll(entry, framing, path, want, a, start)
 	}
@@ -963,6 +970,17 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	}, timeout)
 	switch status {
 	case "matched":
+		// ExpectAbsent: a match means the sender wrongly received its own
+		// broadcast — a relay bug. Surface the echoing frame as evidence.
+		if a.ExpectAbsent {
+			return types.WSResult{
+				OK:             false,
+				Err:            fmt.Sprintf("receive: expected %q absent but it arrived (sender not excluded)", a.Type),
+				MatchedMessage: frameForResult(framing, matched.data),
+				SeenMessages:   seen,
+				Latency:        time.Since(start),
+			}
+		}
 		data := matched.data
 		// For json framing, evaluate field-level assertions (if any) in sorted
 		// path order; the first failure fails the receive with a precise message.
@@ -991,6 +1009,11 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 		}
 		return types.WSResult{OK: true, MatchedMessage: frameForResult(framing, data), SeenMessages: seen, Latency: time.Since(start)}
 	case "timeout":
+		// ExpectAbsent: no frame arrived within the window — the sender was
+		// correctly excluded. This is the probe's success path.
+		if a.ExpectAbsent {
+			return types.WSResult{OK: true, SeenMessages: seen, Latency: time.Since(start)}
+		}
 		// No matching frame within the deadline. The connection is STILL ALIVE
 		// (the pump keeps running): return OK:false without closing, so a later
 		// send/receive on the same connection_id can succeed.
