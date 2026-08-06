@@ -84,13 +84,38 @@ then retried successfully"). Such assertions are multi-step and would compose
 several dimensions across steps; this spec does not claim to handle them, and
 they remain prose-judged.
 
-### Data carrier — extend `EvidenceData`, with genuinely structured fields
+### Data carrier — two sources, by data shape
 
-Add a `Dimensions` field to the existing `EvidenceData` (zero interface change;
-`ExecutorResult.Evidence()` already returns `EvidenceData`). The `Dimension`
-carries **typed facts**, not a prose blob — the original draft's `Observed
-string` was pseudo-structured and would have just moved the semantic-parsing
-problem into the judge. Only the fields relevant to `Kind` are populated:
+Dimensions come from two sources, matched to where the data actually lives.
+The original single-source draft (`EvidenceData.Dimensions` only) assumed every
+dimension is a property of the final result; that is false for `ws_flow`
+fan-out, which spans multiple steps and connections and lives only in the
+per-step trace.
+
+**Source 1 — single-step dimensions: `EvidenceData.Dimensions`.** For facts a
+single result already holds (HTTP `value` from status/body, WS `count` from
+`MatchedCount`, `presence` of an error frame in one receive), the executor
+populates `EvidenceData.Dimensions` on the result it returns.
+`ExecutorResult.Evidence()` already returns `EvidenceData`; adding a
+`Dimensions` field is zero interface change, and old results leave it nil.
+
+**Source 2 — flow-level dimensions: examiner-side derivation.** Facts that span
+multiple steps (ws_flow fan-out: which connections received a broadcast) live in
+`StepResult.Evidence` (the per-step trace), not in the last step's `Result`.
+These are produced by `examiner.deriveDimensions(StepResult) []Dimension`, which
+the renderer calls. This keeps each cross-step fact where its data lives (the
+trace) and avoids forcing the last-step result to summarize a flow it does not
+own.
+
+`buildEvidenceContext` merges both sources (result's `Evidence().Dimensions` +
+`deriveDimensions(StepResult)`) into one dimension block, de-duplicated by
+`(Kind, Label)` with source-1 winning on conflict (the executor's explicit fact
+beats a trace-derived one).
+
+The `Dimension` struct carries **typed facts**, not a prose blob — the original
+draft's `Observed string` was pseudo-structured and would have just moved the
+semantic-parsing problem into the judge. Only the fields relevant to `Kind` are
+populated:
 
 ```go
 // internal/types/result_types.go
@@ -166,14 +191,14 @@ value is empirical, not assured — see "Known limitations".
 
 ### First population — WS membership, with exclusion handled honestly
 
-The WS executor records fan-out as a `membership` dimension. **Recipients are
-reliably derivable; exclusion is not, unless the choreography probes it.**
+WS membership is the target dimension. It is **flow-level** (fan-out across
+connections), so it comes from **source 2** — `examiner.deriveDimensions` reads
+the `ws_flow` per-step trace and produces a `membership` `Dimension`. It does
+not live in the last step's `WSResult`, so it is not source 1.
 
-**Recipients (reliable):** after a `ws_flow`/multi-step WS case finishes,
-derive from the existing per-step trace (`StepResult.Evidence` already records
-each step's `ConnectionID` and matched type) the set of connections whose
-`ws_receive` matched the broadcast type, plus the connection that `ws_send`-ed
-it. No change to the execution loop. This is the post-hoc extraction path.
+**Recipients (reliable):** `deriveDimensions` walks `StepResult.Evidence`,
+collecting the connections whose `ws_receive` matched the broadcast type, plus
+the connection that `ws_send`-ed it. No change to the execution loop.
 
 #### Exclusion requires an active probe
 
@@ -273,6 +298,16 @@ dimensions.
   verification checks precise/vague cases still pass.
 - **Prompt growth from dimension block:** mitigated by the no-restatement rule
   (executors omit dimensions whose fact is already obvious in the raw section).
+
+## Files (planned)
+
+- `internal/types/result_types.go` — add `Dimension`, `EvidenceData.Dimensions` (source 1).
+- `internal/head/examiner/dimensions.go` — new, `deriveDimensions(StepResult) []Dimension` (source 2: ws_flow fan-out → `membership`).
+- `internal/head/examiner/judge.go` — merge+render dimension block in `buildEvidenceContext`; prepend guidance in `buildJudgePrompt` when dimensions exist.
+- `internal/head/examiner/judge_test.go` / `dimensions_test.go` — rendering, guidance presence/absence, `deriveDimensions` recipients extraction, no-regression (byte-identical when both sources empty).
+- `internal/head/agent/edge_steps.go` — (option 1 only) add a sender-side short-timeout `ws_receive` to `BuildEdgeSteps` for web→web broadcast, so exclusion is actively probed.
+- `internal/head/examiner/vocab_validation_manual_test.go` — add the fan-out membership case (+ exclusion case if option 1); add a dimension-strip condition.
+- `cerberus-docs/technical/validation/2026-08-06-structured-evidence-validation.md` — results write-up.
 
 ## Scope priority (for the plan)
 
