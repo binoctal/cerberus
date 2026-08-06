@@ -258,6 +258,12 @@ type WSReceiveAction struct {
 	// first-match semantics. Useful for "every item satisfies P" contracts where
 	// the item count is unknown at authoring time.
 	MatchAll bool `json:"match_all,omitempty"`
+	// ExpectAbsent inverts matching: the receive PASSES when no matching frame
+	// arrives within Timeout (the sender was correctly excluded from a broadcast)
+	// and FAILS when one does (the server echoed to the sender). Used by relay
+	// fan-out cases to actively probe sender-exclusion. Without it, timeout is a
+	// failure as usual.
+	ExpectAbsent bool `json:"expect_absent,omitempty"`
 }
 
 func (a WSReceiveAction) GetActionType() ActionType { return ActionWSReceive }

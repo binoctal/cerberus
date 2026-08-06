@@ -84,6 +84,7 @@ type TestStep struct {
 	Asserts      map[string]any `json:"asserts,omitempty"`       // For ws_receive: field assertions
 	MatchAll     bool           `json:"match_all,omitempty"`     // ws_receive: collect every matching item in the burst (see WSReceiveAction.MatchAll)
 	Timeout      int            `json:"timeout,omitempty"`       // ws_receive: seconds (0 ⇒ executor default)
+	ExpectAbsent bool           `json:"expect_absent,omitempty"` // ws_receive: assert the type does NOT arrive (sender-exclusion probe)
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.
@@ -123,6 +124,7 @@ type Evidence struct {
 	ConnectionID string `json:"connection_id,omitempty"` // WS step's connection
 	MatchedType  string `json:"matched_type,omitempty"`  // ws_receive expected / ws_send sent type
 	Matched      bool   `json:"matched,omitempty"`       // ws_receive observed a matching frame
+	ExpectAbsent bool   `json:"expect_absent,omitempty"` // ws_receive: this was a negative (sender-exclusion) probe
 }
 
 // StepResult is the outcome of executing a single TestCase.

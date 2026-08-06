@@ -69,3 +69,54 @@ func TestDeriveDimensions_EmptyTrace(t *testing.T) {
 	dims := j.deriveDimensions(agent.StepResult{TestCase: &agent.TestCase{ID: "x"}})
 	assert.Empty(t, dims)
 }
+
+// TestDeriveDimensionsProbeSetsExcluded verifies a sender negative-probe
+// settles Dimension.Excluded: no echo ⇒ *true (sender excluded), echo ⇒ *false
+// (server wrongly echoed to the sender).
+func TestDeriveDimensionsProbeSetsExcluded(t *testing.T) {
+	const sender = "c-web"
+	tests := []struct {
+		name       string
+		probeMatch bool // probe outcome: did the sender receive its own broadcast?
+		want       bool
+	}{
+		{"probe timed out - sender excluded", false, true},
+		{"probe echoed - sender NOT excluded", true, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			j := &Judge{}
+			res := agent.StepResult{
+				TestCase: &agent.TestCase{ID: "relay"},
+				Evidence: []agent.Evidence{
+					{Action: "ws_send", ConnectionID: sender, MatchedType: "workflow:task_progress"},
+					{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "workflow:task_progress", Matched: true},
+					{Action: "ws_receive", ConnectionID: sender, MatchedType: "workflow:task_progress", Matched: tc.probeMatch, ExpectAbsent: true},
+				},
+			}
+			dims := j.deriveDimensions(res)
+			require.Len(t, dims, 1)
+			require.NotNil(t, dims[0].Excluded, "Excluded must be set when a probe ran")
+			assert.Equal(t, tc.want, *dims[0].Excluded)
+		})
+	}
+}
+
+// TestDeriveDimensionsNonSenderProbeIgnored verifies a negative probe on a
+// non-sender connection does not settle Excluded (it is not a sender-exclusion
+// signal); Excluded stays nil.
+func TestDeriveDimensionsNonSenderProbeIgnored(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{ID: "relay"},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-web", MatchedType: "workflow:task_progress"},
+			{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "workflow:task_progress", Matched: true},
+			// Probe on a recipient, not the sender - must be ignored.
+			{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "workflow:task_progress", Matched: false, ExpectAbsent: true},
+		},
+	}
+	dims := j.deriveDimensions(res)
+	require.Len(t, dims, 1)
+	assert.Nil(t, dims[0].Excluded, "non-sender probe must not settle Excluded")
+}

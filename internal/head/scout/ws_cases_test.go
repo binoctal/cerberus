@@ -609,7 +609,7 @@ func TestWSRelayCases(t *testing.T) {
 	require.Equal(t, "ws-rt-relay-web-signal-device-online", c.ID)
 	require.Equal(t, "ws://h/ws", c.Target)
 	require.Equal(t, "ws_flow", c.Action)
-	require.Len(t, c.Steps, 3)
+	require.Len(t, c.Steps, 4)
 	require.Equal(t, "ws_connect", c.Steps[0].Action) // web (receiver) first
 	require.Equal(t, "web", c.Steps[0].ConnectionID)
 	require.Equal(t, "ws_connect", c.Steps[1].Action) // bridge (peer)
@@ -618,6 +618,13 @@ func TestWSRelayCases(t *testing.T) {
 	require.Equal(t, "device:online", c.Steps[2].Type)
 	require.Equal(t, "web", c.Steps[2].ConnectionID)
 	require.Equal(t, 2, c.Steps[2].Timeout)
+	// Sender-exclusion probe: bridge (the joining peer) must not receive its own
+	// join signal. ExpectAbsent inverts the receive; a short timeout bounds cost.
+	require.Equal(t, "ws_receive", c.Steps[3].Action)
+	require.Equal(t, "bridge", c.Steps[3].ConnectionID)
+	require.Equal(t, "device:online", c.Steps[3].Type)
+	require.True(t, c.Steps[3].ExpectAbsent, "final step is the sender-exclusion probe")
+	require.Greater(t, c.Steps[3].Timeout, 0)
 	require.True(t, covered["web"]["device:online"])
 	// Finding-2: the relay case connects the receiver (web) AND its peer (bridge).
 	require.True(t, connected["web"], "receiver is connected by the relay")

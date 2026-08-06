@@ -230,6 +230,17 @@ func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]
 		steps = append(steps, agent.TestStep{
 			Action: "ws_receive", ConnectionID: aName, Type: signal, Timeout: a.Handshake.Timeout,
 		})
+		// Sender-exclusion probe: each joining peer is the "sender" of the join
+		// event, so it must NOT receive its own join signal. A short bounded
+		// timeout (the probe always waits it out) keeps the cost low. The
+		// examiner turns the probe outcome into a measured Dimension.Excluded.
+		const probeTimeout = 2
+		for _, p := range peers {
+			steps = append(steps, agent.TestStep{
+				Action: "ws_receive", ConnectionID: p, Type: signal,
+				Timeout: probeTimeout, ExpectAbsent: true,
+			})
+		}
 		cases = append(cases, agent.TestCase{
 			ID:      "ws-" + svc.Name + "-relay-" + aName + "-signal-" + sanitizeTypeID(signal),
 			Name:    fmt.Sprintf("%s %s receives relayed %s on peer join", svc.Name, aName, signal),

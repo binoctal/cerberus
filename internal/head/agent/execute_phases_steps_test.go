@@ -586,3 +586,30 @@ func TestRunStepsCrossEndpoint(t *testing.T) {
 	require.Equal(t, int32(1), acceptsA.Load(), "server A must accept exactly one connection")
 	require.Equal(t, int32(1), acceptsB.Load(), "server B must accept exactly one connection")
 }
+
+// TestStepToActionReceiveExpectAbsent proves the deterministic Steps runner
+// propagates TestStep.ExpectAbsent to WSReceiveAction.ExpectAbsent. Without this
+// wiring, the sender-exclusion probe flag is unreachable in the Steps path.
+func TestStepToActionReceiveExpectAbsent(t *testing.T) {
+	action, err := stepToAction(&TestCase{Target: "ws://x"}, TestStep{
+		Action: "ws_receive", ConnectionID: "c1", Type: "workflow:task_progress",
+		Timeout: 2, ExpectAbsent: true,
+	})
+	require.NoError(t, err)
+	wr, ok := action.(types.WSReceiveAction)
+	require.True(t, ok)
+	require.True(t, wr.ExpectAbsent, "stepToAction must propagate TestStep.ExpectAbsent to WSReceiveAction.ExpectAbsent")
+}
+
+// TestStepEvidenceExpectAbsentThreaded verifies the probe flag lands on the
+// trace Evidence so the examiner can recognize a negative probe and derive a
+// measured Dimension.Excluded.
+func TestStepEvidenceExpectAbsentThreaded(t *testing.T) {
+	ev := stepEvidence(TestStep{
+		Action: "ws_receive", ConnectionID: "c1", Type: "workflow:task_progress", ExpectAbsent: true,
+	}, types.WSResult{OK: true})
+	require.True(t, ev.ExpectAbsent, "ExpectAbsent must thread onto Evidence")
+	require.Equal(t, "ws_receive", ev.Action)
+	require.Equal(t, "c1", ev.ConnectionID)
+	require.Equal(t, "workflow:task_progress", ev.MatchedType)
+}

@@ -191,3 +191,30 @@ func TestWSCasesCovered_LazyFallbackForCoveredReceiver(t *testing.T) {
 		assert.GreaterOrEqual(t, casesNone[i].Priority, 0.0, "normal case is not deprioritized")
 	}
 }
+
+// TestWsRelayCaseAppendsSenderExclusionProbe verifies the deterministic
+// peer-join relay case ends with a negative-receive (ExpectAbsent) probe for
+// each joining peer, asserting that peer does not receive its own join signal.
+// The examiner turns the probe outcome into a measured Dimension.Excluded.
+func TestWsRelayCaseAppendsSenderExclusionProbe(t *testing.T) {
+	svc := project.Service{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}
+	cases, _, _ := wsRelayCases(svc)
+	require.NotEmpty(t, cases, "relay protocol should emit a relay case")
+
+	// web is the receiver (optional handshake await device:online); bridge is the
+	// joining peer whose own join signal it must NOT receive.
+	var probes []agent.TestStep
+	for _, c := range cases {
+		for _, s := range c.Steps {
+			if s.Action == "ws_receive" && s.ExpectAbsent {
+				probes = append(probes, s)
+			}
+		}
+	}
+	require.NotEmpty(t, probes, "relay case must include >=1 ExpectAbsent probe step")
+	for _, p := range probes {
+		assert.Equal(t, "bridge", p.ConnectionID, "probe targets the joining peer")
+		assert.Equal(t, "device:online", p.Type, "probe targets the join signal type")
+		assert.Greater(t, p.Timeout, 0, "probe timeout must be bounded")
+	}
+}
