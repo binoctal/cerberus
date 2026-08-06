@@ -75,7 +75,7 @@ func TestExaminerVocabValidation(t *testing.T) {
 	}
 
 	var report string
-	const driftThreshold = 0.9 // drift = Status != pass OR CorrectnessConfidence < threshold
+	const driftThreshold = 0.9 // drift threshold; see classifyDrift for the four-category bucketing
 	for _, cond := range conditions {
 		for run := 1; run <= runsPerCondition; run++ {
 			label := fmt.Sprintf("%s-run%d", cond.name, run)
