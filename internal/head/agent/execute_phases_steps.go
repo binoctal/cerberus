@@ -1,11 +1,54 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/binoctal/cerberus/internal/types"
 )
+
+// stepEvidence builds one trace entry carrying the structured WS facts
+// downstream fan-out derivation needs (connectionID + matched type). Kept as a
+// helper so the field population is unit-testable without a live WS server.
+func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
+	ev := Evidence{
+		Type:         evidenceType(result),
+		Content:      fmt.Sprintf("%s: %s", s.Action, result.Summary()),
+		Action:       s.Action,
+		ConnectionID: s.ConnectionID,
+	}
+	if s.Action == "ws_receive" {
+		ev.MatchedType = s.Type
+		ev.Matched = wsReceiveMatched(result)
+	}
+	if s.Action == "ws_send" {
+		ev.MatchedType = typeOfSend(s.Message)
+	}
+	return ev
+}
+
+// wsReceiveMatched reports whether a ws_receive result actually observed a
+// matching frame (MatchedCount>0 or a non-empty MatchedMessage), distinct from
+// Success() which can be true for a non-decisive receive.
+func wsReceiveMatched(result types.ExecutorResult) bool {
+	if wr, ok := result.(types.WSResult); ok {
+		return wr.MatchedCount > 0 || wr.MatchedMessage != ""
+	}
+	return false
+}
+
+// typeOfSend best-effort extracts the "type" field from a ws_send JSON message
+// so fan-out can correlate sender and recipients by message type.
+func typeOfSend(msg string) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(msg), &m) == nil {
+		if t, ok := m["type"].(string); ok {
+			return t
+		}
+	}
+	return ""
+}
 
 // stepToAction converts a declarative TestStep into the typed WS action the
 // shared executor already dispatches. Every step carries its own connection_id,
@@ -103,7 +146,7 @@ func (se *stepExecution) runSteps() StepResult {
 		}
 		result := r.executor.Execute(se.ctx, action)
 		r.recordEvidence(se.ctx, se.traceID, "steps", action, result)
-		evidence = append(evidence, Evidence{Type: evidenceType(result), Content: fmt.Sprintf("%s: %s", s.Action, result.Summary())})
+		evidence = append(evidence, stepEvidence(s, result))
 		lastAction, lastResult = action, result
 		if !result.Success() {
 			return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
