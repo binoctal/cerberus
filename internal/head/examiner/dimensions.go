@@ -103,12 +103,17 @@ func renderDimensions(dims []types.Dimension) string {
 // deriveDimensions produces flow-level dimensions (source 2) from a step
 // result's per-step trace. It derives membership: for each message type that a
 // ws_send sent, the recipients are the connections whose ws_receive matched it,
-// and the sender is the ws_send connection. Excluded is left nil — proving
-// sender exclusion requires an active probe (see the spec's "Exclusion requires
-// an active probe"), which is deferred.
+// and the sender is the ws_send connection. Excluded is set from a sender
+// negative-probe (ExpectAbsent) when one ran for that type: no echo ⇒ *true
+// (sender excluded), echo ⇒ *false (sender received its own broadcast). Pass 1
+// establishes senders + recipients; pass 2 resolves probes against the
+// now-known sender so Evidence ordering does not matter. Without a probe,
+// Excluded stays nil — the honest "sender exclusion not probed" state the judge
+// already renders.
 func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 	senders := map[string]string{}             // type -> sender connectionID
 	recipients := map[string]map[string]bool{} // type -> set of recipient connectionIDs
+	var probes []agent.Evidence                // ExpectAbsent receives, resolved in pass 2
 	for _, ev := range r.Evidence {
 		if ev.MatchedType == "" {
 			continue
@@ -122,6 +127,10 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 				recipients[ev.MatchedType] = map[string]bool{}
 			}
 		case "ws_receive":
+			if ev.ExpectAbsent {
+				probes = append(probes, ev)
+				continue
+			}
 			if ev.Matched {
 				if recipients[ev.MatchedType] == nil {
 					recipients[ev.MatchedType] = map[string]bool{}
@@ -129,6 +138,16 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 				recipients[ev.MatchedType][ev.ConnectionID] = true
 			}
 		}
+	}
+	// Pass 2: a probe settles Excluded only for its type's sender connection.
+	excluded := map[string]*bool{}
+	for _, p := range probes {
+		sender, ok := senders[p.MatchedType]
+		if !ok || p.ConnectionID != sender {
+			continue
+		}
+		b := !p.Matched // no echo ⇒ sender excluded
+		excluded[p.MatchedType] = &b
 	}
 	if len(senders) == 0 {
 		return nil
@@ -145,12 +164,16 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 			rcv = append(rcv, c)
 		}
 		sort.Strings(rcv)
-		out = append(out, types.Dimension{
+		dim := types.Dimension{
 			Kind:       "membership",
 			Label:      t + " recipients",
 			Recipients: rcv,
 			Sender:     senders[t],
-		})
+		}
+		if e, ok := excluded[t]; ok {
+			dim.Excluded = e
+		}
+		out = append(out, dim)
 	}
 	return out
 }
