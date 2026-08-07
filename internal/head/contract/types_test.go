@@ -16,7 +16,7 @@ func TestContractDefaults(t *testing.T) {
 	}
 }
 
-func TestAssessmentMeasuredDefaultsTrue(t *testing.T) {
+func TestAssessmentMeasuredDefaultsFalse(t *testing.T) {
 	// Existing measured coverage paths set Measured=true explicitly; a zero-value
 	// Assessment must not be misread as "measured". Callers gate on Measured.
 	var a Assessment

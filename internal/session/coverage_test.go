@@ -222,6 +222,56 @@ func TestPathCoverage(t *testing.T) {
 	assert.True(t, m.Known)
 	assert.Equal(t, "path", m.Unit)
 	assert.InDelta(t, 0.5, m.Pct, 0.0001)
+
+	// Measured-zero branch: non-empty required but nothing exercised → Known:true, Pct 0
+	// (distinct from empty required ⇒ Known:false / unmeasured).
+	zeroRequired := []project.VocabEdge{
+		{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled"},
+	}
+	zeroM := pathCoverage(nil, zeroRequired)
+	assert.True(t, zeroM.Known, "non-empty required + nothing exercised → Known=true (measured 0%)")
+	assert.Equal(t, "path", zeroM.Unit)
+	assert.InDelta(t, 0.0, zeroM.Pct, 0.0001)
+}
+
+// TestPathCoverage_OutOfBandDoesNotInflate locks the intersection fix: an
+// exercised edge that is NOT in the required set (out-of-band type or role-pair)
+// must NOT count toward coverage. The old non-intersecting code counted every
+// exercised edge, letting out-of-band evidence push Pct to 1.0 (false Reached).
+// required has two edges; case evidence exercises ONE required edge plus one
+// out-of-band edge → Pct must be 0.5, NOT 1.0. The two exchanges live in separate
+// cases so exercisedEdges' per-case type→sender map does not collapse them.
+func TestPathCoverage_OutOfBandDoesNotInflate(t *testing.T) {
+	required := []project.VocabEdge{
+		{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled"},
+	}
+	results := []agent.StepResult{{
+		// Required edge #1: bridge→web device:online.
+		TestCase: &agent.TestCase{Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: "c-web", Role: "web"},
+			{Action: "ws_connect", ConnectionID: "c-bridge", Role: "bridge"},
+		}},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-bridge", MatchedType: "device:online"},
+			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
+		},
+	}, {
+		// Out-of-band: web→bridge device:online is NOT in required (wrong direction/type pairing).
+		TestCase: &agent.TestCase{Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: "c-web", Role: "web"},
+			{Action: "ws_connect", ConnectionID: "c-bridge", Role: "bridge"},
+		}},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-web", MatchedType: "device:online"},
+			{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "device:online", Matched: true},
+		},
+	}}
+	m := pathCoverage(results, required)
+	assert.True(t, m.Known)
+	assert.Equal(t, "path", m.Unit)
+	assert.InDelta(t, 0.5, m.Pct, 0.0001, "out-of-band edge must not inflate coverage (1 of 2 required hit)")
 }
 
 // TestSessionHasVocab locks the structural accessor: a session has a vocab when

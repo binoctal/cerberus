@@ -226,13 +226,26 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (m
 // the session's declared vocab edges (message_handled, non-unsupported). Known is
 // true whenever at least one required edge is declared (a measured 0%, not an
 // unmeasured gap). results carry each case's Steps (connID→role) and Evidence.
+// Only exercised edges that are also in the required set count toward the hit —
+// exercisedEdges is intersected with required so out-of-band evidence (a type or
+// role-pair not declared in the vocab) cannot inflate coverage.
 func pathCoverage(results []agent.StepResult, required []project.VocabEdge) contract.CoverageMeasurement {
 	if len(required) == 0 {
 		return contract.CoverageMeasurement{Known: false}
 	}
 	exercised, _ := exercisedEdges(results, required)
+	requiredKeys := make(map[string]bool, len(required))
+	for _, e := range required {
+		requiredKeys[edgeKey(e.FromRole, e.ToRole, e.Type)] = true
+	}
+	hit := 0
+	for k := range exercised {
+		if requiredKeys[k] {
+			hit++
+		}
+	}
 	return contract.CoverageMeasurement{
-		Pct:   float64(len(exercised)) / float64(len(required)),
+		Pct:   float64(hit) / float64(len(required)),
 		Unit:  "path",
 		Known: true,
 	}
