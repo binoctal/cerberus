@@ -53,6 +53,9 @@ func assessCoverageCall(reached bool, gaps []contract.Gap, reasoning string) llm
 // assembleAssessment walks. coverage_pct is NOT in the fixture — the schema
 // omits it (overwritten by the objective measure downstream).
 func TestAssessCoverage_ToolCallAssembles(t *testing.T) {
+	// Measured (Known:true, 0.80 ≥ 0.65 gate) so the LLM IS consulted and its
+	// {reached, gaps, reasoning} round-trip is exercised — without the objective
+	// gate forcing a value. The gate does not append a coverage gap (0.80 ≥ 0.65).
 	e, mock := newAssessExaminer(t)
 	mock.SetToolResponse("default", []llm.ToolCall{
 		assessCoverageCall(false, []contract.Gap{
@@ -62,10 +65,12 @@ func TestAssessCoverage_ToolCallAssembles(t *testing.T) {
 	})
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
-	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Known: false})
+	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.80, Unit: "line", Known: true})
 	require.NoError(t, err)
 	require.NotNil(t, a)
+	assert.True(t, a.Measured, "measured path sets Measured=true")
 	assert.False(t, a.Reached, "LLM emitted reached=false")
+	assert.Equal(t, 0.80, a.CoveragePct, "measurement is the sole source of CoveragePct")
 	assert.Equal(t, "two gaps remain", a.Reasoning)
 	require.Len(t, a.Gaps, 2)
 	assert.Equal(t, contract.Gap{Kind: "scope", Detail: "no /admin"}, a.Gaps[0])
@@ -117,19 +122,29 @@ func TestAssessCoverage_MeasuredZeroForcesNotReached(t *testing.T) {
 	assert.True(t, found, "coverage gap appended at measured 0%")
 }
 
-func TestAssessCoverage_UnknownSkipsGate(t *testing.T) {
+// TestAssessCoverage_UnmeasuredIsNotApplicable verifies Phase 1: a SaaS session
+// with no measurable local SUT gets an honest "not applicable" ({Measured:false})
+// assessment instead of the prior hallucinated 0% / reached=false / invented
+// gaps. The LLM is NOT consulted — a queued assess_coverage response exists, and
+// we assert the result does NOT reflect it (the response was never consumed).
+func TestAssessCoverage_UnmeasuredIsNotApplicable(t *testing.T) {
 	e, mock := newAssessExaminer(t)
+	// Booby-trap: queue a response so that if the short-circuit were missing,
+	// the LLM would be called and the assertions below would fail.
 	mock.SetToolResponse("default", []llm.ToolCall{
-		assessCoverageCall(true, nil, "ok"),
+		assessCoverageCall(true, nil, "SHOULD NOT BE USED"),
 	})
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
 	a, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Known: false})
 	require.NoError(t, err)
-	assert.True(t, a.Reached, "LLM judgment stands when coverage unmeasured")
-	assert.Equal(t, 0.0, a.CoveragePct)
+	require.NotNil(t, a)
+	assert.False(t, a.Measured, "unmeasured assessment reports Measured=false")
+	assert.False(t, a.Reached, "unmeasured assessment must not assert Reached=true (misleading)")
+	assert.Equal(t, 0.0, a.CoveragePct, "unmeasured CoveragePct is the zero value (no value)")
+	assert.Empty(t, a.Reasoning, "queued LLM response was never consumed")
 	for _, g := range a.Gaps {
-		assert.NotEqual(t, "coverage", g.Kind, "no coverage gap appended when unknown")
+		assert.NotEqual(t, "coverage", g.Kind, "unmeasured assessment must not emit a coverage gap")
 	}
 }
 
@@ -176,7 +191,7 @@ func TestAssessCoverage_ZeroToolCalls_Errors(t *testing.T) {
 	mock.SetToolResponse("default", nil) // zero tool calls
 	res := []agent.StepResult{{TestCase: &agent.TestCase{ID: "tc-1", Target: "internal/llm"}}}
 
-	_, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Known: false})
+	_, err := e.AssessCoverage(context.Background(), stdContract(), res, contract.CoverageMeasurement{Pct: 0.50, Unit: "line", Known: true})
 	require.Error(t, err, "zero tool calls must propagate as an error")
 	assert.Contains(t, err.Error(), "assess coverage")
 	assert.Contains(t, err.Error(), "zero tool calls")

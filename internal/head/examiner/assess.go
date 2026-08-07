@@ -13,8 +13,16 @@ import (
 // m is the objective coverage measurement for the Agent's tests. Its Pct is a
 // 0–1 fraction compared against Gate.LineThreshold; Unit is "line" or
 // "function"; Known is false when coverage could not be measured, in which case
-// the objective gate is skipped and the LLM's verdict stands.
+// AssessCoverage returns NOT APPLICABLE ({Measured:false}) without calling the
+// LLM — the session outcome is verdict-based.
 func (e *Examiner) AssessCoverage(ctx context.Context, c *contract.Contract, results []agent.StepResult, m contract.CoverageMeasurement) (*contract.Assessment, error) {
+	if !m.Known {
+		// Unmeasured (SaaS/WS session with no local SUT module, or provider
+		// failure): coverage is NOT APPLICABLE. Do NOT call the LLM — it would
+		// hallucinate a 0% / not-reached verdict from the absence of data. The
+		// session outcome is verdict-based; Reached/CoveragePct stay meaningless.
+		return &contract.Assessment{Measured: false}, nil
+	}
 	prompt := ai.NewPrompt().
 		System(`You assess a test session against its coverage contract. Judge whether scope, path types, error scopes, boundaries, and invariants are covered. Use the objective coverage %. Report gaps concretely.`).
 		Task(fmt.Sprintf("Contract: %+v\nCases run: %d\nObjective coverage of gated module: %.2f (unit: %s, gate: %.2f)", c, len(results), m.Pct, m.Unit, c.CoverageGate.LineThreshold)).
@@ -37,12 +45,6 @@ func (e *Examiner) AssessCoverage(ctx context.Context, c *contract.Contract, res
 		return nil, fmt.Errorf("assess coverage: %w", err)
 	}
 
-	if !m.Known {
-		// Unmeasured: do NOT bias the verdict. Leave Reached and Gaps to the LLM.
-		a.CoveragePct = 0
-		return a, nil
-	}
-
 	// Objective gate: below threshold → not reached regardless of the LLM.
 	if m.Pct < c.CoverageGate.LineThreshold {
 		a.Reached = false
@@ -54,5 +56,6 @@ func (e *Examiner) AssessCoverage(ctx context.Context, c *contract.Contract, res
 	}
 	// The objective measurement always overrides the model's estimate.
 	a.CoveragePct = m.Pct
+	a.Measured = true
 	return a, nil
 }
