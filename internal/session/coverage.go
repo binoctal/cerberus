@@ -190,7 +190,7 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (m
 				connRole[s.ConnectionID] = s.Role
 			}
 		}
-		sentByType := map[string]string{}      // type → sender role
+		sentByType := map[string]string{}              // type → sender role
 		receivedByType := map[string]map[string]bool{} // type → set of recipient roles
 		for _, ev := range r.Evidence {
 			if ev.MatchedType == "" {
