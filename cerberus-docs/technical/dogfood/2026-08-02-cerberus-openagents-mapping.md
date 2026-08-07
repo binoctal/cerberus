@@ -120,6 +120,8 @@ All five gaps A–E are now covered by `//go:build integration` tests in
 
 - `/broadcast` internal HTTP→WS endpoint (`room.ts:98-108`) — Worker→DO→clients
   push; needs an HTTP step into the DO, a different capability class.
-- `session:output` batching (`batchOutput`, `room.ts:342-346`) — would need a
-  `match_all` assertion against the batched frame shape.
 - `workflow:task_question` as a 4th gap-E trigger (covered indirectly; not a row).
+
+> `session:output` batching (`flushBatch`, `room.ts`) was previously listed here;
+> it is now covered by `TestVocabularyDriven`'s `flushBatch__to_web/session:output-batch`
+> edge (re-verified via `make integration-openagents`, 2026-08-07).

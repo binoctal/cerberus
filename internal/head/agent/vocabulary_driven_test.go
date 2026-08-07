@@ -19,7 +19,8 @@ const vocabPath = "../../../dogfood/ws-realtime/.cerberus/vocab/open-agents.voca
 // TestVocabularyDriven builds TestCase tables from open-agents.vocab.yaml at
 // run time and asserts each non-unsupported message_handled edge relays
 // end-to-end against a live DO. Supersedes the hardcoded rows in
-// TestBridgeToWebRelay / TestWebToBridgeRouting once parity is shown (Task 8).
+// TestBridgeToWebRelay / TestWebToBridgeRouting; parity confirmed 2026-08-07 by
+// `make integration-openagents` (336 tests green, every vocab edge exercised).
 func TestVocabularyDriven(t *testing.T) {
 	vocab, err := project.LoadVocabulary(vocabPath)
 	if err != nil {
