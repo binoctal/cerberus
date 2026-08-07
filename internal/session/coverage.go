@@ -42,7 +42,15 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 	if sess.Contract == nil {
 		return
 	}
-	measurement := sess.lineCoverage(ctx)
+	// Route to path coverage when any service declares a WS vocabulary; otherwise
+	// fall back to line/function coverage. Confined here so the Examiner phase
+	// call site needs no branching.
+	var measurement contract.CoverageMeasurement
+	if sessionHasVocab(sess) {
+		measurement = pathCoverage(results, requiredEdges(sess))
+	} else {
+		measurement = sess.lineCoverage(ctx)
+	}
 	assessment, err := examinerHead.AssessCoverage(ctx, sess.Contract, results, measurement)
 	if err == nil {
 		sess.Assessment = assessment
@@ -210,4 +218,34 @@ func pathCoverage(results []agent.StepResult, required []project.VocabEdge) cont
 		Unit:  "path",
 		Known: true,
 	}
+}
+
+// sessionHasVocab reports whether any service declares a non-empty WS
+// vocabulary (the SaaS/WS path-coverage surface). Structural, not mode-based —
+// a session is routed to path coverage based on declared edges, not Mode.
+func sessionHasVocab(sess *Session) bool {
+	for _, svc := range sess.Config.Services {
+		if svc.Vocabulary != nil && len(svc.Vocabulary.Edges) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// requiredEdges collects the declared required surface: message_handled edges
+// that are neither Unsupported nor Partial, across every service's vocabulary.
+// These are the edges path-coverage counts as its denominator.
+func requiredEdges(sess *Session) []project.VocabEdge {
+	var out []project.VocabEdge
+	for _, svc := range sess.Config.Services {
+		if svc.Vocabulary == nil {
+			continue
+		}
+		for _, e := range svc.Vocabulary.Edges {
+			if e.Trigger == "message_handled" && !e.Unsupported && !e.Partial {
+				out = append(out, e)
+			}
+		}
+	}
+	return out
 }

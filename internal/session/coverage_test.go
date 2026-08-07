@@ -223,3 +223,51 @@ func TestPathCoverage(t *testing.T) {
 	assert.Equal(t, "path", m.Unit)
 	assert.InDelta(t, 0.5, m.Pct, 0.0001)
 }
+
+// TestSessionHasVocab locks the structural accessor: a session has a vocab when
+// ANY service declares a non-nil Vocabulary with at least one edge. Structural,
+// not mode-based — a service with only non-message_handled or flagged edges still
+// counts as having a vocab (Edges non-empty), while nil/empty vocabularies do not.
+func TestSessionHasVocab(t *testing.T) {
+	cfg := project.DefaultConfig()
+	sess := &Session{Config: &cfg}
+	assert.False(t, sessionHasVocab(sess), "no services → no vocab")
+
+	cfg.Services = append(cfg.Services,
+		project.Service{Name: "no-vocab"},
+		project.Service{Name: "empty-vocab", Vocabulary: &project.Vocabulary{}},
+	)
+	assert.False(t, sessionHasVocab(sess), "nil/empty vocabularies → no vocab")
+
+	cfg.Services = append(cfg.Services, project.Service{
+		Name: "has-vocab",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		}},
+	})
+	assert.True(t, sessionHasVocab(sess), "any service with non-empty Edges → has vocab")
+}
+
+// TestRequiredEdges locks the required-surface filter: only message_handled,
+// non-unsupported, non-partial edges are collected. Other triggers and flagged
+// edges are excluded; nil-vocab services are skipped entirely.
+func TestRequiredEdges(t *testing.T) {
+	cfg := project.DefaultConfig()
+	cfg.Services = []project.Service{
+		{Name: "no-vocab"},
+		{Name: "skip-non-message-handled", Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "web", ToRole: "bridge", Type: "session:open", Trigger: "connect_web"},
+		}}},
+		{Name: "keep", Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+			{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled", Partial: true},
+			{FromRole: "web", ToRole: "bridge", Type: "session:broadcast", Trigger: "message_handled", Unsupported: true},
+			{FromRole: "bridge", ToRole: "web", Type: "device:offline", Trigger: "message_handled"},
+		}}},
+	}
+	sess := &Session{Config: &cfg}
+	edges := requiredEdges(sess)
+	require.Len(t, edges, 2, "only message_handled, non-flagged edges are kept")
+	assert.Equal(t, "device:online", edges[0].Type)
+	assert.Equal(t, "device:offline", edges[1].Type)
+}
