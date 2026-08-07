@@ -30,6 +30,10 @@ type Gate struct {
 	Module          string  `json:"module"`
 	LineThreshold   float64 `json:"line_threshold"`
 	BranchThreshold float64 `json:"branch_threshold"`
+	// PathThreshold is the objective gate for SaaS/WS path coverage: the
+	// required fraction (0–1) of declared vocab message edges that must be
+	// exercised by passing cases. Used only when the coverage unit is "path".
+	PathThreshold float64 `json:"path_threshold"`
 }
 
 // Assessment is the Examiner's session-level verdict against a Contract.
@@ -37,7 +41,12 @@ type Assessment struct {
 	Reached     bool    `json:"reached"`      // contract satisfied?
 	Gaps        []Gap   `json:"gaps"`         // what's missing
 	CoveragePct float64 `json:"coverage_pct"` // objective coverage of gated module
-	Reasoning   string  `json:"reasoning"`
+	// Measured is false when no objective coverage could be obtained (SaaS/WS
+	// session with no local SUT module). When false, Reached/CoveragePct are
+	// NOT meaningful and must not be read as a coverage failure; the session
+	// outcome is verdict-based. True for both line and path measurements.
+	Measured  bool   `json:"measured"`
+	Reasoning string `json:"reasoning"`
 }
 
 // Gap describes a coverage shortfall found during assessment.
