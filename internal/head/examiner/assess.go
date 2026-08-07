@@ -11,10 +11,12 @@ import (
 
 // AssessCoverage judges whether a test session met its coverage contract.
 // m is the objective coverage measurement for the Agent's tests. Its Pct is a
-// 0–1 fraction compared against Gate.LineThreshold; Unit is "line" or
-// "function"; Known is false when coverage could not be measured, in which case
-// AssessCoverage returns NOT APPLICABLE ({Measured:false}) without calling the
-// LLM — the session outcome is verdict-based.
+// 0–1 fraction compared against Gate.LineThreshold (Unit "line"/"function") or
+// Gate.PathThreshold (Unit "path"); Known is false when coverage could not be
+// measured, in which case AssessCoverage returns NOT APPLICABLE
+// ({Measured:false}) without calling the LLM — the session outcome is
+// verdict-based. The "path" unit is also objective: required message edges must
+// be exercised, and AssessCoverage never consults the LLM for it.
 func (e *Examiner) AssessCoverage(ctx context.Context, c *contract.Contract, results []agent.StepResult, m contract.CoverageMeasurement) (*contract.Assessment, error) {
 	if !m.Known {
 		// Unmeasured (SaaS/WS session with no local SUT module, or provider
@@ -22,6 +24,24 @@ func (e *Examiner) AssessCoverage(ctx context.Context, c *contract.Contract, res
 		// hallucinate a 0% / not-reached verdict from the absence of data. The
 		// session outcome is verdict-based; Reached/CoveragePct stay meaningless.
 		return &contract.Assessment{Measured: false}, nil
+	}
+	if m.Unit == "path" {
+		// Objective path gate (no LLM): required message edges must be
+		// exercised. The caller (session.pathCoverage) computes Pct; this branch
+		// is purely objective. Below PathThreshold ⇒ not reached + a headline
+		// path gap. Per-edge gaps are attached by the session layer, which owns
+		// the required-edge list.
+		a := &contract.Assessment{}
+		a.Measured = true
+		a.CoveragePct = m.Pct
+		a.Reached = m.Pct >= c.CoverageGate.PathThreshold
+		if !a.Reached {
+			a.Gaps = append(a.Gaps, contract.Gap{
+				Kind:   "path",
+				Detail: fmt.Sprintf("%.0f%% of required message edges exercised < %.0f%% gate", m.Pct*100, c.CoverageGate.PathThreshold*100),
+			})
+		}
+		return a, nil
 	}
 	prompt := ai.NewPrompt().
 		System(`You assess a test session against its coverage contract. Judge whether scope, path types, error scopes, boundaries, and invariants are covered. Use the objective coverage %. Report gaps concretely.`).

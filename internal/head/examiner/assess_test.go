@@ -196,3 +196,59 @@ func TestAssessCoverage_ZeroToolCalls_Errors(t *testing.T) {
 	assert.Contains(t, err.Error(), "assess coverage")
 	assert.Contains(t, err.Error(), "zero tool calls")
 }
+
+// TestAssessCoverage_PathGateBelow verifies the objective path-unit gate: a
+// measurement below PathThreshold yields Measured=true, Reached=false, a
+// Kind="path" headline gap, and no LLM consultation (the path branch
+// short-circuits before the prompt is built — a queued assess_coverage
+// response is left unconsumed).
+func TestAssessCoverage_PathGateBelow(t *testing.T) {
+	e, mock := newAssessExaminer(t)
+	// Booby-trap: queue a response so that any LLM call betrays itself via
+	// Reasoning. The path branch must never consult the LLM.
+	mock.SetToolResponse("default", []llm.ToolCall{
+		assessCoverageCall(true, nil, "SHOULD NOT BE USED"),
+	})
+	c := &contract.Contract{CoverageGate: contract.Gate{PathThreshold: 1.0}}
+	m := contract.CoverageMeasurement{Pct: 0.5, Unit: "path", Known: true}
+
+	a, err := e.AssessCoverage(context.Background(), c, nil, m)
+	require.NoError(t, err)
+	require.NotNil(t, a)
+	assert.True(t, a.Measured, "path gate is measured")
+	assert.False(t, a.Reached, "0.5 < 1.0 gate")
+	assert.Equal(t, 0.5, a.CoveragePct)
+	found := false
+	for _, g := range a.Gaps {
+		if g.Kind == "path" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected a Kind=path gap below PathThreshold")
+	assert.Empty(t, a.Reasoning, "path branch must not consult the LLM")
+}
+
+// TestAssessCoverage_PathGateMet verifies the explicit Reached=true fix: when
+// a path measurement meets the gate, Reached MUST be true. The brief's
+// original snippet only set Reached=false below-threshold and left it at the
+// zero value — a fully-covered session would wrongly report not-reached. This
+// test guards against that regression.
+func TestAssessCoverage_PathGateMet(t *testing.T) {
+	e, mock := newAssessExaminer(t)
+	mock.SetToolResponse("default", []llm.ToolCall{
+		assessCoverageCall(true, nil, "SHOULD NOT BE USED"),
+	})
+	c := &contract.Contract{CoverageGate: contract.Gate{PathThreshold: 1.0}}
+	m := contract.CoverageMeasurement{Pct: 1.0, Unit: "path", Known: true}
+
+	a, err := e.AssessCoverage(context.Background(), c, nil, m)
+	require.NoError(t, err)
+	require.NotNil(t, a)
+	assert.True(t, a.Measured, "path gate is measured")
+	assert.True(t, a.Reached, "1.0 ≥ 1.0 gate (explicit true when met — guards brief's zero-value bug)")
+	assert.Equal(t, 1.0, a.CoveragePct)
+	for _, g := range a.Gaps {
+		assert.NotEqual(t, "path", g.Kind, "no path gap when the gate is met")
+	}
+	assert.Empty(t, a.Reasoning, "path branch must not consult the LLM")
+}

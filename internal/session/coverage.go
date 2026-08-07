@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -54,6 +55,23 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 	assessment, err := examinerHead.AssessCoverage(ctx, sess.Contract, results, measurement)
 	if err == nil {
 		sess.Assessment = assessment
+		if sessionHasVocab(sess) {
+			// Per-edge path gaps (informational, Kind="path" — NOT "coverage",
+			// so they do NOT feed the coverage repair loop). AssessCoverage
+			// emits the headline "<pct>% exercised < gate" gap when below
+			// PathThreshold; here we name each specific unexercised required
+			// edge so the report is actionable.
+			req := requiredEdges(sess)
+			exercised, _ := exercisedEdges(results, req)
+			for _, e := range req {
+				if !exercised[edgeKey(e.FromRole, e.ToRole, e.Type)] {
+					sess.Assessment.Gaps = append(sess.Assessment.Gaps, contract.Gap{
+						Kind:   "path",
+						Detail: fmt.Sprintf("edge %s→%s %s not exercised", e.FromRole, e.ToRole, e.Type),
+					})
+				}
+			}
+		}
 		if !assessment.Measured {
 			sess.Logger.Info("coverage not applicable",
 				zap.String("reason", "no measurable local SUT (SaaS/WS session); outcome is verdict-based"))
