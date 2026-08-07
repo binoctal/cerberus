@@ -11,6 +11,7 @@ import (
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 // lineCoverage returns the Examiner-phase coverage measurement, reusing
@@ -142,4 +143,71 @@ func measurementFromReport(report *autotest.CoverageReport) contract.CoverageMea
 		return contract.CoverageMeasurement{Known: false}
 	}
 	return contract.CoverageMeasurement{Pct: pct100 / 100, Unit: unit, Known: true}
+}
+
+// edgeKey is the stable identity of a vocab message edge.
+func edgeKey(from, to, typ string) string { return from + "|" + to + "|" + typ }
+
+// exercisedEdges computes which declared message edges a session's results
+// exercised. Per case, connectionID→role is mapped from that case's ws_connect
+// steps; a ws_send of type T from role Rs plus a matched ws_receive of T by role
+// Rr exercises edge (Rs→Rr, T). Connections with no resolvable role are excluded
+// (conservative). Returns the exercised set (keyed edgeKey) and the connRole map
+// (for diagnostics). Pure; unit-testable without a live server.
+func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (map[string]bool, map[string]string) {
+	exercised := map[string]bool{}
+	for _, r := range results {
+		// connectionID → role for THIS case (roles are case-scoped via connect steps).
+		connRole := map[string]string{}
+		for _, s := range r.TestCase.Steps {
+			if s.Action == "ws_connect" && s.Role != "" {
+				connRole[s.ConnectionID] = s.Role
+			}
+		}
+		sentByType := map[string]string{}      // type → sender role
+		receivedByType := map[string]map[string]bool{} // type → set of recipient roles
+		for _, ev := range r.Evidence {
+			if ev.MatchedType == "" {
+				continue
+			}
+			role := connRole[ev.ConnectionID]
+			switch ev.Action {
+			case "ws_send":
+				if role != "" {
+					sentByType[ev.MatchedType] = role
+				}
+			case "ws_receive":
+				if !ev.ExpectAbsent && ev.Matched && role != "" {
+					if receivedByType[ev.MatchedType] == nil {
+						receivedByType[ev.MatchedType] = map[string]bool{}
+					}
+					receivedByType[ev.MatchedType][role] = true
+				}
+			}
+		}
+		for typ, sender := range sentByType {
+			for recipient := range receivedByType[typ] {
+				if recipient != sender {
+					exercised[edgeKey(sender, recipient, typ)] = true
+				}
+			}
+		}
+	}
+	return exercised, nil
+}
+
+// pathCoverage measures message-edge path coverage: exercised / required, over
+// the session's declared vocab edges (message_handled, non-unsupported). Known is
+// true whenever at least one required edge is declared (a measured 0%, not an
+// unmeasured gap). results carry each case's Steps (connID→role) and Evidence.
+func pathCoverage(results []agent.StepResult, required []project.VocabEdge) contract.CoverageMeasurement {
+	if len(required) == 0 {
+		return contract.CoverageMeasurement{Known: false}
+	}
+	exercised, _ := exercisedEdges(results, required)
+	return contract.CoverageMeasurement{
+		Pct:   float64(len(exercised)) / float64(len(required)),
+		Unit:  "path",
+		Known: true,
+	}
 }

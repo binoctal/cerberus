@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/store"
@@ -162,4 +163,63 @@ func TestLineCoverageReport_RunsProviderOnce(t *testing.T) {
 		}}
 	_, _ = sess.lineCoverageReport(context.Background())
 	assert.Equal(t, 1, calls, "single lineCoverageReport → exactly one provider run")
+}
+
+// TestExercisedEdges verifies the path-coverage core: a declared message edge is
+// "exercised" when a case's evidence shows its sender role sent the type and a
+// recipient role received it. connectionID→role comes from the case's ws_connect
+// steps; unmatched connections are excluded (conservative under-count).
+func TestExercisedEdges(t *testing.T) {
+	required := []project.VocabEdge{
+		{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled"},
+	}
+	results := []agent.StepResult{{
+		TestCase: &agent.TestCase{Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: "c-web", Role: "web"},
+			{Action: "ws_connect", ConnectionID: "c-bridge", Role: "bridge"},
+		}},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-bridge", MatchedType: "device:online"},
+			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
+		},
+	}}
+	exercised, _ := exercisedEdges(results, required)
+	// device:online bridge→web exercised; session:send web→bridge NOT.
+	key := func(e project.VocabEdge) string { return e.FromRole + "|" + e.ToRole + "|" + e.Type }
+	if !exercised[key(required[0])] {
+		t.Errorf("expected device:online bridge->web exercised")
+	}
+	if exercised[key(required[1])] {
+		t.Errorf("session:send web->bridge must NOT be exercised")
+	}
+}
+
+// TestPathCoverage locks the message-edge path coverage measurement: empty
+// required vocab is unmeasured (Known=false); the brief's fixture exercises 1
+// of 2 declared edges → Pct=0.5, Unit="path", Known=true.
+func TestPathCoverage(t *testing.T) {
+	// Empty required vocab → unmeasured, not a fake 0.
+	m := pathCoverage(nil, nil)
+	assert.False(t, m.Known, "no declared edges → Known=false")
+
+	// Brief fixture: device:online bridge→web exercised, session:send web→bridge not.
+	required := []project.VocabEdge{
+		{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled"},
+	}
+	results := []agent.StepResult{{
+		TestCase: &agent.TestCase{Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: "c-web", Role: "web"},
+			{Action: "ws_connect", ConnectionID: "c-bridge", Role: "bridge"},
+		}},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-bridge", MatchedType: "device:online"},
+			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
+		},
+	}}
+	m = pathCoverage(results, required)
+	assert.True(t, m.Known)
+	assert.Equal(t, "path", m.Unit)
+	assert.InDelta(t, 0.5, m.Pct, 0.0001)
 }
