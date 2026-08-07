@@ -45,10 +45,15 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 	assessment, err := examinerHead.AssessCoverage(ctx, sess.Contract, results, measurement)
 	if err == nil {
 		sess.Assessment = assessment
-		sess.Logger.Info("coverage assessment",
-			zap.Bool("reached", assessment.Reached),
-			zap.Int("gaps", len(assessment.Gaps)),
-			zap.Float64("coverage_pct", assessment.CoveragePct))
+		if !assessment.Measured {
+			sess.Logger.Info("coverage not applicable",
+				zap.String("reason", "no measurable local SUT (SaaS/WS session); outcome is verdict-based"))
+		} else {
+			sess.Logger.Info("coverage assessment",
+				zap.Bool("reached", assessment.Reached),
+				zap.Int("gaps", len(assessment.Gaps)),
+				zap.Float64("coverage_pct", assessment.CoveragePct))
+		}
 	} else {
 		sess.Logger.Warn("coverage assessment failed", zap.Error(err))
 	}
