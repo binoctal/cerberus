@@ -2,7 +2,10 @@
 
 ## Scope (honest)
 
-This report covers **cerberus's WebSocket execution surface driven against a live open-agents dev server**. It is NOT an end-to-end `cerberus run` (Scout→Agent→Examiner) report — that pipeline was not run this session (see "Out of scope / gaps"). The tests use **hand-authored `TestCase` Steps** (the test writer declares connect/send/receive), not cases Scout autonomously generated for this run.
+This report covers two layers of verification against a live open-agents dev server:
+
+1. **Execution surface** — cerberus's WebSocket executor driving open-agents via hand-authored `TestCase` Steps (the `//go:build integration` suite).
+2. **End-to-end pipeline** — a real `cerberus run` (Scout→Agent→Examiner, GLM-5.2) generating and judging cases autonomously, including the deterministic relay case that carries the sender-exclusion probe.
 
 ## Environment
 
@@ -10,7 +13,7 @@ This report covers **cerberus's WebSocket execution surface driven against a liv
 - Target: live open-agents `apps/api` dev server, `wrangler dev --port 8989`, Node `v22.22.3` (selected via `fnm`; system default v20 is too old for wrangler).
 - Provisioning: `POST /api/dev/setup` per run, yielding a fresh `userId` / `deviceId` / `deviceToken`; web auth via the `demo_token` dev backdoor, bridge via the provisioned device token + `deviceId`.
 - Run command: `make integration-openagents` (brings the server up, runs the suite, tears it down).
-- No LLM was exercised by these tests — they drive the deterministic `runSteps` executor directly. (LLM-based verification is listed under gaps.)
+- These execution-surface tests drive the deterministic `runSteps` executor directly (no LLM). The separate end-to-end `cerberus run` below exercises the GLM-5.2 Scout/Agent/Examiner heads.
 
 ## Result — open-agents-specific tests
 
@@ -36,15 +39,31 @@ Suite context: the broader `make integration-openagents` run compiles the whole 
 
 ## Out of scope / gaps (what was NOT verified)
 
-1. **No real `cerberus run`.** The full Scout (LLM plan) → Agent (LLM steer / deterministic steps) → Examiner (LLM judge) pipeline was not run against open-agents this session. The last such run was 2026-07-24, on a pre-probe / pre-dimension-guidance binary.
-2. **Scout autonomous generation not exercised end-to-end.** These tests use hand-authored `Steps`. Deterministic Scout case generation (`wsRelayCases`, `wsStepsCase`, `BuildEdgeSteps`) is unit-tested separately; the two halves were not run as one live pipeline.
-3. **Probe judge effect uses synthetic evidence.** `TestSenderExclusionProbeLive` verifies the executor's probe behavior, but the Examiner's `Excluded=true → clean verdict` was validated only via the synthetic manual harness (`vocab_validation_manual_test.go`), not against evidence a live run produced.
-4. **Vocab is a committed snapshot.** `TestVocabularyDriven` reads the committed `open-agents.vocab.yaml`, not a vocab regenerated from the current running service. If the live open-agents protocol drifted from that file, the test exercises a stale vocab.
-5. **`/broadcast` HTTP→WS endpoint (`room.ts:98-108`) is not covered** — Worker→DO→clients push needs an HTTP-into-DO step, a different capability class (documented deferred in the mapping doc).
+1. **`/broadcast` HTTP→WS endpoint (`room.ts:98-108`) is not covered** — Worker→DO→clients push needs an HTTP-into-DO step, a different capability class (documented deferred in the mapping doc). This is the only remaining gap; it requires new capability, not just running something.
+
+## End-to-end `cerberus run` (Scout→Agent→Examiner) — 2026-08-07
+
+Two real runs against live open-agents (GLM-5.2 heads, dynamic provisioned user/device via `/api/dev/setup`):
+
+- **Run 1** (`--goal` relay): 4 pass / 0 fail / 1 skip, ~12K tokens, 1m28s. Relay case `ws-realtime-relay-web-signal-device-online` (deterministic, **carries the sender-exclusion probe**) → execute `pass attempts=1` → Examiner verdict **`pass, correctness 0.93`** (confident, above the 0.9 threshold — not `honest-uncertain`).
+- **Run 2** (`--db`, to capture the per-step trace): 5 pass / 7 fail / 4 skip, ~51K tokens, 7m03s. The 7 failures are Scout-LLM free-form cases exhibiting the known Steer WS drift (Finding-3) — expected noise, not regressions. The relay case again → **`pass, correctness 0.92`**.
+
+**Per-step proof the probe ran (Run 2 DB, trace for the relay case):**
+
+- web `ws_receive device:online` → `matched` (the relayed join signal arrived on web).
+- bridge `ws_receive device:online` → `success=true, matched=0, 2.001s` — the `ExpectAbsent` probe timed out at its 2 s `probeTimeout`; bridge did NOT receive its own join signal. This step's success is what passes the case.
+
+A clean controlled contrast in the same run: the LLM free-form cases (the 7 failures) also ran `bridge ws_receive device:online` and also timed out, but **without** `expect_absent` → `success=false` → case fail. Same observable (bridge times out, no self-echo), opposite verdict — the `expect_absent` flag is exactly the difference between a correct pass and a false fail. The run's own reflexion memory recorded this: *"Using the expect_absent=true flag for the bridge's ws_receive correctly distinguishes between 'timed out waiting and should have received' vs 'correctly received nothing,' producing a pass."*
+
+This closes the previously-open gaps: Scout autonomously generated the probe-carrying relay case (deterministic `wsRelayCases`), Agent executed it against live open-agents, and the Examiner judged it confidently on the live evidence — end-to-end.
+
+## Vocab freshness — re-verified 2026-08-07
+
+`TestVocabularyDriven` reads the committed `open-agents.vocab.yaml`. Re-extracted the vocab from the current `apps/api/src/realtime/room.ts` via `cerberus protocol vocabulary --dry-run` and diffed: **70 edges, identical content** (only differences were the dry-run header line and a source-path prefix). The committed vocab is NOT stale.
 
 ## Confidence
 
-High for the claim "cerberus's WS executor correctly drives the open-agents relay surface." Not established for the claim "a full autonomous `cerberus run` passes end-to-end against open-agents" — that requires the gap-1 run.
+High for both: (a) cerberus's WS executor correctly drives the open-agents relay surface, and (b) a full autonomous `cerberus run` generates, executes, and confidently judges the probe-carrying relay case end-to-end against live open-agents. The sole uncovered item is the `/broadcast` HTTP→WS endpoint (capability gap).
 
 ## Reproduce
 
