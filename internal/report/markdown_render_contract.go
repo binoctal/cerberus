@@ -48,23 +48,32 @@ func renderContractSection(b *strings.Builder, data *ReportData) {
 		assessment := data.Summary.Assessment
 		b.WriteString("### Assessment\n\n")
 
-		status := "✅ Reached"
-		if !assessment.Reached {
-			status = "❌ Not Reached"
-		}
-		fmt.Fprintf(b, "**Status**: %s\n\n", status)
-		fmt.Fprintf(b, "**Coverage**: %.1f%%\n\n", assessment.CoveragePct*100)
-
-		if assessment.Reasoning != "" {
-			fmt.Fprintf(b, "**Reasoning**: %s\n\n", assessment.Reasoning)
-		}
-
-		if len(assessment.Gaps) > 0 {
-			b.WriteString("**Gaps**:\n\n")
-			for _, gap := range assessment.Gaps {
-				fmt.Fprintf(b, "- **%s**: %s\n", gap.Kind, gap.Detail)
+		if !assessment.Measured {
+			// No objective coverage could be obtained (e.g. SaaS/WS session
+			// with no local SUT). Reached/CoveragePct are zero values and
+			// must not be read as a coverage failure; the session outcome is
+			// verdict-based.
+			b.WriteString("**Status**: ⚪ N/A\n\n")
+			fmt.Fprintf(b, "**Coverage**: N/A (no measurable local SUT; outcome is verdict-based)\n\n")
+		} else {
+			status := "✅ Reached"
+			if !assessment.Reached {
+				status = "❌ Not Reached"
 			}
-			b.WriteString("\n")
+			fmt.Fprintf(b, "**Status**: %s\n\n", status)
+			fmt.Fprintf(b, "**Coverage**: %.1f%%\n\n", assessment.CoveragePct*100)
+
+			if assessment.Reasoning != "" {
+				fmt.Fprintf(b, "**Reasoning**: %s\n\n", assessment.Reasoning)
+			}
+
+			if len(assessment.Gaps) > 0 {
+				b.WriteString("**Gaps**:\n\n")
+				for _, gap := range assessment.Gaps {
+					fmt.Fprintf(b, "- **%s**: %s\n", gap.Kind, gap.Detail)
+				}
+				b.WriteString("\n")
+			}
 		}
 	}
 }
