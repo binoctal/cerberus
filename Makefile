@@ -1,4 +1,4 @@
-.PHONY: build test slowtest lint fmt check clean run coverage e2e
+.PHONY: build test slowtest lint fmt check clean run coverage e2e integration-openagents
 
 # Put GOPATH/bin (where `go install` places tools like goimports) on PATH so
 # fmt/lint work without per-user shell configuration.
@@ -44,3 +44,13 @@ coverage:
 
 e2e:
 	go test -v -race -tags=e2e ./internal/smoke/ -timeout 5m
+
+# integration-openagents runs the agent package's //go:build integration build
+# (which includes the live open-agents surface — TestVocabularyDriven, relay,
+# lifecycle, auth, orchestrator-callback, sender-exclusion probe) against a real
+# wrangler dev server (sibling ../open-agents repo). The script brings the server
+# up (fnm selects Node >=22), runs the suite, and tears the server down — reusing
+# an already-running one without killing it. Narrow with TEST=<regex>; point at a
+# non-sibling checkout with OPENAGENTS_DIR=/path/to/open-agents/apps/api.
+integration-openagents:
+	@bash scripts/integration-openagents.sh
