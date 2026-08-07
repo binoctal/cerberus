@@ -19,6 +19,7 @@ make lint        # golangci-lint run ./...
 make fmt         # gofmt + goimports
 make check       # fmt + lint + test
 make clean       # remove build/ and runtime/
+make integration-openagents  # live open-agents suite (starts wrangler, runs, tears down) <!-- added: 2026-08-07 -->
 ```
 
 ## Constraints <!-- added: 2026-06-07 -->
