@@ -35,7 +35,19 @@ func (s *Scout) BuildCoverageContract(ctx context.Context, goal string, model *p
 	for _, inv := range s.config.Invariants {
 		invs = append(invs, contract.InvariantRef{ID: inv.ID, Description: inv.Description})
 	}
-	return assembleContract(res.ToolCalls, depth, invs), nil
+	return assembleContract(res.ToolCalls, depth, invs, servicesHaveVocab(s.config.Services)), nil
+}
+
+// servicesHaveVocab reports whether any service declares a non-empty WS
+// vocabulary. Mirrors session.sessionHasVocab so Scout can pick the objective
+// path gate for SaaS/WS contracts without importing the session package.
+func servicesHaveVocab(services []project.Service) bool {
+	for _, svc := range services {
+		if svc.Vocabulary != nil && len(svc.Vocabulary.Edges) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // SelfAssessContract critiques a coverage contract for gaps: missing scope,

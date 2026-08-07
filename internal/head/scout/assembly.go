@@ -226,7 +226,14 @@ func assembleAnalyze(calls []llm.ToolCall) AnalyzeOutput {
 // populate it; the set_priority schema forces map[string][]string, so no
 // Priorities.UnmarshalJSON dual-shape absorption is needed. Unknown calls are
 // dropped, never panic.
-func assembleContract(calls []llm.ToolCall, depth string, invs []contract.InvariantRef) *contract.Contract {
+//
+// hasVocab marks contracts for services that declare a WS/SaaS vocabulary. For
+// those, the LLM's set_coverage_gate (module/line/branch) is meaningless —
+// there is no local SUT module for a SaaS service — so it is skipped and an
+// objective PathThreshold=1.0 gate is set instead (every declared message edge
+// must be exercised). When hasVocab is false, behavior is byte-identical to the
+// pre-vocab local-codebase contract.
+func assembleContract(calls []llm.ToolCall, depth string, invs []contract.InvariantRef, hasVocab bool) *contract.Contract {
 	c := &contract.Contract{Depth: depth, Priorities: contract.Priorities{}, Invariants: invs}
 	for _, call := range calls {
 		switch call.Name {
@@ -241,12 +248,24 @@ func assembleContract(calls []llm.ToolCall, depth string, invs []contract.Invari
 		case "set_priority":
 			c.Priorities[llm.StrField(call, "bucket")] = llm.StrSliceField(call, "modules")
 		case "set_coverage_gate":
+			if hasVocab {
+				// SaaS/WS service: the LLM's module/line/branch gate is
+				// meaningless (no local SUT). Use the objective path gate;
+				// every declared message edge must be exercised. The authority
+				// surface is the extracted vocabulary, not the LLM's guess.
+				continue
+			}
 			c.CoverageGate = contract.Gate{
 				Module:          llm.StrField(call, "module"),
 				LineThreshold:   llm.NumField(call, "line_threshold"),
 				BranchThreshold: llm.NumField(call, "branch_threshold"),
 			}
 		}
+	}
+	if hasVocab {
+		// SaaS/WS service: every declared message edge must be exercised. The
+		// authority surface is the extracted vocabulary, not the LLM's guess.
+		c.CoverageGate.PathThreshold = 1.0
 	}
 	return c
 }

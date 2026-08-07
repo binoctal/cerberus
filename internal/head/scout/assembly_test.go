@@ -166,9 +166,27 @@ func TestAssembleContract_PrioritiesForcedStringSlice(t *testing.T) {
 		{Name: "set_coverage_gate", Input: map[string]any{"module": "go/build", "line_threshold": float64(0.8)}},
 		{Name: "declare_scope", Input: map[string]any{"modules": []any{"a", "b"}}},
 	}
-	c := assembleContract(calls, "standard", nil)
+	c := assembleContract(calls, "standard", nil, false)
 	assert.Equal(t, []string{"go/build"}, c.Priorities["high"])
 	assert.Equal(t, "go/build", c.CoverageGate.Module)
 	assert.Equal(t, []string{"a", "b"}, c.Scope)
 	assert.Equal(t, "standard", c.Depth)
+}
+
+// TestAssembleContract_HasVocabSetsPathThreshold verifies that a contract for a
+// service with a declared vocabulary gets an objective path gate (PathThreshold
+// = 1.0) instead of the LLM's unreliable line/branch gate (which has no SUT
+// module for a SaaS service).
+func TestAssembleContract_HasVocabSetsPathThreshold(t *testing.T) {
+	calls := []llm.ToolCall{{Name: "set_coverage_gate", Input: map[string]any{
+		"module": "imagined", "line_threshold": 0.8,
+	}}}
+	hasVocab := true
+	c := assembleContract(calls, "standard", nil, hasVocab)
+	if c.CoverageGate.PathThreshold != 1.0 {
+		t.Fatalf("has-vocab contract must set PathThreshold=1.0, got %v", c.CoverageGate)
+	}
+	if c.CoverageGate.Module != "" {
+		t.Fatalf("has-vocab contract must drop the LLM's SUT module, got %q", c.CoverageGate.Module)
+	}
 }
