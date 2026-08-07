@@ -195,6 +195,46 @@ func TestExercisedEdges(t *testing.T) {
 	}
 }
 
+// TestExercisedEdges_PushProtocolReceiveDriven locks the receive-driven,
+// vocab-attributed model: a bridge→web signal that is SERVER-PUSHED on peer
+// join (no explicit ws_send of it) is still counted as exercised when the web
+// role observes it. Under a send-side correlation model this would measure 0
+// (the open-agents case); the vocab's FromRole attributes the receive to the
+// declared bridge→web edge.
+func TestExercisedEdges_PushProtocolReceiveDriven(t *testing.T) {
+	required := []project.VocabEdge{
+		{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled"},
+	}
+	// device:online arrives on web with NO preceding ws_send (server push on join).
+	results := []agent.StepResult{{
+		TestCase: &agent.TestCase{Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: "c-web", Role: "web"},
+			{Action: "ws_connect", ConnectionID: "c-bridge", Role: "bridge"},
+		}},
+		Evidence: []agent.Evidence{
+			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
+		},
+	}}
+	exercised, _ := exercisedEdges(results, required)
+	key := func(e project.VocabEdge) string { return e.FromRole + "|" + e.ToRole + "|" + e.Type }
+	if !exercised[key(required[0])] {
+		t.Fatalf("push signal device:online bridge->web must be exercised via receive-driven attribution; got %v", exercised)
+	}
+	if exercised[key(required[1])] {
+		t.Errorf("session:send web->bridge must NOT be exercised (no observe)")
+	}
+	// A negative (ExpectAbsent) or unmatched receive must not attribute an edge.
+	results[0].Evidence = []agent.Evidence{
+		{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true, ExpectAbsent: true},
+		{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "session:send", Matched: false},
+	}
+	exercised2, _ := exercisedEdges(results, required)
+	if len(exercised2) != 0 {
+		t.Fatalf("ExpectAbsent and unmatched receives must not attribute edges; got %v", exercised2)
+	}
+}
+
 // TestPathCoverage locks the message-edge path coverage measurement: empty
 // required vocab is unmeasured (Known=false); the brief's fixture exercises 1
 // of 2 declared edges → Pct=0.5, Unit="path", Known=true.

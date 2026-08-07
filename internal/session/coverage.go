@@ -175,12 +175,27 @@ func measurementFromReport(report *autotest.CoverageReport) contract.CoverageMea
 func edgeKey(from, to, typ string) string { return from + "|" + to + "|" + typ }
 
 // exercisedEdges computes which declared message edges a session's results
-// exercised. Per case, connectionID→role is mapped from that case's ws_connect
-// steps; a ws_send of type T from role Rs plus a matched ws_receive of T by role
-// Rr exercises edge (Rs→Rr, T). Connections with no resolvable role are excluded
-// (conservative). Returns the exercised set (keyed edgeKey) and the connRole map
-// (for diagnostics). Pure; unit-testable without a live server.
+// exercised using RECEIVE-DRIVEN, vocab-attributed correlation: per case,
+// connectionID→role is mapped from that case's ws_connect steps; a matched
+// ws_receive of type T by role Rr exercises the declared vocab edge(s)
+// (FromRole→Rr, T). The vocab's FromRole is the authority on who sends T to Rr.
+//
+// This is faithful to push protocols (e.g. open-agents), where a bridge→web
+// signal like device:online is SERVER-PUSHED when a peer joins — there is no
+// explicit ws_send of it — so a send-side correlation model (ws_send T from Rs
+// + ws_receive T by Rr) would measure 0. Negative probes (ExpectAbsent) and
+// unmatched receives do not count; connections with no resolvable role are
+// excluded. Only edges present in `required` can be attributed (conservative —
+// out-of-band receives of undeclared (Rr, T) pairs count nothing). Returns the
+// exercised set (keyed edgeKey) and a nil connRole map (reserved). Pure;
+// unit-testable without a live server.
 func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (map[string]bool, map[string]string) {
+	// (ToRole, Type) → edge keys declared in the vocab for that recipient+type.
+	byToType := map[string][]string{}
+	for _, e := range required {
+		k := edgeKey(e.FromRole, e.ToRole, e.Type)
+		byToType[e.ToRole+"|"+e.Type] = append(byToType[e.ToRole+"|"+e.Type], k)
+	}
 	exercised := map[string]bool{}
 	for _, r := range results {
 		// connectionID → role for THIS case (roles are case-scoped via connect steps).
@@ -190,32 +205,19 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (m
 				connRole[s.ConnectionID] = s.Role
 			}
 		}
-		sentByType := map[string]string{}              // type → sender role
-		receivedByType := map[string]map[string]bool{} // type → set of recipient roles
 		for _, ev := range r.Evidence {
-			if ev.MatchedType == "" {
+			// Only a POSITIVE, matched receive attributes an edge. Sends are not
+			// consulted: the declared FromRole (not an explicit ws_send) identifies
+			// the sender, so push signals are captured.
+			if ev.Action != "ws_receive" || ev.ExpectAbsent || !ev.Matched || ev.MatchedType == "" {
 				continue
 			}
-			role := connRole[ev.ConnectionID]
-			switch ev.Action {
-			case "ws_send":
-				if role != "" {
-					sentByType[ev.MatchedType] = role
-				}
-			case "ws_receive":
-				if !ev.ExpectAbsent && ev.Matched && role != "" {
-					if receivedByType[ev.MatchedType] == nil {
-						receivedByType[ev.MatchedType] = map[string]bool{}
-					}
-					receivedByType[ev.MatchedType][role] = true
-				}
+			recipient := connRole[ev.ConnectionID] // Rr — the role that observed T
+			if recipient == "" {
+				continue
 			}
-		}
-		for typ, sender := range sentByType {
-			for recipient := range receivedByType[typ] {
-				if recipient != sender {
-					exercised[edgeKey(sender, recipient, typ)] = true
-				}
+			for _, k := range byToType[recipient+"|"+ev.MatchedType] {
+				exercised[k] = true
 			}
 		}
 	}
