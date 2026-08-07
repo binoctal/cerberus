@@ -72,3 +72,19 @@ make integration-openagents                         # whole suite
 make integration-openagents TEST=TestVocabularyDriven   # the vocab matrix only
 ```
 The target handles server bring-up (fnm 22 → wrangler) and teardown; it reuses an already-running :8989 without killing it.
+
+## SaaS Coverage Authority — live re-verification (2026-08-07, branch feat/saas-coverage-authority)
+
+A `cerberus run` against live open-agents (ws-realtime dogfood, server `wrangler dev --port 8989`) after the coverage-authority change, to confirm the coverage assessment is now objective rather than hallucinated.
+
+Observed log lines:
+
+- Scout contract self-assessment note: `CoverageGate has LineThreshold:0 and BranchThreshold:0 ... not just a single path threshold (PathThreshold:1)` — confirms `assembleContract` deterministically set `PathThreshold=1.0` and dropped the LLM's meaningless line/branch gate for the has-vocab contract (the change's Scout task). The self-assessment LLM grumbling about it is expected noise; the deterministic override is the authority.
+- Coverage assessment: `session/coverage.go:79 "coverage assessment" reached:false gaps:64 coverage_pct:0` — the Examiner measured message-edge PATH coverage (`Unit=path`, `Measured=true`) over 64 required edges. No LLM was consulted for the verdict (the path branch is objective).
+- Repair round: `"repair round" round:1 fail_eligible:1 coverage_axis:false` — the 64 `Kind:"path"` gaps did NOT drive a coverage-axis repair (only failure-driven repair ran). Path gaps are informational, not repair-loop fuel.
+
+Honest reading of `coverage_pct=0` in THIS run: it is a **measured** 0%, not a hallucination. The run's cases were `tc-001` (HTTP probe, fail), `exec-001/002/003` = `go build`/`go test`/`go vet` (pass — non-WS, Scout read the goal loosely), and `repair-tc-001` (WS, failed auth — `token=web-token` is not the valid `demo_token`; the known Steer WS auth drift, Finding-3). No WS message edge was actually exchanged, so `exercisedEdges` correctly returned 0 → 0/64. Contrast with the PRIOR behavior: the old code called the LLM with no data and it fabricated `reached=false coverage_pct=0` with invented gaps; now the 0 is an objective measurement and the 64 gaps name real, declared-but-unexercised edges.
+
+A `>0` coverage fraction requires a run whose WS cases authenticate and exchange messages; that math is proven by unit tests (`internal/session` `TestExercisedEdges`: 1/2 edges exercised → `Pct 0.5`) and was not hit in this single run due to the pre-existing auth drift (orthogonal to this change). Run stats: 3 pass / 1 fail / 1 skip, ~16K tokens, 1m25s.
+
+What this run definitively proves live: (1) the deterministic `PathThreshold=1.0` gate for has-vocab contracts; (2) Phase 2 path-coverage routing replaces the LLM coverage verdict; (3) `Kind:"path"` gaps do not trigger phantom coverage repair.
