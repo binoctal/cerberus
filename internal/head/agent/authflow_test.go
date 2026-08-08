@@ -306,6 +306,36 @@ func TestResolveAuthHeader_NoPathParamsDeclaresNil(t *testing.T) {
 	}
 }
 
+func TestResolveAuthHeader_LoginURLDropsServiceURLPath(t *testing.T) {
+	// When the service URL carries a path component (e.g. the ws-realtime
+	// template "http://<host>/ws/{userId}") and login.path is host-relative
+	// ("/api/dev/setup"), the login request MUST be sent to the host root,
+	// not under the service URL's path. The stub records the request path;
+	// it must be "/api/dev/setup", not "/ws/{userId}/api/dev/setup".
+	var gotPath string
+	srv := newLoginServer(t, 200, `{"token":"T"}`, func(_, path string, _ string, _ http.Header) {
+		gotPath = path
+	})
+	defer srv.Close()
+
+	// srv.URL is "http://127.0.0.1:<port>"; append the templated path that
+	// should NOT bleed into the login URL.
+	svcURL := srv.URL + "/ws/{userId}"
+
+	actor := project.Actor{Auth: &project.AuthFlow{
+		Login:     project.AuthLogin{Method: "POST", Path: "/api/dev/setup"},
+		TokenFrom: "token",
+		InjectAs:  "Authorization: Bearer {token}",
+	}}
+	_, err := ResolveAuthHeader(context.Background(), svcURL, actor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if gotPath != "/api/dev/setup" {
+		t.Fatalf("login request path = %q, want %q (service URL path must not carry into login URL)", gotPath, "/api/dev/setup")
+	}
+}
+
 func TestResolveAuthHeader_ProvisioningOnly_StaticTokenPlusPathParams(t *testing.T) {
 	// TokenFrom empty ⇒ use static Credentials.Token, but still run login to
 	// capture PathParams. Provision a fake /api/dev/setup response carrying userId.

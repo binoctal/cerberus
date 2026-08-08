@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -99,10 +100,20 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 		bodyFields[k] = interpolate(v, vars)
 	}
 
-	// 2. Build the login URL: absolute path wins, else join onto svcURL.
+	// 2. Build the login URL: absolute path wins, else join onto the
+	// service URL's scheme+host only. The service URL's path component
+	// (e.g. a WS route template "/ws/{userId}") is intentionally dropped:
+	// login is host-relative, and {param} placeholders cannot be resolved
+	// before login runs.
 	loginURL := af.Login.Path
 	if !isAbsoluteURL(loginURL) {
-		loginURL = strings.TrimRight(svcURL, "/") + "/" + strings.TrimLeft(loginURL, "/")
+		base := svcURL
+		if u, err := url.Parse(svcURL); err == nil && u.IsAbs() {
+			base = u.Scheme + "://" + u.Host
+		} else {
+			base = strings.TrimRight(svcURL, "/")
+		}
+		loginURL = base + "/" + strings.TrimLeft(loginURL, "/")
 	}
 
 	var bodyReader io.Reader
