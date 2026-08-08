@@ -107,7 +107,7 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 	// before login runs.
 	loginURL := af.Login.Path
 	if !isAbsoluteURL(loginURL) {
-		base := svcURL
+		var base string
 		if u, err := url.Parse(svcURL); err == nil && u.IsAbs() {
 			base = u.Scheme + "://" + u.Host
 		} else {

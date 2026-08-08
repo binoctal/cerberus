@@ -755,7 +755,7 @@ func TestWsRequestResponseCases(t *testing.T) {
 		Protocol: &project.Protocol{
 			TypePath: "type",
 			Roles: map[string]*project.ProtocolRole{
-				"web":    {Params: map[string]string{"type": "web"}},
+				"web": {Params: map[string]string{"type": "web"}},
 				"bridge": {Params: map[string]string{"type": "bridge"},
 					Responses: map[string]string{"session:start": "session:created"}},
 			},
