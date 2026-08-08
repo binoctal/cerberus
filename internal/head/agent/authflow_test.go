@@ -305,3 +305,32 @@ func TestResolveAuthHeader_NoPathParamsDeclaresNil(t *testing.T) {
 		t.Fatalf("PathParams = %v, want nil when none declared", res.PathParams)
 	}
 }
+
+func TestResolveAuthHeader_ProvisioningOnly_StaticTokenPlusPathParams(t *testing.T) {
+	// TokenFrom empty ⇒ use static Credentials.Token, but still run login to
+	// capture PathParams. Provision a fake /api/dev/setup response carrying userId.
+	srv := newLoginServer(t, 200, `{"config":{"userId":"user_42","deviceToken":"tok_dev"}}`, nil)
+	defer srv.Close()
+
+	actor := project.Actor{
+		Credentials: project.CredentialRef{Token: "demo_token"},
+		Auth: &project.AuthFlow{
+			Login:     project.AuthLogin{Method: "POST", Path: "/api/dev/setup"},
+			TokenFrom: "", // provisioning-only: static token + captured path params
+			InjectAs:  "Authorization: Bearer {token}",
+			PathParams: map[string]string{
+				"userId": "config.userId",
+			},
+		},
+	}
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.RawToken != "demo_token" {
+		t.Fatalf("empty TokenFrom ⇒ static Credentials.Token is used; raw token = %q, want demo_token", res.RawToken)
+	}
+	if res.PathParams == nil || res.PathParams["userId"] != "user_42" {
+		t.Fatalf("login still runs to capture path params; PathParams = %v, want userId=user_42", res.PathParams)
+	}
+}

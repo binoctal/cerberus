@@ -150,10 +150,17 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 		return nil, fmt.Errorf("auth flow: response is not a JSON object")
 	}
 
-	// 4. Extract the token by dot-path.
-	token, err := extractByDotPath(decoded, af.TokenFrom)
-	if err != nil {
-		return nil, err
+	// 4. Token resolution: an explicit token_from dot-path reads the login
+	// response; an EMPTY token_from makes this a provisioning-only flow — the
+	// static Credentials.Token is used, but login still runs to capture
+	// PathParams (e.g. a provisioned userId for URL templating).
+	token := actor.Credentials.Token
+	if af.TokenFrom != "" {
+		t, err := extractByDotPath(decoded, af.TokenFrom)
+		if err != nil {
+			return nil, err
+		}
+		token = t
 	}
 
 	// 5. F3: capture declared path params from the same response. An absent
