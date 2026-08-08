@@ -748,6 +748,54 @@ func TestWSCasesCovered_RelayConnectedRoleKeepsExchange(t *testing.T) {
 		"goal-exchange wsStepsCase preserved for a relay-connected role")
 }
 
+func TestWsRequestResponseCases(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{
+			TypePath: "type",
+			Roles: map[string]*project.ProtocolRole{
+				"web":    {Params: map[string]string{"type": "web"}},
+				"bridge": {Params: map[string]string{"type": "bridge"},
+					Responses: map[string]string{"session:start": "session:created"}},
+			},
+		},
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "web", ToRole: "bridge", Type: "session:start", Trigger: "message_handled"},
+			{FromRole: "bridge", ToRole: "web", Type: "session:created", Trigger: "message_handled"},
+		}},
+	}
+	cases, connected := wsRequestResponseCases(svc)
+	require.Len(t, cases, 1, "one response pair ⇒ one case")
+	c := cases[0]
+	require.Len(t, c.Steps, 6)
+	// requester(web) connect, bridge connect, web send session:start,
+	// bridge receive session:start, bridge send session:created, web receive session:created.
+	assert.Equal(t, "ws_connect", c.Steps[0].Action)
+	assert.Equal(t, "web", c.Steps[0].Role)
+	assert.Equal(t, "ws_connect", c.Steps[1].Action)
+	assert.Equal(t, "bridge", c.Steps[1].Role)
+	assert.Equal(t, "ws_send", c.Steps[2].Action)
+	assert.Contains(t, c.Steps[2].Message, "session:start")
+	assert.Equal(t, "ws_receive", c.Steps[3].Action)
+	assert.Equal(t, "bridge", c.Steps[3].ConnectionID)
+	assert.Equal(t, "session:start", c.Steps[3].Type)
+	assert.Equal(t, "ws_send", c.Steps[4].Action)
+	assert.Contains(t, c.Steps[4].Message, "session:created")
+	assert.Equal(t, "ws_receive", c.Steps[5].Action)
+	assert.Equal(t, "web", c.Steps[5].ConnectionID)
+	assert.Equal(t, "session:created", c.Steps[5].Type)
+	assert.True(t, connected["web"] && connected["bridge"], "both roles connected")
+}
+
+func TestWsRequestResponseCases_NoneWhenNoResponses(t *testing.T) {
+	svc := project.Service{Name: "s", URL: "u", Protocol: &project.Protocol{
+		Roles: map[string]*project.ProtocolRole{"web": {}, "bridge": {}},
+	}}
+	cases, _ := wsRequestResponseCases(svc)
+	assert.Empty(t, cases, "no Responses declared ⇒ no request-response cases")
+}
+
 // TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver: when an LLM ws_relay
 // already covers the receiver role (the covered map), the deterministic relay
 // case for that role is dropped (no double-coverage) and its signal is not

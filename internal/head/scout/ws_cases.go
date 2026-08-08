@@ -581,6 +581,62 @@ func wsTypesNamedInGoal(goal string) []string {
 	return out
 }
 
+// wsRequestResponseCases emits deterministic two-role request-response cases for
+// roles that declare a Responses map (received_type → reply_type). For each
+// pair (T → T') on role R, the requester is the FromRole of a declared vocab
+// edge (From→R, T); the case drives: requester connect, R connect, requester
+// send T, R receive T, R send T', requester receive T'. Step "R receive T"
+// exercises edge (From→R, T) and step "requester receive T'" exercises
+// (R→From, T') under receive-driven pathCoverage. Pure; no LLM. Returns the
+// cases and the roles they connect (for dedup). No cases when fewer than 2
+// roles, no Vocabulary, no Responses, or no declared request edge.
+func wsRequestResponseCases(svc project.Service) ([]agent.TestCase, map[string]bool) {
+	var cases []agent.TestCase
+	connected := map[string]bool{}
+	if svc.Protocol == nil || len(svc.Protocol.Roles) < 2 || svc.Vocabulary == nil {
+		return cases, connected
+	}
+	// (ToRole, Type) → first declared FromRole (the requester for that request).
+	requesterOf := map[string]string{}
+	for _, e := range svc.Vocabulary.Edges {
+		k := e.ToRole + "|" + e.Type
+		if _, ok := requesterOf[k]; !ok {
+			requesterOf[k] = e.FromRole
+		}
+	}
+	for _, rName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+		role := svc.Protocol.Roles[rName]
+		if role == nil || len(role.Responses) == 0 {
+			continue
+		}
+		for _, recvType := range slices.Sorted(maps.Keys(role.Responses)) {
+			sendType := role.Responses[recvType]
+			requester := requesterOf[rName+"|"+recvType]
+			if requester == "" || requester == rName {
+				continue // no declared request edge from a different role
+			}
+			cases = append(cases, agent.TestCase{
+				ID:      wsCaseID(svc.Name, rName, "reqresp-"+sanitizeTypeID(recvType)+"-"+sanitizeTypeID(sendType)),
+				Name:    fmt.Sprintf("%s %s replies %s to %s", svc.Name, rName, sendType, recvType),
+				Service: svc.Name, Target: svc.URL, Action: "ws_flow",
+				Expectation: fmt.Sprintf("%s role %s receives %s and replies %s", svc.Name, rName, recvType, sendType),
+				Priority:    0.8,
+				Steps: []agent.TestStep{
+					{Action: "ws_connect", ConnectionID: requester, Role: requester},
+					{Action: "ws_connect", ConnectionID: rName, Role: rName},
+					{Action: "ws_send", ConnectionID: requester, Message: wsSendBody(recvType)},
+					{Action: "ws_receive", ConnectionID: rName, Type: recvType, Timeout: 3},
+					{Action: "ws_send", ConnectionID: rName, Message: wsSendBody(sendType)},
+					{Action: "ws_receive", ConnectionID: requester, Type: sendType, Timeout: 3},
+				},
+			})
+			connected[requester] = true
+			connected[rName] = true
+		}
+	}
+	return cases, connected
+}
+
 func wsCaseID(service, role, typ string) string {
 	return "ws-" + service + "-" + role + "-" + sanitizeTypeID(typ)
 }
