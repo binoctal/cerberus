@@ -62,6 +62,9 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	relayCases, relayCovered, _ := wsRelayCases(svc)
 	relayEmitted, relaySignals, relayConnected := relayCoexistence(relayCases, svcCovered, svcCovering, relayCovered)
 	cases := relayEmitted
+	// Two-role request-response cases declared via role.Responses.
+	rrCases, rrConnected := wsRequestResponseCases(svc)
+	cases = append(cases, rrCases...)
 	// Iterate roles in sorted name order so the returned slice is deterministic
 	// across runs regardless of map iteration order.
 	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
@@ -69,6 +72,11 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 			// Role-level skip: a ws_relay already connects this role, so
 			// suppress ALL of WSCases' forms for it (connect, connect+receive,
 			// and the ws_flow exchange) to avoid opening redundant sockets.
+			continue
+		}
+		if rrConnected[roleName] {
+			// Skip roles already connected by a request-response case; the
+			// 6-step case opens their socket, so a lone connect is redundant.
 			continue
 		}
 		role := svc.Protocol.Roles[roleName]

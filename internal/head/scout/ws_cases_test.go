@@ -823,3 +823,30 @@ func TestWSCasesCovered_RelayDroppedWhenLLMCoversReceiver(t *testing.T) {
 	}
 	require.True(t, sawBridgeCase, "uncovered bridge role still gets a connect Steps case")
 }
+
+// TestWSCasesCovered_EmitsRequestResponse: WSCasesCovered must surface the
+// two-role request-response case built by wsRequestResponseCases, and the two
+// roles it connects (requester + bridge) must be skipped by the per-role loop so
+// no redundant single-conn connect case is emitted for them.
+func TestWSCasesCovered_EmitsRequestResponse(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "realtime", URL: "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web":    {Params: map[string]string{"type": "web"}},
+			"bridge": {Params: map[string]string{"type": "bridge"}, Responses: map[string]string{"session:start": "session:created"}},
+		}},
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "web", ToRole: "bridge", Type: "session:start", Trigger: "message_handled"},
+			{FromRole: "bridge", ToRole: "web", Type: "session:created", Trigger: "message_handled"},
+		}},
+	}}}
+	cases := WSCasesCovered(cfg, "goal", map[string]map[string]bool{}, map[string]map[string]string{})
+	found := false
+	for _, c := range cases {
+		if len(c.Steps) == 6 && c.Steps[0].Action == "ws_connect" && c.Steps[0].Role == "web" &&
+			c.Steps[3].Action == "ws_receive" && c.Steps[3].Type == "session:start" {
+			found = true
+		}
+	}
+	assert.True(t, found, "WSCasesCovered must emit the two-role request-response case")
+}
