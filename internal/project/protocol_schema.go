@@ -66,6 +66,11 @@ type ProtocolRole struct {
 	Subprotocols []string `yaml:"subprotocols,omitempty"`
 	// Handshake is the optional mandatory post-connect exchange.
 	Handshake *RoleHandshake `yaml:"handshake,omitempty"`
+	// Responses maps a received message type to the reply type this role's test
+	// driver sends in response (received_type → reply_type). Drives the
+	// deterministic two-role request-response case generator. Empty ⇒ this role
+	// is never driven as a responder (backward-compatible).
+	Responses map[string]string `yaml:"responses,omitempty" json:"responses,omitempty"`
 }
 
 // RoleHandshake declares the message the executor auto-awaits after connect.

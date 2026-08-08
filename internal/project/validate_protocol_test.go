@@ -146,3 +146,26 @@ func TestValidateProtocolRoles(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateProtocolRole_Responses(t *testing.T) {
+	mk := func(responses map[string]string) *Protocol {
+		return &Protocol{
+			TypePath: "type",
+			Auth:     &ProtocolAuth{Strategy: "query", Param: "token"},
+			Roles: map[string]*ProtocolRole{
+				"web":    {Params: map[string]string{"type": "web"}},
+				"bridge": {Params: map[string]string{"type": "bridge"}, Responses: responses},
+			},
+		}
+	}
+
+	if err := ValidateProtocol(mk(map[string]string{"session:start": "session:created"}), nil); err != nil {
+		t.Fatalf("valid responses must pass: %v", err)
+	}
+	if err := ValidateProtocol(mk(map[string]string{"": "session:created"}), nil); err == nil {
+		t.Fatalf("empty received_type key must fail")
+	}
+	if err := ValidateProtocol(mk(map[string]string{"session:start": ""}), nil); err == nil {
+		t.Fatalf("empty reply_type value must fail")
+	}
+}

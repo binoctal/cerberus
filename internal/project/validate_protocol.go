@@ -80,6 +80,24 @@ func validateRole(name string, role *ProtocolRole, auth *ProtocolAuth, actors []
 			return fmt.Errorf("roles[%q].handshake.timeout must be > 0", name)
 		}
 	}
+	if err := validateProtocolResponses(name, role); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateProtocolResponses checks a role's responses map: both received_type
+// (key) and reply_type (value) must be non-empty type tokens. A reply_type with
+// no matching declared edge is NOT an error (the request edge is still exercised).
+func validateProtocolResponses(roleName string, role *ProtocolRole) error {
+	for recv, reply := range role.Responses {
+		if recv == "" {
+			return fmt.Errorf("roles[%q].responses: received_type key is empty", roleName)
+		}
+		if reply == "" {
+			return fmt.Errorf("roles[%q].responses[%q]: reply_type value is empty", roleName, recv)
+		}
+	}
 	return nil
 }
 
