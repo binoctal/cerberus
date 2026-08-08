@@ -94,3 +94,46 @@ A `>0` coverage fraction against open-agents needed two fixes, both now landed a
 Note: an *autonomous* `cerberus run` against the current `ws-realtime` dogfood still reports path coverage 0, because the dogfood protocol declares only the `web` role and `internal/head/scout/ws_cases.go:210` skips relay-case generation unless `len(Protocol.Roles) >= 2`; without a declared `bridge` role (and a `/ws/<userId>` path template + provisioning hook), no message-exchanging case is generated. That is a dogfood/protocol declaration gap separate from the coverage-authority change; the live integration test above bypasses it by provisioning both roles directly, which is what proves the measurement itself works against real open-agents evidence. First autonomous run stats: 3 pass / 1 fail / 1 skip, ~16K tokens, 1m25s.
 
 What this run definitively proves live: (1) the deterministic `PathThreshold=1.0` gate for has-vocab contracts; (2) Phase 2 path-coverage routing replaces the LLM coverage verdict; (3) `Kind:"path"` gaps do not trigger phantom coverage repair.
+
+## Autonomous WS message coverage — re-verification (2026-08-08)
+
+**Goal.** A `cerberus run` against the reworked `ws-realtime` dogfood (bridge role + `Responses` + `/ws/{userId}` template + provisioning-only authflow + `wsRequestResponseCases` generator) to honestly answer: does an *autonomous* run now report `coverage_pct > 0` against live open-agents (the path the prior note flagged as a dogfood/protocol gap)?
+
+**Setup.** Build at HEAD (`make build` → `build/cerberus`). open-agents dev server up on `:8989`. Sanity: `make integration-openagents TEST=TestVocabularyDriven` — green (31 cases, all message-edge subtests PASS, 2 known SKIPs). Autonomous run:
+
+```
+./build/cerberus run --config dogfood/ws-realtime/.cerberus/project.yaml \
+  --dir dogfood/ws-realtime \
+  --goal "Relay a session between web and bridge over the realtime WS service"
+```
+
+**Observed coverage line (honest, verbatim):**
+
+```
+session/coverage.go:79 "coverage assessment" reached:false gaps:64 coverage_pct:0
+```
+
+Coverage is **0%** — `coverage_pct:0`, `reached:false` (PathThreshold=1.0), 64 gaps. The session measured path coverage (`"coverage not applicable"` did NOT appear — the coverage engine ran and produced an objective measurement, not a skip).
+
+**Did the reqresp case run?** Yes. Exactly one `wsRequestResponseCases`-generated case executed:
+
+- `ws-realtime-bridge-reqresp-session-start-session-created` → executor `status:fail` (4 ms, attempts:1) → Examiner verdict `status:fail correctness:0`.
+
+Session totals: 6 pass / 19 fail / 6 skip / 5 recovered, ~58K tokens, 6m59s (hit the 420 s cap). The 19 fails break down as: 3 auth, 3 endpoint_drift, 3 handshake, 1 shape (per the Session Summary), with the remaining fail verdicts on rule-engine probe attempts against the unauthenticated actor.
+
+**Root cause (investigated from the log, not assumed).** The predicted deviceId-payload risk did NOT trigger — the failure is upstream of any WS exchange. Both actors were degraded to unauthenticated before the reqresp case opened a socket:
+
+```
+session/auth_setup.go:46 "auth flow failed; degrading actor to unauthenticated"
+  actor:"web-actor"   error:"auth flow: login returned status 403"
+session/auth_setup.go:46 "auth flow failed; degrading actor to unauthenticated"
+  actor:"bridge-actor" error:"auth flow: login returned status 403"
+```
+
+The open-agents dev server's CSRF middleware requires an `Origin` header on POSTs. The live integration suite (`internal/head/agent/openagents_setup_test.go:103`) sets `req.Header.Set("Origin", base)` for this reason; the runtime authflow (`internal/head/agent/authflow.go:132-141` `ResolveAuthHeader`) sets only `Content-Type` and any explicitly-declared `Login.Headers` — it does **not** synthesize an `Origin` header, so `POST /api/dev/setup` is rejected with HTTP 403, no `config.userId`/`deviceToken` is provisioned, and the reqresp case fails before a WS handshake can begin. The reqresp generator, role-param templating, host-relative login URL, and provisioning-only authflow all loaded and ran correctly (the case ID and 4 ms fail-no-socket shape confirm the wiring); the exchange simply never had credentials.
+
+**Edges exercised.** None. With both actors unauthenticated, no `message_handled` edge was exchanged, so `exercisedEdges` returned 0 → 0/64. This is an honest measured 0%, not a fabricated one (the coverage engine ran to completion against the declared vocab).
+
+**Follow-up (real root cause, not the predicted deviceId gap).** Add CSRF-safe header synthesis to the runtime authflow — either auto-set `Origin: <login host>` on authflow POSTs (matching the dev server's requirement and what the integration harness already does), or surface a `Login.Headers` escape hatch in the dogfood `project.yaml` so `Origin` can be declared without code changes. The minimal `wsSendBody` payload (`{"type":"session:start"}`) was NOT the blocker on this run; whether open-agents additionally requires `payload.deviceId` on `session:start` for the exchange to complete remains to be validated once provisioning succeeds.
+
+**Reliable proof of the measurement machinery.** As in the prior note, the objective >0 proof path is the live integration test, not the autonomous run: `TestVocabularyDriven` (green above, 31 cases) and `TestPathCoverage_LiveOpenAgentsRelay` (commit e46b390, `path_coverage=0.500`) exercise the receive-driven attribution and the deterministic `PathThreshold=1.0` gate against real open-agents evidence with explicit `Origin` provisioning. The autonomous run's 0% is a provisioning-wiring gap, not a coverage-model regression.
