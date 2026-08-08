@@ -2,23 +2,36 @@ project:
   name: ws-realtime-dogfood
 services:
   - name: realtime
-    url: http://localhost:8787
+    url: http://localhost:8989/ws/{userId}   # {userId} templated from web-actor's provisioned path param
     protocol_ref: open-agents
 actors:
   - name: web-actor
     credentials:
-      email: web@dogfood.local
-      password: dogfood-web
+      token: demo_token   # static dev backdoor (TokenFrom empty ⇒ provisioning-only, Task 4)
     auth:
       login:
         method: POST
-        path: /login
-        body: { email: "{email}", password: "{password}" }
-      token_from: token
+        path: /api/dev/setup
+        body: {}
+      # token_from omitted on purpose: provisioning-only flow (static token + captured userId)
       inject_as: "Authorization: Bearer {token}"
+      path_params:
+        userId: config.userId
+  - name: bridge-actor
+    credentials: {}   # token comes from the login response (deviceToken)
+    auth:
+      login:
+        method: POST
+        path: /api/dev/setup
+        body: {}
+      token_from: config.deviceToken
+      inject_as: "Authorization: Bearer {token}"
+      path_params:
+        userId: config.userId
+        deviceId: config.deviceId
 settings:
   max_duration: 8m
   confidence_threshold: 0.7
   ai_budget:
-    session_total_tokens: 60000
+    session_total_tokens: 80000
     per_call_limit: 10000

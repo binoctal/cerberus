@@ -54,7 +54,18 @@ func validateAuthFlow(actorIdx int, a Actor) string {
 		return ""
 	}
 	prefix := fmt.Sprintf("actors[%d].auth", actorIdx)
-	if err := ValidateAuthFlow(a.Auth); err != nil {
+	// Provisioning-only flow (Task 4): when the actor has a static
+	// Credentials.Token, token_from may be empty — login runs only to capture
+	// path params, and the static token is injected as RawToken. ValidateAuthFlow
+	// is strict (it serves authdiscover, which has no static token), so bypass
+	// its token_from requirement here by substituting a sentinel for validation.
+	af := a.Auth
+	if af.TokenFrom == "" && a.Credentials.Token != "" {
+		clone := *af
+		clone.TokenFrom = "<static>"
+		af = &clone
+	}
+	if err := ValidateAuthFlow(af); err != nil {
 		return prefix + "." + err.Error()
 	}
 	// Every {email}/{password} referenced in login.body must have a matching

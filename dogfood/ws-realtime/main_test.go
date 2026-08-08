@@ -157,7 +157,20 @@ func TestProjectConfig_Loads(t *testing.T) {
 	if web == nil || web.Handshake == nil || web.Handshake.AwaitType != "device:online" {
 		t.Fatalf("web role/handshake=%+v", web)
 	}
-	if len(cfg.Actors) != 1 || cfg.Actors[0].Name != "web-actor" {
+	bridge := svc.Protocol.Roles["bridge"]
+	if bridge == nil || bridge.CredentialRef != "bridge-actor" {
+		t.Fatalf("bridge role=%+v", bridge)
+	}
+	if got := bridge.Params["type"]; got != "bridge" {
+		t.Fatalf("bridge params type=%q want bridge", got)
+	}
+	if got := bridge.Params["deviceId"]; got != "{deviceId}" {
+		t.Fatalf("bridge params deviceId=%q want {deviceId}", got)
+	}
+	if got := bridge.Responses["session:start"]; got != "session:created" {
+		t.Fatalf("bridge responses=%+v", bridge.Responses)
+	}
+	if len(cfg.Actors) != 2 || cfg.Actors[0].Name != "web-actor" || cfg.Actors[1].Name != "bridge-actor" {
 		t.Fatalf("actors=%+v", cfg.Actors)
 	}
 }

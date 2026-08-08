@@ -10,10 +10,14 @@ roles:
     params:
       type: web
     handshake:
-      # device:online is the signal the DO pushes to web when a bridge joins
-      # (room.ts:91-95). devices:sync only fires on web-connect IF a bridge is
-      # already online (room.ts:117), so in the web-first test order web gets
-      # silence until bridge joins — hence optional: true.
+      # device:online is the signal the DO pushes to web when a bridge joins.
       await_type: device:online
       timeout: 5
       optional: true
+  bridge:
+    credential_ref: bridge-actor
+    params:
+      type: bridge
+      deviceId: "{deviceId}"   # templated from bridge-actor's provisioned path params (Task 5)
+    responses:
+      session:start: session:created   # Task 2 generator drives this exchange
