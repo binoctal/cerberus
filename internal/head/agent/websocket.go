@@ -460,7 +460,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// Role discriminator params / headers / subprotocols: strip-then-inject the
 	// role's values onto the dial url and opts (no redaction here). See
 	// injectRoleDiscriminators.
-	dialURL = injectRoleDiscriminators(opts, role, roleParams, dialURL)
+	dialURL = injectRoleDiscriminators(opts, role, roleParams, dialURL, e.pathParamsFor(credentialRef))
 	// After role-param injection, recompute preInjectionURL from the final dial
 	// url so the result reflects what was actually dialed (role params present,
 	// token stripped via auth.param). No-op for non-role connects.
@@ -646,13 +646,13 @@ func redactURL(proto *project.Protocol, dialURL string) string {
 // url and dial options: query params (with the uuid sentinel expanded), headers,
 // and subprotocols, each strip-then-injected so exactly the role's value reaches
 // the server. No redaction here -- these never affect preInjectionURL.
-func injectRoleDiscriminators(opts *websocket.DialOptions, role *project.ProtocolRole, roleParams map[string]string, dialURL string) string {
+func injectRoleDiscriminators(opts *websocket.DialOptions, role *project.ProtocolRole, roleParams map[string]string, dialURL string, pathParams map[string]string) string {
 	// Role discriminator params: a value equal to roleParamUUIDSentinel is
 	// replaced with a freshly generated uuid (per dial) so a declaration can
 	// carry a dynamic identifier it cannot know ahead of time (e.g. a bridge's
 	// deviceId) without a hard-coded literal.
 	for k, v := range roleParams {
-		dialURL = setQueryParam(dialURL, k, resolveRoleParamValue(v))
+		dialURL = setQueryParam(dialURL, k, resolveRoleParamValue(v, pathParams))
 	}
 	// Headers and subprotocols are guarded on role != nil because role is only
 	// resolved when a.Role != ""; without a role there is nothing to inject.
@@ -689,12 +689,19 @@ func maybeAuthParam(p *project.Protocol) string {
 // declaration stays runnable without a hard-coded literal.
 const roleParamUUIDSentinel = "{{uuid}}"
 
-// resolveRoleParamValue returns the literal role-param value, unless it is the
-// uuid sentinel, in which case a fresh uuid is generated. Generation is per
-// dial: each connection is a distinct client/device.
-func resolveRoleParamValue(v string) string {
+// resolveRoleParamValue resolves a role discriminator param value: the uuid
+// sentinel yields a fresh uuid; a "{name}" placeholder resolves from the
+// actor's captured path params (provisioning); an unknown placeholder or plain
+// literal is returned unchanged.
+func resolveRoleParamValue(v string, pathParams map[string]string) string {
 	if v == roleParamUUIDSentinel {
 		return uuid.NewString()
+	}
+	if len(v) >= 2 && v[0] == '{' && v[len(v)-1] == '}' {
+		name := v[1 : len(v)-1]
+		if val, ok := pathParams[name]; ok {
+			return val
+		}
 	}
 	return v
 }
