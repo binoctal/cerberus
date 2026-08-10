@@ -13,6 +13,8 @@ actors:
         method: POST
         path: /api/dev/setup
         body: {}
+        headers:
+          Origin: http://localhost:8989   # CSRF middleware rejects POSTs without an Origin header
       # token_from omitted on purpose: provisioning-only flow (static token + captured userId)
       inject_as: "Authorization: Bearer {token}"
       path_params:
@@ -24,6 +26,8 @@ actors:
         method: POST
         path: /api/dev/setup
         body: {}
+        headers:
+          Origin: http://localhost:8989   # CSRF middleware rejects POSTs without an Origin header
       token_from: config.deviceToken
       inject_as: "Authorization: Bearer {token}"
       path_params:
