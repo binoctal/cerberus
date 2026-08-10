@@ -23,6 +23,33 @@ type Protocol struct {
 	// change. json framing only. Empty means no batch decomposition (backwards-
 	// compat). See the WS batch decomposition design spec.
 	Batches map[string]*ProtocolBatch `yaml:"batches,omitempty"`
+	// HTTPTriggers declares HTTP routes that trigger a WS message push when hit
+	// (a public HTTP route whose handler fans a message out to WS clients via the
+	// DO /broadcast). Each trigger drives one deterministic Steps case
+	// (connect the recipient → http_request → receive the pushed type). Empty ⇒
+	// no trigger cases (backwards-compatible).
+	HTTPTriggers []*HTTPTrigger `yaml:"http_triggers,omitempty"`
+}
+
+// HTTPTrigger declares one HTTP→WS push trigger for the deterministic generator.
+type HTTPTrigger struct {
+	ID      string             `yaml:"id"`
+	Request HTTPTriggerRequest `yaml:"request"`
+	Effect  HTTPTriggerEffect  `yaml:"effect"`
+}
+
+// HTTPTriggerRequest describes the HTTP request that triggers the push.
+type HTTPTriggerRequest struct {
+	Method       string `yaml:"method"`        // HTTP method; defaults to POST at generation
+	Path         string `yaml:"path"`          // host-relative (e.g. /api/devices/{{bridge.deviceId}}/restart)
+	AuthRole     string `yaml:"auth_role"`     // declared role whose actor's http_login token authorizes the request
+	ExpectStatus int    `yaml:"expect_status"` // expected response status; 0 ⇒ no assertion
+}
+
+// HTTPTriggerEffect describes the WS message the push delivers.
+type HTTPTriggerEffect struct {
+	MessageType string `yaml:"message_type"` // routing type received on the WS connection
+	ToRole      string `yaml:"to_role"`      // declared role whose connection receives it
 }
 
 // ProtocolBatch declares how a single batch frame decomposes into N item frames.
