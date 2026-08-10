@@ -65,6 +65,70 @@ type AuthResult struct {
 	HeaderValue string
 	RawToken    string
 	PathParams  map[string]string // url-param -> captured value (F3); nil when no path_params declared
+	// HTTPToken is the credential captured from the optional http_login (empty
+	// when no http_login is declared). It is an HTTP-route credential distinct
+	// from RawToken (the WS credential); never logged.
+	HTTPToken string
+}
+
+// sendLogin performs one login HTTP request and returns the decoded JSON
+// response. It is shared by the primary login and the optional http_login so
+// both build the URL, body, and headers identically. bodyVars interpolates
+// {email}/{password}/{token} into the declared body field values.
+func sendLogin(ctx context.Context, svcURL string, login project.AuthLogin, bodyVars map[string]string) (map[string]any, error) {
+	bodyFields := make(map[string]string, len(login.Body))
+	for k, v := range login.Body {
+		bodyFields[k] = interpolate(v, bodyVars)
+	}
+	loginURL := login.Path
+	if !isAbsoluteURL(loginURL) {
+		var base string
+		if u, err := url.Parse(svcURL); err == nil && u.IsAbs() {
+			base = u.Scheme + "://" + u.Host
+		} else {
+			base = strings.TrimRight(svcURL, "/")
+		}
+		loginURL = base + "/" + strings.TrimLeft(loginURL, "/")
+	}
+	var bodyReader io.Reader
+	if len(bodyFields) > 0 {
+		encoded, err := json.Marshal(bodyFields)
+		if err != nil {
+			return nil, fmt.Errorf("auth flow: encode login body: %w", err)
+		}
+		bodyReader = strings.NewReader(string(encoded))
+	}
+	method := login.Method
+	if method == "" {
+		method = http.MethodPost
+	}
+	req, err := http.NewRequestWithContext(ctx, method, loginURL, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("auth flow: build request: %w", err)
+	}
+	if len(bodyFields) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	for k, v := range login.Headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("auth flow: login request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("auth flow: login returned status %d", resp.StatusCode)
+	}
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("auth flow: read response: %w", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return nil, fmt.Errorf("auth flow: response is not a JSON object")
+	}
+	return decoded, nil
 }
 
 // ResolveAuthHeader runs an actor's declarative login flow once and returns the
@@ -90,75 +154,14 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 		return nil, fmt.Errorf("actor has no auth flow")
 	}
 
-	// 1. Interpolate {email}/{password} into the login body.
+	// 1-3. Send the primary login.
 	vars := map[string]string{
 		"{email}":    actor.Credentials.Email,
 		"{password}": actor.Credentials.Password,
 	}
-	bodyFields := make(map[string]string, len(af.Login.Body))
-	for k, v := range af.Login.Body {
-		bodyFields[k] = interpolate(v, vars)
-	}
-
-	// 2. Build the login URL: absolute path wins, else join onto the
-	// service URL's scheme+host only. The service URL's path component
-	// (e.g. a WS route template "/ws/{userId}") is intentionally dropped:
-	// login is host-relative, and {param} placeholders cannot be resolved
-	// before login runs.
-	loginURL := af.Login.Path
-	if !isAbsoluteURL(loginURL) {
-		var base string
-		if u, err := url.Parse(svcURL); err == nil && u.IsAbs() {
-			base = u.Scheme + "://" + u.Host
-		} else {
-			base = strings.TrimRight(svcURL, "/")
-		}
-		loginURL = base + "/" + strings.TrimLeft(loginURL, "/")
-	}
-
-	var bodyReader io.Reader
-	if len(bodyFields) > 0 {
-		encoded, mErr := json.Marshal(bodyFields)
-		if mErr != nil {
-			return nil, fmt.Errorf("auth flow: encode login body: %w", mErr)
-		}
-		bodyReader = strings.NewReader(string(encoded))
-	}
-
-	method := af.Login.Method
-	if method == "" {
-		method = http.MethodPost
-	}
-	req, err := http.NewRequestWithContext(ctx, method, loginURL, bodyReader)
+	decoded, err := sendLogin(ctx, svcURL, af.Login, vars)
 	if err != nil {
-		return nil, fmt.Errorf("auth flow: build request: %w", err)
-	}
-	if len(bodyFields) > 0 {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	for k, v := range af.Login.Headers {
-		req.Header.Set(k, v)
-	}
-
-	// 3. Send one real request.
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("auth flow: login request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Non-2xx: never include the body (may echo credentials).
-		return nil, fmt.Errorf("auth flow: login returned status %d", resp.StatusCode)
-	}
-
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("auth flow: read response: %w", err)
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return nil, fmt.Errorf("auth flow: response is not a JSON object")
+		return nil, err
 	}
 
 	// 4. Token resolution: an explicit token_from dot-path reads the login
@@ -189,13 +192,27 @@ func ResolveAuthHeader(ctx context.Context, svcURL string, actor project.Actor) 
 		}
 	}
 
-	// 6. Interpolate {token} into inject_as and split into header name/value.
+	// 6. Optional http_login: run AFTER the primary login so its prerequisites
+	// (e.g. a user created by setup) exist, then capture the HTTP credential.
+	var httpToken string
+	if af.HTTPLogin != nil {
+		httpDecoded, err := sendLogin(ctx, svcURL, *af.HTTPLogin, vars)
+		if err != nil {
+			return nil, err
+		}
+		httpToken, err = extractByDotPath(httpDecoded, af.HTTPTokenFrom)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 7. Interpolate {token} into inject_as and split into header name/value.
 	header := interpolate(af.InjectAs, map[string]string{"{token}": token})
 	hName, hValue, ok := splitHeader(header)
 	if !ok {
 		return nil, fmt.Errorf("auth flow: inject_as %q is not a 'Name: Value' header", af.InjectAs)
 	}
-	return &AuthResult{HeaderName: hName, HeaderValue: hValue, RawToken: token, PathParams: pathParams}, nil
+	return &AuthResult{HeaderName: hName, HeaderValue: hValue, RawToken: token, PathParams: pathParams, HTTPToken: httpToken}, nil
 }
 
 // splitHeader splits "Name: Value" into name and value at the first colon.
