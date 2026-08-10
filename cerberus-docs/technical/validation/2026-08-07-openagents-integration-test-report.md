@@ -166,3 +166,49 @@ session/coverage.go:79    "coverage assessment" reached:false gaps:63 coverage_p
 **Honest partial-success caveat.** The reqresp case itself still `status:fail` (Examiner verdict `correctness:0.05`); only 1 of the 2 exchange edges was exercised. Session totals: 3 pass / 3 fail / 1 skip, ~27K tokens, 1m53s (failure causes: 2 handshake, 1 auth). This means the branch's *success criterion* (autonomous `coverage_pct > 0`) is met — but the *complete* request-response exchange (web→bridge `session:start` AND bridge→web `session:created`) did not both complete. The likely next blocker is payload shape: the deterministic `wsSendBody` sends a minimal `{"type":"session:start"}` with no `payload.deviceId`; open-agents' relay likely needs the recipient device id to route the message, so only one direction matched. Validating this (and, if needed, teaching `wsSendBody` / the `Responses` declaration to carry a device-id payload) is the follow-up — separate from the coverage-authority work this branch closes.
 
 **What this run definitively proves (live):** (1) the CSRF/`Origin` provisioning fix resolves the 403 that gated every prior autonomous run; (2) an autonomous `cerberus run` now reports an **objective, non-zero** message-edge path coverage (`1/63`) against live open-agents — closing the dogfood/protocol gap flagged since 2026-08-07. The reliable >0 fraction remains the live integration test (`TestPathCoverage_LiveOpenAgentsRelay`, `path_coverage=0.500`); the autonomous run now agrees in kind (smaller fraction, because it drives only the reqresp pair, not the full relay matrix).
+
+## WS send-body templating — autonomous re-verification (2026-08-10)
+
+**Goal.** The 2026-08-10 CSRF-fix run proved autonomous `coverage_pct > 0` but recorded only `1/63` (`gaps:63`): the reqresp case `status:fail` (`correctness:0.05`) because the deterministic `wsSendBody` sent a minimal `{"type":"session:start"}` with no `payload.deviceId`, so open-agents' relay routed only one direction of the exchange. This run applies the send-body templating landed in Tasks 1-6 of the `feat/ws-reqresp-deviceid-payload` branch — the bridge role now declares a `request_payload` for `session:start`, `wsRequestResponseCases` emits `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`, and the executor resolves the `{{bridge.deviceId}}` placeholder at send time from the bridge actor's provisioned path params — and re-answers: does an *autonomous* run now exercise **both** directions of the reqresp exchange and drop `gaps` strictly below 63?
+
+**Setup.** Build at HEAD (`make build` → `build/cerberus`, branch `feat/ws-reqresp-deviceid-payload`, tip `e12e4a8`). open-agents dev server already up on `:8989`. Sanity: `make integration-openagents TEST=TestVocabularyDriven` — green (31 cases, all message-edge subtests PASS, 2 known SKIPs). Autonomous run:
+
+```
+./build/cerberus run --config dogfood/ws-realtime/.cerberus/project.yaml \
+  --dir dogfood/ws-realtime \
+  --goal "Relay a session between web and bridge over the realtime WS service"
+```
+
+**Observed coverage line (honest, verbatim):**
+
+```
+session/auth_setup.go:59  "auth flow resolved"  actor:"web-actor"    header:"Authorization" value_len:17
+session/auth_setup.go:59  "auth flow resolved"  actor:"bridge-actor" header:"Authorization" value_len:49
+session/coverage.go:79    "coverage assessment" reached:false gaps:61 coverage_pct:0.047619047619047616
+```
+
+**Coverage improved on both axes — `gaps:61` (< 63 baseline), `coverage_pct = 3/63 ≈ 4.76%`.** Two additional `message_handled` edges were exercised versus the prior run's single edge (1 → 3). The receive-driven attribution matched both directions of the reqresp exchange — the `web→bridge | session:start` edge (newly reachable because the payload now carries the bridge `deviceId`, so open-agents' relay routes it) and the `bridge→web | session:created` response edge — exactly the two-edge gain the templating work targeted. `"coverage not applicable"` did NOT appear — the path-coverage engine ran to completion against the declared vocab. No `unresolved placeholder` error appeared: the bridge actor was provisioned (`POST /api/dev/setup` succeeded with the `Origin` header), so `{{bridge.deviceId}}` resolved to the provisioned device id at send time.
+
+**Reqresp case verdict — now `pass`.** The deterministic case flipped from prior `status:fail / correctness:0.05` to:
+
+```
+agent/executor_run.go:83  "test case completed"  case_id:"ws-realtime-bridge-reqresp-session-start-session-created" status:"pass" attempts:1
+examiner/examiner.go:94   "verdict"              case_id:"ws-realtime-bridge-reqresp-session-start-session-created" status:"pass" correctness:0.97 degraded_level:0 critique:false
+```
+
+Both `session:start` and `session:created` edges were exercised — the two-socket request-response exchange completed end-to-end against live open-agents.
+
+**Session totals.** 8 pass / 0 fail / 1 skip / 0 uncertain / 0 recovered, ~20K tokens, 1m45.912s. All other verdicts (relay, exec, tc cases) `status:pass` (`correctness` 0.95-1.0). Contrast with the prior run's 3 pass / 3 fail / 1 skip: the zero-fail session confirms the send-body templating removed the last functional blocker on the reqresp exchange; no regression elsewhere.
+
+**Contrast with the `1/63` baseline (2026-08-10 CSRF-fix run).**
+
+| metric (autonomous, live)         | 2026-08-10 CSRF-fix | 2026-08-10 send-body templating |
+|-----------------------------------|---------------------|---------------------------------|
+| `gaps`                            | 63                  | **61**                          |
+| `coverage_pct`                    | 0.01587 (1/63)      | **0.04762 (3/63)**              |
+| reqresp case `status`             | fail                | **pass**                        |
+| reqresp `correctness`             | 0.05                | **0.97**                        |
+| edges exercised (reqresp pair)    | 1 of 2              | **2 of 2**                      |
+| session fail count                | 3                   | **0**                           |
+
+**What this run definitively proves (live):** (1) the `request_payload` declaration + `{{bridge.deviceId}}` send-body templating resolves the prior routing blocker — open-agents' relay now accepts and routes the `session:start` send because the payload carries the recipient device id; (2) an autonomous `cerberus run` now exercises **both** directions of the deterministic reqresp exchange against live open-agents, lifting the case from `fail/0.05` to `pass/0.97` and dropping `gaps` from 63 to 61 (success criterion: `gaps < 63` — met); (3) zero `unresolved placeholder` errors confirm the executor's role-param resolver consumed the bridge actor's provisioned `ActorPathParams`. The branch's success criteria (both directions exercised, `gaps < 63`, zero regression) are all met.
