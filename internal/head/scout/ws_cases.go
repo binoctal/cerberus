@@ -301,7 +301,7 @@ func wsStepsCase(svc project.Service, role string, r *project.ProtocolRole, ex w
 		Priority:    0.8,
 		Steps: []agent.TestStep{
 			{Action: "ws_connect", ConnectionID: connID, Role: role},
-			{Action: "ws_send", ConnectionID: connID, Message: wsSendBody(ex.sendType)},
+			{Action: "ws_send", ConnectionID: connID, Message: wsSendBody(ex.sendType, nil)},
 			{Action: "ws_receive", ConnectionID: connID, Type: ex.recvType, Asserts: ex.asserts, Timeout: timeout, MatchAll: shouldMatchAllBatch(svc.Protocol, ex.recvType, ex.asserts)},
 		},
 	}
@@ -344,11 +344,19 @@ func shouldMatchAllBatch(proto *project.Protocol, recvType string, asserts map[s
 	return true
 }
 
-// wsSendBody builds the JSON payload for a ws_send step: a {"type": "<typ>"}
-// envelope matching the standard WS routing-key shape. json.Marshal of a
-// one-entry string map cannot fail; the error is intentionally ignored.
-func wsSendBody(typ string) string {
-	b, _ := json.Marshal(map[string]string{"type": typ})
+// wsSendBody builds the JSON payload for a ws_send step. With no payload it
+// emits the bare {"type": "<typ>"} envelope (the standard WS routing-key shape);
+// with a payload it emits {"type": "<typ>", "payload": {<field>: <value>, ...}}.
+// encoding/json sorts map keys, so the nested form is deterministic. Placeholder
+// templates (e.g. "{{bridge.deviceId}}") are carried verbatim and resolved at
+// send time by the executor. Marshal of these maps cannot fail; the error is
+// intentionally ignored.
+func wsSendBody(typ string, payload map[string]string) string {
+	if len(payload) == 0 {
+		b, _ := json.Marshal(map[string]string{"type": typ})
+		return string(b)
+	}
+	b, _ := json.Marshal(map[string]any{"type": typ, "payload": payload})
 	return string(b)
 }
 
@@ -632,9 +640,9 @@ func wsRequestResponseCases(svc project.Service) ([]agent.TestCase, map[string]b
 				Steps: []agent.TestStep{
 					{Action: "ws_connect", ConnectionID: requester, Role: requester},
 					{Action: "ws_connect", ConnectionID: rName, Role: rName},
-					{Action: "ws_send", ConnectionID: requester, Message: wsSendBody(recvType)},
+					{Action: "ws_send", ConnectionID: requester, Message: wsSendBody(recvType, nil)},
 					{Action: "ws_receive", ConnectionID: rName, Type: recvType, Timeout: 3},
-					{Action: "ws_send", ConnectionID: rName, Message: wsSendBody(sendType)},
+					{Action: "ws_send", ConnectionID: rName, Message: wsSendBody(sendType, nil)},
 					{Action: "ws_receive", ConnectionID: requester, Type: sendType, Timeout: 3},
 				},
 			})

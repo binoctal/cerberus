@@ -157,7 +157,7 @@ func (c *caseAssembler) handle(call llm.ToolCall) {
 			return
 		}
 		c.open.Steps = append(c.open.Steps, agent.TestStep{
-			Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type")),
+			Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type"), nil),
 		})
 	case "ws_receive":
 		if c.open == nil {

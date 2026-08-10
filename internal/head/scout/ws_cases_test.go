@@ -850,3 +850,13 @@ func TestWSCasesCovered_EmitsRequestResponse(t *testing.T) {
 	}
 	assert.True(t, found, "WSCasesCovered must emit the two-role request-response case")
 }
+
+func TestWsSendBody(t *testing.T) {
+	// No payload ⇒ bare type envelope, byte-identical to the historical form.
+	assert.Equal(t, `{"type":"session:start"}`, wsSendBody("session:start", nil))
+	assert.Equal(t, `{"type":"session:start"}`, wsSendBody("session:start", map[string]string{}))
+	// Payload present ⇒ nested envelope with the template carried verbatim.
+	// Keys are deterministically ordered by encoding/json (alphabetical).
+	assert.JSONEq(t, `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`,
+		wsSendBody("session:start", map[string]string{"deviceId": "{{bridge.deviceId}}"}))
+}
