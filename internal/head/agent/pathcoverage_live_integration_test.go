@@ -166,6 +166,7 @@ func TestPathCoverage_LiveSendBodyTemplating(t *testing.T) {
 		{FromRole: "bridge", ToRole: "web", Type: "session:created", Trigger: "message_handled"},
 	}
 	exercised := exercisedEdgesMirror(tc, result.Evidence, required)
+	t.Logf("sendbody-template: exercised=%v", exercised)
 	require.Contains(t, exercised, "web|bridge|session:start", "deviceId resolved ⇒ DO relayed session:start to bridge")
 	require.Contains(t, exercised, "bridge|web|session:created", "bridge replied and web received it")
 }

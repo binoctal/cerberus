@@ -121,7 +121,7 @@ Data flow: the placeholder is inert in the generated `Message` string; it is car
 - Unresolved placeholder at send time → step fails with `ws send: unresolved placeholder {{bridge.deviceId}}` (clear, names the token).
 - Missing connection (send on unknown id) → unchanged existing error.
 - `request_payload` references a role that is not declared → the dot form is left literal at resolution (no declared role match); since it is not a recognized placeholder it passes through as-is — consistent and debuggable.
-- Non-JSON-safe resolved values (e.g. containing quotes): `deviceId`/`userId` are path-safe identifiers by the authflow capture contract (`resolveURLParams` already relies on this); resolution substitutes as-is into the pre-marshaled JSON via the existing marshal path, not string interpolation, so JSON validity is preserved.
+- Non-JSON-safe resolved values (e.g. containing quotes): resolution substitutes the captured value directly into the marshaled body via `regexp` string replacement (`ReplaceAllStringFunc` over the pre-marshaled JSON). JSON validity is preserved because captured path params are path-safe identifiers — the same authflow capture contract that `resolveURLParams` already relies on; a value containing quotes or backslashes would break the surrounding JSON, so capture is intentionally limited to ids.
 
 ## Testing
 

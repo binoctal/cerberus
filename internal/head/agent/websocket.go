@@ -747,7 +747,10 @@ func (e *WebSocketExecutor) pathParamsFor(actor string) map[string]string {
 // wsBodyPlaceholderRe matches {{param}} / {{role.param}} send-body placeholders.
 // Double braces avoid collision with JSON object braces in the marshaled body.
 // The inner class is restricted to identifier/dot characters so JSON can never
-// match. (Consistent with the {{uuid}} role-param sentinel convention.)
+// match. (Consistent with the {{uuid}} role-param sentinel convention.) Unlike
+// resolveRoleParamValue, this resolver does NOT generate a UUID for {{uuid}}:
+// it would be treated as an owning-actor param lookup named "uuid" and hard-
+// fail if absent.
 var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.]+)\}\}`)
 
 // resolveMessageBody substitutes {{param}} / {{role.param}} placeholders in a
