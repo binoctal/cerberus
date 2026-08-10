@@ -19,6 +19,13 @@ actors:
       inject_as: "Authorization: Bearer {token}"
       path_params:
         userId: config.userId
+      http_login:
+        method: POST
+        path: /api/dev/login
+        body: {}
+        headers:
+          Origin: http://localhost:8989
+      http_token_from: token
   - name: bridge-actor
     credentials: {}   # token comes from the login response (deviceToken)
     auth:
