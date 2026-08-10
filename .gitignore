@@ -4,6 +4,7 @@ bin/
 *.exe
 /cerberus
 /slowtest
+/dogfood/ws-realtime/ws-realtime
 
 # Project runtime files (.cerberus/runtime/ at any depth, e.g. cmd/cerberus/.cerberus/)
 **/.cerberus/runtime/
