@@ -204,6 +204,30 @@ func TestFramingOf(t *testing.T) {
 	}
 }
 
+func TestBuildWSProtocolIndex_ActorHTTPTokens(t *testing.T) {
+	cfg := &project.Config{
+		Services: []project.Service{{
+			Name:     "realtime",
+			URL:      "http://h/ws/{userId}",
+			Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}}},
+		}},
+		Actors: []project.Actor{{
+			Name: "web-actor",
+			Credentials: project.CredentialRef{RawHTTPToken: "JWT-9", RawToken: "demo"},
+		}},
+	}
+	idx := BuildWSProtocolIndex(cfg)
+	if idx == nil {
+		t.Fatal("expected non-nil index")
+	}
+	if idx.ActorHTTPTokens["web-actor"] != "JWT-9" {
+		t.Fatalf("ActorHTTPTokens[web-actor] = %q, want JWT-9", idx.ActorHTTPTokens["web-actor"])
+	}
+	if idx.ActorTokens["web-actor"] != "demo" {
+		t.Fatalf("ActorTokens[web-actor] = %q, want demo (unchanged)", idx.ActorTokens["web-actor"])
+	}
+}
+
 // TestBuildWSProtocolIndex_StaticToken proves the static-Token fallback: an
 // actor with only Credentials.Token (no Auth flow / RawToken) still yields an
 // ActorTokens entry, a flow-resolved RawToken wins over the static Token, and
