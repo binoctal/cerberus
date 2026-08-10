@@ -760,25 +760,38 @@ var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.]+)\}\}`)
 // A declared-role or owning-actor placeholder with no captured value is a hard
 // error (clear failure over a silent malformed send); a dot placeholder whose
 // role is NOT declared is left literal (not interpreted). A body with no {{ is
-// returned verbatim.
+// returned verbatim. Substitution is delegated to the shared resolvePlaceholders
+// free function so http_request URL/body templating (Task 5) reuses the exact
+// same rule set; owningActor is this connection's credentialRef.
 func (e *WebSocketExecutor) resolveMessageBody(entry *wsEntry, msg string) (string, error) {
-	if !strings.Contains(msg, "{{") {
-		return msg, nil
+	return resolvePlaceholders(e.idx, entry.protocol, entry.credentialRef, msg)
+}
+
+// resolvePlaceholders substitutes {{param}} / {{role.param}} placeholders in
+// text against provisioned actor state: {{param}} reads the owning actor's
+// captured path params; {{role.param}} reads the named declared role's actor
+// params (cross-actor). A declared-role or owning-actor placeholder with no
+// captured value is a hard error; a dot placeholder whose role is NOT declared
+// is left literal. Text with no {{ is returned verbatim. This is the shared
+// resolver for ws_send bodies and http_request URL/body templates.
+func resolvePlaceholders(idx *WSProtocolIndex, proto *project.Protocol, owningActor, text string) (string, error) {
+	if !strings.Contains(text, "{{") {
+		return text, nil
 	}
 	var own map[string]string
-	if e.idx != nil && entry.credentialRef != "" {
-		own = e.idx.ActorPathParams[entry.credentialRef]
+	if idx != nil && owningActor != "" {
+		own = idx.ActorPathParams[owningActor]
 	}
 	var unresolved string
-	out := wsBodyPlaceholderRe.ReplaceAllStringFunc(msg, func(match string) string {
+	out := wsBodyPlaceholderRe.ReplaceAllStringFunc(text, func(match string) string {
 		token := match[2 : len(match)-2] // strip the {{ }} delimiters
 		if i := strings.IndexByte(token, '.'); i > 0 {
 			role, param := token[:i], token[i+1:]
-			if entry.protocol != nil {
-				if r, ok := entry.protocol.Roles[role]; ok && r != nil {
+			if proto != nil {
+				if r, ok := proto.Roles[role]; ok && r != nil {
 					// Declared role: resolve from its actor; a missing param is an error.
-					if r.CredentialRef != "" && e.idx != nil {
-						if v, ok := e.idx.ActorPathParams[r.CredentialRef][param]; ok {
+					if r.CredentialRef != "" && idx != nil {
+						if v, ok := idx.ActorPathParams[r.CredentialRef][param]; ok {
 							return v
 						}
 					}
