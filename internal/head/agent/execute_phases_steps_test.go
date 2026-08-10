@@ -39,6 +39,7 @@ func newStepExecutionWithIdx(t *testing.T, tc *TestCase, wsIdx *WSProtocolIndex)
 	loop := &ReActLoop{
 		executor: executor,
 		store:    s,
+		wsIdx:    wsIdx, // wire http_request resolution (runSteps reads loop.wsIdx)
 		logger:   zap.NewNop(),
 	}
 
