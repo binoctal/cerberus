@@ -83,6 +83,9 @@ func validateRole(name string, role *ProtocolRole, auth *ProtocolAuth, actors []
 	if err := validateProtocolResponses(name, role); err != nil {
 		return err
 	}
+	if err := validateProtocolRequestPayload(name, role); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -96,6 +99,24 @@ func validateProtocolResponses(roleName string, role *ProtocolRole) error {
 		}
 		if reply == "" {
 			return fmt.Errorf("roles[%q].responses[%q]: reply_type value is empty", roleName, recv)
+		}
+	}
+	return nil
+}
+
+// validateProtocolRequestPayload checks a role's request_payload map: the outer
+// received_type key and every inner field name must be non-empty. Placeholder
+// templates are NOT checked for resolvability here — resolution depends on
+// runtime provisioning and surfaces as a clear send-time failure.
+func validateProtocolRequestPayload(roleName string, role *ProtocolRole) error {
+	for recvType, fields := range role.RequestPayload {
+		if recvType == "" {
+			return fmt.Errorf("roles[%q].request_payload: received_type key is empty", roleName)
+		}
+		for field := range fields {
+			if field == "" {
+				return fmt.Errorf("roles[%q].request_payload[%q]: field name is empty", roleName, recvType)
+			}
 		}
 	}
 	return nil

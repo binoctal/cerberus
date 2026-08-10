@@ -71,6 +71,12 @@ type ProtocolRole struct {
 	// deterministic two-role request-response case generator. Empty ⇒ this role
 	// is never driven as a responder (backward-compatible).
 	Responses map[string]string `yaml:"responses,omitempty" json:"responses,omitempty"`
+	// RequestPayload declares the payload fields a requester must include when
+	// sending a given received_type to this role (received_type → {field → template}).
+	// Templates carry {{param}}/{{role.param}} placeholders resolved at send time
+	// from provisioned actor state. Drives the deterministic two-role
+	// request-response generator. Empty ⇒ the requester sends a bare type envelope.
+	RequestPayload map[string]map[string]string `yaml:"request_payload,omitempty" json:"request_payload,omitempty"`
 }
 
 // RoleHandshake declares the message the executor auto-awaits after connect.

@@ -169,3 +169,32 @@ func TestValidateProtocolRole_Responses(t *testing.T) {
 		t.Fatalf("empty reply_type value must fail")
 	}
 }
+
+func TestValidateProtocolRole_RequestPayload(t *testing.T) {
+	mk := func(rp map[string]map[string]string) *Protocol {
+		return &Protocol{
+			TypePath: "type",
+			Auth:     &ProtocolAuth{Strategy: "query", Param: "token"},
+			Roles: map[string]*ProtocolRole{
+				"web":    {Params: map[string]string{"type": "web"}},
+				"bridge": {Params: map[string]string{"type": "bridge"}, RequestPayload: rp},
+			},
+		}
+	}
+
+	if err := ValidateProtocol(mk(map[string]map[string]string{
+		"session:start": {"deviceId": "{{bridge.deviceId}}"},
+	}), nil); err != nil {
+		t.Fatalf("valid request_payload must pass: %v", err)
+	}
+	if err := ValidateProtocol(mk(map[string]map[string]string{
+		"": {"deviceId": "x"},
+	}), nil); err == nil {
+		t.Fatalf("empty received_type key must fail")
+	}
+	if err := ValidateProtocol(mk(map[string]map[string]string{
+		"session:start": {"": "x"},
+	}), nil); err == nil {
+		t.Fatalf("empty field name must fail")
+	}
+}
