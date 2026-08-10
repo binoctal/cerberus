@@ -3,8 +3,10 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
+	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 )
 
@@ -25,6 +27,11 @@ func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
 	}
 	if s.Action == "ws_send" {
 		ev.MatchedType = typeOfSend(s.Message)
+	}
+	if s.Action == "http_request" {
+		if hr, ok := result.(types.HTTPResult); ok {
+			ev.Content = fmt.Sprintf("http_request: %s %d", hr.URL, hr.StatusCode)
+		}
 	}
 	return ev
 }
@@ -76,6 +83,63 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 	default:
 		return nil, fmt.Errorf("steps: unknown action %q", s.Action)
 	}
+}
+
+// resolveHTTPStep turns an http_request TestStep into a dispatchable HTTPAction.
+// URL and Body {{param}}/{{role.param}} placeholders resolve from provisioned
+// actor state (resolvePlaceholders); AuthRole's actor HTTP token is injected as
+// "Authorization: Bearer <token>" unless an explicit Authorization header is
+// present (explicit headers win). The protocol is looked up by the URL host.
+func resolveHTTPStep(idx *WSProtocolIndex, tc *TestCase, s TestStep) (types.TypedAction, error) {
+	method := s.Method
+	if method == "" {
+		method = "GET"
+	}
+	proto := protocolForURL(idx, s.URL)
+	owningActor := ""
+	if proto != nil && s.AuthRole != "" {
+		if r := proto.Roles[s.AuthRole]; r != nil {
+			owningActor = r.CredentialRef
+		}
+	}
+	resolvedURL, err := resolvePlaceholders(idx, proto, owningActor, s.URL)
+	if err != nil {
+		return nil, fmt.Errorf("http_request: %w", err)
+	}
+	body := s.Body
+	if body != "" {
+		if b, berr := resolvePlaceholders(idx, proto, owningActor, body); berr == nil {
+			body = b
+		} else {
+			return nil, fmt.Errorf("http_request: %w", berr)
+		}
+	}
+	headers := map[string]string{}
+	for k, v := range s.Headers {
+		headers[k] = v
+	}
+	if s.AuthRole != "" && owningActor != "" && idx != nil {
+		if tok := idx.ActorHTTPTokens[owningActor]; tok != "" {
+			if _, set := headers["Authorization"]; !set {
+				headers["Authorization"] = "Bearer " + tok
+			}
+		} else {
+			return nil, fmt.Errorf("http_request: no http token for actor %q", owningActor)
+		}
+	}
+	return types.HTTPAction{Method: method, URL: resolvedURL, Headers: headers, Body: body}, nil
+}
+
+// protocolForURL returns the declared protocol for a URL's host, or nil.
+func protocolForURL(idx *WSProtocolIndex, rawURL string) *project.Protocol {
+	if idx == nil {
+		return nil
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil
+	}
+	return idx.ByHost[u.Host]
 }
 
 // suppressAwaitTypes pre-scans a case's Steps and returns, per connection_id,
@@ -132,7 +196,13 @@ func (se *stepExecution) runSteps() StepResult {
 	var lastAction types.TypedAction
 	var lastResult types.ExecutorResult
 	for _, s := range se.tc.Steps {
-		action, err := stepToAction(se.tc, s)
+		var action types.TypedAction
+		var err error
+		if s.Action == "http_request" {
+			action, err = resolveHTTPStep(r.wsIdx, se.tc, s)
+		} else {
+			action, err = stepToAction(se.tc, s)
+		}
 		if err != nil {
 			return se.failureResult(err, 1)
 		}
@@ -150,6 +220,15 @@ func (se *stepExecution) runSteps() StepResult {
 		r.recordEvidence(se.ctx, se.traceID, "steps", action, result)
 		evidence = append(evidence, stepEvidence(s, result))
 		lastAction, lastResult = action, result
+		// http_request explicit status assertion: when expect_status is set, a
+		// non-matching status fails the step regardless of the executor's own
+		// success/ok gate.
+		if s.Action == "http_request" && s.ExpectStatus != 0 {
+			if hr, ok := result.(types.HTTPResult); ok && hr.StatusCode != s.ExpectStatus {
+				return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
+					Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}
+			}
+		}
 		if !result.Success() {
 			return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
 				Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}

@@ -85,6 +85,20 @@ type TestStep struct {
 	MatchAll     bool           `json:"match_all,omitempty"`     // ws_receive: collect every matching item in the burst (see WSReceiveAction.MatchAll)
 	Timeout      int            `json:"timeout,omitempty"`       // ws_receive: seconds (0 ⇒ executor default)
 	ExpectAbsent bool           `json:"expect_absent,omitempty"` // ws_receive: assert the type does NOT arrive (sender-exclusion probe)
+	// http_request: HTTP method (GET/POST/...). Defaults to GET when empty.
+	Method string `json:"method,omitempty"`
+	// http_request: explicit request headers (e.g. an injected Authorization).
+	// When AuthRole is also set, explicit Headers override the auth header.
+	Headers map[string]string `json:"headers,omitempty"`
+	// http_request: request body (raw string, typically JSON).
+	Body string `json:"body,omitempty"`
+	// http_request: expected response status; 0 ⇒ do not assert (rely on the
+	// executor's own success/ok gate).
+	ExpectStatus int `json:"expect_status,omitempty"`
+	// http_request: a declared role whose actor's HTTP token (http_login) is
+	// injected as Authorization: Bearer <token>. Empty ⇒ no auth injection
+	// (Headers must supply auth, if needed).
+	AuthRole string `json:"auth_role,omitempty"`
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.

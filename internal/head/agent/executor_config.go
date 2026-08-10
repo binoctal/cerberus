@@ -18,6 +18,7 @@ type ReActLoopConfig struct {
 	Store    *store.Store
 	Engine   *RuleEngine
 	Executor TypedExecutor
+	WSIdx    *WSProtocolIndex
 	Config   ReActConfig
 	Gate     escalation.Gate
 	Logger   *zap.Logger
@@ -36,6 +37,7 @@ func NewReActLoopWithGateWithConfig(cfg ReActLoopConfig) *ReActLoop {
 		store:       cfg.Store,
 		engine:      cfg.Engine,
 		executor:    cfg.Executor,
+		wsIdx:       cfg.WSIdx,
 		recovery:    NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger, cfg.Embedder),
 		config:      cfg.Config,
 		gate:        cfg.Gate,

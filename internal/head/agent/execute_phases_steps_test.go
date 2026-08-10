@@ -613,3 +613,59 @@ func TestStepEvidenceExpectAbsentThreaded(t *testing.T) {
 	require.Equal(t, "c1", ev.ConnectionID)
 	require.Equal(t, "workflow:task_progress", ev.MatchedType)
 }
+
+func TestResolveHTTPStep(t *testing.T) {
+	idx := &WSProtocolIndex{
+		ByHost:          map[string]*project.Protocol{"localhost:8989": nil},
+		ActorPathParams: map[string]map[string]string{"bridge-actor": {"deviceId": "device_xyz"}},
+		ActorHTTPTokens: map[string]string{"web-actor": "JWT-1"},
+	}
+	proto := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"web":    {CredentialRef: "web-actor"},
+		"bridge": {CredentialRef: "bridge-actor"},
+	}}
+	idx.ByHost["localhost:8989"] = proto
+
+	t.Run("auth + url placeholder", func(t *testing.T) {
+		s := TestStep{
+			Action: "http_request", Method: "POST",
+			URL:      "http://localhost:8989/api/devices/{{bridge.deviceId}}/restart",
+			AuthRole: "web", ExpectStatus: 200,
+		}
+		a, err := resolveHTTPStep(idx, &TestCase{}, s)
+		if err != nil {
+			t.Fatalf("resolveHTTPStep: %v", err)
+		}
+		ha, ok := a.(types.HTTPAction)
+		if !ok {
+			t.Fatalf("got %T, want HTTPAction", a)
+		}
+		if ha.URL != "http://localhost:8989/api/devices/device_xyz/restart" {
+			t.Fatalf("URL = %q", ha.URL)
+		}
+		if ha.Headers["Authorization"] != "Bearer JWT-1" {
+			t.Fatalf("Authorization = %q", ha.Headers["Authorization"])
+		}
+		if ha.Method != "POST" {
+			t.Fatalf("Method = %q", ha.Method)
+		}
+	})
+	t.Run("explicit header overrides auth", func(t *testing.T) {
+		s := TestStep{Action: "http_request", URL: "http://localhost:8989/x",
+			AuthRole: "web", Headers: map[string]string{"Authorization": "Bearer OVERRIDE"}}
+		a, err := resolveHTTPStep(idx, &TestCase{}, s)
+		if err != nil {
+			t.Fatalf("resolveHTTPStep: %v", err)
+		}
+		if a.(types.HTTPAction).Headers["Authorization"] != "Bearer OVERRIDE" {
+			t.Fatalf("expected explicit override")
+		}
+	})
+	t.Run("missing http token fails", func(t *testing.T) {
+		s := TestStep{Action: "http_request", URL: "http://localhost:8989/x", AuthRole: "bridge"}
+		_, err := resolveHTTPStep(idx, &TestCase{}, s)
+		if err == nil {
+			t.Fatal("expected error: bridge has no http token")
+		}
+	})
+}
