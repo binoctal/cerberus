@@ -137,3 +137,32 @@ The open-agents dev server's CSRF middleware requires an `Origin` header on POST
 **Follow-up (real root cause, not the predicted deviceId gap).** Add CSRF-safe header synthesis to the runtime authflow — either auto-set `Origin: <login host>` on authflow POSTs (matching the dev server's requirement and what the integration harness already does), or surface a `Login.Headers` escape hatch in the dogfood `project.yaml` so `Origin` can be declared without code changes. The minimal `wsSendBody` payload (`{"type":"session:start"}`) was NOT the blocker on this run; whether open-agents additionally requires `payload.deviceId` on `session:start` for the exchange to complete remains to be validated once provisioning succeeds.
 
 **Reliable proof of the measurement machinery.** As in the prior note, the objective >0 proof path is the live integration test, not the autonomous run: `TestVocabularyDriven` (green above, 31 cases) and `TestPathCoverage_LiveOpenAgentsRelay` (commit e46b390, `path_coverage=0.500`) exercise the receive-driven attribution and the deterministic `PathThreshold=1.0` gate against real open-agents evidence with explicit `Origin` provisioning. The autonomous run's 0% is a provisioning-wiring gap, not a coverage-model regression.
+
+## Autonomous WS message coverage — CSRF fix re-verification (2026-08-10)
+
+**Goal.** The 2026-08-08 run proved the coverage machinery is objective but recorded `coverage_pct:0` because both actors were rejected at provisioning (`POST /api/dev/setup` → 403: the open-agents CSRF middleware requires an `Origin` header). This run applies the documented follow-up fix — declaring `Origin` via the supported `Login.Headers` escape hatch in the dogfood `project.yaml` (commit `26c7e24`, config-only, no runtime code change) — and re-answers: does an *autonomous* run now report `coverage_pct > 0`?
+
+**Provisioning root cause — confirmed and fixed.** Direct probe against the live dev server (`wrangler dev --port 8989`):
+
+```
+POST /api/dev/setup  (no Origin)            → 403
+POST /api/dev/setup  (Origin: localhost)    → 200, {"config":{"userId":"user_...","deviceId":"device_...","deviceToken":"token_..."}}
+```
+
+Cross-call determinism verified: `userId` is identical across independent `/api/dev/setup` calls within a server session (so web-actor and bridge-actor, each provisioning independently, land on the **same** Durable Object); `deviceId` differs per call (each provisions its own device). The `path_params` dot-paths in `project.yaml` (`config.userId` / `config.deviceId` / `config.deviceToken`) match the response shape.
+
+**Run.** `make build` at HEAD `26c7e24`; open-agents up on `:8989`; autonomous run against `dogfood/ws-realtime/.cerberus/project.yaml`.
+
+**Observed coverage line (honest, verbatim):**
+
+```
+session/auth_setup.go:59  "auth flow resolved"  actor:"web-actor"    value_len:17   (Bearer demo_token)
+session/auth_setup.go:59  "auth flow resolved"  actor:"bridge-actor" value_len:49   (Bearer <provisioned deviceToken>)
+session/coverage.go:79    "coverage assessment" reached:false gaps:63 coverage_pct:0.015873015873015872
+```
+
+**Coverage is now >0** — `coverage_pct = 1/63 ≈ 1.59%`, an objective, measured fraction. `gaps` dropped from 64 to 63: exactly **one** `message_handled` edge was exercised under receive-driven attribution. Contrast with every prior autonomous run on this dogfood (0/64): the CSRF fix let both actors authenticate, the deterministic `wsRequestResponseCases` case (`ws-realtime-bridge-reqresp-session-start-session-created`) executed a real two-socket exchange against live open-agents, and at least one declared message edge was matched on the receive side. `"coverage not applicable"` did NOT appear — the path-coverage engine ran to completion against the declared vocab.
+
+**Honest partial-success caveat.** The reqresp case itself still `status:fail` (Examiner verdict `correctness:0.05`); only 1 of the 2 exchange edges was exercised. Session totals: 3 pass / 3 fail / 1 skip, ~27K tokens, 1m53s (failure causes: 2 handshake, 1 auth). This means the branch's *success criterion* (autonomous `coverage_pct > 0`) is met — but the *complete* request-response exchange (web→bridge `session:start` AND bridge→web `session:created`) did not both complete. The likely next blocker is payload shape: the deterministic `wsSendBody` sends a minimal `{"type":"session:start"}` with no `payload.deviceId`; open-agents' relay likely needs the recipient device id to route the message, so only one direction matched. Validating this (and, if needed, teaching `wsSendBody` / the `Responses` declaration to carry a device-id payload) is the follow-up — separate from the coverage-authority work this branch closes.
+
+**What this run definitively proves (live):** (1) the CSRF/`Origin` provisioning fix resolves the 403 that gated every prior autonomous run; (2) an autonomous `cerberus run` now reports an **objective, non-zero** message-edge path coverage (`1/63`) against live open-agents — closing the dogfood/protocol gap flagged since 2026-08-07. The reliable >0 fraction remains the live integration test (`TestPathCoverage_LiveOpenAgentsRelay`, `path_coverage=0.500`); the autonomous run now agrees in kind (smaller fraction, because it drives only the reqresp pair, not the full relay matrix).
