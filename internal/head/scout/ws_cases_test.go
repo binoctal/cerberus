@@ -860,3 +860,49 @@ func TestWsSendBody(t *testing.T) {
 	assert.JSONEq(t, `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`,
 		wsSendBody("session:start", map[string]string{"deviceId": "{{bridge.deviceId}}"}))
 }
+
+func TestWsRequestResponseCases_RequestPayload(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web": {Params: map[string]string{"type": "web"}},
+			"bridge": {
+				Params:    map[string]string{"type": "bridge"},
+				Responses: map[string]string{"session:start": "session:created"},
+				RequestPayload: map[string]map[string]string{
+					"session:start": {"deviceId": "{{bridge.deviceId}}"},
+				},
+			},
+		}},
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "web", ToRole: "bridge", Type: "session:start", Trigger: "message_handled"},
+			{FromRole: "bridge", ToRole: "web", Type: "session:created", Trigger: "message_handled"},
+		}},
+	}
+	cases, connected := wsRequestResponseCases(svc)
+	require.Len(t, cases, 1)
+	// Step index 2 is the requester's ws_send of the received type.
+	sendStep := cases[0].Steps[2]
+	require.Equal(t, "ws_send", sendStep.Action)
+	assert.JSONEq(t, `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`, sendStep.Message)
+	assert.True(t, connected["web"] && connected["bridge"])
+}
+
+func TestWsRequestResponseCases_RequestPayloadAbsent(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime", URL: "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+			"web":    {Params: map[string]string{"type": "web"}},
+			"bridge": {Params: map[string]string{"type": "bridge"}, Responses: map[string]string{"session:start": "session:created"}},
+		}},
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "web", ToRole: "bridge", Type: "session:start", Trigger: "message_handled"},
+			{FromRole: "bridge", ToRole: "web", Type: "session:created", Trigger: "message_handled"},
+		}},
+	}
+	cases, _ := wsRequestResponseCases(svc)
+	require.Len(t, cases, 1)
+	// No request_payload ⇒ bare type envelope (byte-identical to pre-feature).
+	assert.Equal(t, `{"type":"session:start"}`, cases[0].Steps[2].Message)
+}

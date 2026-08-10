@@ -640,7 +640,7 @@ func wsRequestResponseCases(svc project.Service) ([]agent.TestCase, map[string]b
 				Steps: []agent.TestStep{
 					{Action: "ws_connect", ConnectionID: requester, Role: requester},
 					{Action: "ws_connect", ConnectionID: rName, Role: rName},
-					{Action: "ws_send", ConnectionID: requester, Message: wsSendBody(recvType, nil)},
+					{Action: "ws_send", ConnectionID: requester, Message: wsSendBody(recvType, role.RequestPayload[recvType])},
 					{Action: "ws_receive", ConnectionID: rName, Type: recvType, Timeout: 3},
 					{Action: "ws_send", ConnectionID: rName, Message: wsSendBody(sendType, nil)},
 					{Action: "ws_receive", ConnectionID: requester, Type: sendType, Timeout: 3},
