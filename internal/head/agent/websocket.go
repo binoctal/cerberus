@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -52,15 +53,16 @@ type wsMsg struct {
 // drain the msgs channel under readMu — they never call conn.Read directly, so
 // concurrent reads are structurally impossible.
 type wsEntry struct {
-	conn       *websocket.Conn
-	ctx        context.Context   // per-case ctx; cancellation closes the conn
-	protocol   *project.Protocol // service protocol resolved at connect; nil = M0
-	msgs       chan wsMsg        // buffered (256); pump pushes every inbound frame
-	pumpErr    error             // set when the pump exits (read error / ctx done)
-	done       chan struct{}     // closed when the pump has exited
-	readMu     sync.Mutex        // serializes channel consumption (one consumer at a time)
-	pending    wsMsg             // a frame peeked then put back by readMatchingAll
-	hasPending bool              // pending holds a frame when true
+	conn          *websocket.Conn
+	ctx           context.Context   // per-case ctx; cancellation closes the conn
+	protocol      *project.Protocol // service protocol resolved at connect; nil = M0
+	credentialRef string            // actor that opened this conn; for {{param}}/{{role.param}} send-body templating
+	msgs          chan wsMsg        // buffered (256); pump pushes every inbound frame
+	pumpErr       error             // set when the pump exits (read error / ctx done)
+	done          chan struct{}     // closed when the pump has exited
+	readMu        sync.Mutex        // serializes channel consumption (one consumer at a time)
+	pending       wsMsg             // a frame peeked then put back by readMatchingAll
+	hasPending    bool              // pending holds a frame when true
 }
 
 // matchAllGrace is the idle gap that ends a MatchAll burst. It covers the pump's
@@ -143,13 +145,14 @@ func wsURL(u string) string {
 	return u
 }
 
-func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.Context, proto *project.Protocol) {
+func (e *WebSocketExecutor) store(id string, conn *websocket.Conn, ctx context.Context, proto *project.Protocol, credentialRef string) {
 	entry := &wsEntry{
-		conn:     conn,
-		ctx:      ctx,
-		protocol: proto,
-		msgs:     make(chan wsMsg, 256),
-		done:     make(chan struct{}),
+		conn:          conn,
+		ctx:           ctx,
+		protocol:      proto,
+		credentialRef: credentialRef,
+		msgs:          make(chan wsMsg, 256),
+		done:          make(chan struct{}),
 	}
 	e.mu.Lock()
 	e.conns[id] = entry
@@ -501,7 +504,7 @@ func (e *WebSocketExecutor) doConnect(ctx context.Context, a types.WSConnectActi
 	// LLM-supplied connection_id do not collide. The user-facing id (returned
 	// in any future result field) remains the un-namespaced id.
 	key := caseNamespace(ctx, id)
-	e.store(key, conn, ctx, proto)
+	e.store(key, conn, ctx, proto, credentialRef)
 	// Auto-handshake (role with handshake declared). The handshake is
 	// non-decisive: a match means "connection ready", not "case passed", so
 	// ws_connect stays an intermediate step. readMatching drains the pump under
@@ -741,6 +744,67 @@ func (e *WebSocketExecutor) pathParamsFor(actor string) map[string]string {
 	return e.idx.ActorPathParams[actor]
 }
 
+// wsBodyPlaceholderRe matches {{param}} / {{role.param}} send-body placeholders.
+// Double braces avoid collision with JSON object braces in the marshaled body.
+// The inner class is restricted to identifier/dot characters so JSON can never
+// match. (Consistent with the {{uuid}} role-param sentinel convention.)
+var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.]+)\}\}`)
+
+// resolveMessageBody substitutes {{param}} / {{role.param}} placeholders in a
+// ws_send body against provisioned actor state: {{param}} reads the connection
+// owner's captured path params; {{role.param}} reads the named declared role's
+// actor params (cross-actor — a web sender can reach a bridge peer's deviceId).
+// A declared-role or owning-actor placeholder with no captured value is a hard
+// error (clear failure over a silent malformed send); a dot placeholder whose
+// role is NOT declared is left literal (not interpreted). A body with no {{ is
+// returned verbatim.
+func (e *WebSocketExecutor) resolveMessageBody(entry *wsEntry, msg string) (string, error) {
+	if !strings.Contains(msg, "{{") {
+		return msg, nil
+	}
+	var own map[string]string
+	if e.idx != nil && entry.credentialRef != "" {
+		own = e.idx.ActorPathParams[entry.credentialRef]
+	}
+	var unresolved string
+	out := wsBodyPlaceholderRe.ReplaceAllStringFunc(msg, func(match string) string {
+		token := match[2 : len(match)-2] // strip the {{ }} delimiters
+		if i := strings.IndexByte(token, '.'); i > 0 {
+			role, param := token[:i], token[i+1:]
+			if entry.protocol != nil {
+				if r, ok := entry.protocol.Roles[role]; ok && r != nil {
+					// Declared role: resolve from its actor; a missing param is an error.
+					if r.CredentialRef != "" && e.idx != nil {
+						if v, ok := e.idx.ActorPathParams[r.CredentialRef][param]; ok {
+							return v
+						}
+					}
+					if unresolved == "" {
+						unresolved = match
+					}
+					return match
+				}
+			}
+			// Undeclared role: not a placeholder, leave it literal.
+			return match
+		}
+		// Owning-actor {{param}}.
+		if own != nil {
+			if v, ok := own[token]; ok {
+				return v
+			}
+		}
+		if unresolved == "" {
+			unresolved = match
+		}
+		return match
+	})
+	if unresolved != "" {
+		return "", fmt.Errorf("unresolved placeholder %s", unresolved)
+	}
+	return out, nil
+}
+
 // resolveURLParams substitutes {name} placeholders in rawURL from params.
 // After substitution, any leftover placeholder means a placeholder with no
 // captured value: that is a hard error (clear failure over a silent wrong dial)
@@ -909,6 +973,10 @@ func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, st
 	if !ok {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
 	}
+	resolved, rerr := e.resolveMessageBody(entry, a.Message)
+	if rerr != nil {
+		return types.WSResult{OK: false, Err: "ws send: " + rerr.Error(), Latency: time.Since(start)}
+	}
 	conn := entry.conn
 	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -916,7 +984,7 @@ func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, st
 	// binary frame. json/text framing: write the message string as a text frame
 	// (json and text sends are byte-identical on the wire).
 	if framingOf(entry) == "binary" {
-		decoded, err := base64.StdEncoding.DecodeString(a.Message)
+		decoded, err := base64.StdEncoding.DecodeString(resolved)
 		if err != nil {
 			return types.WSResult{OK: false, Err: "send: message is not valid base64", Latency: time.Since(start)}
 		}
@@ -925,7 +993,7 @@ func (e *WebSocketExecutor) doSend(ctx context.Context, a types.WSSendAction, st
 		}
 		return types.WSResult{OK: true, Latency: time.Since(start)}
 	}
-	if err := conn.Write(writeCtx, websocket.MessageText, []byte(a.Message)); err != nil {
+	if err := conn.Write(writeCtx, websocket.MessageText, []byte(resolved)); err != nil {
 		return types.WSResult{OK: false, Err: fmt.Sprintf("write: %v", err), Latency: time.Since(start)}
 	}
 	return types.WSResult{OK: true, Latency: time.Since(start)}

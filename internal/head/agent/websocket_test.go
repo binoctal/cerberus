@@ -2499,3 +2499,48 @@ func TestWSReceiveExpectAbsentRejectsMatchAll(t *testing.T) {
 		t.Fatalf("error should name the incompatibility: %s", ws.Err)
 	}
 }
+
+func TestResolveMessageBody(t *testing.T) {
+	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"bridge": {CredentialRef: "bridge-actor"},
+	}}
+	e := &WebSocketExecutor{idx: &WSProtocolIndex{
+		ActorPathParams: map[string]map[string]string{
+			"web-actor":    {"userId": "u1"},
+			"bridge-actor": {"deviceId": "dev_9", "userId": "u1"},
+		},
+	}}
+	entry := &wsEntry{protocol: p, credentialRef: "web-actor"}
+
+	// owning-actor placeholder resolves from the connection owner's params.
+	got, err := e.resolveMessageBody(entry, `{"type":"x","payload":{"userId":"{{userId}}"}}`)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"x","payload":{"userId":"u1"}}`, got)
+
+	// cross-actor placeholder resolves from the declared role's actor.
+	got, err = e.resolveMessageBody(entry, `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"session:start","payload":{"deviceId":"dev_9"}}`, got)
+
+	// no placeholder → verbatim; JSON object braces are untouched (no false match).
+	in := `{"type":"session:start","payload":{"deviceId":"none"}}`
+	got, err = e.resolveMessageBody(entry, in)
+	require.NoError(t, err)
+	assert.Equal(t, in, got)
+
+	// undeclared role in a dot placeholder is left literal, no error.
+	got, err = e.resolveMessageBody(entry, `{"k":"{{ghost.x}}"}`)
+	require.NoError(t, err)
+	assert.Equal(t, `{"k":"{{ghost.x}}"}`, got)
+
+	// declared role but missing param → hard fail naming the placeholder.
+	_, err = e.resolveMessageBody(entry, `{"k":"{{bridge.noSuch}}"}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unresolved placeholder")
+	assert.Contains(t, err.Error(), "{{bridge.noSuch}}")
+
+	// owning-actor missing param → hard fail.
+	_, err = e.resolveMessageBody(entry, `{"k":"{{noSuch}}"}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unresolved placeholder")
+}
