@@ -28,7 +28,7 @@ Let any deterministic `ws_send` step carry a **templated payload** whose placeho
 
 ## Success Criteria
 
-1. A `ws_send` whose `Message` contains `{role.param}` / `{param}` placeholders has them resolved against captured path params before the frame is written; an unresolved placeholder fails the step with a clear error.
+1. A `ws_send` whose `Message` contains `{{role.param}}` / `{{param}}` placeholders has them resolved against captured path params before the frame is written; an unresolved placeholder fails the step with a clear error.
 2. The reqresp case for `session:start → session:created` completes **both** directions against live open-agents: bridge receives `session:start` AND web receives `session:created`.
 3. Autonomous `cerberus run` against `ws-realtime`: `coverage assessment` gaps drop below 63 (≥2 message edges exercised), and the reqresp case verdict improves from `fail` toward `pass` (Examiner correctness rises materially). The exact number is recorded honestly from the run, not asserted.
 4. Zero regression: protocols/roles without `request_payload` and messages without placeholders produce byte-identical sends and identical case generation.
@@ -39,18 +39,20 @@ Let any deterministic `ws_send` step carry a **templated payload** whose placeho
 
 deviceId is provisioned at runtime (per-actor `/api/dev/setup`); it is unknown at plan time when scout generates cases. Therefore placeholder resolution **must** happen at send time. `doSend` is the universal wire boundary: it already holds the connection `entry` (which carries the connection's `protocol`) and `e.idx.ActorPathParams` (every actor's captured params, keyed by actor name). Resolving there makes the mechanism producer-agnostic — reqresp, relay, and any future LLM-authored send all pass through the same resolver.
 
-Small supporting change: the connection entry currently stores only the `protocol`; it must also store the `credentialRef` that opened it, so an owning-actor `{param}` (and the role→credentialRef lookup for `{role.param}`) can resolve. `doConnect` already computes `credentialRef`; it just does not persist it.
+Small supporting change: the connection entry currently stores only the `protocol`; it must also store the `credentialRef` that opened it, so an owning-actor `{{param}}` (and the role→credentialRef lookup for `{{role.param}}`) can resolve. `doConnect` already computes `credentialRef`; it just does not persist it.
 
 Rejected: resolving in `runSteps`/`stepToAction` — those live in the agent package and have no access to the executor's `idx`.
 
 ### D2 — Placeholder syntax
 
-- `{param}` resolves from the **connection-owning actor's** captured path params (the `credentialRef` that opened this connection). Mirrors `resolveURLParams`'s single-source `{name}` convention.
-- `{role.param}` is **role-qualified** (dot splits role name from param). Resolves as `proto.Roles[role].CredentialRef → e.idx.ActorPathParams[credRef][param]`. This is the cross-actor form required when a sender needs a peer's id (web needs bridge's deviceId).
-- The dot form is only interpreted when the text before the dot names a declared role; otherwise the token is left literal (no accidental partial substitution).
+Placeholders use **double braces** `{{...}}`, not single. A ws_send `Message` is JSON; single-brace `{...}` would collide with JSON object braces and make reliable matching impossible. Double-brace is also consistent with the existing `{{uuid}}` role-param sentinel (`resolveRoleParamValue`).
+
+- `{{param}}` resolves from the **connection-owning actor's** captured path params (the `credentialRef` that opened this connection).
+- `{{role.param}}` is **role-qualified** (dot splits role name from param). Resolves as `proto.Roles[role].CredentialRef → e.idx.ActorPathParams[credRef][param]`. This is the cross-actor form required when a sender needs a peer's id (web needs bridge's deviceId).
+- The dot form is only interpreted when the text before the dot names a declared role; otherwise the token is left literal (no accidental partial substitution). The placeholder scanner matches only `{{[A-Za-z0-9_.]+}}`, so JSON braces never match.
 - **Unresolved placeholder ⇒ hard step failure** naming the placeholder, following `resolveURLParams`'s "clear failure over a silent wrong send". A message with no placeholders is sent verbatim.
 
-`{param}` and `{role.param}` are distinct from the existing connect-URL `{name}` only in where they apply (send body vs dial URL); the substitution mechanic is identical and reused.
+`{{param}}` / `{{role.param}}` apply to the send body; the existing connect-URL `{name}` (single brace) applies to the dial URL. The two never overlap (URL vs body), and each is scoped to its own substitution pass.
 
 ### D3 — Template source for the reqresp generator: an optional `request_payload` sibling field
 
@@ -70,10 +72,10 @@ bridge:
     session:start: session:created
   request_payload:            # NEW — optional, map[received_type]map[field]template
     session:start:
-      deviceId: "{bridge.deviceId}"
+      deviceId: "{{bridge.deviceId}}"
 ```
 
-Semantics: when the reqresp generator builds the **requester's** send of `recvType` to responder role `R`, it looks up `R.RequestPayload[recvType]`. If present, the send body is `{"type":<recvType>,"payload":{<field>:<resolved template>,...}}`; if absent, the body is the current `{"type":<recvType>}` (byte-identical). The generator knows the responder role name at emit time, so `{bridge.deviceId}` could equivalently be written generically by the generator — but the **field name** (`deviceId`) is protocol-specific and must come from the declaration.
+Semantics: when the reqresp generator builds the **requester's** send of `recvType` to responder role `R`, it looks up `R.RequestPayload[recvType]`. If present, the send body is `{"type":<recvType>,"payload":{<field>:<template>,...}}` with placeholders resolved at send time; if absent, the body is the current `{"type":<recvType>}` (byte-identical). The generator knows the responder role name at emit time, so the role part of `{{bridge.deviceId}}` could be written generically — but the **field name** (`deviceId`) is protocol-specific and must come from the declaration.
 
 `request_payload` is `map[string]map[string]string`: outer key = received message type, inner = payload field → placeholder template. Validation (D5): non-empty type token; field names non-empty.
 
@@ -95,8 +97,8 @@ scout (plan time)                         agent executor (run time)
 ─────────────────                         ────────────────────────
 wsRequestResponseCases                    doSend(action)
   reads role.RequestPayload[recvType]       entry := lookup(conn)           // has protocol + credentialRef
-  → wsSendBody(recvType, payload)           msg  := resolveMessageBody(entry, action.Message, e.idx)
-       = {"type":T,"payload":{..:{role.p}}}       // {param}←owning actor, {role.param}←role's actor
+  → wsSendBody(recvType, payload)           msg  := resolveMessageBody(entry, action.Message)
+       = {"type":T,"payload":{..:{{role.p}}}}    // {{param}}←owning actor, {{role.param}}←role's actor
                                                  // unresolved ⇒ hard fail
                                              conn.Write(msg)
 ```
@@ -107,7 +109,7 @@ Data flow: the placeholder is inert in the generated `Message` string; it is car
 
 | Unit | Responsibility | Depends on |
 |---|---|---|
-| `resolveMessageBody(entry, msg, idx) (string, error)` (new, `internal/head/agent/websocket.go`) | Resolve `{param}` / `{role.param}` in a send body; hard-fail on unresolved. | `entry.protocol`, `entry.credentialRef`, `e.idx.ActorPathParams` |
+| `resolveMessageBody(entry, msg) (string, error)` (new, `internal/head/agent/websocket.go`) | Resolve `{{param}}` / `{{role.param}}` in a send body; hard-fail on unresolved. | `entry.protocol`, `entry.credentialRef`, `e.idx.ActorPathParams` |
 | `connEntry.credentialRef` (new field) | Record which actor opened the connection. | set in `doConnect`, stored via `store` |
 | `ProtocolRole.RequestPayload map[string]map[string]string` (new field, `internal/project/protocol_schema.go`) | Declare the payload template a requester must include per received type. | — |
 | `validateProtocolRequestPayload` (new, `internal/project/validate_protocol.go`) | Validate the declaration shape. | wired into the per-role loop |
@@ -116,15 +118,15 @@ Data flow: the placeholder is inert in the generated `Message` string; it is car
 
 ## Error Handling
 
-- Unresolved placeholder at send time → step fails with `ws send: unresolved placeholder {bridge.deviceId}` (clear, names the token).
+- Unresolved placeholder at send time → step fails with `ws send: unresolved placeholder {{bridge.deviceId}}` (clear, names the token).
 - Missing connection (send on unknown id) → unchanged existing error.
-- `request_payload` references a role that is not declared → the dot form is left literal at resolution (no declared role match), then surfaces as an unresolved-placeholder failure if the literal `{...}` survives — consistent and debuggable.
+- `request_payload` references a role that is not declared → the dot form is left literal at resolution (no declared role match); since it is not a recognized placeholder it passes through as-is — consistent and debuggable.
 - Non-JSON-safe resolved values (e.g. containing quotes): `deviceId`/`userId` are path-safe identifiers by the authflow capture contract (`resolveURLParams` already relies on this); resolution substitutes as-is into the pre-marshaled JSON via the existing marshal path, not string interpolation, so JSON validity is preserved.
 
 ## Testing
 
-1. **Unit — resolver:** owning-actor `{param}` resolves; cross-actor `{role.param}` resolves from a different actor's params; unknown role left literal then fails; no-placeholder message returned unchanged; the JSON of the marshaled body stays valid after substitution.
-2. **Unit — generator:** with `request_payload` declared, the requester's send step Message is `{"type":"session:start","payload":{"deviceId":"{bridge.deviceId}"}}`; without it, byte-identical to today.
+1. **Unit — resolver:** owning-actor `{{param}}` resolves; cross-actor `{{role.param}}` resolves from a different actor's params; unknown role left literal; declared-role/owning-actor placeholder with no value hard-fails; no-placeholder message returned unchanged; the JSON of the marshaled body stays valid after substitution (JSON braces never match).
+2. **Unit — generator:** with `request_payload` declared, the requester's send step Message is `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`; without it, byte-identical to today.
 3. **Unit — validation:** valid `request_payload` passes; empty type token / empty field name fail.
 4. **Integration (`//go:build integration`):** extend or mirror `TestPathCoverage_LiveTwoRoleExchange` — web sends `session:start` carrying the bridge's deviceId (via the templated body), bridge receives it and replies `session:created`, web receives the reply; assert both `web|bridge|session:start` and `bridge|web|session:created` are exercised (path coverage strictly greater than the one-direction baseline).
 5. **Autonomous live proof:** `cerberus run` against live open-agents on `dogfood/ws-realtime`; record the honest `coverage assessment` line and the reqresp case verdict.
