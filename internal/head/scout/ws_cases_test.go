@@ -889,6 +889,53 @@ func TestWsRequestResponseCases_RequestPayload(t *testing.T) {
 	assert.True(t, connected["web"] && connected["bridge"])
 }
 
+func TestWSHTTPTriggerCases(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{
+			Roles: map[string]*project.ProtocolRole{
+				"web":    {CredentialRef: "web-actor"},
+				"bridge": {CredentialRef: "bridge-actor"},
+			},
+			HTTPTriggers: []*project.HTTPTrigger{{
+				ID:     "device-restart",
+				Request: project.HTTPTriggerRequest{Method: "POST", Path: "/api/devices/{{bridge.deviceId}}/restart", AuthRole: "web", ExpectStatus: 200},
+				Effect:  project.HTTPTriggerEffect{MessageType: "device:restart", ToRole: "web"},
+			}},
+		},
+	}
+
+	t.Run("emits connect http receive", func(t *testing.T) {
+		cases := wsHTTPTriggerCases(svc)
+		if len(cases) != 1 {
+			t.Fatalf("got %d cases, want 1", len(cases))
+		}
+		steps := cases[0].Steps
+		if len(steps) != 3 || steps[0].Action != "ws_connect" || steps[1].Action != "http_request" || steps[2].Action != "ws_receive" {
+			t.Fatalf("unexpected steps: %+v", steps)
+		}
+		hr := steps[1]
+		if hr.URL != "http://localhost:8989/api/devices/{{bridge.deviceId}}/restart" {
+			t.Fatalf("URL = %q", hr.URL)
+		}
+		if hr.AuthRole != "web" || hr.Method != "POST" || hr.ExpectStatus != 200 {
+			t.Fatalf("http step = %+v", hr)
+		}
+		if steps[2].Type != "device:restart" || steps[2].ConnectionID != "web" {
+			t.Fatalf("receive step = %+v", steps[2])
+		}
+	})
+
+	t.Run("no triggers → no cases", func(t *testing.T) {
+		noTrig := svc
+		noTrig.Protocol = &project.Protocol{Roles: svc.Protocol.Roles}
+		if got := wsHTTPTriggerCases(noTrig); len(got) != 0 {
+			t.Fatalf("got %d cases, want 0", len(got))
+		}
+	})
+}
+
 func TestWsRequestResponseCases_RequestPayloadAbsent(t *testing.T) {
 	svc := project.Service{
 		Name: "realtime", URL: "http://localhost:8989/ws/{userId}",

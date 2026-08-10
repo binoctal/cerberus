@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -65,6 +66,7 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	// Two-role request-response cases declared via role.Responses.
 	rrCases, rrConnected := wsRequestResponseCases(svc)
 	cases = append(cases, rrCases...)
+	cases = append(cases, wsHTTPTriggerCases(svc)...)
 	// Iterate roles in sorted name order so the returned slice is deterministic
 	// across runs regardless of map iteration order.
 	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
@@ -651,6 +653,50 @@ func wsRequestResponseCases(svc project.Service) ([]agent.TestCase, map[string]b
 		}
 	}
 	return cases, connected
+}
+
+// serviceHost returns the scheme://host of a service URL (stripping any WS path
+// template such as "/ws/{userId}"). Used to prefix host-relative http_trigger
+// paths. Falls back to the raw URL on parse error.
+func serviceHost(svcURL string) string {
+	u, err := url.Parse(svcURL)
+	if err != nil || !u.IsAbs() {
+		return svcURL
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+// wsHTTPTriggerCases emits one deterministic Steps case per declared http_trigger:
+// connect the effect.to_role connection → http_request the trigger route →
+// ws_receive the pushed type on that connection (the decisive assertion). The
+// request URL is the service host + the trigger's host-relative path; the
+// {{role.param}} placeholder is carried verbatim and resolved at run time by the
+// Steps runner. Pure; no LLM. No cases when the protocol declares none.
+func wsHTTPTriggerCases(svc project.Service) []agent.TestCase {
+	if svc.Protocol == nil || len(svc.Protocol.HTTPTriggers) == 0 {
+		return nil
+	}
+	host := serviceHost(svc.URL)
+	var cases []agent.TestCase
+	for _, tr := range svc.Protocol.HTTPTriggers {
+		toRole := tr.Effect.ToRole
+		cases = append(cases, agent.TestCase{
+			ID:          "ws-" + svc.Name + "-http-" + sanitizeTypeID(tr.ID),
+			Name:        fmt.Sprintf("%s %s triggers %s", svc.Name, tr.ID, tr.Effect.MessageType),
+			Service:     svc.Name,
+			Target:      svc.URL,
+			Action:      "ws_flow",
+			Expectation: fmt.Sprintf("%s: POST %s delivers %s to %s", svc.Name, tr.Request.Path, tr.Effect.MessageType, toRole),
+			Priority:    0.7,
+			Steps: []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: toRole, Role: toRole},
+				{Action: "http_request", Method: tr.Request.Method, URL: host + tr.Request.Path,
+					AuthRole: tr.Request.AuthRole, ExpectStatus: tr.Request.ExpectStatus},
+				{Action: "ws_receive", ConnectionID: toRole, Type: tr.Effect.MessageType, Timeout: 5},
+			},
+		})
+	}
+	return cases
 }
 
 func wsCaseID(service, role, typ string) string {
