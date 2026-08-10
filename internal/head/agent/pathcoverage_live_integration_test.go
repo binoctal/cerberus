@@ -128,3 +128,44 @@ func TestPathCoverage_LiveTwoRoleExchange(t *testing.T) {
 	require.Contains(t, exercised, "bridge|web|session:created")
 	require.Greater(t, pct, 0.0)
 }
+
+// TestPathCoverage_LiveSendBodyTemplating proves the send-time placeholder
+// resolver: a ws_send body carrying the literal {{bridge.deviceId}} placeholder
+// is resolved against the bridge actor's provisioned path params at send time,
+// so open-agents' DO relays session:start to the bridge (room.ts gates on
+// payload.deviceId) and BOTH exchange directions complete. Distinct from
+// TestPathCoverage_LiveTwoRoleExchange, which hand-injects the deviceId.
+func TestPathCoverage_LiveSendBodyTemplating(t *testing.T) {
+	f := setupOpenAgents(t, false)
+	// setupOpenAgents populates ActorTokens but NOT ActorPathParams; the resolver
+	// reads ActorPathParams, so seed the bridge's provisioned device id there.
+	f.wsIdx.ActorPathParams = map[string]map[string]string{
+		"web-actor":    {"userId": f.userId},
+		"bridge-actor": {"deviceId": f.deviceId, "userId": f.userId},
+	}
+	tc := &TestCase{
+		ID:     "tc-sendbody-template",
+		Target: "ws://localhost:8989/ws/" + f.userId,
+		Steps: []TestStep{
+			{Action: "ws_connect", Role: "web", ConnectionID: "web"},
+			{Action: "ws_connect", Role: "bridge", ConnectionID: "bridge"},
+			{Action: "ws_receive", ConnectionID: "web", Type: "device:online", Timeout: 3},
+			// Literal placeholder in the body; resolved to f.deviceId at send time.
+			{Action: "ws_send", ConnectionID: "web", Message: `{"type":"session:start","payload":{"deviceId":"{{bridge.deviceId}}"}}`},
+			{Action: "ws_receive", ConnectionID: "bridge", Type: "session:start", Timeout: 3},
+			{Action: "ws_send", ConnectionID: "bridge", Message: `{"type":"session:created"}`},
+			{Action: "ws_receive", ConnectionID: "web", Type: "session:created", Timeout: 3},
+		},
+	}
+	se := newStepExecutionWithIdx(t, tc, f.wsIdx)
+	result := se.runSteps()
+	require.Equal(t, StepPassed, result.Status, "templated send must resolve and the exchange must complete; evidence=%v", result.Evidence)
+
+	required := []project.VocabEdge{
+		{FromRole: "web", ToRole: "bridge", Type: "session:start", Trigger: "message_handled"},
+		{FromRole: "bridge", ToRole: "web", Type: "session:created", Trigger: "message_handled"},
+	}
+	exercised := exercisedEdgesMirror(tc, result.Evidence, required)
+	require.Contains(t, exercised, "web|bridge|session:start", "deviceId resolved ⇒ DO relayed session:start to bridge")
+	require.Contains(t, exercised, "bridge|web|session:created", "bridge replied and web received it")
+}
