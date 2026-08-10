@@ -12,6 +12,16 @@ type AuthFlow struct {
 	// token_from). At WS connect, {name} placeholders in the service URL are
 	// substituted from these. Empty ⇒ no path params (backwards-compatible).
 	PathParams map[string]string `yaml:"path_params,omitempty"`
+	// HTTPLogin is an optional SECOND login request run after the primary login,
+	// used to obtain a credential for HTTP routes that the primary login's token
+	// cannot satisfy (e.g. a JWT for protected REST routes when the primary token
+	// is a WS-only backdoor). Its captured token is stored separately from the WS
+	// token and injected by http_request steps as Authorization: Bearer <token>.
+	// Empty ⇒ no second login (backwards-compatible).
+	HTTPLogin *AuthLogin `yaml:"http_login,omitempty"`
+	// HTTPTokenFrom is the dot-path into the http_login response JSON that yields
+	// the HTTP credential (e.g. "token"). Required iff HTTPLogin is set.
+	HTTPTokenFrom string `yaml:"http_token_from,omitempty"`
 }
 
 // AuthLogin describes the single login HTTP request.

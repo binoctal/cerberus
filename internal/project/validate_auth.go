@@ -43,6 +43,15 @@ func ValidateAuthFlow(af *AuthFlow) error {
 			return fmt.Errorf("path_params: key %q is not a valid param name (must match %s)", name, pathParamNameRE.String())
 		}
 	}
+	// http_login / http_token_from must both be set or both be unset; an
+	// http_login needs a path (method defaults to POST at runtime, like the
+	// primary login).
+	if (af.HTTPLogin != nil) != (af.HTTPTokenFrom != "") {
+		return errors.New("http_login and http_token_from must both be set or both be unset")
+	}
+	if af.HTTPLogin != nil && af.HTTPLogin.Path == "" {
+		return errors.New("http_login.path is required when http_login is set")
+	}
 	return nil
 }
 
