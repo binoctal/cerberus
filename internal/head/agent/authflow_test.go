@@ -364,3 +364,68 @@ func TestResolveAuthHeader_ProvisioningOnly_StaticTokenPlusPathParams(t *testing
 		t.Fatalf("login still runs to capture path params; PathParams = %v, want userId=user_42", res.PathParams)
 	}
 }
+
+func TestResolveAuthHeader_HTTPLogin(t *testing.T) {
+	var primaryHits, loginHits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/primary":
+			primaryHits++
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"config": map[string]any{"userId": "user_1", "deviceToken": "dt"},
+			})
+		case "/login":
+			loginHits++
+			_ = json.NewEncoder(w).Encode(map[string]any{"token": "JWT-123"})
+		}
+	}))
+	defer srv.Close()
+
+	actor := project.Actor{
+		Name: "web-actor",
+		Auth: &project.AuthFlow{
+			Login:     project.AuthLogin{Method: "POST", Path: "/primary", Body: map[string]string{}},
+			TokenFrom: "config.deviceToken",
+			InjectAs:  "Authorization: Bearer {token}",
+			PathParams: map[string]string{"userId": "config.userId"},
+			HTTPLogin:    &project.AuthLogin{Method: "POST", Path: "/login", Body: map[string]string{}},
+			HTTPTokenFrom: "token",
+		},
+	}
+
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("ResolveAuthHeader: %v", err)
+	}
+	if res.HTTPToken != "JWT-123" {
+		t.Fatalf("HTTPToken = %q, want JWT-123", res.HTTPToken)
+	}
+	if loginHits != 1 {
+		t.Fatalf("http_login hit %d times, want 1", loginHits)
+	}
+	// WS token still resolved from the primary login (token_from), unchanged.
+	if res.RawToken != "dt" {
+		t.Fatalf("RawToken = %q, want dt", res.RawToken)
+	}
+}
+
+func TestResolveAuthHeader_NoHTTPLogin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"token": "dt"})
+	}))
+	defer srv.Close()
+	actor := project.Actor{
+		Name: "bridge-actor",
+		Auth: &project.AuthFlow{
+			Login:     project.AuthLogin{Method: "POST", Path: "/", Body: map[string]string{}},
+			TokenFrom: "token", InjectAs: "Authorization: Bearer {token}",
+		},
+	}
+	res, err := ResolveAuthHeader(context.Background(), srv.URL, actor)
+	if err != nil {
+		t.Fatalf("ResolveAuthHeader: %v", err)
+	}
+	if res.HTTPToken != "" {
+		t.Fatalf("HTTPToken = %q, want empty (no http_login)", res.HTTPToken)
+	}
+}

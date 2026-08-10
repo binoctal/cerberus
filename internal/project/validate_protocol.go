@@ -145,6 +145,34 @@ func validateProtocolBatches(batches map[string]*ProtocolBatch, framing string) 
 	return nil
 }
 
+// validateProtocolHTTPTriggers checks each http_trigger: id/method/path and the
+// effect message_type are non-empty, and request.auth_role + effect.to_role
+// name declared roles. Placeholder resolvability is NOT checked (runtime).
+func validateProtocolHTTPTriggers(p *Protocol) error {
+	for i, tr := range p.HTTPTriggers {
+		prefix := fmt.Sprintf("http_triggers[%d]", i)
+		if tr.ID == "" {
+			return fmt.Errorf("%s.id is required", prefix)
+		}
+		if tr.Request.Method == "" {
+			return fmt.Errorf("%s.request.method is required", prefix)
+		}
+		if tr.Request.Path == "" {
+			return fmt.Errorf("%s.request.path is required", prefix)
+		}
+		if tr.Request.AuthRole == "" || p.Roles[tr.Request.AuthRole] == nil {
+			return fmt.Errorf("%s.request.auth_role %q does not match a declared role", prefix, tr.Request.AuthRole)
+		}
+		if tr.Effect.MessageType == "" {
+			return fmt.Errorf("%s.effect.message_type is required", prefix)
+		}
+		if tr.Effect.ToRole == "" || p.Roles[tr.Effect.ToRole] == nil {
+			return fmt.Errorf("%s.effect.to_role %q does not match a declared role", prefix, tr.Effect.ToRole)
+		}
+	}
+	return nil
+}
+
 // ValidateProtocol checks a Protocol declaration for config-time errors. A nil
 // protocol is valid (means M0 fallback). actors is the config's actor list, used
 // to confirm credential_ref names a real actor. Returns nil if valid.
@@ -164,6 +192,9 @@ func ValidateProtocol(p *Protocol, actors []Actor) error {
 		if err := validateRole(name, role, p.Auth, actors); err != nil {
 			return err
 		}
+	}
+	if err := validateProtocolHTTPTriggers(p); err != nil {
+		return err
 	}
 	return validateProtocolBatches(p.Batches, p.Framing)
 }

@@ -124,6 +124,10 @@ type WSProtocolIndex struct {
 	ByHost          map[string]*project.Protocol // host (url.Host) -> protocol
 	ActorTokens     map[string]string            // actor name -> cached raw token
 	ActorPathParams map[string]map[string]string // actor -> {url-param: value} (F3)
+	// ActorHTTPTokens maps actor name -> the HTTP credential captured by an
+	// optional http_login (distinct from ActorTokens, the WS credential). Read
+	// by the Steps runner to inject http_request Authorization headers.
+	ActorHTTPTokens map[string]string
 }
 
 // BuildWSProtocolIndex builds the index from config. Returns nil when no
@@ -144,6 +148,7 @@ func BuildWSProtocolIndex(cfg *project.Config) *WSProtocolIndex {
 				ByHost:          make(map[string]*project.Protocol),
 				ActorTokens:     make(map[string]string),
 				ActorPathParams: make(map[string]map[string]string),
+				ActorHTTPTokens: make(map[string]string),
 			}
 		}
 		idx.ByHost[u.Host] = svc.Protocol
@@ -170,6 +175,11 @@ func BuildWSProtocolIndex(cfg *project.Config) *WSProtocolIndex {
 				m[k] = v
 			}
 			idx.ActorPathParams[a.Name] = m
+		}
+		// HTTP credential from the optional http_login; only stashed when
+		// non-empty so a legacy config (no http_login) leaves the slot absent.
+		if a.Credentials.RawHTTPToken != "" {
+			idx.ActorHTTPTokens[a.Name] = a.Credentials.RawHTTPToken
 		}
 	}
 	return idx

@@ -30,6 +30,7 @@ type ReActLoop struct {
 	store       *store.Store
 	engine      *RuleEngine
 	executor    TypedExecutor
+	wsIdx       *WSProtocolIndex // index for http_request step resolution; nil ⇒ no http triggers
 	recovery    recoverer
 	config      ReActConfig
 	logger      *zap.Logger

@@ -55,6 +55,7 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 		}
 		a.Credentials.Headers[res.HeaderName] = res.HeaderValue
 		a.Credentials.RawToken = res.RawToken
+		a.Credentials.RawHTTPToken = res.HTTPToken
 		a.Credentials.PathParams = res.PathParams // F3: url-param -> captured value
 		s.Logger.Info("auth flow resolved",
 			zap.String("actor", a.Name),

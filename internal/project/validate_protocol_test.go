@@ -198,3 +198,46 @@ func TestValidateProtocolRole_RequestPayload(t *testing.T) {
 		t.Fatalf("empty field name must fail")
 	}
 }
+
+func TestValidateProtocol_HTTPTriggers(t *testing.T) {
+	roles := map[string]*ProtocolRole{"web": {}, "bridge": {}}
+	t.Run("valid", func(t *testing.T) {
+		p := &Protocol{Roles: roles, HTTPTriggers: []*HTTPTrigger{{
+			ID:      "device-restart",
+			Request: HTTPTriggerRequest{Method: "POST", Path: "/api/devices/{{bridge.deviceId}}/restart", AuthRole: "web", ExpectStatus: 200},
+			Effect:  HTTPTriggerEffect{MessageType: "device:restart", ToRole: "web"},
+		}}}
+		if err := ValidateProtocol(p, nil); err != nil {
+			t.Fatalf("expected valid, got %v", err)
+		}
+	})
+	t.Run("undeclared auth_role fails", func(t *testing.T) {
+		p := &Protocol{Roles: roles, HTTPTriggers: []*HTTPTrigger{{
+			ID:      "x",
+			Request: HTTPTriggerRequest{Method: "POST", Path: "/p", AuthRole: "ghost"},
+			Effect:  HTTPTriggerEffect{MessageType: "t", ToRole: "web"},
+		}}}
+		if err := ValidateProtocol(p, nil); err == nil {
+			t.Fatal("expected error for undeclared auth_role")
+		}
+	})
+	t.Run("undeclared to_role fails", func(t *testing.T) {
+		p := &Protocol{Roles: roles, HTTPTriggers: []*HTTPTrigger{{
+			ID:      "x",
+			Request: HTTPTriggerRequest{Method: "POST", Path: "/p", AuthRole: "web"},
+			Effect:  HTTPTriggerEffect{MessageType: "t", ToRole: "ghost"},
+		}}}
+		if err := ValidateProtocol(p, nil); err == nil {
+			t.Fatal("expected error for undeclared to_role")
+		}
+	})
+	t.Run("empty id/method/path fails", func(t *testing.T) {
+		p := &Protocol{Roles: roles, HTTPTriggers: []*HTTPTrigger{{
+			Request: HTTPTriggerRequest{AuthRole: "web"},
+			Effect:  HTTPTriggerEffect{MessageType: "t", ToRole: "web"},
+		}}}
+		if err := ValidateProtocol(p, nil); err == nil {
+			t.Fatal("expected error for empty id/method/path")
+		}
+	})
+}

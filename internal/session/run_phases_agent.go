@@ -17,13 +17,15 @@ func (rp *runPhase) buildAgentLoop() *agent.ReActLoop {
 		projectDir = "."
 	}
 	engine := agent.NewRuleEngine(rp.session.Config.Services, rp.session.Config.Actors, projectDir)
-	multiExec := agent.BuildMultiExecutor(projectDir, agent.ServiceHeadersMap(rp.session.Config.Services), agent.BuildWSProtocolIndex(rp.session.Config), rp.session.Gate, rp.session.Logger)
+	wsIdx := agent.BuildWSProtocolIndex(rp.session.Config)
+	multiExec := agent.BuildMultiExecutor(projectDir, agent.ServiceHeadersMap(rp.session.Config.Services), wsIdx, rp.session.Gate, rp.session.Logger)
 	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
 	return agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{
 		Driver:   rp.session.driverFor(&rp.session.agentDriver),
 		Store:    rp.session.Store,
 		Engine:   engine,
 		Executor: multiExec,
+		WSIdx:    wsIdx,
 		Config:   agent.DefaultReActConfig(),
 		Gate:     rp.session.Gate,
 		Logger:   rp.session.Logger,

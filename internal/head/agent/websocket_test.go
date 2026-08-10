@@ -2544,3 +2544,34 @@ func TestResolveMessageBody(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unresolved placeholder")
 }
+
+func TestResolvePlaceholders_CrossActorURL(t *testing.T) {
+	idx := &WSProtocolIndex{
+		ActorPathParams: map[string]map[string]string{
+			"bridge-actor": {"deviceId": "device_xyz"},
+		},
+	}
+	proto := &project.Protocol{
+		Roles: map[string]*project.ProtocolRole{
+			"bridge": {CredentialRef: "bridge-actor"},
+		},
+	}
+	out, err := resolvePlaceholders(idx, proto, "", "/api/devices/{{bridge.deviceId}}/restart")
+	if err != nil {
+		t.Fatalf("resolvePlaceholders: %v", err)
+	}
+	if out != "/api/devices/device_xyz/restart" {
+		t.Fatalf("got %q", out)
+	}
+}
+
+func TestResolvePlaceholders_UnresolvedFails(t *testing.T) {
+	idx := &WSProtocolIndex{ActorPathParams: map[string]map[string]string{}}
+	proto := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"bridge": {CredentialRef: "bridge-actor"},
+	}}
+	_, err := resolvePlaceholders(idx, proto, "", "/api/devices/{{bridge.deviceId}}/restart")
+	if err == nil {
+		t.Fatal("expected unresolved placeholder error")
+	}
+}

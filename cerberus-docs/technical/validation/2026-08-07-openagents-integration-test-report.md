@@ -212,3 +212,44 @@ Both `session:start` and `session:created` edges were exercised — the two-sock
 | session fail count                | 3                   | **0**                           |
 
 **What this run definitively proves (live):** (1) the `request_payload` declaration + `{{bridge.deviceId}}` send-body templating resolves the prior routing blocker — open-agents' relay now accepts and routes the `session:start` send because the payload carries the recipient device id; (2) an autonomous `cerberus run` now exercises **both** directions of the deterministic reqresp exchange against live open-agents, lifting the case from `fail/0.05` to `pass/0.97` and dropping `gaps` from 63 to 61 (success criterion: `gaps < 63` — met); (3) zero `unresolved placeholder` errors confirm the executor's role-param resolver consumed the bridge actor's provisioned `ActorPathParams`. The branch's success criteria (both directions exercised, `gaps < 63`, zero regression) are all met.
+
+---
+
+## 2026-08-11 — Autonomous HTTP-trigger `device-restart` verification (Task 10)
+
+**Run setup.** Branch `feat/ws-http-broadcast-trigger` tip `237fb44` (`test(agent): live http_request device-restart trigger proof`). Binary `./build/cerberus` from `make build` at that commit. open-agents dev server live on `:8989` (started via `npm run dev` in `open-agents/apps/api`; `GET /` returns 404, i.e. reachable). Heads all ran on `glm-5.2[1m]` via the project's shared `ANTHROPIC_AUTH_TOKEN` (GLM bearer scheme, loaded from `.claude/settings.json`).
+
+Command:
+```
+./build/cerberus run --config dogfood/ws-realtime/.cerberus/project.yaml \
+  --dir dogfood/ws-realtime \
+  --goal "Trigger a device restart over HTTP and observe the push over the realtime WS service"
+```
+
+Session id `e602204f-3145-401d-aa16-3a63faaa2466`. Duration 9m13.475s, ~73K tokens. 35 verdicts: 13 pass / 16 fail / 6 skip / 0 uncertain / 0 recovered. Failure causes reported by the session summary: `6 endpoint_drift, 4 handshake, 1 auth`. The 16 fails are dominated by Scout-generated `tc-*` cases that drifted to the WS path (`HTTP 426 http://localhost:8989/ws/{userId}/devices/...`) — the same endpoint-drift class documented in prior runs, not a regression of the deterministic cases.
+
+**Auth flow resolved (verbatim):**
+```
+session/auth_setup.go:60  "auth flow resolved"  actor:"web-actor"    header:"Authorization" value_len:17
+session/auth_setup.go:60  "auth flow resolved"  actor:"bridge-actor" header:"Authorization" value_len:49
+```
+
+`value_len:17` for `web-actor` matches the static `Bearer demo_token` provisioned via `POST /api/dev/setup` (the provisioning-only login, `token_from` empty). Note on the second (`http_login`) login: there is **no** separate `auth flow resolved` line for the `http_login` (`POST /api/dev/login`) — only one resolution per actor is emitted. The run log contains no explicit `http_login` / `dev/login` evidence line, so the second login's execution is **not directly confirmed** by a distinct log entry this run; the `device-restart` case nonetheless passed (see below), which is consistent with the HTTP step receiving a usable token but does not by itself prove the `http_login` ran as a separate request. This is an honest gap in the observable evidence.
+
+**`device-restart` case — PASS (verbatim):**
+```
+agent/executor_run.go:76  "executing test case" case_id:"ws-realtime-http-device-restart" target:"http://localhost:8989/ws/{userId}"
+agent/executor_run.go:83  "test case completed" case_id:"ws-realtime-http-device-restart" status:"pass" attempts:1
+examiner/examiner.go:94   "verdict"             case_id:"ws-realtime-http-device-restart" status:"pass" correctness:0.98 degraded_level:0 critique:false
+```
+
+The deterministic `http_request` step (`ws-realtime-http-device-restart`) executed against the live WS endpoint and the Examiner judged it `pass` at `correctness:0.98`. This is the case the Task 1–9 work (http_login slot, `http_triggers` vocab, generator, `resolveHTTPStep`) was built to enable; it ran and passed on the first attempt.
+
+**Coverage assessment (verbatim) — did NOT rise:**
+```
+session/coverage.go:79    "coverage assessment" reached:false gaps:61 coverage_pct:0.047619047619047616
+```
+
+`coverage_pct` is **unchanged** from the 2026-08-10 send-body-templating run (also `0.047619...`, `gaps:61`). The `device-restart` case passing did **not** move the coverage number. This matches the design spec's known caveat exactly: `device:restart` is emitted by an HTTP route (the `http_request` step), not by a declared DO WS handler, so it does not map to a declared WS vocab edge that the path-coverage engine credits. The case verdict (capability proven: `pass/0.98`) and the coverage number (still 3 credited edges of the 63-edge matrix) are reported **separately and honestly** here: the branch's HTTP-trigger capability is proven end-to-end, but the coverage gate remains where the prior run left it.
+
+**Honest summary.** (1) The `device-restart` HTTP-trigger case — the deliverable of Tasks 1–9 — passes live (`status:pass`, `correctness:0.98`, first attempt). (2) `coverage_pct` did **not** rise and `gaps` did **not** fall (still 61 / 0.0476), for the spec-documented reason that `device:restart` is HTTP-emitted and not a credited WS vocab edge — not a bug, but an honest non-improvement the report does not paper over. (3) A second `http_login` resolution line is absent from the run log; the `http_login` is not independently confirmed by a distinct log entry this run. (4) The Scout-generated `tc-*` endpoint drift (HTTP 426 on `/ws/{userId}/...`) persists as the dominant failure mode and is unchanged in character from prior runs — not a regression introduced by this branch.

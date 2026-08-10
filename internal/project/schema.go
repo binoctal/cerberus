@@ -61,6 +61,10 @@ type CredentialRef struct {
 	// auth setup when the actor has an Auth flow). Runtime-only; not loaded
 	// from YAML. Used by WS query/header/subprotocol auth injection.
 	RawToken string `yaml:"-" json:"-"`
+	// RawHTTPToken is the HTTP credential captured by the optional http_login
+	// (distinct from RawToken, which is the WS credential). Populated at session
+	// setup; read by the Steps runner to inject http_request Authorization headers.
+	RawHTTPToken string `yaml:"-" json:"-"`
 	// PathParams holds url-param -> value captured by the auth flow (F3).
 	// Runtime-only; never loaded from YAML. Used at WS connect to resolve
 	// {name} placeholders in the service URL.

@@ -24,3 +24,13 @@ roles:
     request_payload:            # NEW: payload the requester (web) must include for the DO to relay
       session:start:
         deviceId: "{{bridge.deviceId}}"   # resolved at SEND time from bridge-actor's path params
+http_triggers:
+  - id: device-restart
+    request:
+      method: POST
+      path: /api/devices/{{bridge.deviceId}}/restart
+      auth_role: web
+      expect_status: 200
+    effect:
+      message_type: device:restart
+      to_role: web
