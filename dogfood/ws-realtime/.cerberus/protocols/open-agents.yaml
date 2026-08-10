@@ -21,3 +21,6 @@ roles:
       deviceId: "{deviceId}"   # templated from bridge-actor's provisioned path params (Task 5)
     responses:
       session:start: session:created   # Task 2 generator drives this exchange
+    request_payload:            # NEW: payload the requester (web) must include for the DO to relay
+      session:start:
+        deviceId: "{{bridge.deviceId}}"   # resolved at SEND time from bridge-actor's path params
