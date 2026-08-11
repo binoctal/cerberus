@@ -67,7 +67,7 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 				if !exercised[edgeKey(e.FromRole, e.ToRole, e.Type)] {
 					sess.Assessment.Gaps = append(sess.Assessment.Gaps, contract.Gap{
 						Kind:   "path",
-						Detail: fmt.Sprintf("edge %s→%s %s not exercised", e.FromRole, e.ToRole, e.Type),
+						Detail: fmt.Sprintf("edge %s→%s %s not exercised", originLabel(e), e.ToRole, e.Type),
 					})
 				}
 			}
@@ -174,6 +174,16 @@ func measurementFromReport(report *autotest.CoverageReport) contract.CoverageMea
 // edgeKey is the stable identity of a vocab message edge.
 func edgeKey(from, to, typ string) string { return from + "|" + to + "|" + typ }
 
+// originLabel returns the edge's origin role for gap-detail display. A
+// synthesized HTTP-triggered server-push edge has no sender role (empty
+// FromRole); render it as "server" instead of an empty segment.
+func originLabel(e project.VocabEdge) string {
+	if e.FromRole == "" {
+		return "server"
+	}
+	return e.FromRole
+}
+
 // exercisedEdges computes which declared message edges a session's results
 // exercised using RECEIVE-DRIVEN, vocab-attributed correlation: per case,
 // connectionID→role is mapped from that case's ws_connect steps; a matched
@@ -265,18 +275,35 @@ func sessionHasVocab(sess *Session) bool {
 	return false
 }
 
-// requiredEdges collects the declared required surface: message_handled edges
-// that are neither Unsupported nor Partial, across every service's vocabulary.
-// These are the edges path-coverage counts as its denominator.
+// requiredEdges collects the declared required surface for path coverage:
+// message_handled vocab edges (neither Unsupported nor Partial) PLUS one
+// synthesized edge per declared http_trigger (an HTTP-triggered server push,
+// modeled with an empty FromRole and Trigger="http_trigger"). Both are
+// credited by the receive-driven exercisedEdges rule.
 func requiredEdges(sess *Session) []project.VocabEdge {
 	var out []project.VocabEdge
 	for _, svc := range sess.Config.Services {
-		if svc.Vocabulary == nil {
-			continue
+		if svc.Vocabulary != nil {
+			for _, e := range svc.Vocabulary.Edges {
+				if e.Trigger == "message_handled" && !e.Unsupported && !e.Partial {
+					out = append(out, e)
+				}
+			}
 		}
-		for _, e := range svc.Vocabulary.Edges {
-			if e.Trigger == "message_handled" && !e.Unsupported && !e.Partial {
-				out = append(out, e)
+		// HTTP-triggered server-push edges: synthesize one required edge per
+		// declared http_trigger so receive-driven attribution credits the push
+		// when its recipient receives the message. Empty FromRole = system
+		// origin; Trigger="http_trigger" distinguishes these from WS-relayed
+		// vocab edges in gap output. (validateProtocolHTTPTriggers guarantees
+		// ToRole/MessageType are non-empty and reference declared roles.)
+		if svc.Protocol != nil {
+			for _, tr := range svc.Protocol.HTTPTriggers {
+				out = append(out, project.VocabEdge{
+					FromRole: "",
+					ToRole:   tr.Effect.ToRole,
+					Type:     tr.Effect.MessageType,
+					Trigger:  "http_trigger",
+				})
 			}
 		}
 	}

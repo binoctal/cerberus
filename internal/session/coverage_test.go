@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -360,4 +361,92 @@ func TestRequiredEdges(t *testing.T) {
 	require.Len(t, edges, 2, "only message_handled, non-flagged edges are kept")
 	assert.Equal(t, "device:online", edges[0].Type)
 	assert.Equal(t, "device:offline", edges[1].Type)
+}
+
+func TestRequiredEdges_HTTPTriggers(t *testing.T) {
+	sess := &Session{Config: &project.Config{Services: []project.Service{{
+		Name: "realtime",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+		}},
+		Protocol: &project.Protocol{HTTPTriggers: []*project.HTTPTrigger{{
+			ID:     "device-restart",
+			Effect: project.HTTPTriggerEffect{MessageType: "device:restart", ToRole: "web"},
+		}}},
+	}}}}
+
+	got := requiredEdges(sess)
+	// One WS vocab edge + one synthesized http_trigger edge.
+	if len(got) != 2 {
+		t.Fatalf("requiredEdges returned %d edges, want 2: %+v", len(got), got)
+	}
+	var synth *project.VocabEdge
+	for i := range got {
+		if got[i].Trigger == "http_trigger" {
+			synth = &got[i]
+		}
+	}
+	if synth == nil {
+		t.Fatalf("no synthesized http_trigger edge in %+v", got)
+	}
+	if synth.FromRole != "" || synth.ToRole != "web" || synth.Type != "device:restart" {
+		t.Fatalf("synthesized edge = %+v, want {FromRole:\"\" ToRole:\"web\" Type:\"device:restart\"}", *synth)
+	}
+}
+
+func TestRequiredEdges_NoHTTPTriggers_ZeroRegression(t *testing.T) {
+	sess := &Session{Config: &project.Config{Services: []project.Service{{
+		Name: "realtime",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
+			{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "connect_web"}, // filtered off
+		}},
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}}},
+	}}}}
+	got := requiredEdges(sess)
+	if len(got) != 1 || got[0].Type != "device:online" {
+		t.Fatalf("no http_triggers ⇒ only the message_handled vocab edge, got %+v", got)
+	}
+}
+
+func TestExercisedEdges_HTTPTriggerCredit(t *testing.T) {
+	required := []project.VocabEdge{
+		{FromRole: "", ToRole: "web", Type: "device:restart", Trigger: "http_trigger"},
+		// Same (ToRole,Type) but non-empty FromRole must NOT collide (distinct edgeKey).
+		{FromRole: "bridge", ToRole: "web", Type: "device:restart", Trigger: "message_handled"},
+	}
+	results := []agent.StepResult{{
+		TestCase: &agent.TestCase{Steps: []agent.TestStep{
+			{Action: "ws_connect", ConnectionID: "c-web", Role: "web"},
+		}},
+		Evidence: []agent.Evidence{{
+			Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:restart", Matched: true,
+		}},
+	}}
+	exercised, _ := exercisedEdges(results, required)
+	if !exercised["|web|device:restart"] {
+		t.Fatal("synthesized http_trigger edge must be credited by the web receive")
+	}
+	if !exercised["bridge|web|device:restart"] {
+		t.Fatal("the same-recipient WS edge must also be credited (distinct key, no collision)")
+	}
+	m := pathCoverage(results, required)
+	if !m.Known || m.Pct != 1.0 {
+		t.Fatalf("pathCoverage = %+v, want Known=true Pct=1.0", m)
+	}
+}
+
+func TestGapRender_HTTPTriggerOrigin(t *testing.T) {
+	e := project.VocabEdge{FromRole: "", ToRole: "web", Type: "device:restart", Trigger: "http_trigger"}
+	got := fmt.Sprintf("edge %s→%s %s not exercised", originLabel(e), e.ToRole, e.Type)
+	want := "edge server→web device:restart not exercised"
+	if got != want {
+		t.Fatalf("gap render = %q, want %q", got, want)
+	}
+	// A regular edge still renders its real FromRole.
+	e2 := project.VocabEdge{FromRole: "bridge", ToRole: "web", Type: "device:online"}
+	got2 := fmt.Sprintf("edge %s→%s %s not exercised", originLabel(e2), e2.ToRole, e2.Type)
+	if got2 != "edge bridge→web device:online not exercised" {
+		t.Fatalf("non-empty FromRole render = %q", got2)
+	}
 }
