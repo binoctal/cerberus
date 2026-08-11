@@ -253,3 +253,52 @@ session/coverage.go:79    "coverage assessment" reached:false gaps:61 coverage_p
 `coverage_pct` is **unchanged** from the 2026-08-10 send-body-templating run (also `0.047619...`, `gaps:61`). The `device-restart` case passing did **not** move the coverage number. This matches the design spec's known caveat exactly: `device:restart` is emitted by an HTTP route (the `http_request` step), not by a declared DO WS handler, so it does not map to a declared WS vocab edge that the path-coverage engine credits. The case verdict (capability proven: `pass/0.98`) and the coverage number (still 3 credited edges of the 63-edge matrix) are reported **separately and honestly** here: the branch's HTTP-trigger capability is proven end-to-end, but the coverage gate remains where the prior run left it.
 
 **Honest summary.** (1) The `device-restart` HTTP-trigger case — the deliverable of Tasks 1–9 — passes live (`status:pass`, `correctness:0.98`, first attempt). (2) `coverage_pct` did **not** rise and `gaps` did **not** fall (still 61 / 0.0476), for the spec-documented reason that `device:restart` is HTTP-emitted and not a credited WS vocab edge — not a bug, but an honest non-improvement the report does not paper over. (3) A second `http_login` resolution line is absent from the run log; the `http_login` is not independently confirmed by a distinct log entry this run. (4) The Scout-generated `tc-*` endpoint drift (HTTP 426 on `/ws/{userId}/...`) persists as the dominant failure mode and is unchanged in character from prior runs — not a regression introduced by this branch.
+
+## 2026-08-11 — HTTP-push coverage attribution
+
+**Goal.** The prior run (Task 10, branch `feat/ws-http-broadcast-trigger`) proved the `device-restart` HTTP-trigger case passes live but recorded `coverage_pct:0.047619` (`gaps:61`, 3/63) — unchanged from the 2026-08-10 send-body-templating baseline — because `device:restart` is emitted by an HTTP route, not a declared DO WS handler, so it did not map to a credited WS vocab edge. Task 1 of the `feat/http-push-coverage-attribution` branch (commit `3c1a3e6`, `feat(coverage): credit http-triggered server-push edges in path coverage`) makes `requiredEdges` synthesize one required edge per declared `http_trigger` (`VocabEdge{FromRole:"", ToRole:tr.Effect.ToRole, Type:tr.Effect.MessageType, Trigger:"http_trigger"}`), so path coverage now counts HTTP-triggered server-push edges. This run re-answers: does the synthesized `device-restart` edge grow the denominator (63→64) and, if its web receive matches, raise `coverage_pct`?
+
+**Run setup.** Branch `feat/http-push-coverage-attribution` tip `3c1a3e6`. Binary `./build/cerberus` from `make build` at that commit (build succeeded). open-agents dev server live on `:8989` (`GET /` returns 404, i.e. reachable). Heads all ran on `glm-5.2[1m]` via the project's shared `ANTHROPIC_AUTH_TOKEN` (GLM bearer scheme). Command:
+
+```
+./build/cerberus run --config dogfood/ws-realtime/.cerberus/project.yaml \
+  --dir dogfood/ws-realtime \
+  --goal "Trigger a device restart over HTTP and observe the push over the realtime WS service"
+```
+
+Session id `d967a202-7842-41fe-96f5-7d1deb6ba20b`. Duration 1m16.536s, ~18K tokens. Verdicts: 6 pass / 0 fail / 1 skip / 0 uncertain / 0 recovered.
+
+**Auth flow resolved (verbatim):**
+```
+session/auth_setup.go:60  "auth flow resolved"  actor:"web-actor"    header:"Authorization" value_len:17
+session/auth_setup.go:60  "auth flow resolved"  actor:"bridge-actor" header:"Authorization" value_len:49
+```
+
+**`device-restart` case — PASS (verbatim):**
+```
+agent/executor_run.go:76  "executing test case" case_id:"ws-realtime-http-device-restart" target:"http://localhost:8989/ws/{userId}"
+agent/executor_run.go:83  "test case completed" case_id:"ws-realtime-http-device-restart" status:"pass" attempts:1
+examiner/examiner.go:94   "verdict"             case_id:"ws-realtime-http-device-restart" status:"pass" correctness:0.97 degraded_level:0 critique:false
+```
+
+**Coverage assessment (verbatim) — ROSE:**
+```
+session/coverage.go:79    "coverage assessment" reached:false gaps:61 coverage_pct:0.0625
+```
+
+`coverage_pct = 0.0625 = 4/64` — up from the prior `0.047619 = 3/63`. The denominator grew by exactly one (63→64): the synthesized `http_trigger` required edge for `device-restart` (FromRole empty, ToRole `web`, Type `device:restart`, rendered `server→web` in the gap list because the empty FromRole is shown as `server`). The numerator also grew by one (3→4): the `device-restart` case ran, its HTTP `http_request` step triggered the server push, and the web actor's receive matched the declared push edge, so the synthesized edge was credited under receive-driven attribution. This is the success outcome the Task 1 change targeted — the HTTP-triggered server-push edge is now both declared (in the denominator) and exercised (in the numerator). `reached:false` remains expected: the deterministic contract sets `PathThreshold=1.0` and 4/64 < 1.0, so the gate is not met; the full-matrix proof remains the live integration test (`TestPathCoverage_LiveOpenAgentsRelay`, `path_coverage=0.500`).
+
+**Contrast with the prior baseline (2026-08-11 Task 10 run, pre-synthesis).**
+
+| metric (autonomous, live)         | 2026-08-11 Task 10 (pre) | 2026-08-11 this run (post-synthesis) |
+|-----------------------------------|--------------------------|--------------------------------------|
+| `coverage_pct`                    | 0.047619 (3/63)          | **0.0625 (4/64)**                    |
+| denominator (required edges)      | 63                       | **64**                               |
+| edges exercised                   | 3                        | **4**                                |
+| `device-restart` case `status`    | pass                     | **pass**                             |
+| `device-restart` `correctness`    | 0.98                     | **0.97**                             |
+| `device-restart` edge credited    | no (HTTP-emitted)        | **yes (synthesized `http_trigger`)** |
+
+**Note on the synthesized edge.** The `device-restart` edge is now a synthesized `http_trigger` required edge: `requiredEdges` emits it with `FromRole:""`, `Trigger:"http_trigger"`, so it participates in path coverage exactly like a declared WS edge. In the gap list its empty FromRole renders as `server` (the `originLabel` convention), so an unexercised push shows as `server→web | device:restart`; on this run it was exercised, so it appears in the credited set, not the gaps.
+
+**What this run definitively proves (live):** (1) Task 1's `requiredEdges` synthesis grew the coverage denominator by one (63→64) for the single declared `http_trigger`; (2) the synthesized edge was exercised by the `device-restart` case's HTTP-triggered server push matching the web receive, so `coverage_pct` rose honestly from 3/63 to 4/64 — the success criterion of this branch. No regression: zero fail verdicts, all other deterministic cases (`relay`, `reqresp`, `exec`) still pass.
