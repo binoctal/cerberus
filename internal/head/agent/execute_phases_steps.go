@@ -90,7 +90,7 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 // actor state (resolvePlaceholders); AuthRole's actor HTTP token is injected as
 // "Authorization: Bearer <token>" unless an explicit Authorization header is
 // present (explicit headers win). The protocol is looked up by the URL host.
-func resolveHTTPStep(idx *WSProtocolIndex, tc *TestCase, s TestStep) (types.TypedAction, error) {
+func resolveHTTPStep(idx *WSProtocolIndex, s TestStep) (types.TypedAction, error) {
 	method := s.Method
 	if method == "" {
 		method = "GET"
@@ -199,7 +199,7 @@ func (se *stepExecution) runSteps() StepResult {
 		var action types.TypedAction
 		var err error
 		if s.Action == "http_request" {
-			action, err = resolveHTTPStep(r.wsIdx, se.tc, s)
+			action, err = resolveHTTPStep(r.wsIdx, s)
 		} else {
 			action, err = stepToAction(se.tc, s)
 		}

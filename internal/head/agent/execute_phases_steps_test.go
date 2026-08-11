@@ -633,7 +633,7 @@ func TestResolveHTTPStep(t *testing.T) {
 			URL:      "http://localhost:8989/api/devices/{{bridge.deviceId}}/restart",
 			AuthRole: "web", ExpectStatus: 200,
 		}
-		a, err := resolveHTTPStep(idx, &TestCase{}, s)
+		a, err := resolveHTTPStep(idx, s)
 		if err != nil {
 			t.Fatalf("resolveHTTPStep: %v", err)
 		}
@@ -654,7 +654,7 @@ func TestResolveHTTPStep(t *testing.T) {
 	t.Run("explicit header overrides auth", func(t *testing.T) {
 		s := TestStep{Action: "http_request", URL: "http://localhost:8989/x",
 			AuthRole: "web", Headers: map[string]string{"Authorization": "Bearer OVERRIDE"}}
-		a, err := resolveHTTPStep(idx, &TestCase{}, s)
+		a, err := resolveHTTPStep(idx, s)
 		if err != nil {
 			t.Fatalf("resolveHTTPStep: %v", err)
 		}
@@ -664,7 +664,7 @@ func TestResolveHTTPStep(t *testing.T) {
 	})
 	t.Run("missing http token fails", func(t *testing.T) {
 		s := TestStep{Action: "http_request", URL: "http://localhost:8989/x", AuthRole: "bridge"}
-		_, err := resolveHTTPStep(idx, &TestCase{}, s)
+		_, err := resolveHTTPStep(idx, s)
 		if err == nil {
 			t.Fatal("expected error: bridge has no http token")
 		}
