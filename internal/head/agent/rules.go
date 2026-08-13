@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"net/url"
 	"strings"
 	"sync/atomic"
 
@@ -129,15 +130,37 @@ func (r *RuleEngine) authHeadersFor(tc TestCase) map[string]string {
 // baseURLFor returns the URL for tc.Service, falling back to the first
 // configured service (backward compatible with single-service projects).
 func (r *RuleEngine) baseURLFor(tc TestCase) string {
+	svcURL := ""
 	if tc.Service != "" {
 		if s, ok := r.byName[tc.Service]; ok {
-			return strings.TrimRight(s.URL, "/")
+			svcURL = s.URL
 		}
+	} else if len(r.services) > 0 {
+		svcURL = r.services[0].URL
 	}
-	if len(r.services) > 0 {
-		return strings.TrimRight(r.services[0].URL, "/")
+	return httpBaseURL(svcURL)
+}
+
+// httpBaseURL turns a service URL into the base for HTTP API requests. A
+// WebSocket service commonly declares its URL as a connection template with a
+// path placeholder (e.g. "http://h:8989/ws/{userId}"); only scheme://host is a
+// valid HTTP base, otherwise a host-relative API path concatenates onto the
+// template (".../ws/{userId}/devices/...") and hits the WS upgrade endpoint
+// (HTTP 426). A path with no placeholder (e.g. "/api/v1") is a legitimate REST
+// base and is preserved. Falls back to the trimmed raw URL on parse error.
+func httpBaseURL(svcURL string) string {
+	svcURL = strings.TrimRight(svcURL, "/")
+	if svcURL == "" {
+		return ""
 	}
-	return ""
+	u, err := url.Parse(svcURL)
+	if err != nil || !u.IsAbs() {
+		return svcURL
+	}
+	if strings.Contains(u.Path, "{") {
+		return u.Scheme + "://" + u.Host
+	}
+	return svcURL
 }
 
 // serviceHeaders returns service-level headers for tc.Service (nil if none).

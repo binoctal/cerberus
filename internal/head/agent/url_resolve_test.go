@@ -176,3 +176,50 @@ func TestWithBaseURL_ForcesServiceHostOnAbsoluteURL(t *testing.T) {
 	require.Equal(t, int32(1), hits.Load(), "absolute URL with wrong host must be rewritten to the service's host")
 	require.Equal(t, StepPassed, results[0].Status)
 }
+
+// TestBaseURLFor_StripsWSTemplatePath reproduces the dominant HTTP 426 failure
+// mode in live WS-service runs: a service whose URL carries a WebSocket path
+// template (e.g. "http://localhost:8989/ws/{userId}") was returned verbatim by
+// baseURLFor, so the HTTP rule engine concatenated the API path onto the
+// template — yielding "http://localhost:8989/ws/{userId}/devices/..." — which
+// hits the WS upgrade endpoint and returns 426. The WS path template must be
+// stripped, contributing only scheme://host as the HTTP base.
+func TestBaseURLFor_StripsWSTemplatePath(t *testing.T) {
+	engine := NewRuleEngine([]project.Service{
+		{Name: "realtime", URL: "http://localhost:8989/ws/{userId}"},
+	}, nil, "")
+
+	got := engine.baseURLFor(TestCase{Service: "realtime"})
+	const want = "http://localhost:8989"
+	assert.Equal(t, want, got, "WS path template must be stripped from HTTP base")
+}
+
+// TestBaseURLFor_PreservesRESTBasePath ensures the strip does not over-reach:
+// a REST base path with no template placeholder (e.g. "/api/v1") is a legitimate
+// base and must be preserved.
+func TestBaseURLFor_PreservesRESTBasePath(t *testing.T) {
+	engine := NewRuleEngine([]project.Service{
+		{Name: "api", URL: "http://localhost:8989/api/v1"},
+	}, nil, "")
+
+	got := engine.baseURLFor(TestCase{Service: "api"})
+	const want = "http://localhost:8989/api/v1"
+	assert.Equal(t, want, got, "REST base path without a template must be preserved")
+}
+
+// TestMatchHTTPRules_WSTemplateBaseNotConcatenated is the end-to-end
+// reproduction through the rule engine: a POST against a host-relative API path
+// on a WS-template service must yield a URL free of the "/ws/{userId}" segment.
+func TestMatchHTTPRules_WSTemplateBaseNotConcatenated(t *testing.T) {
+	engine := NewRuleEngine([]project.Service{
+		{Name: "realtime", URL: "http://localhost:8989/ws/{userId}"},
+	}, nil, "")
+
+	tc := TestCase{Service: "realtime", Method: "POST", Target: "/devices/device-001/restart"}
+	action, ok := engine.matchHTTPRules(tc)
+	require.True(t, ok, "POST with a path target must match the HTTP rule")
+	httpAction, ok := action.(types.HTTPAction)
+	require.True(t, ok, "matched action must be HTTPAction")
+	const want = "http://localhost:8989/devices/device-001/restart"
+	assert.Equal(t, want, httpAction.URL, "URL must not contain the /ws/{userId} template segment")
+}
