@@ -67,6 +67,13 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	rrCases, rrConnected := wsRequestResponseCases(svc)
 	cases = append(cases, rrCases...)
 	cases = append(cases, wsHTTPTriggerCases(svc)...)
+	// Relay coverage for the remaining declared message_handled edges, deduped
+	// against edges the generators above already cover. Emits one 4-step relay
+	// case per edge the other forms never enumerate, so receive-driven path
+	// coverage can credit them. Server-only types are already Partial (Phase 2),
+	// so these cases pass rather than timeout-fail in the autonomous executor.
+	rcCases, rcConnected := wsRelayCoverageCases(svc, coveredEdgeKeys(cases))
+	cases = append(cases, rcCases...)
 	// Iterate roles in sorted name order so the returned slice is deterministic
 	// across runs regardless of map iteration order.
 	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
@@ -90,7 +97,7 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 		// (receiver or peer). Its single-conn connect+receive form is redundant
 		// (the connect runs in the relay Steps) and, routed through Steer,
 		// unreliable. Skip the whole form.
-		if relayConnected[roleName] {
+		if relayConnected[roleName] || rcConnected[roleName] {
 			continue
 		}
 		cases = append(cases, wsFlowConnectCase(svc, roleName, role, goal, relaySignals))
@@ -699,27 +706,76 @@ func wsHTTPTriggerCases(svc project.Service) []agent.TestCase {
 	return cases
 }
 
+// coveredEdgeKeys returns the set of "From|To|Type" edge keys a slice of Steps
+// cases already exercises, deriving From/To from each ws_connect's Role and
+// Type from each ws_send's message body, paired with the matching ws_receive's
+// recipient. Used by wsCasesForService so wsRelayCoverageCases skips edges the
+// other generators (wsRelayCases/wsRequestResponseCases/wsHTTPTriggerCases)
+// already cover, avoiding redundant sockets.
+func coveredEdgeKeys(cases []agent.TestCase) map[string]bool {
+	covered := map[string]bool{}
+	for _, c := range cases {
+		connRole := map[string]string{}
+		for _, s := range c.Steps {
+			if s.Action == "ws_connect" && s.Role != "" {
+				connRole[s.ConnectionID] = s.Role
+			}
+		}
+		sentByType := map[string]string{} // type → sender role (first sender wins)
+		for _, s := range c.Steps {
+			if s.Action == "ws_send" {
+				if t := messageType(s.Message); t != "" {
+					if _, ok := sentByType[t]; !ok {
+						sentByType[t] = connRole[s.ConnectionID]
+					}
+				}
+			}
+		}
+		for _, s := range c.Steps {
+			if s.Action == "ws_receive" && s.Type != "" {
+				sender := sentByType[s.Type]
+				receiver := connRole[s.ConnectionID]
+				if sender != "" && receiver != "" {
+					covered[sender+"|"+receiver+"|"+s.Type] = true
+				}
+			}
+		}
+	}
+	return covered
+}
+
+// messageType extracts the "type" field from a ws_send message body JSON; ""
+// when the body is not JSON or has no type field.
+func messageType(body string) string {
+	var m struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal([]byte(body), &m) == nil {
+		return m.Type
+	}
+	return ""
+}
+
 // wsRelayCoverageCases emits one deterministic 4-step relay case per declared
-// message_handled vocab edge that the other generators do not already cover:
-// From connect → To connect → From send T → To receive T. The final ws_receive
-// is what receive-driven path coverage credits (exercisedEdges keys by
-// (ToRole, Type) from a matched receive in Evidence). This gives the ~31
+// message_handled vocab edge the other generators do not already cover (deduped
+// via `covered`): From connect → To connect → From send T → To receive T. The
+// final ws_receive is what receive-driven path coverage credits (exercisedEdges
+// keys by (ToRole, Type) from a matched receive in Evidence). This covers the
 // declared message_handled edges that wsRelayCases/wsRequestResponseCases/
-// wsFlowConnectCase never enumerate a case that can credit them.
+// wsFlowConnectCase never enumerate.
 //
-// Edge set mirrors requiredEdges exactly (Trigger=message_handled, not
-// Unsupported, not Partial); FromRole==ToRole (self-relay) and empty roles are
-// skipped. Duplicate (From,To,Type) edges collapse to one case. The send
-// payload uses the recipient role's RequestPayload[T] when declared (matching
-// wsRequestResponseCases), else an empty payload. Pure; no LLM.
-//
-// NOTE: wiring into wsCasesForService is a LATER phase — these cases must not
-// reach the autonomous executor until server-only types are marked Partial,
-// because their timeout-fails would trigger systemic_failure/target_unreachable
-// escalation. See the design spec's 1a→2→1b ordering.
-func wsRelayCoverageCases(svc project.Service) []agent.TestCase {
+// Edge set mirrors requiredEdges (Trigger=message_handled, not Unsupported, not
+// Partial — Phase 2 marks server-only types Partial so this generator skips
+// them and the autonomous executor never sees their timeout-fails); From==To
+// (self-relay) and empty roles are skipped. Duplicate (From,To,Type) and edges
+// in `covered` are skipped. The send payload uses the recipient role's
+// RequestPayload[T] when declared, else an empty payload. Pure; no LLM. Also
+// returns the set of roles these cases connect (so the per-role connect loop
+// can skip them).
+func wsRelayCoverageCases(svc project.Service, covered map[string]bool) ([]agent.TestCase, map[string]bool) {
+	connected := map[string]bool{}
 	if svc.Vocabulary == nil {
-		return nil
+		return nil, connected
 	}
 	seen := make(map[string]bool)
 	var cases []agent.TestCase
@@ -731,7 +787,7 @@ func wsRelayCoverageCases(svc project.Service) []agent.TestCase {
 			continue
 		}
 		key := e.FromRole + "|" + e.ToRole + "|" + e.Type
-		if seen[key] {
+		if seen[key] || covered[key] {
 			continue
 		}
 		seen[key] = true
@@ -758,8 +814,10 @@ func wsRelayCoverageCases(svc project.Service) []agent.TestCase {
 				{Action: "ws_receive", ConnectionID: e.ToRole, Type: e.Type, Timeout: 3},
 			},
 		})
+		connected[e.FromRole] = true
+		connected[e.ToRole] = true
 	}
-	return cases
+	return cases, connected
 }
 
 func wsCaseID(service, role, typ string) string {
