@@ -474,6 +474,7 @@ edges:
       to_role: bridge
       type: session:start
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -489,6 +490,7 @@ edges:
       to_role: bridge
       type: session:stop
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -504,6 +506,7 @@ edges:
       to_role: bridge
       type: session:cancel
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -519,6 +522,7 @@ edges:
       to_role: bridge
       type: session:resize
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -534,6 +538,7 @@ edges:
       to_role: bridge
       type: chat:send
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -549,6 +554,7 @@ edges:
       to_role: bridge
       type: permission:response
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -564,6 +570,7 @@ edges:
       to_role: bridge
       type: control:takeover
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -579,6 +586,7 @@ edges:
       to_role: bridge
       type: config:sync
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -594,6 +602,7 @@ edges:
       to_role: bridge
       type: rules:sync
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -609,6 +618,7 @@ edges:
       to_role: bridge
       type: storage:sync
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -624,6 +634,7 @@ edges:
       to_role: bridge
       type: prompts:sync
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -639,6 +650,7 @@ edges:
       to_role: bridge
       type: mcp:sync
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -654,6 +666,7 @@ edges:
       to_role: bridge
       type: mcp:list
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -669,6 +682,7 @@ edges:
       to_role: bridge
       type: workflow:start
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -684,6 +698,7 @@ edges:
       to_role: bridge
       type: workflow:pause
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -699,6 +714,7 @@ edges:
       to_role: bridge
       type: workflow:cancel
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -714,6 +730,7 @@ edges:
       to_role: bridge
       type: workflow:start_task
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -729,6 +746,7 @@ edges:
       to_role: bridge
       type: workflow:task_assign
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -744,6 +762,7 @@ edges:
       to_role: bridge
       type: workflow:task_answer
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -759,6 +778,7 @@ edges:
       to_role: bridge
       type: workflow:task_guidance
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -774,6 +794,7 @@ edges:
       to_role: bridge
       type: acp:query_status
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -789,6 +810,7 @@ edges:
       to_role: bridge
       type: device:restart
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -804,6 +826,7 @@ edges:
       to_role: bridge
       type: device:listDir
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
@@ -819,6 +842,7 @@ edges:
       to_role: bridge
       type: session:send
       trigger: message_handled
+      partial: true
       guard: meta.type === 'web'
       delivery:
         mode: send_bridge_by_device
