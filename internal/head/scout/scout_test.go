@@ -70,6 +70,49 @@ func TestAnalyze_ConfigOnlyModel(t *testing.T) {
 	assert.InDelta(t, 0.95, model.API.Endpoints[0].Confidence, 0.01)
 }
 
+// TestBuildModelFromConfig_HTTPTriggerEndpoints reproduces the Scout path-form
+// drift that produced HTTP 404 as the dominant failure mode in live WS-service
+// runs: the protocol declares a real HTTP→WS trigger route (e.g.
+// "/api/devices/{{bridge.deviceId}}/restart"), but buildModelFromConfig never
+// collected it, so the model carried no ground-truth path and the Scout LLM
+// fabricated conventional REST routes ("/devices/...") that 404. A declared
+// http_trigger path must appear in the config model as a high-confidence
+// endpoint so both the fallback planner and the LLM see the real route.
+func TestBuildModelFromConfig_HTTPTriggerEndpoints(t *testing.T) {
+	cfg := &project.Config{
+		Project: project.ProjectMeta{Name: "ws-realtime"},
+		Services: []project.Service{{
+			Name: "realtime",
+			URL:  "http://localhost:8989/ws/{userId}",
+			Protocol: &project.Protocol{HTTPTriggers: []*project.HTTPTrigger{{
+				ID: "device-restart",
+				Request: project.HTTPTriggerRequest{
+					Method:       "POST",
+					Path:         "/api/devices/{{bridge.deviceId}}/restart",
+					AuthRole:     "bridge",
+					ExpectStatus: 200,
+				},
+				Effect: project.HTTPTriggerEffect{MessageType: "device:restart", ToRole: "web"},
+			}}},
+		}},
+	}
+
+	driver := ai.NewDriver(llm.NewMockClient(nil), ai.NewTokenBudget(200000, 10000))
+	scout := NewScout(driver, setupTestStore(t), cfg, zap.NewNop())
+
+	model := scout.buildModelFromConfig()
+
+	var found *project.EndpointDef
+	for i := range model.API.Endpoints {
+		if model.API.Endpoints[i].Path == "/api/devices/{{bridge.deviceId}}/restart" {
+			found = &model.API.Endpoints[i]
+		}
+	}
+	require.NotNil(t, found, "declared http_trigger path must be a model endpoint, got %+v", model.API.Endpoints)
+	assert.Equal(t, "POST", found.Method, "trigger method must be carried through")
+	assert.Greater(t, found.Confidence, 0.9, "an explicitly declared route must be high confidence")
+}
+
 func TestAnalyze_AIInference(t *testing.T) {
 	// When config is sparse, AI should be called via tool calls to infer
 	// additional endpoints/pages/tech stack. The mock returns report_endpoint

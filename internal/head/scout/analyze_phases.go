@@ -3,6 +3,7 @@ package scout
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -115,6 +116,28 @@ func (s *Scout) buildModelFromConfig() *project.ProjectModel {
 			model.API.Endpoints = append(model.API.Endpoints, project.EndpointDef{
 				Method:     "GET",
 				Path:       svc.Health,
+				Confidence: 0.95,
+			})
+		}
+	}
+
+	// Add endpoints from declared HTTP→WS triggers. These are ground-truth
+	// routes; without them the model carries no real path and the Scout LLM
+	// infers REST routes by convention (e.g. "/devices/...") that miss the
+	// real prefix and 404. Confidence matches health/invariants (explicit
+	// declaration). Method defaults to POST per the trigger generator contract.
+	for _, svc := range s.config.Services {
+		if svc.Protocol == nil {
+			continue
+		}
+		for _, tr := range svc.Protocol.HTTPTriggers {
+			method := strings.ToUpper(tr.Request.Method)
+			if method == "" {
+				method = "POST"
+			}
+			model.API.Endpoints = append(model.API.Endpoints, project.EndpointDef{
+				Method:     method,
+				Path:       tr.Request.Path,
 				Confidence: 0.95,
 			})
 		}
