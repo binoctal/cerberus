@@ -899,7 +899,7 @@ func TestWSHTTPTriggerCases(t *testing.T) {
 				"bridge": {CredentialRef: "bridge-actor"},
 			},
 			HTTPTriggers: []*project.HTTPTrigger{{
-				ID:     "device-restart",
+				ID:      "device-restart",
 				Request: project.HTTPTriggerRequest{Method: "POST", Path: "/api/devices/{{bridge.deviceId}}/restart", AuthRole: "web", ExpectStatus: 200},
 				Effect:  project.HTTPTriggerEffect{MessageType: "device:restart", ToRole: "web"},
 			}},
@@ -952,4 +952,99 @@ func TestWsRequestResponseCases_RequestPayloadAbsent(t *testing.T) {
 	require.Len(t, cases, 1)
 	// No request_payload ⇒ bare type envelope (byte-identical to pre-feature).
 	assert.Equal(t, `{"type":"session:start"}`, cases[0].Steps[2].Message)
+}
+
+// msgEdge is a compact constructor for a message_handled vocab edge.
+func msgEdge(from, to, typ string) project.VocabEdge {
+	return project.VocabEdge{FromRole: from, ToRole: to, Type: typ, Trigger: "message_handled"}
+}
+
+func TestWSRelayCoverageCases_EmitsOneCasePerQualifyingEdge(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			msgEdge("bridge", "web", "device:online"),                                                         // qualifying
+			msgEdge("web", "bridge", "session:send"),                                                          // qualifying (reverse direction)
+			msgEdge("bridge", "web", "device:online"),                                                         // duplicate (From,To,Type) — collapse
+			msgEdge("bridge", "web", "workflow:start"),                                                        // qualifying
+			msgEdge("web", "web", "self:loop"),                                                                // self-relay — skip
+			msgEdge("bridge", "web", "device:offline"),                                                        // qualifying
+			{FromRole: "bridge", ToRole: "web", Type: "device:restart", Trigger: "fetch_branch"},              // non-message_handled — skip
+			{FromRole: "bridge", ToRole: "web", Type: "encrypted", Trigger: "message_handled", Partial: true}, // Partial — skip
+		}},
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"web":    {},
+			"bridge": {},
+		}},
+	}
+
+	got := wsRelayCoverageCases(svc)
+
+	// 4 unique qualifying edges: device:online (deduped), session:send, workflow:start, device:offline.
+	require.Len(t, got, 4, "one case per unique qualifying message_handled edge, deduped by (From,To,Type)")
+
+	byKey := map[string]agent.TestCase{}
+	for _, c := range got {
+		byKey[c.ID] = c
+	}
+
+	// Each case is a 4-step ws_flow: connect From, connect To, send T from From, receive T on To.
+	for _, want := range []struct {
+		from, to, typ string
+	}{
+		{"bridge", "web", "device:online"},
+		{"web", "bridge", "session:send"},
+		{"bridge", "web", "workflow:start"},
+		{"bridge", "web", "device:offline"},
+	} {
+		id := wsCaseID("realtime", want.to+"-recv", want.typ)
+		c, ok := byKey[id]
+		require.Truef(t, ok, "missing case for %s→%s %s (id=%s)", want.from, want.to, want.typ, id)
+		require.Lenf(t, c.Steps, 4, "case %s must have 4 steps", id)
+		assert.Equal(t, "ws_connect", c.Steps[0].Action, "step 0 connects From")
+		assert.Equal(t, want.from, c.Steps[0].Role, "step 0 role is From")
+		assert.Equal(t, want.from, c.Steps[0].ConnectionID, "step 0 conn is From")
+		assert.Equal(t, "ws_connect", c.Steps[1].Action, "step 1 connects To")
+		assert.Equal(t, want.to, c.Steps[1].Role, "step 1 role is To")
+		assert.Equal(t, want.to, c.Steps[1].ConnectionID, "step 1 conn is To")
+		assert.Equal(t, "ws_send", c.Steps[2].Action, "step 2 sends T from From")
+		assert.Equal(t, want.from, c.Steps[2].ConnectionID, "step 2 send on From conn")
+		assert.Equal(t, "ws_receive", c.Steps[3].Action, "step 3 receives T on To")
+		assert.Equal(t, want.to, c.Steps[3].ConnectionID, "step 3 receive on To conn")
+		assert.Equal(t, want.typ, c.Steps[3].Type, "step 3 receives type T")
+		assert.Equal(t, "ws_flow", c.Action, "case action is ws_flow")
+		assert.Equal(t, "realtime", c.Service, "case carries service name")
+	}
+}
+
+func TestWSRelayCoverageCases_EmptyWhenNoVocabulary(t *testing.T) {
+	assert.Empty(t, wsRelayCoverageCases(project.Service{Name: "svc"}), "no vocabulary ⇒ no cases")
+	assert.Empty(t, wsRelayCoverageCases(project.Service{
+		Name:       "svc",
+		Vocabulary: &project.Vocabulary{}, // no edges
+	}), "empty vocabulary ⇒ no cases")
+}
+
+func TestWSRelayCoverageCases_PayloadFromRecipientRequestPayload(t *testing.T) {
+	// The send payload uses the RECIPIENT role's RequestPayload[T], matching
+	// wsRequestResponseCases (the receiver declares the payload it expects).
+	svc := project.Service{
+		Name: "realtime",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			msgEdge("bridge", "web", "session:send"),
+		}},
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"web": {RequestPayload: map[string]map[string]string{
+				"session:send": {"content": "hello"},
+			}},
+			"bridge": {},
+		}},
+	}
+
+	got := wsRelayCoverageCases(svc)
+	require.Len(t, got, 1)
+	// wsSendBody wraps {"type": T, "payload": {...}}; assert the payload field is present.
+	assert.Contains(t, got[0].Steps[2].Message, `"content":"hello"`,
+		"send body must carry the recipient's RequestPayload for T")
+	assert.Contains(t, got[0].Steps[2].Message, `"type":"session:send"`)
 }
