@@ -699,6 +699,69 @@ func wsHTTPTriggerCases(svc project.Service) []agent.TestCase {
 	return cases
 }
 
+// wsRelayCoverageCases emits one deterministic 4-step relay case per declared
+// message_handled vocab edge that the other generators do not already cover:
+// From connect → To connect → From send T → To receive T. The final ws_receive
+// is what receive-driven path coverage credits (exercisedEdges keys by
+// (ToRole, Type) from a matched receive in Evidence). This gives the ~31
+// declared message_handled edges that wsRelayCases/wsRequestResponseCases/
+// wsFlowConnectCase never enumerate a case that can credit them.
+//
+// Edge set mirrors requiredEdges exactly (Trigger=message_handled, not
+// Unsupported, not Partial); FromRole==ToRole (self-relay) and empty roles are
+// skipped. Duplicate (From,To,Type) edges collapse to one case. The send
+// payload uses the recipient role's RequestPayload[T] when declared (matching
+// wsRequestResponseCases), else an empty payload. Pure; no LLM.
+//
+// NOTE: wiring into wsCasesForService is a LATER phase — these cases must not
+// reach the autonomous executor until server-only types are marked Partial,
+// because their timeout-fails would trigger systemic_failure/target_unreachable
+// escalation. See the design spec's 1a→2→1b ordering.
+func wsRelayCoverageCases(svc project.Service) []agent.TestCase {
+	if svc.Vocabulary == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var cases []agent.TestCase
+	for _, e := range svc.Vocabulary.Edges {
+		if e.Trigger != "message_handled" || e.Unsupported || e.Partial {
+			continue
+		}
+		if e.FromRole == "" || e.ToRole == "" || e.FromRole == e.ToRole {
+			continue
+		}
+		key := e.FromRole + "|" + e.ToRole + "|" + e.Type
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		var payload map[string]string
+		if svc.Protocol != nil {
+			if role := svc.Protocol.Roles[e.ToRole]; role != nil {
+				payload = role.RequestPayload[e.Type]
+			}
+		}
+		cases = append(cases, agent.TestCase{
+			ID:      wsCaseID(svc.Name, e.ToRole+"-recv", e.Type),
+			Name:    fmt.Sprintf("%s %s relays %s to %s", svc.Name, e.FromRole, e.Type, e.ToRole),
+			Service: svc.Name,
+			Target:  svc.URL,
+			Action:  "ws_flow",
+			Expectation: fmt.Sprintf("%s: %s sends %s, %s receives it",
+				svc.Name, e.FromRole, e.Type, e.ToRole),
+			Priority: 0.6,
+			Steps: []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: e.FromRole, Role: e.FromRole},
+				{Action: "ws_connect", ConnectionID: e.ToRole, Role: e.ToRole},
+				{Action: "ws_send", ConnectionID: e.FromRole, Message: wsSendBody(e.Type, payload)},
+				{Action: "ws_receive", ConnectionID: e.ToRole, Type: e.Type, Timeout: 3},
+			},
+		})
+	}
+	return cases
+}
+
 func wsCaseID(service, role, typ string) string {
 	return "ws-" + service + "-" + role + "-" + sanitizeTypeID(typ)
 }
