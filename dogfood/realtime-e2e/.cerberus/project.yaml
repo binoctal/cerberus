@@ -35,7 +35,7 @@ actors:
     fidelity: real-process
     process:
       workdir: "../../../open-agents/bridge"
-      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-d", "bridge-pty-1"]
+      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-n", "bridge-pty-1"]
       start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-1"]
       env:
         HOME: "{{runtime.dir}}/bridge-pty-1-home"   # isolate .open-agents-bridge/config.json per instance
@@ -49,7 +49,7 @@ actors:
     fidelity: real-process
     process:
       workdir: "../../../open-agents/bridge"
-      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-d", "bridge-pty-2"]
+      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-n", "bridge-pty-2"]
       start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-2"]
       env:
         HOME: "{{runtime.dir}}/bridge-pty-2-home"

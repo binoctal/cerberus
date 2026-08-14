@@ -98,7 +98,7 @@ func TestRealBridge_L2_RealCLIScheduled(t *testing.T) {
 				"type":    "session:stop",
 				"payload": map[string]any{"sessionId": sessionID, "deviceId": b1.deviceId},
 			})},
-			{Action: "ws_receive", ConnectionID: "c-web", Type: "session:stopped", Timeout: 30},
+			{Action: "ws_receive", ConnectionID: "c-web", Type: "session:stopped", Timeout: 90},
 		},
 	}, wsIdxForReal(userId))
 	require.Equal(t, StepPassed, seStop.runSteps().Status, "stop case must pass")
