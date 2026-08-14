@@ -88,4 +88,7 @@ func (rp *resumePhase) buildSummary() {
 	// Include coverage contract and assessment if present
 	rp.summary.Contract = rp.session.Contract
 	rp.summary.Assessment = rp.session.Assessment
+
+	// Fidelity composition watermark (real vs self-played actors).
+	rp.summary.RealActors, rp.summary.AllEmulated = FidelityComposition(rp.session.Config)
 }

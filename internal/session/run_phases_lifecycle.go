@@ -95,4 +95,7 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 	// affect the verdict or exit code; rendered as a report annotation.
 	rp.summary.RepairedCoverage = rp.session.RepairedCoverage
 	rp.summary.CoverageRecovered = rp.session.CoverageRecovered
+
+	// Fidelity composition watermark (real vs self-played actors).
+	rp.summary.RealActors, rp.summary.AllEmulated = FidelityComposition(rp.session.Config)
 }

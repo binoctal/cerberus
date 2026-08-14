@@ -10,6 +10,7 @@ import (
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/contract"
 	"github.com/binoctal/cerberus/internal/head/examiner"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 // SessionSummary collects statistics across all phases of a session.
@@ -64,6 +65,28 @@ type SessionSummary struct {
 	// types the repair mechanism cannot fix (process_exec, code_*, browser, ...).
 	// Surfaced so an operator understands why the repair loop skipped them.
 	NonRepairableFailures int `json:"non_repairable_failures,omitempty"`
+
+	// RealActors lists actors declared fidelity: real-process (backed by real
+	// external processes this run). Empty when every actor was self-played.
+	RealActors []string `json:"real_actors,omitempty"`
+	// AllEmulated is true when actors exist and none are real-process — the
+	// run summary watermarks this so "coverage 1.0" cannot silently mean
+	// "self-played only".
+	AllEmulated bool `json:"all_emulated,omitempty"`
+}
+
+// FidelityComposition derives the summary fidelity fields from the project
+// config. allEmulated is true only when actors exist and none are real-process.
+func FidelityComposition(cfg *project.Config) (real []string, allEmulated bool) {
+	if cfg == nil {
+		return nil, false
+	}
+	for _, a := range cfg.Actors {
+		if a.Fidelity == project.FidelityRealProcess {
+			real = append(real, a.Name)
+		}
+	}
+	return real, len(cfg.Actors) > 0 && len(real) == 0
 }
 
 // plannedCaseCount returns the number of real role units in a plan, excluding
@@ -264,7 +287,20 @@ func (s *SessionSummary) String() string {
 		s.Duration,
 		s.coverageRecoveredLine(),
 		s.failureHintsLine(),
-		s.nonRepairableLine())
+		s.nonRepairableLine()) +
+		s.fidelityLine()
+}
+
+// fidelityLine renders the fidelity composition: an emulated-only watermark
+// when every actor was self-played, or the real-process actor list otherwise.
+func (s *SessionSummary) fidelityLine() string {
+	if s.AllEmulated {
+		return "\n  Fidelity: emulated-only (all actors self-played)"
+	}
+	if len(s.RealActors) > 0 {
+		return "\n  Real actors: " + strings.Join(s.RealActors, ", ")
+	}
+	return ""
 }
 
 // nonRepairableLine notes how many correctable failures were skipped because

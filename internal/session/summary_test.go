@@ -8,6 +8,7 @@ import (
 
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/head/examiner"
+	"github.com/binoctal/cerberus/internal/project"
 )
 
 func TestSessionSummary_FromResults(t *testing.T) {
@@ -201,4 +202,40 @@ func TestPlannedCaseCount_ExcludesLazyFallback(t *testing.T) {
 	assert.Equal(t, 3, plannedCaseCount(plan), "lazy fallback cases are not independent planned roles")
 	assert.Equal(t, 0, plannedCaseCount(&agent.TestPlan{}), "empty plan -> 0")
 	assert.Equal(t, 0, plannedCaseCount(nil), "nil plan -> 0")
+}
+
+// TestSessionSummary_FidelityWatermark pins the fidelity composition surface:
+// a fully self-played run is watermarked emulated-only, a run with real-process
+// actors lists them instead.
+func TestSessionSummary_FidelityWatermark(t *testing.T) {
+	emulatedOnly := &SessionSummary{AllEmulated: true}
+	assert.Contains(t, emulatedOnly.String(), "emulated-only")
+	assert.NotContains(t, emulatedOnly.String(), "Real actors:")
+
+	withReal := &SessionSummary{RealActors: []string{"bridge-pty-1", "bridge-pty-2"}}
+	assert.Contains(t, withReal.String(), "Real actors: bridge-pty-1, bridge-pty-2")
+	assert.NotContains(t, withReal.String(), "emulated-only")
+}
+
+// TestFidelityComposition verifies the derivation from the project config.
+func TestFidelityComposition(t *testing.T) {
+	cfg := &project.Config{Actors: []project.Actor{
+		{Name: "web", Fidelity: project.FidelityEmulated},
+		{Name: "b1", Fidelity: project.FidelityRealProcess},
+		{Name: "b2", Fidelity: project.FidelityRealProcess},
+	}}
+	real, allEmulated := FidelityComposition(cfg)
+	assert.Equal(t, []string{"b1", "b2"}, real)
+	assert.False(t, allEmulated)
+
+	// No actors at all is not watermarked (nothing was self-played either).
+	real, allEmulated = FidelityComposition(&project.Config{})
+	assert.Empty(t, real)
+	assert.False(t, allEmulated)
+
+	real, allEmulated = FidelityComposition(&project.Config{Actors: []project.Actor{
+		{Name: "web"}, // empty fidelity == emulated
+	}})
+	assert.Empty(t, real)
+	assert.True(t, allEmulated)
 }
