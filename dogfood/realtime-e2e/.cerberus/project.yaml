@@ -1,0 +1,66 @@
+project:
+  name: realtime-e2e-dogfood
+services:
+  - name: realtime
+    url: http://localhost:8989/ws/{userId}   # {userId} templated from web-actor's provisioned path param (same dev user as the bridges)
+    protocol_ref: open-agents
+actors:
+  - name: web-actor
+    credentials:
+      token: demo_token   # static dev backdoor for the WS query param
+    auth:
+      login:
+        method: POST
+        path: /api/dev/setup
+        body: {}
+        headers:
+          Origin: http://localhost:8989   # CSRF middleware rejects POSTs without an Origin header
+      # token_from omitted on purpose: provisioning-only flow (captures userId below)
+      inject_as: "Authorization: Bearer {token}"
+      path_params:
+        userId: config.userId
+      http_login:
+        method: POST
+        path: /api/dev/login
+        body: {}
+        headers:
+          Origin: http://localhost:8989
+      http_token_from: token
+  # Real bridge devices. Each pairs via the dev backdoor (new device under the
+  # SAME dev user, so the web actor shares their DO room), runs in an isolated
+  # HOME (bridge config lives at $HOME/.open-agents-bridge), and its deviceId
+  # is captured for {{bridge.role}} send-body routing.
+  - name: bridge-pty-1
+    credentials: {}
+    fidelity: real-process
+    process:
+      workdir: "../../../open-agents/bridge"
+      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-d", "bridge-pty-1"]
+      start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-1"]
+      env:
+        HOME: "{{runtime.dir}}/bridge-pty-1-home"   # isolate .open-agents-bridge/config.json per instance
+      capture_file: "{{runtime.dir}}/bridge-pty-1-home/.open-agents-bridge/config.json"
+      capture_json:
+        deviceId: "devices.bridge-pty-1.deviceId"
+      ready_pattern: "Connected to server successfully"
+      ready_timeout: 30s
+  - name: bridge-pty-2
+    credentials: {}
+    fidelity: real-process
+    process:
+      workdir: "../../../open-agents/bridge"
+      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-d", "bridge-pty-2"]
+      start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-2"]
+      env:
+        HOME: "{{runtime.dir}}/bridge-pty-2-home"
+      capture_file: "{{runtime.dir}}/bridge-pty-2-home/.open-agents-bridge/config.json"
+      capture_json:
+        deviceId: "devices.bridge-pty-2.deviceId"
+      ready_pattern: "Connected to server successfully"
+      ready_timeout: 30s
+settings:
+  max_duration: 12m
+  confidence_threshold: 0.7
+  ai_budget:
+    session_total_tokens: 200000   # 80K starved the Examiner in ws-realtime dogfood (2026-08-14)
+    per_call_limit: 10000
