@@ -14,7 +14,7 @@ func (r *RuleEngine) matchHTTPRules(tc TestCase) (types.TypedAction, bool) {
 	if tc.Method != "" && strings.HasPrefix(tc.Target, "/") {
 		action := types.HTTPAction{
 			Method: strings.ToUpper(tc.Method),
-			URL:    base + tc.Target,
+			URL:    r.resolveHTTPURL(tc, base+tc.Target),
 		}
 		if h := r.serviceHeaders(tc); h != nil {
 			action.Headers = h
