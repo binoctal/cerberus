@@ -44,5 +44,5 @@ settings:
   max_duration: 8m
   confidence_threshold: 0.7
   ai_budget:
-    session_total_tokens: 80000
+    session_total_tokens: 200000   # 80K starved the Examiner: 11/40 judge calls failed on budget and fell back to step status (2026-08-14)
     per_call_limit: 10000
