@@ -858,6 +858,7 @@ edges:
       to_role: web
       type: session:send
       trigger: message_handled
+      partial: true   # peer-same-role broadcast (exclude_sender); single web-actor dogfood has no peer web to receive -> uncoverable, like ->bridge session:send
       guard: meta.type === 'web'
       delivery:
         mode: broadcast_web
