@@ -27,6 +27,9 @@ func (rp *runPhase) initialize() error {
 
 // finalize updates session stats and status after completion
 func (rp *runPhase) finalize() {
+	// Tear down real-process actors first so children never outlive the run.
+	rp.session.harnessStopAll()
+
 	elapsed := time.Since(rp.startTime)
 	tokensUsed := rp.session.Driver.Budget().SessionTotal - rp.session.Driver.Budget().Remaining()
 	if w := healthWarning(tokensUsed, elapsed); w != "" {

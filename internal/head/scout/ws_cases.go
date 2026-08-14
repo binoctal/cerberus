@@ -44,6 +44,7 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 	if cfg == nil {
 		return nil
 	}
+	realRoles := realProcessRoles(cfg)
 	var cases []agent.TestCase
 	for _, svc := range cfg.Services {
 		if svc.Protocol == nil || len(svc.Protocol.Roles) == 0 {
@@ -51,7 +52,61 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		}
 		cases = append(cases, wsCasesForService(svc, goal, covered[svc.Name], coveringCase[svc.Name])...)
 	}
+	// Real-process actors occupy their role with a real connection; drop every
+	// deterministic case that would ALSO connect as that role (emulated self-
+	// play would collide with or shadow the real process). Cases that only
+	// connect the emulated side (e.g. web sends routed at the real bridge)
+	// survive.
+	cases = dropCasesConnectingRealRoles(cases, realRoles)
 	return cases
+}
+
+// realProcessRoles maps role-name -> true for protocol roles whose
+// credential_ref names a fidelity: real-process actor.
+func realProcessRoles(cfg *project.Config) map[string]bool {
+	realActors := map[string]bool{}
+	for _, a := range cfg.Actors {
+		if a.Fidelity == project.FidelityRealProcess {
+			realActors[a.Name] = true
+		}
+	}
+	if len(realActors) == 0 {
+		return nil
+	}
+	roles := map[string]bool{}
+	for _, svc := range cfg.Services {
+		if svc.Protocol == nil {
+			continue
+		}
+		for name, r := range svc.Protocol.Roles {
+			if r != nil && r.CredentialRef != "" && realActors[r.CredentialRef] {
+				roles[name] = true
+			}
+		}
+	}
+	return roles
+}
+
+// dropCasesConnectingRealRoles removes cases with a ws_connect step whose
+// Role is bound to a real-process actor.
+func dropCasesConnectingRealRoles(cases []agent.TestCase, realRoles map[string]bool) []agent.TestCase {
+	if len(realRoles) == 0 {
+		return cases
+	}
+	out := cases[:0]
+	for _, c := range cases {
+		connectsReal := false
+		for _, s := range c.Steps {
+			if s.Action == "ws_connect" && realRoles[s.Role] {
+				connectsReal = true
+				break
+			}
+		}
+		if !connectsReal {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // wsCasesForService emits the deterministic WS cases for one service: the

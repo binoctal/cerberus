@@ -1094,3 +1094,54 @@ func TestWSCases_RelayCoverageWired(t *testing.T) {
 	assert.Contains(t, ids, wantID,
 		"uncovered message_handled edge must get a relay-coverage case via WSCases; got %v", ids)
 }
+
+// TestWSCasesRealProcessRoleNotEmulated: roles bound to a real-process actor
+// must not get emulated connect cases — the real process occupies that role.
+// Every deterministic form that would open a socket AS that role is dropped;
+// forms that only connect the emulated side survive.
+func TestWSCasesRealProcessRoleNotEmulated(t *testing.T) {
+	cfg := &project.Config{
+		Services: []project.Service{{
+			Name: "rt", URL: "http://x",
+			Protocol: &project.Protocol{
+				TypePath: "type",
+				Auth:     &project.ProtocolAuth{CredentialRef: "web"},
+				Roles: map[string]*project.ProtocolRole{
+					"web":    {CredentialRef: "web"},
+					"bridge": {CredentialRef: "b1", Params: map[string]string{"type": "bridge"}},
+				},
+			},
+		}},
+		Actors: []project.Actor{
+			{Name: "web", Fidelity: project.FidelityEmulated},
+			{Name: "b1", Fidelity: project.FidelityRealProcess, Process: &project.ProcessSpec{Start: []string{"sleep", "60"}}},
+		},
+	}
+	cases := WSCases(cfg, "")
+	require.NotEmpty(t, cases, "web-side cases must survive")
+	for _, c := range cases {
+		for _, s := range c.Steps {
+			if s.Action == "ws_connect" {
+				assert.NotEqual(t, "bridge", s.Role,
+					"case %s must not connect as the real-process-bound role", c.ID)
+			}
+		}
+	}
+}
+
+// TestWSCasesEmulatedRolesUnaffected: with no real-process actors the output
+// is byte-identical to the pre-guard behavior (regression pin).
+func TestWSCasesEmulatedRolesUnaffected(t *testing.T) {
+	cfg := &project.Config{
+		Services: []project.Service{{
+			Name: "rt", URL: "http://x",
+			Protocol: &project.Protocol{
+				TypePath: "type",
+				Roles: map[string]*project.ProtocolRole{
+					"bridge": {Params: map[string]string{"type": "bridge"}},
+				},
+			},
+		}},
+	}
+	assert.NotEmpty(t, WSCases(cfg, "bridge receives permission:response"))
+}

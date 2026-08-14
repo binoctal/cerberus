@@ -31,6 +31,13 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 	// any remaining test case runs. Failures degrade; never abort.
 	s.resolveActorAuth(ctx)
 
+	// Real-process actors are relaunched on resume like any other run —
+	// captured path params (deviceId etc.) come back with them.
+	if err := s.launchRealProcessActors(ctx); err != nil {
+		rp.err = err
+		return err
+	}
+
 	// Load saved plan
 	if err := rp.loadSavedPlan(); err != nil {
 		rp.err = err

@@ -32,6 +32,14 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	// any test case runs. Failures degrade; never abort.
 	s.resolveActorAuth(ctx)
 
+	// Launch real-process actors (fidelity: real-process). Unlike auth, a
+	// launch failure aborts: every case routing to a dead real actor would
+	// fail misleadingly. Teardown runs in rp.finalize().
+	if err := s.launchRealProcessActors(ctx); err != nil {
+		rp.err = err
+		return err
+	}
+
 	// Phase 1: Scout — Analyze + Plan
 	model, err := rp.executeScoutPhase()
 	if err != nil {

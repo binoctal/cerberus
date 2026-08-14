@@ -84,6 +84,10 @@ type Session struct {
 	// (spec §8).
 	repairTargeted map[coverKey]bool
 
+	// harness manages real-process actors (fidelity: real-process) for this
+	// session; nil when no actor is real-process or before setup.
+	harness *harness
+
 	// Per-head drivers. When nil, the shared Driver is used.
 	scoutDriver    *ai.Driver
 	agentDriver    *ai.Driver
