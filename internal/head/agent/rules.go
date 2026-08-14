@@ -121,6 +121,14 @@ func (r *RuleEngine) authHeadersFor(tc TestCase) map[string]string {
 	for k, v := range actor.Credentials.Headers {
 		h[k] = v
 	}
+	// A declared http_login captures an HTTP-route JWT (RawHTTPToken) distinct
+	// from the WS web-token that inject_as placed in Headers. HTTP cases must
+	// authenticate with the JWT, so it overrides the WS Authorization —
+	// otherwise protected HTTP routes 401 on the web-token. Actors without an
+	// http_login (RawHTTPToken empty) keep their Headers Authorization as-is.
+	if actor.Credentials.RawHTTPToken != "" {
+		h["Authorization"] = "Bearer " + actor.Credentials.RawHTTPToken
+	}
 	if len(h) == 0 {
 		return nil
 	}
