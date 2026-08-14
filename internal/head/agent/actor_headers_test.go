@@ -134,6 +134,26 @@ func TestReActLoop_WithActorHeadersFallbacks(t *testing.T) {
 	assert.Equal(t, "Bearer sk-x", out2.(types.HTTPAction).Headers["Authorization"])
 }
 
+// An actor that captured an http_login JWT (RawHTTPToken) must use it for HTTP
+// route auth, overriding the WS web-token carried in Headers. Without this, a
+// rule-engine HTTP case (method + path) for a declared-http_login actor (e.g.
+// the dogfood web-actor) injects the WS demo_token and 401s on protected HTTP
+// routes — the "Scout drifts to web-token" failure.
+func TestRuleEngine_AuthHeadersPrefersHTTPTokenOverWebToken(t *testing.T) {
+	services := []project.Service{{Name: "realtime", URL: "http://localhost"}}
+	engine := NewRuleEngine(services, []project.Actor{{
+		Service: "realtime",
+		Credentials: project.CredentialRef{
+			Headers:      map[string]string{"Authorization": "Bearer demo_token"},
+			RawHTTPToken: "jwt-from-http-login",
+		},
+	}}, "")
+
+	h := engine.authHeadersFor(TestCase{Service: "realtime"})
+	assert.Equal(t, "Bearer jwt-from-http-login", h["Authorization"],
+		"rule-engine HTTP path must inject the http_login JWT, not the WS web-token")
+}
+
 // Non-HTTP actions pass through untouched.
 func TestReActLoop_WithActorHeadersNonHTTP(t *testing.T) {
 	services := []project.Service{{Name: "default", URL: "http://localhost"}}
