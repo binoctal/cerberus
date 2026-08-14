@@ -89,6 +89,27 @@ func TestAssemblePlan_WSConnectURL(t *testing.T) {
 	require.Equal(t, "ws://other-host/ws", steps[1].URL, "emitted url must populate TestStep.URL")
 }
 
+// TestAssemblePlan_BeginCaseUnknownServiceFallsBackToBaseURL: when the LLM's
+// begin_case names a service that is not declared (typo / hallucination),
+// serviceURLByName returns "" and the ws_flow case used to carry Target="" —
+// so ws_connect dialed "" and handshake-failed (the tc-001 dogfood failure:
+// 40 pass / 1 fail, the 1 fail an empty-target ws_flow). The case must fall
+// back to the plan's base URL so ws_connect has a real dial target.
+func TestAssemblePlan_BeginCaseUnknownServiceFallsBackToBaseURL(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{Name: "rt", URL: "ws://h/ws", Protocol: relayProtocol()}}}
+	calls := []llm.ToolCall{
+		{Name: "begin_case", Input: map[string]any{"name": "relay", "expectation": "relay works", "service": "typo-service"}},
+		{Name: "ws_connect", Input: map[string]any{"role": "web"}},
+		{Name: "ws_receive", Input: map[string]any{"role": "web", "type": "device:online"}},
+	}
+
+	plan, _, _, _ := assemblePlan(calls, "goal", "ws://h/ws", cfg.Services)
+
+	require.Len(t, plan.Cases, 1, "the ws_flow case is kept (it has steps)")
+	require.Equal(t, "ws://h/ws", plan.Cases[0].Target,
+		"unknown begin_case service must fall back to the base URL, not dial \"\"")
+}
+
 // TestAssemblePlan_UnsoundWSFlowDoesNotCover is the A1 residual-risk fix: an
 // LLM ws_flow that connects a role but receives an INVENTED (ungrounded) type is
 // unsound, so the role is NOT marked covered — WSCasesCovered still emits the

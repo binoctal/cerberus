@@ -25,11 +25,13 @@ type caseAssembler struct {
 	svcProtos    map[string]*project.Protocol
 	services     []project.Service
 	goal         string
+	baseURL      string
 	id           int
 }
 
-func newCaseAssembler(goal string, services []project.Service) *caseAssembler {
+func newCaseAssembler(goal string, services []project.Service, baseURL string) *caseAssembler {
 	c := &caseAssembler{
+		baseURL:      baseURL,
 		covered:      map[string]map[string]bool{},
 		coveringCase: map[string]map[string]string{},
 		httpCovering: map[string]map[string]string{},
@@ -136,13 +138,19 @@ func (c *caseAssembler) handle(call llm.ToolCall) {
 	case "begin_case":
 		c.finalizeOpen()
 		svcName := llm.StrField(call, "service")
+		target := serviceURLByName(svcName, c.services)
+		if target == "" {
+			// Unknown service name (LLM typo / hallucination): fall back to the
+			// plan base URL so ws_connect has a dial target instead of dialing
+			// "" and handshake-failing (the tc-001 dogfood failure: an
+			// empty-target ws_flow was the sole fail in a 40 pass / 1 fail run).
+			target = c.baseURL
+		}
 		c.open = &agent.TestCase{
 			ID: c.nextID(), Name: llm.StrField(call, "name"),
 			Expectation: llm.StrField(call, "expectation"), Action: "ws_flow",
 			Service: svcName,
-			// ws_connect dials tc.Target (stepToAction); the LLM emits the
-			// service NAME, so resolve it to the service URL here.
-			Target: serviceURLByName(svcName, c.services),
+			Target: target,
 		}
 	case "ws_connect":
 		if c.open == nil {
@@ -183,7 +191,7 @@ func (c *caseAssembler) handle(call llm.ToolCall) {
 // (covered), so WSCasesCovered can suppress redundant deterministic connects.
 // Unknown/invalid calls are dropped, never panic.
 func assemblePlan(calls []llm.ToolCall, goal, baseURL string, services []project.Service) (*agent.TestPlan, map[string]map[string]bool, map[string]map[string]string, map[string]map[string]string) {
-	c := newCaseAssembler(goal, services)
+	c := newCaseAssembler(goal, services, baseURL)
 	for _, call := range calls {
 		c.handle(call)
 	}
