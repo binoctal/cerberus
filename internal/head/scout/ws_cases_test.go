@@ -978,10 +978,12 @@ func TestWSRelayCoverageCases_EmitsOneCasePerQualifyingEdge(t *testing.T) {
 		}},
 	}
 
-	got := wsRelayCoverageCases(svc)
+	got, connected := wsRelayCoverageCases(svc, nil)
 
 	// 4 unique qualifying edges: device:online (deduped), session:send, workflow:start, device:offline.
 	require.Len(t, got, 4, "one case per unique qualifying message_handled edge, deduped by (From,To,Type)")
+	assert.True(t, connected["bridge"], "bridge role is connected by the relay cases")
+	assert.True(t, connected["web"], "web role is connected by the relay cases")
 
 	byKey := map[string]agent.TestCase{}
 	for _, c := range got {
@@ -1018,11 +1020,14 @@ func TestWSRelayCoverageCases_EmitsOneCasePerQualifyingEdge(t *testing.T) {
 }
 
 func TestWSRelayCoverageCases_EmptyWhenNoVocabulary(t *testing.T) {
-	assert.Empty(t, wsRelayCoverageCases(project.Service{Name: "svc"}), "no vocabulary ⇒ no cases")
-	assert.Empty(t, wsRelayCoverageCases(project.Service{
+	got, connected := wsRelayCoverageCases(project.Service{Name: "svc"}, nil)
+	assert.Empty(t, got, "no vocabulary ⇒ no cases")
+	assert.Empty(t, connected)
+	got2, _ := wsRelayCoverageCases(project.Service{
 		Name:       "svc",
 		Vocabulary: &project.Vocabulary{}, // no edges
-	}), "empty vocabulary ⇒ no cases")
+	}, nil)
+	assert.Empty(t, got2, "empty vocabulary ⇒ no cases")
 }
 
 func TestWSRelayCoverageCases_PayloadFromRecipientRequestPayload(t *testing.T) {
@@ -1041,10 +1046,51 @@ func TestWSRelayCoverageCases_PayloadFromRecipientRequestPayload(t *testing.T) {
 		}},
 	}
 
-	got := wsRelayCoverageCases(svc)
+	got, _ := wsRelayCoverageCases(svc, nil)
 	require.Len(t, got, 1)
 	// wsSendBody wraps {"type": T, "payload": {...}}; assert the payload field is present.
 	assert.Contains(t, got[0].Steps[2].Message, `"content":"hello"`,
 		"send body must carry the recipient's RequestPayload for T")
 	assert.Contains(t, got[0].Steps[2].Message, `"type":"session:send"`)
+}
+
+func TestWSRelayCoverageCases_SkipsCoveredEdges(t *testing.T) {
+	svc := project.Service{
+		Name: "rt", URL: "http://x",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			msgEdge("bridge", "web", "device:online"),
+			msgEdge("bridge", "web", "workflow:start"),
+		}},
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}, "bridge": {}}},
+	}
+	// device:online already covered by another generator; only workflow:start emitted.
+	covered := map[string]bool{"bridge|web|device:online": true}
+	got, _ := wsRelayCoverageCases(svc, covered)
+	require.Len(t, got, 1, "covered edge is skipped, uncovered one emitted")
+	assert.Equal(t, wsCaseID("rt", "web-recv", "workflow:start"), got[0].ID)
+}
+
+// TestWSCases_RelayCoverageWired is the Phase 1b wiring check: an edge that no
+// other generator covers (not a handshake signal, no Responses map, not an
+// http_trigger, not goal-named) must still appear as a relay-coverage case
+// through WSCases, proving wsRelayCoverageCases is wired into wsCasesForService.
+func TestWSCases_RelayCoverageWired(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{{
+		Name: "rt", URL: "http://x",
+		Vocabulary: &project.Vocabulary{Edges: []project.VocabEdge{
+			msgEdge("bridge", "web", "workflow:start"),
+		}},
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"web":    {},
+			"bridge": {},
+		}},
+	}}}
+	cases := WSCases(cfg, "")
+	wantID := wsCaseID("rt", "web-recv", "workflow:start")
+	var ids []string
+	for _, c := range cases {
+		ids = append(ids, c.ID)
+	}
+	assert.Contains(t, ids, wantID,
+		"uncovered message_handled edge must get a relay-coverage case via WSCases; got %v", ids)
 }
