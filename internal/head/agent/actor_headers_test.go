@@ -154,6 +154,31 @@ func TestRuleEngine_AuthHeadersPrefersHTTPTokenOverWebToken(t *testing.T) {
 		"rule-engine HTTP path must inject the http_login JWT, not the WS web-token")
 }
 
+// A Scout free-form HTTP case (method + path) whose target carries a
+// {{role.param}} placeholder must resolve it, matching the http_request step
+// path. Without resolution the rule engine dials the literal string (e.g.
+// /api/devices/{{bridge.deviceId}}/restart) and fails — the endpoint_drift
+// failures in autonomous runs.
+func TestRuleEngine_HTTPCaseResolvesPlaceholderTarget(t *testing.T) {
+	proto := &project.Protocol{Roles: map[string]*project.ProtocolRole{
+		"bridge": {CredentialRef: "bridge-actor"},
+	}}
+	services := []project.Service{{Name: "realtime", URL: "http://localhost", Protocol: proto}}
+	engine := NewRuleEngine(services, []project.Actor{{Name: "bridge-actor", Service: "realtime"}}, "")
+	engine.SetWSIndex(&WSProtocolIndex{
+		ByHost:          map[string]*project.Protocol{"localhost": proto},
+		ActorPathParams: map[string]map[string]string{"bridge-actor": {"deviceId": "dev-123"}},
+	})
+
+	action, matched := engine.Match(TestCase{
+		Method: "POST", Target: "/api/devices/{{bridge.deviceId}}/restart", Service: "realtime",
+	})
+	assert.True(t, matched)
+	ha := action.(types.HTTPAction)
+	assert.Equal(t, "http://localhost/api/devices/dev-123/restart", ha.URL,
+		"rule-engine HTTP path must resolve {{role.param}} placeholders in the target")
+}
+
 // Non-HTTP actions pass through untouched.
 func TestReActLoop_WithActorHeadersNonHTTP(t *testing.T) {
 	services := []project.Service{{Name: "default", URL: "http://localhost"}}

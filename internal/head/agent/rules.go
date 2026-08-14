@@ -15,6 +15,7 @@ type RuleEngine struct {
 	byName   map[string]project.Service
 	actors   []project.Actor
 	workDir  string
+	wsIdx    *WSProtocolIndex // optional; resolves {{role.param}} placeholders in HTTP case targets
 	hits     atomic.Int64
 	misses   atomic.Int64
 }
@@ -27,6 +28,64 @@ func NewRuleEngine(services []project.Service, actors []project.Actor, workDir s
 		byName[s.Name] = s
 	}
 	return &RuleEngine{services: services, byName: byName, actors: actors, workDir: workDir}
+}
+
+// SetWSIndex wires the WS protocol index so HTTP rule-engine cases resolve
+// {{role.param}} / {{param}} placeholders in their target URL the same way the
+// http_request step path does (websocket.go resolvePlaceholders). Without it, a
+// Scout free-form HTTP case carrying a placeholder target (e.g.
+// /api/devices/{{bridge.deviceId}}/restart) dials the literal string and fails.
+// Optional; nil leaves targets literal.
+func (r *RuleEngine) SetWSIndex(idx *WSProtocolIndex) { r.wsIdx = idx }
+
+// selectActor chooses the actor for tc.Service, falling back to a global actor
+// (Actor.Service == "") then actors[0]. Shared by auth-header selection
+// (authHeadersFor) and HTTP target placeholder resolution so both attribute the
+// same actor for a case.
+func (r *RuleEngine) selectActor(tc TestCase) project.Actor {
+	if len(r.actors) == 0 {
+		return project.Actor{}
+	}
+	if tc.Service != "" {
+		for _, a := range r.actors {
+			if a.Service == tc.Service {
+				return a
+			}
+		}
+	}
+	for _, a := range r.actors {
+		if a.Service == "" {
+			return a
+		}
+	}
+	return r.actors[0]
+}
+
+// resolveHTTPURL resolves {{role.param}}/{{param}} placeholders in an HTTP
+// case URL when a WS protocol index is wired, mirroring the http_request step
+// path (websocket.go resolvePlaceholders). No index, no protocol, no
+// placeholder, or an unresolved token leaves the URL unchanged.
+func (r *RuleEngine) resolveHTTPURL(tc TestCase, url string) string {
+	if r.wsIdx == nil || !strings.Contains(url, "{{") {
+		return url
+	}
+	svc, ok := r.byName[tc.Service]
+	if !ok {
+		// Match baseURLFor's fallback: a case with no/unknown Service resolves
+		// against the first service (single-service projects) — the same service
+		// that supplied the base URL.
+		if len(r.services) == 0 {
+			return url
+		}
+		svc = r.services[0]
+	}
+	if svc.Protocol == nil {
+		return url
+	}
+	if resolved, err := resolvePlaceholders(r.wsIdx, svc.Protocol, r.selectActor(tc).Name, url); err == nil {
+		return resolved
+	}
+	return url
 }
 
 // Match attempts to produce a deterministic TypedAction for the given TestCase.
@@ -93,27 +152,7 @@ func (r *RuleEngine) authHeadersFor(tc TestCase) map[string]string {
 	if len(r.actors) == 0 {
 		return nil
 	}
-	var actor project.Actor
-	found := false
-	if tc.Service != "" {
-		for _, a := range r.actors {
-			if a.Service == tc.Service {
-				actor, found = a, true
-				break
-			}
-		}
-	}
-	if !found {
-		for _, a := range r.actors {
-			if a.Service == "" {
-				actor, found = a, true
-				break
-			}
-		}
-	}
-	if !found {
-		actor = r.actors[0]
-	}
+	actor := r.selectActor(tc)
 	h := map[string]string{}
 	if actor.Credentials.Email != "" {
 		h["X-Test-User"] = actor.Credentials.Email

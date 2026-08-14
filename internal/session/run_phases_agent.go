@@ -18,6 +18,7 @@ func (rp *runPhase) buildAgentLoop() *agent.ReActLoop {
 	}
 	engine := agent.NewRuleEngine(rp.session.Config.Services, rp.session.Config.Actors, projectDir)
 	wsIdx := agent.BuildWSProtocolIndex(rp.session.Config)
+	engine.SetWSIndex(wsIdx) // resolve {{role.param}} in rule-engine HTTP case URLs (parity with http_request step path)
 	multiExec := agent.BuildMultiExecutor(projectDir, agent.ServiceHeadersMap(rp.session.Config.Services), wsIdx, rp.session.Gate, rp.session.Logger)
 	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
 	return agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{
