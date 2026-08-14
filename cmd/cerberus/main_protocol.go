@@ -98,12 +98,29 @@ func runProtocolVocabulary(ctx context.Context, workDir, sourcePath, name string
 		},
 		Edges: extracted.Edges,
 	}
+	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
+	// Re-extraction must not drop manually-annotated marks (partial/unsupported)
+	// on edges that still exist, matched by (from_role, to_role, type). A blind
+	// overwrite re-admits server-only edges to the coverage denominator, which
+	// timeout-fail until the executor escalates. Extraction cannot know these
+	// marks — they encode live-probe knowledge about the running server.
+	if prev, perr := project.LoadVocabulary(outPath); perr == nil {
+		marks := make(map[string]project.VocabEdge, len(prev.Edges))
+		for _, e := range prev.Edges {
+			marks[e.FromRole+"|"+e.ToRole+"|"+e.Type] = e
+		}
+		for i := range vocab.Edges {
+			if old, ok := marks[vocab.Edges[i].FromRole+"|"+vocab.Edges[i].ToRole+"|"+vocab.Edges[i].Type]; ok {
+				vocab.Edges[i].Partial = old.Partial
+				vocab.Edges[i].Unsupported = old.Unsupported
+			}
+		}
+	}
 	block, _ := yaml.Marshal(vocab)
 	fmt.Printf("Draft vocabulary %q (%d edges):\n%s\n", name, len(vocab.Edges), string(block))
 	if dryRun {
 		return nil
 	}
-	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
 	rel := filepath.Join(".cerberus", "vocab", name+".vocab.yaml")
 	question := fmt.Sprintf("Write draft to %s? [y/N]", rel)
 	if _, statErr := os.Stat(outPath); statErr == nil {
