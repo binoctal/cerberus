@@ -384,11 +384,11 @@ func TestResolveAuthHeader_HTTPLogin(t *testing.T) {
 	actor := project.Actor{
 		Name: "web-actor",
 		Auth: &project.AuthFlow{
-			Login:     project.AuthLogin{Method: "POST", Path: "/primary", Body: map[string]string{}},
-			TokenFrom: "config.deviceToken",
-			InjectAs:  "Authorization: Bearer {token}",
-			PathParams: map[string]string{"userId": "config.userId"},
-			HTTPLogin:    &project.AuthLogin{Method: "POST", Path: "/login", Body: map[string]string{}},
+			Login:         project.AuthLogin{Method: "POST", Path: "/primary", Body: map[string]string{}},
+			TokenFrom:     "config.deviceToken",
+			InjectAs:      "Authorization: Bearer {token}",
+			PathParams:    map[string]string{"userId": "config.userId"},
+			HTTPLogin:     &project.AuthLogin{Method: "POST", Path: "/login", Body: map[string]string{}},
 			HTTPTokenFrom: "token",
 		},
 	}

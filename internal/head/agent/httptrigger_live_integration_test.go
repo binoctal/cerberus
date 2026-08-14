@@ -64,7 +64,7 @@ func TestHTTPTrigger_LiveDeviceRestart(t *testing.T) {
 		Steps: []TestStep{
 			{Action: "ws_connect", Role: "web", ConnectionID: "web"},
 			{Action: "http_request", Method: "POST",
-				URL: "http://localhost:8989/api/devices/{{bridge.deviceId}}/restart",
+				URL:      "http://localhost:8989/api/devices/{{bridge.deviceId}}/restart",
 				AuthRole: "web", ExpectStatus: 200},
 			{Action: "ws_receive", ConnectionID: "web", Type: "device:restart", Timeout: 5},
 		},

@@ -62,11 +62,13 @@ func writeClaudeShim(t *testing.T) string {
 
 // launchRealBridges pairs and starts n real bridge devices under the SAME dev
 // user (each /api/dev/setup call reuses the user, creates a new device), each
-// in its own isolated HOME with the deterministic claude shim first on PATH.
+// in its own isolated HOME. withShim=true prepends the deterministic claude
+// shim to PATH (zero-LLM L1/M1 runs); false leaves the real claude binary
+// visible for L2 (real CLI scheduling, costs one LLM prompt).
 // It mirrors the session-package harness (an agent-package test cannot import
 // session — cycle): setup to completion, JSON capture, start in its own
 // process group, wait for the ready pattern, group teardown at cleanup.
-func launchRealBridges(t *testing.T, names ...string) []realBridge {
+func launchRealBridges(t *testing.T, withShim bool, names ...string) []realBridge {
 	t.Helper()
 	bridgeAbs, err := filepath.Abs(bridgeRepoDir)
 	require.NoError(t, err)
@@ -74,15 +76,19 @@ func launchRealBridges(t *testing.T, names ...string) []realBridge {
 	if _, err := os.Stat(bin); err != nil {
 		t.Skipf("bridge binary not built at %s; run `make build` in open-agents/bridge", bin)
 	}
-	shimDir := writeClaudeShim(t)
+	shimDir := ""
+	if withShim {
+		shimDir = writeClaudeShim(t)
+	}
 	var bridges []realBridge
 	for _, name := range names {
 		home := t.TempDir()
 		childEnv := func() []string {
-			return append(os.Environ(),
-				"HOME="+home,
-				"PATH="+shimDir+":"+os.Getenv("PATH"),
-			)
+			env := append(os.Environ(), "HOME="+home)
+			if shimDir != "" {
+				env = append(env, "PATH="+shimDir+":"+os.Getenv("PATH"))
+			}
+			return env
 		}
 		run := func(args ...string) string {
 			cmd := exec.Command(bin, args...)
@@ -210,7 +216,7 @@ func TestRealBridge_L1_PTYSessions(t *testing.T) {
 	if !reachable(oaBase) {
 		t.Skipf("open-agents not reachable at %s; bring up `npm run dev` (apps/api)", oaBase)
 	}
-	bridges := launchRealBridges(t, "bridge-pty-1")
+	bridges := launchRealBridges(t, true, "bridge-pty-1")
 	b1 := bridges[0]
 
 	// The web actor provisions through the same dev backdoor: same user as

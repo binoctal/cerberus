@@ -212,7 +212,7 @@ func TestBuildWSProtocolIndex_ActorHTTPTokens(t *testing.T) {
 			Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{"web": {}}},
 		}},
 		Actors: []project.Actor{{
-			Name: "web-actor",
+			Name:        "web-actor",
 			Credentials: project.CredentialRef{RawHTTPToken: "JWT-9", RawToken: "demo"},
 		}},
 	}

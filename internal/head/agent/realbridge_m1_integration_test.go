@@ -76,7 +76,7 @@ func TestRealBridge_M1_Orchestration(t *testing.T) {
 		t.Skip("local D1 sqlite not found under open-agents/apps/api/.wrangler")
 	}
 
-	bridges := launchRealBridges(t, "m1-a", "m1-b")
+	bridges := launchRealBridges(t, true, "m1-a", "m1-b")
 	b1, b2 := bridges[0], bridges[1]
 
 	userId, _, _, err := devSetup(oaBase)
