@@ -21,7 +21,29 @@ func validateActors(cfg *Config, ve *ValidationError) {
 		if msg := validateGeneratedPathParams(i, a); msg != "" {
 			ve.add(msg)
 		}
+		if msg := validateFidelity(i, a); msg != "" {
+			ve.add(msg)
+		}
 	}
+}
+
+// validateFidelity checks the per-actor fidelity manifest: real-process actors
+// require a process block with a start command, emulated actors must not carry
+// one, and the value must be a known fidelity.
+func validateFidelity(actorIdx int, a Actor) string {
+	switch a.Fidelity {
+	case "", FidelityEmulated:
+		if a.Process != nil {
+			return fmt.Sprintf("actors[%d]: fidelity %q must not have a process block", actorIdx, FidelityEmulated)
+		}
+	case FidelityRealProcess:
+		if a.Process == nil || len(a.Process.Start) == 0 {
+			return fmt.Sprintf("actors[%d]: fidelity %q: process block is required (with a start command)", actorIdx, FidelityRealProcess)
+		}
+	default:
+		return fmt.Sprintf("actors[%d]: unknown fidelity %q (supported: %s, %s)", actorIdx, a.Fidelity, FidelityEmulated, FidelityRealProcess)
+	}
+	return ""
 }
 
 // validateGeneratedPathParams checks declared generated_path_params: keys are

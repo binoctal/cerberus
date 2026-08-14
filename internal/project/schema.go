@@ -34,10 +34,26 @@ type Service struct {
 	Vocabulary *Vocabulary `yaml:"-"`
 }
 
+// Actor fidelity values. Empty is treated as FidelityEmulated (backwards
+// compatible: actors without a process block are self-played by cerberus).
+const (
+	FidelityEmulated    = "emulated"
+	FidelityRealProcess = "real-process"
+)
+
 type Actor struct {
 	Name        string        `yaml:"name"`
 	Credentials CredentialRef `yaml:"credentials"`
 	Auth        *AuthFlow     `yaml:"auth,omitempty"`
+	// Fidelity declares whether this actor is self-played by cerberus
+	// (emulated, the default) or backed by a real external process
+	// (real-process, requires a Process block). Drives the run-summary
+	// fidelity watermark so "coverage 1.0" cannot silently mean
+	// "self-played only".
+	Fidelity string `yaml:"fidelity,omitempty"`
+	// Process declares the external process behind a real-process actor.
+	// Required iff Fidelity == FidelityRealProcess; forbidden otherwise.
+	Process *ProcessSpec `yaml:"process,omitempty"`
 	// GeneratedPathParams declares url-param -> generator for runtime-synthesized
 	// path values (e.g. clientId: uuid). Unlike auth.path_params (captured from a
 	// login response), these are generated locally at session setup — useful for
@@ -47,6 +63,32 @@ type Actor struct {
 	GeneratedPathParams map[string]string `yaml:"generated_path_params,omitempty"`
 	Entry               string            `yaml:"entry,omitempty"`
 	Service             string            `yaml:"service,omitempty"`
+}
+
+// ProcessSpec declares an external process actor (fidelity: real-process).
+// All SUT-specific facts live here in YAML; cerberus stays generic.
+type ProcessSpec struct {
+	// Workdir is the child process working directory (optional).
+	Workdir string `yaml:"workdir,omitempty"`
+	// Setup is a one-shot provisioning command run to completion before Start
+	// (e.g. bridge pairing). Empty argv means no setup step.
+	Setup []string `yaml:"setup,omitempty"`
+	// Start is the long-running process argv (required).
+	Start []string `yaml:"start"`
+	// Env overrides the child environment. Values support the same templates
+	// as Start entries ({{runtime.dir}} / {{actor.name}}).
+	Env map[string]string `yaml:"env,omitempty"`
+	// CaptureFile is a JSON file read after Setup; CaptureJSON maps
+	// param name -> dot-path into that JSON (e.g. deviceId: devices.b1.deviceId).
+	// Captured values merge into the actor's runtime PathParams.
+	CaptureFile string `yaml:"capture_file,omitempty"`
+	// CaptureJSON maps captured param names to dot-paths within CaptureFile.
+	CaptureJSON map[string]string `yaml:"capture_json,omitempty"`
+	// ReadyPattern is a regex on combined child stdout/stderr; the harness
+	// waits for it before declaring the actor ready. Empty = no wait.
+	ReadyPattern string `yaml:"ready_pattern,omitempty"`
+	// ReadyTimeout bounds the readiness wait (Go duration string). Default 30s.
+	ReadyTimeout string `yaml:"ready_timeout,omitempty"`
 }
 
 type CredentialRef struct {
