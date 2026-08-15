@@ -33,11 +33,14 @@ func TestFindingsRoundtripAndValidate(t *testing.T) {
 	assert.Equal(t, ff.Findings[0], loaded.Findings[0])
 
 	t.Run("invalid tier rejected", func(t *testing.T) {
-		bad := &FindingsFile{Findings: []Finding{{ID: "x", Tier: "weird"}}}
+		bad := &FindingsFile{Findings: []Finding{{ID: "x", Summary: "s", Tier: "weird", Status: FindingOpen}}}
 		assert.ErrorContains(t, ValidateFindings(bad), "tier")
 	})
 	t.Run("duplicate ids rejected", func(t *testing.T) {
-		bad := &FindingsFile{Findings: []Finding{{ID: "x"}, {ID: "x"}}}
+		bad := &FindingsFile{Findings: []Finding{
+			{ID: "x", Summary: "s", Tier: FindingTierReal, Status: FindingOpen},
+			{ID: "x", Summary: "s", Tier: FindingTierReal, Status: FindingOpen},
+		}}
 		assert.ErrorContains(t, ValidateFindings(bad), "duplicate")
 	})
 	t.Run("missing file is nil-nil", func(t *testing.T) {
