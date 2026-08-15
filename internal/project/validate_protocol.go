@@ -196,6 +196,9 @@ func ValidateProtocol(p *Protocol, actors []Actor) error {
 	if err := validateProtocolHTTPTriggers(p); err != nil {
 		return err
 	}
+	if err := validateViolations(p); err != nil {
+		return err
+	}
 	return validateProtocolBatches(p.Batches, p.Framing)
 }
 

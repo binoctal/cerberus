@@ -23,6 +23,11 @@ type Protocol struct {
 	// change. json framing only. Empty means no batch decomposition (backwards-
 	// compat). See the WS batch decomposition design spec.
 	Batches map[string]*ProtocolBatch `yaml:"batches,omitempty"`
+	// Violations declares the protocol's negative behaviors: trigger a
+	// violation from a role and expect the declared rejection (error frame,
+	// close code, or HTTP status). Hand-authored SUT facts; see the negative
+	// case family design spec.
+	Violations []Violation `yaml:"violations,omitempty"`
 	// HTTPTriggers declares HTTP routes that trigger a WS message push when hit
 	// (a public HTTP route whose handler fans a message out to WS clients via the
 	// DO /broadcast). Each trigger drives one deterministic Steps case
