@@ -80,6 +80,8 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 			ExpectAbsent: s.ExpectAbsent}, nil
 	case "ws_disconnect":
 		return types.WSDisconnectAction{ConnectionID: s.ConnectionID}, nil
+	case "ws_expect_close":
+		return types.WSExpectCloseAction{ConnectionID: s.ConnectionID, Code: s.Code, Timeout: s.Timeout}, nil
 	default:
 		return nil, fmt.Errorf("steps: unknown action %q", s.Action)
 	}

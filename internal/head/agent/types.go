@@ -89,6 +89,7 @@ type TestStep struct {
 	MatchAll     bool           `json:"match_all,omitempty"`     // ws_receive: collect every matching item in the burst (see WSReceiveAction.MatchAll)
 	Timeout      int            `json:"timeout,omitempty"`       // ws_receive: seconds (0 ⇒ executor default)
 	ExpectAbsent bool           `json:"expect_absent,omitempty"` // ws_receive: assert the type does NOT arrive (sender-exclusion probe)
+	Code         int            `json:"code,omitempty"`          // ws_expect_close: expected close status code (e.g. 1009)
 	// http_request: HTTP method (GET/POST/...). Defaults to GET when empty.
 	Method string `json:"method,omitempty"`
 	// http_request: explicit request headers (e.g. an injected Authorization).

@@ -289,6 +289,27 @@ type WSDisconnectAction struct {
 }
 
 func (a WSDisconnectAction) GetActionType() ActionType { return ActionWSDisconnect }
+
+// WSExpectCloseAction awaits the peer's close frame on a connection and
+// asserts its status code — the deterministic rejection observable for
+// oversize/policy violations (negative case family).
+type WSExpectCloseAction struct {
+	ConnectionID string `json:"connection_id"`
+	Code         int    `json:"code"`    // expected close status code
+	Timeout      int    `json:"timeout"` // seconds; 0 ⇒ executor default
+}
+
+func (a WSExpectCloseAction) GetActionType() ActionType { return ActionWSExpectClose }
+func (a WSExpectCloseAction) Target() string            { return a.ConnectionID }
+func (a WSExpectCloseAction) Validate() error {
+	if a.ConnectionID == "" {
+		return fmt.Errorf("connection_id is required")
+	}
+	if a.Code == 0 {
+		return fmt.Errorf("code is required")
+	}
+	return nil
+}
 func (a WSDisconnectAction) Target() string            { return a.ConnectionID }
 func (a WSDisconnectAction) Validate() error {
 	if a.ConnectionID == "" {

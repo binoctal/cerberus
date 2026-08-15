@@ -46,6 +46,9 @@ type WSResult struct {
 	// MatchedCount is the number of frames a MatchAll receive collected. Zero for
 	// non-MatchAll receives (use MatchedMessage presence for single-match counts).
 	MatchedCount int `json:"matched_count,omitempty"`
+	// CloseCode is the peer's close status code observed by ws_expect_close
+	// (zero for every other action).
+	CloseCode int `json:"close_code,omitempty"`
 	// SeenMessages are non-matching messages observed while WSReceive scanned.
 	SeenMessages []string `json:"seen_messages,omitempty"`
 	// Messages is the legacy combined list (kept for back-compat readers).

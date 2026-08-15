@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -60,6 +61,8 @@ type wsEntry struct {
 	credentialRef string            // actor that opened this conn; for {{param}}/{{role.param}} send-body templating
 	msgs          chan wsMsg        // buffered (256); pump pushes every inbound frame
 	pumpErr       error             // set when the pump exits (read error / ctx done)
+	closeCode     int               // peer close status captured by the pump (0 = none)
+	closeReason   string
 	done          chan struct{}     // closed when the pump has exited
 	readMu        sync.Mutex        // serializes channel consumption (one consumer at a time)
 	pending       wsMsg             // a frame peeked then put back by readMatchingAll
@@ -134,6 +137,8 @@ func (e *WebSocketExecutor) Execute(ctx context.Context, action types.TypedActio
 		return e.doReceive(ctx, a, start)
 	case types.WSDisconnectAction:
 		return e.doDisconnect(ctx, a, start)
+	case types.WSExpectCloseAction:
+		return e.doExpectClose(ctx, a, start)
 	default:
 		return types.ErrorResult{Err: fmt.Sprintf("ws executor: unsupported action %T", action)}
 	}
@@ -189,6 +194,11 @@ func (entry *wsEntry) readPump() {
 		mt, data, err := entry.conn.Read(entry.ctx)
 		if err != nil {
 			entry.pumpErr = err
+			var ce websocket.CloseError
+			if errors.As(err, &ce) {
+				entry.closeCode = int(ce.Code)
+				entry.closeReason = ce.Reason
+			}
 			return
 		}
 		// Batch decomposition happens here (before pushing) so every consumer —
@@ -980,6 +990,33 @@ func numericFloat(v any) (float64, bool) {
 		return float64(x), true
 	}
 	return 0, false
+}
+
+// doExpectClose waits for the connection's pump to exit (peer close) within
+// the timeout and asserts the captured close status code. A connection that
+// never closes, or closes with a different code, FAILS — a missing rejection
+// is a product finding, not a test error.
+func (e *WebSocketExecutor) doExpectClose(ctx context.Context, a types.WSExpectCloseAction, start time.Time) types.ExecutorResult {
+	entry, ok := e.lookup(caseNamespace(ctx, a.ConnectionID))
+	if !ok {
+		return types.WSResult{OK: false, Err: fmt.Sprintf("unknown connection_id: %s", a.ConnectionID), Latency: time.Since(start)}
+	}
+	timeout := time.Duration(a.Timeout) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	select {
+	case <-entry.done:
+	case <-time.After(timeout):
+		return types.WSResult{OK: false, Err: fmt.Sprintf("expect_close: no close within %s (connection still open)", timeout), Latency: time.Since(start)}
+	case <-ctx.Done():
+		return types.WSResult{OK: false, Err: "expect_close: ctx done", Latency: time.Since(start)}
+	}
+	observed := entry.closeCode
+	if observed != a.Code {
+		return types.WSResult{OK: false, Err: fmt.Sprintf("expect_close: code %d, want %d (reason %q)", observed, a.Code, entry.closeReason), CloseCode: observed, Latency: time.Since(start)}
+	}
+	return types.WSResult{OK: true, CloseCode: observed, MatchedMessage: fmt.Sprintf("close %d %q", observed, entry.closeReason), Latency: time.Since(start)}
 }
 
 func (e *WebSocketExecutor) doDisconnect(ctx context.Context, a types.WSDisconnectAction, start time.Time) types.ExecutorResult {

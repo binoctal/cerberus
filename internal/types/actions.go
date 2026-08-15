@@ -43,8 +43,9 @@ const (
 	ActionGraphQLQuery ActionType = "graphql_query"
 
 	// WebSocket
-	ActionWSConnect    ActionType = "ws_connect"
-	ActionWSSend       ActionType = "ws_send"
-	ActionWSReceive    ActionType = "ws_receive"
-	ActionWSDisconnect ActionType = "ws_disconnect"
+	ActionWSConnect     ActionType = "ws_connect"
+	ActionWSSend        ActionType = "ws_send"
+	ActionWSReceive     ActionType = "ws_receive"
+	ActionWSDisconnect  ActionType = "ws_disconnect"
+	ActionWSExpectClose ActionType = "ws_expect_close"
 )
