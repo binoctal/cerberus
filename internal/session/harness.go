@@ -298,6 +298,12 @@ func (s *Session) launchRealProcessActors(ctx context.Context) error {
 		return nil
 	}
 	runtimeDir := filepath.Join(s.ProjectDir, ".cerberus", "runtime")
+	// Children run with their own workdir, so every {{runtime.dir}} path that
+	// crosses the process boundary (HOME, capture_file) must be absolute — a
+	// relative runtime dir would resolve against the child's cwd instead.
+	if abs, err := filepath.Abs(runtimeDir); err == nil {
+		runtimeDir = abs
+	}
 	if err := os.MkdirAll(runtimeDir, 0o755); err != nil {
 		return fmt.Errorf("harness runtime dir: %w", err)
 	}

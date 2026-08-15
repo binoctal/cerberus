@@ -55,6 +55,25 @@ func TestCaseEvidenceTier(t *testing.T) {
 		}}
 		assert.Equal(t, "emulated", caseEvidenceTier(tc, realRoles, realIds))
 	})
+	t.Run("emulated body routes at a real role via cross-actor placeholder", func(t *testing.T) {
+		// realE2E L1 shape: the emulated side sends {{device.deviceId}} — the
+		// raw string cannot contain the captured id, but the placeholder
+		// resolves ONLY from the real actor's captured params at send time
+		// (unresolved is a hard error), so a passing case addressed the real
+		// process.
+		tc := agent.TestCase{ID: "tc-007", Steps: []agent.TestStep{
+			{Action: "ws_connect", Role: "web"},
+			{Action: "ws_send", Message: `{"type":"session:start","payload":{"deviceId":"{{device.deviceId}}"}}`},
+		}}
+		assert.Equal(t, "real", caseEvidenceTier(tc, realRoles, realIds))
+	})
+	t.Run("placeholder of a non-real role stays emulated", func(t *testing.T) {
+		tc := agent.TestCase{ID: "tc-008", Steps: []agent.TestStep{
+			{Action: "ws_connect", Role: "web"},
+			{Action: "ws_send", Message: `{"deviceId":"{{peer.deviceId}}"}`},
+		}}
+		assert.Equal(t, "emulated", caseEvidenceTier(tc, realRoles, realIds))
+	})
 	t.Run("no real-process actors at all", func(t *testing.T) {
 		tc := agent.TestCase{ID: "tc-006", Steps: []agent.TestStep{
 			{Action: "ws_connect", Role: "web"},

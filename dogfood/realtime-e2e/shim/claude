@@ -1,0 +1,8 @@
+#!/bin/sh
+# Deterministic fake claude REPL for zero-LLM real-process E2E (same shim as
+# the L1 integration test writeClaudeShim): the REAL bridge spawns this REAL
+# process via the claude-pty path and streams its output back through both
+# batching layers.
+while IFS= read -r line; do
+  printf 'FAKE_CLAUDE_ECHO: %s\n' "$line"
+done

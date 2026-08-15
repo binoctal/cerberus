@@ -39,6 +39,7 @@ actors:
       start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-1"]
       env:
         HOME: "{{runtime.dir}}/bridge-pty-1-home"   # isolate .open-agents-bridge/config.json per instance
+        PATH: "{{runtime.dir}}/../../shim:{{env.PATH}}"   # deterministic claude shim first: zero-LLM claude-pty sessions
       capture_file: "{{runtime.dir}}/bridge-pty-1-home/.open-agents-bridge/config.json"
       capture_json:
         deviceId: "devices.bridge-pty-1.deviceId"
@@ -53,6 +54,7 @@ actors:
       start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-2"]
       env:
         HOME: "{{runtime.dir}}/bridge-pty-2-home"
+        PATH: "{{runtime.dir}}/../../shim:{{env.PATH}}"
       capture_file: "{{runtime.dir}}/bridge-pty-2-home/.open-agents-bridge/config.json"
       capture_json:
         deviceId: "devices.bridge-pty-2.deviceId"

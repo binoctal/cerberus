@@ -65,6 +65,18 @@ func caseEvidenceTier(tc agent.TestCase, realRoleActors map[string]bool, realAct
 			}
 		}
 	}
+	// Cross-actor placeholder: a send body referencing {{realRole.param}}
+	// routes at the real process. The raw string cannot contain the captured
+	// id (resolution happens at send time), but the placeholder resolves ONLY
+	// from that real actor's captured params — unresolved is a hard error —
+	// so a PASSING case necessarily addressed the real process.
+	for _, body := range rawSendBodies(tc) {
+		for role := range realRoleActors {
+			if role != "" && strings.Contains(body, "{{"+role+".") {
+				return evidenceReal
+			}
+		}
+	}
 	return evidenceEmulated
 }
 
