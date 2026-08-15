@@ -69,7 +69,7 @@ func TestVerdictCRUD(t *testing.T) {
 	traceID, err := s.CreateTrace(ctx, sess.ID, "api", "POST /api/v1/users")
 	require.NoError(t, err)
 
-	v, err := s.CreateVerdict(ctx, sess.ID, traceID, "POST /api/v1/users",
+	v, err := s.CreateVerdict(ctx, sess.ID, traceID, "POST /api/v1/users", "",
 		"pass", 0.95, "judge", "Response matches expected schema", nil, FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 	assert.Greater(t, v.ID, int64(0))

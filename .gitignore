@@ -50,3 +50,4 @@ node_modules/
 
 # Claude Code session transcript dumps (local artifacts, never source)
 conversation-*.txt
+internal/session/.cerberus/

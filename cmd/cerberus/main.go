@@ -31,6 +31,7 @@ func main() {
 		authCmd(),
 		protocolCmd(),
 		claimsCmd(),
+		findingsCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

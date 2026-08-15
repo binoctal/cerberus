@@ -1,0 +1,19 @@
+findings:
+    - id: ws-realtime-bridge-bridge-rate-limit-371f149f
+      summary: assertion_failed
+      case_ref: ws-realtime-bridge-bridge-rate-limit
+      session_ref: 819369bc-fd11-4f65-8627-29e0ce74d53d
+      tier: emulated
+      status: resolved   # fixed by e5e9ca7 (single-burst semantics / no-AuthRole)
+      first_seen: "2026-08-15T23:44:18Z"
+      last_seen: "2026-08-15T23:44:18Z"
+      count: 1
+    - id: ws-realtime-web-csrf-no-origin-371f149f
+      summary: assertion_failed
+      case_ref: ws-realtime-web-csrf-no-origin
+      session_ref: 819369bc-fd11-4f65-8627-29e0ce74d53d
+      tier: emulated
+      status: resolved   # fixed by e5e9ca7 (single-burst semantics / no-AuthRole)
+      first_seen: "2026-08-15T23:44:18Z"
+      last_seen: "2026-08-15T23:44:18Z"
+      count: 1

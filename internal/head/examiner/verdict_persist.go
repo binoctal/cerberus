@@ -87,6 +87,7 @@ func PersistFinalVerdicts(ctx context.Context, s *store.Store, logger *zap.Logge
 			sessionID,
 			v.StepResult.TraceID,
 			target,
+			v.StepResult.TestCase.ID,
 			status,
 			v.CorrectnessConfidence,
 			"judge", // Use "judge" to satisfy database constraint

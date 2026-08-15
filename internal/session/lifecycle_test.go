@@ -748,7 +748,7 @@ func TestSession_Resume_SkipsCompleted(t *testing.T) {
 	traceID, err := s.CreateTrace(context.Background(), sess.ID, "http", "GET /healthz")
 	require.NoError(t, err)
 	require.NoError(t, s.FinishTrace(context.Background(), traceID, "pass"))
-	_, err = s.CreateVerdict(context.Background(), sess.ID, traceID, "GET /healthz", "pass", 0.9, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(context.Background(), sess.ID, traceID, "GET /healthz", "", "pass", 0.9, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 
 	// Resume — should only execute tc-pending.

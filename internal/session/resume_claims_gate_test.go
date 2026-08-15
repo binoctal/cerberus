@@ -43,7 +43,7 @@ func persistVerdict(t *testing.T, s *store.Store, sess *Session, target, status 
 	traceID, err := s.CreateTrace(context.Background(), sess.ID, "ws", target)
 	require.NoError(t, err)
 	require.NoError(t, s.FinishTrace(context.Background(), traceID, status))
-	_, err = s.CreateVerdict(context.Background(), sess.ID, traceID, target, status, 0.9, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(context.Background(), sess.ID, traceID, target, "", status, 0.9, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 }
 

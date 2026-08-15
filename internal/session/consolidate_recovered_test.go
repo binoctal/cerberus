@@ -33,9 +33,9 @@ func TestVerdictByNormalizedTarget_RecoveredDoesNotOverwritePrimary(t *testing.T
 
 	const target = "ws://h/ws"
 	// Primary fail (committed), then recovered fallback (committed), same target.
-	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "fail", 0.4, "judge", "primary failed", nil, "assertion_failed", false, "", "")
+	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "", "fail", 0.4, "judge", "primary failed", nil, "assertion_failed", false, "", "")
 	require.NoError(t, err)
-	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "pass", 0.9, "judge", "fallback recovered", nil, "", true, "", "")
+	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "", "pass", 0.9, "judge", "fallback recovered", nil, "", true, "", "")
 	require.NoError(t, err)
 
 	out := verdictByNormalizedTarget(ctx, rp.session, nil)
@@ -67,9 +67,9 @@ func TestVerdictByNormalizedTarget_UnrecoveredFallbackDoesNotShadowPrimary(t *te
 	// Primary fail carries assertion_failed; the fallback (FallbackFor set) also
 	// failed but with an environmental reason. Without the non-unit skip it would
 	// overwrite the primary's assertion_failed and let the strategy off the hook.
-	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "fail", 0.4, "judge", "primary failed", nil, "assertion_failed", false, "", "")
+	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "", "fail", 0.4, "judge", "primary failed", nil, "assertion_failed", false, "", "")
 	require.NoError(t, err)
-	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "fail", 0.5, "judge", "fallback also failed", nil, "target_unreachable", false, "A", "")
+	_, err = rp.session.Store.CreateVerdict(ctx, rp.session.ID, traceID, target, "", "fail", 0.5, "judge", "fallback also failed", nil, "target_unreachable", false, "A", "")
 	require.NoError(t, err)
 
 	out := verdictByNormalizedTarget(ctx, rp.session, nil)

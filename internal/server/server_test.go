@@ -287,7 +287,7 @@ func TestServer_GetReport_WithVerdicts(t *testing.T) {
 	// Create trace + verdict.
 	traceID, err := s.CreateTrace(ctx, sess.ID, "agent", "/api/test")
 	require.NoError(t, err)
-	_, err = s.CreateVerdict(ctx, sess.ID, traceID, "/api/test", "pass", 0.95, "judge", "looks good", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, traceID, "/api/test", "" , "pass", 0.95, "judge", "looks good", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 
 	handler := srv.Handler()
