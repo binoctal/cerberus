@@ -74,6 +74,39 @@ func TestHarness_EnvTemplates(t *testing.T) {
 	assert.Equal(t, dir+"/b7", strings.TrimSpace(string(data)))
 }
 
+// TestHarness_EnvPassthroughTemplate verifies {{env.NAME}} in an env override
+// resolves from the PARENT environment at launch time (e.g. prepending a shim
+// dir to PATH without hard-coding it, or passing credentials through).
+func TestHarness_EnvPassthroughTemplate(t *testing.T) {
+	t.Setenv("CERBERUS_TEST_ENV_PASSTHROUGH", "shim-dir")
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "env.txt")
+	spec := &project.ProcessSpec{
+		Start: []string{"sh", "-c", "echo $PATH_OVERRIDE > " + outFile + "; echo READY; exec sleep 60"},
+		Env: map[string]string{
+			"PATH_OVERRIDE": "{{runtime.dir}}:{{env.CERBERUS_TEST_ENV_PASSTHROUGH}}",
+		},
+		ReadyPattern: "READY",
+		ReadyTimeout: "5s",
+	}
+	h := newHarness(zap.NewNop(), dir)
+	require.NoError(t, h.LaunchActor(t.Context(), &project.Actor{Name: "b7", Process: spec}))
+	defer h.StopAll()
+
+	data, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	assert.Equal(t, dir+":shim-dir", strings.TrimSpace(string(data)))
+}
+
+// TestHarness_EnvPassthroughTemplate_MissingVar: an unset {{env.NAME}}
+// resolves to the empty string (documented semantics; a hard error would
+// require threading errors through tmpl).
+func TestHarness_EnvPassthroughTemplate_MissingVar(t *testing.T) {
+	h := newHarness(zap.NewNop(), t.TempDir())
+	got := h.tmpl("pre:{{env.CERBERUS_TEST_UNSET_VAR}}:post", &project.Actor{Name: "b1"})
+	assert.Equal(t, "pre::post", got)
+}
+
 // TestHarness_ReadyPatternTimeout: a child that never prints the pattern fails
 // the launch and is killed.
 func TestHarness_ReadyPatternTimeout(t *testing.T) {

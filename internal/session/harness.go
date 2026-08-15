@@ -47,10 +47,18 @@ func newHarness(log *zap.Logger, runtimeDir string) *harness {
 	return &harness{log: log, runtime: runtimeDir, procs: map[string]*harnessProc{}}
 }
 
-// tmpl resolves {{runtime.dir}} / {{actor.name}} in one argv or env entry.
+// envPlaceholderRe matches {{env.NAME}} — parent-environment passthrough in
+// argv and env entries (e.g. prepending a shim dir to PATH, or credentials).
+var envPlaceholderRe = regexp.MustCompile(`\{\{env\.([A-Za-z_][A-Za-z0-9_]*)\}\}`)
+
+// tmpl resolves {{runtime.dir}} / {{actor.name}} / {{env.NAME}} in one argv or
+// env entry. An unset {{env.NAME}} resolves to the empty string.
 func (h *harness) tmpl(s string, actor *project.Actor) string {
 	r := strings.ReplaceAll(s, "{{runtime.dir}}", h.runtime)
-	return strings.ReplaceAll(r, "{{actor.name}}", actor.Name)
+	r = strings.ReplaceAll(r, "{{actor.name}}", actor.Name)
+	return envPlaceholderRe.ReplaceAllStringFunc(r, func(m string) string {
+		return os.Getenv(m[len("{{env.") : len(m)-len("}}")])
+	})
 }
 
 func (h *harness) tmplSlice(ss []string, actor *project.Actor) []string {
