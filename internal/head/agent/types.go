@@ -68,6 +68,10 @@ type TestCase struct {
 	// for (feature #3). Empty on normal/planned cases. A replacement is scheduled
 	// explicitly by the repair loop (NOT lazily activated like FallbackFor).
 	Replaces string `json:"replaces,omitempty"`
+	// Claims names the claims-ledger ids this case claims to prove. Used by
+	// claims reconciliation to map product promises to evidence. Repair-loop
+	// replacements and lazy fallbacks INHERIT the original case's Claims.
+	Claims []string `json:"claims,omitempty"`
 }
 
 // TestStep is a single step in a deterministic WebSocket flow.

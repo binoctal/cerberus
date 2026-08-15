@@ -117,6 +117,7 @@ func (rp *runPhase) runFailRepairAxis(eligible []scout.RepairInput) {
 	// Append + persist so resume sees them. A SavePlan failure stops the axis —
 	// otherwise PersistFinalVerdicts could write verdicts referencing cases not
 	// in the plan.
+	replacements = inheritClaims(replacements, rp.plan.Cases)
 	rp.plan.Cases = append(rp.plan.Cases, replacements...)
 	if err := rp.session.Store.SavePlan(rp.ctx, rp.session.ID, rp.plan); err != nil {
 		rp.session.Logger.Warn("save plan (repair) failed; stopping fail-repair axis", zap.Error(err))
@@ -420,4 +421,36 @@ func (rp *runPhase) coverageEligibility(targeted map[coverKey]bool, before *auto
 		cand = cand[:defaultCoverageDispatchGaps]
 	}
 	return cand
+}
+
+// inheritClaims copies claim bindings from the original case onto repair-loop
+// replacements (Replaces) and lazy fallbacks (FallbackFor). A repaired case
+// must keep proving the promise the original was proving, or claims
+// reconciliation silently loses evidence. An explicit binding on the new case
+// always wins.
+func inheritClaims(newCases []agent.TestCase, originals []agent.TestCase) []agent.TestCase {
+	if len(newCases) == 0 {
+		return newCases
+	}
+	byID := make(map[string]agent.TestCase, len(originals))
+	for _, o := range originals {
+		byID[o.ID] = o
+	}
+	for i := range newCases {
+		nc := &newCases[i]
+		if len(nc.Claims) > 0 {
+			continue
+		}
+		orig := nc.Replaces
+		if orig == "" {
+			orig = nc.FallbackFor
+		}
+		if orig == "" {
+			continue
+		}
+		if o, ok := byID[orig]; ok && len(o.Claims) > 0 {
+			nc.Claims = append([]string(nil), o.Claims...)
+		}
+	}
+	return newCases
 }
