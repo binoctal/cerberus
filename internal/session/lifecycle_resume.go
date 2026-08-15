@@ -46,9 +46,12 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 
 	// Filter out completed cases
 	if err := rp.filterRemainingCases(); err != nil {
-		// If all cases completed, this is not an error
+		// If all cases completed, this is not an execution error — but the
+		// claims gate still has the final word: an unproven critical claim
+		// makes the resumed session incomplete (exit 3), not completed.
 		if err.Error() == "all cases already completed" {
-			return nil
+			rp.err = gateErrorIfFailed(rp.summary)
+			return rp.err
 		}
 		rp.err = err
 		return err

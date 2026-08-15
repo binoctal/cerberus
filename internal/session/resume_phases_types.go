@@ -19,4 +19,10 @@ type resumePhase struct {
 	reflections int
 	summary     *SessionSummary
 	err         error
+
+	// prior holds reconstructed StepResults for cases completed before the
+	// interruption (plan TestCase + persisted verdict status). Claims
+	// reconciliation on resume runs against prior + results so the verdicts
+	// reflect the session's COMPLETE evidence, not just this resume's slice.
+	prior []agent.StepResult
 }
