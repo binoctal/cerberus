@@ -251,9 +251,15 @@ func violationCases(svc project.Service) []agent.TestCase {
 					Asserts: map[string]any{"payload.code": v.Expect.Code}, Timeout: 10},
 				agent.TestStep{Action: "ws_expect_close", ConnectionID: v.Role, Code: v.Expect.CloseCode, Timeout: 10})
 		case project.ViolationFamilyHTTPAuth:
+			// Explicit trigger headers (e.g. a bad token) win over the role's
+			// auth injection, so AuthRole is dropped when any header is set.
+			authRole := v.Role
+			if len(v.Trigger.Headers) > 0 {
+				authRole = ""
+			}
 			tc.Steps = []agent.TestStep{{
 				Action: "http_request", URL: serviceHost(svc.URL) + v.Trigger.Path, Method: v.Trigger.Method,
-				AuthRole: v.Role, ExpectStatus: v.Expect.HTTPStatus,
+				Headers: v.Trigger.Headers, AuthRole: authRole, ExpectStatus: v.Expect.HTTPStatus,
 			}}
 		default:
 			continue // validation rejects unknown families; defensive

@@ -1261,6 +1261,10 @@ func violationFixture() *project.Config {
 					{ID: "csrf-no-origin", Family: project.ViolationFamilyHTTPAuth, Role: "web",
 						Trigger: project.ViolationTrigger{Method: "POST", Path: "/api/dev/setup", DropHeaders: []string{"Origin"}},
 						Expect:  project.ViolationExpect{HTTPStatus: 403}},
+					{ID: "invalid-token", Family: project.ViolationFamilyHTTPAuth, Role: "web",
+						Trigger: project.ViolationTrigger{Method: "GET", Path: "/api/sessions",
+							Headers: map[string]string{"Authorization": "Bearer garbage"}},
+						Expect: project.ViolationExpect{HTTPStatus: 401}},
 				},
 			},
 		}},
@@ -1327,6 +1331,12 @@ func TestViolationCases(t *testing.T) {
 		assert.Equal(t, "http://x/api/dev/setup", c.Steps[0].URL)
 		assert.Equal(t, 403, c.Steps[0].ExpectStatus)
 		assert.Empty(t, c.Steps[0].Headers, "dropping Origin means simply not setting it")
+	})
+	t.Run("http_auth explicit header injection", func(t *testing.T) {
+		c, ok := byID["ws-rt-web-invalid-token"]
+		require.True(t, ok)
+		assert.Equal(t, "Bearer garbage", c.Steps[0].Headers["Authorization"])
+		assert.Equal(t, 401, c.Steps[0].ExpectStatus)
 	})
 	t.Run("no claims binding", func(t *testing.T) {
 		// Only the violation cases: every other deterministic case binds the

@@ -34,3 +34,48 @@ http_triggers:
     effect:
       message_type: device:restart
       to_role: web
+
+# Negative behaviors (negative case family spec 2026-08-16). Sources probed
+# against the live dev api 2026-08-16:
+#   oversize:    room.ts:31-33 (1MiB limit, close 1009)
+#   rate_limit:  room.ts:37,243-250 + rateLimiter.ts:17-18 (200msg/s bridge,
+#                first violation error frame RATE_LIMIT_EXCEEDED, close 1008
+#                after 5 violating windows)
+#   route_missing: room.ts:439,450 + sendError shape room.ts:543-549
+#   csrf:        middleware/security.ts — probed: no-Origin POST /api/dev/setup
+#                ⇒ 403 (bad-Origin also 403)
+#   bad token:   probed: garbage Bearer on /api/sessions ⇒ 401
+# Probed-but-NOT-declared (open-agents findings, see the live-run note):
+#   - JWT WITHOUT exp claim is ACCEPTED (200) on /api/sessions — no-exp is
+#     not a rejection, so no violation can be declared.
+#   - /api/sessions ignores ?userId= (auth-derived c.get('userId') only) —
+#     the SEC-1 IDOR shape is safe on this route.
+violations:
+  - id: oversize-message
+    family: oversize
+    role: web
+    trigger: {bytes: 1048577, type: chat:message}
+    expect: {close_code: 1009}
+  - id: bridge-rate-limit
+    family: rate_limit
+    role: bridge
+    trigger: {messages: 220, windows: 6, type: chat:message}
+    expect: {frame_type: error, code: RATE_LIMIT_EXCEEDED, close_code: 1008}
+  - id: missing-device-id
+    family: route_missing
+    role: web
+    trigger: {type: session:start, omit_fields: [deviceId]}
+    expect: {frame_type: error, code: MISSING_DEVICE_ID}
+  - id: csrf-no-origin
+    family: http_auth
+    role: web
+    trigger: {method: POST, path: /api/dev/setup, drop_headers: [Origin]}
+    expect: {http_status: 403}
+  - id: invalid-token
+    family: http_auth
+    role: web
+    trigger:
+      method: GET
+      path: /api/sessions
+      headers: {Authorization: "Bearer garbage"}
+    expect: {http_status: 401}

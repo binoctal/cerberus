@@ -31,14 +31,15 @@ type Violation struct {
 // ViolationTrigger carries the family-specific trigger fields; only the
 // subset the family names is meaningful (validated).
 type ViolationTrigger struct {
-	Bytes       int      `yaml:"bytes"`        // oversize: payload size to send
-	Messages    int      `yaml:"messages"`     // rate_limit: burst per window
-	Windows     int      `yaml:"windows"`      // rate_limit: violating 1s windows
-	Type        string   `yaml:"type"`         // frame type to send
-	OmitFields  []string `yaml:"omit_fields"`  // route_missing: payload keys to drop
-	Method      string   `yaml:"method"`       // http_auth
-	Path        string   `yaml:"path"`         // http_auth
-	DropHeaders []string `yaml:"drop_headers"` // http_auth: headers to drop
+	Bytes       int               `yaml:"bytes"`             // oversize: payload size to send
+	Messages    int               `yaml:"messages"`          // rate_limit: burst per window
+	Windows     int               `yaml:"windows"`           // rate_limit: violating 1s windows
+	Type        string            `yaml:"type"`              // frame type to send
+	OmitFields  []string          `yaml:"omit_fields"`       // route_missing: payload keys to drop
+	Method      string            `yaml:"method"`            // http_auth
+	Path        string            `yaml:"path"`              // http_auth
+	DropHeaders []string          `yaml:"drop_headers"`      // http_auth: headers to drop
+	Headers     map[string]string `yaml:"headers,omitempty"` // http_auth: explicit headers (e.g. a bad token)
 }
 
 // ViolationExpect: FrameType+Code for error frames, CloseCode for closes,
