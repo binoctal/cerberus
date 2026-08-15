@@ -51,6 +51,10 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 			continue
 		}
 		cases = append(cases, wsCasesForService(svc, goal, covered[svc.Name], coveringCase[svc.Name])...)
+		// Real-process roles additionally get the L1 routed-session case: the
+		// emulated side driving a session THROUGH the real process (positive
+		// counterpart of the self-play suppression below).
+		cases = append(cases, realE2ECases(svc, realRoles)...)
 	}
 	// Real-process actors occupy their role with a real connection; drop every
 	// deterministic case that would ALSO connect as that role (emulated self-
@@ -107,6 +111,82 @@ func dropCasesConnectingRealRoles(cases []agent.TestCase, realRoles map[string]b
 		}
 	}
 	return out
+}
+
+// realE2ECases emits, for every protocol role occupied by a real-process
+// actor, ONE deterministic L1 fidelity-ladder case: the emulated client role
+// connects, routes a PTY session at the REAL process by cross-actor deviceId
+// placeholder ({{role.deviceId}} resolves from the harness's captured pairing
+// config at send time), exchanges real subprocess output, and stops. Message
+// shapes mirror the validated TestRealBridge_L1 integration scenario:
+// session:send carries `content` (not input); PTY output returns as
+// chat:response (batched form session:output-batch); cliType claude-pty is
+// the bridge's hardcoded PTY path. session:start payload entries from the
+// role's request_payload override the defaults. Returns nil when no role is
+// real-process-bound or no credentialed emulated role can play the client.
+func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCase {
+	if len(realRoles) == 0 || svc.Protocol == nil {
+		return nil
+	}
+	client := ""
+	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+		if realRoles[roleName] {
+			continue
+		}
+		if r := svc.Protocol.Roles[roleName]; r != nil && r.CredentialRef != "" {
+			client = roleName
+			break
+		}
+	}
+	if client == "" {
+		return nil
+	}
+	var cases []agent.TestCase
+	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+		if !realRoles[roleName] {
+			continue
+		}
+		sessionID := "e2e-l1-" + svc.Name + "-" + roleName
+		startPayload := map[string]string{
+			"sessionId": sessionID,
+			"cliType":   "claude-pty",
+			"workDir":   "/tmp",
+			"cols":      "80",
+			"rows":      "24",
+			"deviceId":  "{{" + roleName + ".deviceId}}",
+		}
+		if role := svc.Protocol.Roles[roleName]; role != nil {
+			for k, v := range role.RequestPayload["session:start"] {
+				startPayload[k] = v
+			}
+		}
+		deviceID := startPayload["deviceId"]
+		cases = append(cases, agent.TestCase{
+			ID:      wsCaseID(svc.Name, roleName+"-reale2e", "session"),
+			Name:    fmt.Sprintf("%s %s routes a session at real %s", svc.Name, client, roleName),
+			Service: svc.Name,
+			Target:  svc.URL,
+			Action:  "ws_flow",
+			Expectation: fmt.Sprintf("%s: %s starts a session on the REAL %s process via deviceId routing, relays real PTY output back, and stops it",
+				svc.Name, client, roleName),
+			Priority: 0.8,
+			Claims:   []string{wsRelayClaimID},
+			Steps: []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: client, Role: client},
+				{Action: "ws_send", ConnectionID: client, Message: wsSendBody("session:start", startPayload)},
+				{Action: "ws_receive", ConnectionID: client, Type: "session:started", Timeout: 15},
+				{Action: "ws_send", ConnectionID: client, Message: wsSendBody("session:send", map[string]string{
+					"sessionId": sessionID, "content": "printf CERBERUS_E2E_OK\n", "deviceId": deviceID,
+				})},
+				{Action: "ws_receive", ConnectionID: client, Type: "chat:response", Aliases: []string{"session:output-batch"}, Timeout: 15},
+				{Action: "ws_send", ConnectionID: client, Message: wsSendBody("session:stop", map[string]string{
+					"sessionId": sessionID, "deviceId": deviceID,
+				})},
+				{Action: "ws_receive", ConnectionID: client, Type: "session:stopped", Timeout: 15},
+			},
+		})
+	}
+	return cases
 }
 
 // wsRelayClaimID is the ledger claim every deterministic WS case binds: the

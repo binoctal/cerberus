@@ -1129,6 +1129,115 @@ func TestWSCasesRealProcessRoleNotEmulated(t *testing.T) {
 	}
 }
 
+// realE2EFixture mirrors dogfood/realtime-e2e: one emulated web role plus two
+// real-process bridge roles, each with a session:start request_payload routing
+// at its own captured deviceId.
+func realE2EFixture() *project.Config {
+	return &project.Config{
+		Services: []project.Service{{
+			Name: "rt", URL: "http://x",
+			Protocol: &project.Protocol{
+				TypePath: "type",
+				Auth:     &project.ProtocolAuth{CredentialRef: "web"},
+				Roles: map[string]*project.ProtocolRole{
+					"web": {CredentialRef: "web"},
+					"bridge": {CredentialRef: "b1", Params: map[string]string{"type": "bridge"},
+						RequestPayload: map[string]map[string]string{
+							"session:start": {"deviceId": "{{bridge.deviceId}}"},
+						}},
+					"bridge2": {CredentialRef: "b2", Params: map[string]string{"type": "bridge"},
+						RequestPayload: map[string]map[string]string{
+							"session:start": {"deviceId": "{{bridge2.deviceId}}"},
+						}},
+				},
+			},
+		}},
+		Actors: []project.Actor{
+			{Name: "web", Fidelity: project.FidelityEmulated},
+			{Name: "b1", Fidelity: project.FidelityRealProcess, Process: &project.ProcessSpec{Start: []string{"sleep", "60"}}},
+			{Name: "b2", Fidelity: project.FidelityRealProcess, Process: &project.ProcessSpec{Start: []string{"sleep", "60"}}},
+		},
+	}
+}
+
+// TestWSCasesRealE2EEmitsL1SessionCase: with a real-process actor bound to a
+// protocol role, every real role gets ONE deterministic L1 case — the emulated
+// side connects, routes a session at the REAL process by deviceId placeholder,
+// exchanges real PTY output, and stops. The case binds the ws-relay claim (a
+// pass evidences real-process relaying, not self-play).
+func TestWSCasesRealE2EEmitsL1SessionCase(t *testing.T) {
+	cases := WSCases(realE2EFixture(), "")
+	byID := map[string]agent.TestCase{}
+	for _, c := range cases {
+		byID[c.ID] = c
+	}
+	tc, ok := byID["ws-rt-bridge-reale2e-session"]
+	require.True(t, ok, "expected L1 case for real role bridge; got ids %v", caseIDs(cases))
+	tc2, ok := byID["ws-rt-bridge2-reale2e-session"]
+	require.True(t, ok, "expected L1 case for real role bridge2; got ids %v", caseIDs(cases))
+
+	for _, c := range []agent.TestCase{tc, tc2} {
+		require.Equal(t, "ws_flow", c.Action)
+		require.Equal(t, []string{"ws-relay-messaging"}, c.Claims)
+		for _, s := range c.Steps {
+			if s.Action == "ws_connect" {
+				assert.Equal(t, "web", s.Role, "case %s: only the emulated side may connect", c.ID)
+			}
+		}
+	}
+	// L1 shape (7 steps): connect → start → started → send → output → stop → stopped.
+	require.Len(t, tc.Steps, 7)
+	assert.Equal(t, "ws_connect", tc.Steps[0].Action)
+	assert.Equal(t, "web", tc.Steps[0].Role)
+
+	assert.Equal(t, "ws_send", tc.Steps[1].Action)
+	var startBody map[string]any
+	require.NoError(t, json.Unmarshal([]byte(tc.Steps[1].Message), &startBody))
+	assert.Equal(t, "session:start", startBody["type"])
+	payload, ok := startBody["payload"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "{{bridge.deviceId}}", payload["deviceId"], "route at the real process by cross-actor placeholder")
+	assert.Equal(t, "claude-pty", payload["cliType"])
+	assert.NotEmpty(t, payload["sessionId"])
+	assert.Equal(t, "/tmp", payload["workDir"])
+
+	assert.Equal(t, "ws_receive", tc.Steps[2].Action)
+	assert.Equal(t, "session:started", tc.Steps[2].Type)
+
+	assert.Equal(t, "ws_send", tc.Steps[3].Action)
+	var sendBody map[string]any
+	require.NoError(t, json.Unmarshal([]byte(tc.Steps[3].Message), &sendBody))
+	assert.Equal(t, "session:send", sendBody["type"])
+	sendPayload := sendBody["payload"].(map[string]any)
+	assert.Equal(t, payload["sessionId"], sendPayload["sessionId"], "send must target the started session")
+	assert.Equal(t, "{{bridge.deviceId}}", sendPayload["deviceId"])
+	assert.Contains(t, sendPayload["content"], "CERBERUS")
+
+	assert.Equal(t, "ws_receive", tc.Steps[4].Action)
+	assert.Equal(t, "chat:response", tc.Steps[4].Type)
+	assert.Equal(t, []string{"session:output-batch"}, tc.Steps[4].Aliases)
+
+	assert.Equal(t, "ws_send", tc.Steps[5].Action)
+	var stopBody map[string]any
+	require.NoError(t, json.Unmarshal([]byte(tc.Steps[5].Message), &stopBody))
+	assert.Equal(t, "session:stop", stopBody["type"])
+
+	assert.Equal(t, "ws_receive", tc.Steps[6].Action)
+	assert.Equal(t, "session:stopped", tc.Steps[6].Type)
+	_ = tc2
+}
+
+// TestWSCasesRealE2ENoneWithoutRealActors: no real-process actor ⇒ no L1 cases.
+func TestWSCasesRealE2ENoneWithoutRealActors(t *testing.T) {
+	cfg := realE2EFixture()
+	for i := range cfg.Actors {
+		cfg.Actors[i].Fidelity = project.FidelityEmulated
+	}
+	for _, c := range WSCases(cfg, "") {
+		assert.NotContains(t, c.ID, "reale2e", "case %s must not be a realE2E case", c.ID)
+	}
+}
+
 // TestWSCasesEmulatedRolesUnaffected: with no real-process actors the output
 // is byte-identical to the pre-guard behavior (regression pin).
 func TestWSCasesEmulatedRolesUnaffected(t *testing.T) {
