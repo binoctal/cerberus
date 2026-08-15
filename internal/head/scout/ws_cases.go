@@ -189,6 +189,80 @@ func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCa
 	return cases
 }
 
+// violationCases emits one deterministic case per declared protocol
+// violation (negative case family). Shapes:
+//   - route_missing: connect → send (payload-less frame: the route field is
+//     omitted) → receive expect.frame_type asserting payload.code
+//   - oversize: connect → send {{pad:N}} body → ws_expect_close
+//   - rate_limit: connect → per window: messages sends + one ExpectAbsent
+//     pacer receive (waits out the 1s fixed window); the final window adds
+//     the error-frame receive then ws_expect_close
+//   - http_auth: one http_request step (dropped headers simply not set,
+//     status asserted)
+// No claims binding (spec Non-goals). IDs: ws-<svc>-<role>-<id>.
+func violationCases(svc project.Service) []agent.TestCase {
+	if svc.Protocol == nil || len(svc.Protocol.Violations) == 0 {
+		return nil
+	}
+	var cases []agent.TestCase
+	for _, v := range svc.Protocol.Violations {
+		tc := agent.TestCase{
+			ID:      wsCaseID(svc.Name, v.Role, v.ID),
+			Name:    fmt.Sprintf("%s %s must provoke %s", svc.Name, v.Role, v.ID),
+			Service: svc.Name,
+			Target:  svc.URL,
+			Action:  "ws_flow",
+			Expectation: fmt.Sprintf("%s: %s triggering %s is rejected (%s)",
+				svc.Name, v.Role, v.ID, v.Family),
+			Priority: 0.7,
+		}
+		switch v.Family {
+		case project.ViolationFamilyRouteMissing:
+			tc.Steps = []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: v.Role, Role: v.Role},
+				{Action: "ws_send", ConnectionID: v.Role, Message: wsSendBody(v.Trigger.Type, nil)},
+				{Action: "ws_receive", ConnectionID: v.Role, Type: v.Expect.FrameType,
+					Asserts: map[string]any{"payload.code": v.Expect.Code}, Timeout: 10},
+			}
+		case project.ViolationFamilyOversize:
+			tc.Steps = []agent.TestStep{
+				{Action: "ws_connect", ConnectionID: v.Role, Role: v.Role},
+				{Action: "ws_send", ConnectionID: v.Role,
+					Message: wsSendBody(v.Trigger.Type, map[string]string{"text": "{{pad:" + strconv.Itoa(v.Trigger.Bytes) + "}}"})},
+				{Action: "ws_expect_close", ConnectionID: v.Role, Code: v.Expect.CloseCode, Timeout: 10},
+			}
+		case project.ViolationFamilyRateLimit:
+			tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_connect", ConnectionID: v.Role, Role: v.Role})
+			for w := 0; w < v.Trigger.Windows; w++ {
+				for i := 0; i < v.Trigger.Messages; i++ {
+					tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_send", ConnectionID: v.Role,
+						Message: wsSendBody(v.Trigger.Type, nil)})
+				}
+				if w < v.Trigger.Windows-1 {
+					// Pacer: wait out the 1s fixed window. Nothing of the
+					// trigger type may arrive meanwhile (we send it, not
+					// receive it), so ExpectAbsent holds.
+					tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_receive", ConnectionID: v.Role,
+						Type: v.Trigger.Type, ExpectAbsent: true, Timeout: 1})
+				}
+			}
+			tc.Steps = append(tc.Steps,
+				agent.TestStep{Action: "ws_receive", ConnectionID: v.Role, Type: v.Expect.FrameType,
+					Asserts: map[string]any{"payload.code": v.Expect.Code}, Timeout: 10},
+				agent.TestStep{Action: "ws_expect_close", ConnectionID: v.Role, Code: v.Expect.CloseCode, Timeout: 10})
+		case project.ViolationFamilyHTTPAuth:
+			tc.Steps = []agent.TestStep{{
+				Action: "http_request", URL: serviceHost(svc.URL) + v.Trigger.Path, Method: v.Trigger.Method,
+				AuthRole: v.Role, ExpectStatus: v.Expect.HTTPStatus,
+			}}
+		default:
+			continue // validation rejects unknown families; defensive
+		}
+		cases = append(cases, tc)
+	}
+	return cases
+}
+
 // wsRelayClaimID is the ledger claim every deterministic WS case binds: the
 // promise "messages are relayed over WebSocket in real time" is the reason a
 // WS protocol service exists, so any of these cases passing evidences it.
@@ -249,7 +323,9 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	for i := range cases {
 		cases[i].Claims = []string{wsRelayClaimID}
 	}
-	return cases
+	// Violation cases append AFTER the claim binding: negatives stay out of
+	// the claims ledger by design (spec Non-goals).
+	return append(cases, violationCases(svc)...)
 }
 
 // relayCoexistence resolves the deterministic peer-join relay cases against what

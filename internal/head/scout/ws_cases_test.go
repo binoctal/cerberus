@@ -1238,6 +1238,115 @@ func TestWSCasesRealE2ENoneWithoutRealActors(t *testing.T) {
 	}
 }
 
+func violationFixture() *project.Config {
+	return &project.Config{
+		Services: []project.Service{{
+			Name: "rt", URL: "http://x",
+			Protocol: &project.Protocol{
+				TypePath: "type",
+				Roles: map[string]*project.ProtocolRole{
+					"web":    {CredentialRef: "web"},
+					"bridge": {CredentialRef: "b1"},
+				},
+				Violations: []project.Violation{
+					{ID: "oversize-message", Family: project.ViolationFamilyOversize, Role: "web",
+						Trigger: project.ViolationTrigger{Bytes: 1048577, Type: "chat:message"},
+						Expect:  project.ViolationExpect{CloseCode: 1009}},
+					{ID: "missing-device-id", Family: project.ViolationFamilyRouteMissing, Role: "web",
+						Trigger: project.ViolationTrigger{Type: "session:start", OmitFields: []string{"deviceId"}},
+						Expect:  project.ViolationExpect{FrameType: "error", Code: "MISSING_DEVICE_ID"}},
+					{ID: "bridge-rate-limit", Family: project.ViolationFamilyRateLimit, Role: "bridge",
+						Trigger: project.ViolationTrigger{Messages: 3, Windows: 2, Type: "chat:message"},
+						Expect:  project.ViolationExpect{FrameType: "error", Code: "RATE_LIMIT_EXCEEDED", CloseCode: 1008}},
+					{ID: "csrf-no-origin", Family: project.ViolationFamilyHTTPAuth, Role: "web",
+						Trigger: project.ViolationTrigger{Method: "POST", Path: "/api/dev/setup", DropHeaders: []string{"Origin"}},
+						Expect:  project.ViolationExpect{HTTPStatus: 403}},
+				},
+			},
+		}},
+	}
+}
+
+func TestViolationCases(t *testing.T) {
+	cases := WSCases(violationFixture(), "")
+	byID := map[string]agent.TestCase{}
+	for _, c := range cases {
+		byID[c.ID] = c
+	}
+	t.Run("oversize", func(t *testing.T) {
+		c, ok := byID["ws-rt-web-oversize-message"]
+		require.True(t, ok, "ids: %v", caseIDs(cases))
+		require.Len(t, c.Steps, 3)
+		assert.Equal(t, "ws_connect", c.Steps[0].Action)
+		assert.Equal(t, "ws_send", c.Steps[1].Action)
+		assert.Contains(t, c.Steps[1].Message, "{{pad:1048577}}")
+		assert.Equal(t, "ws_expect_close", c.Steps[2].Action)
+		assert.Equal(t, 1009, c.Steps[2].Code)
+	})
+	t.Run("route_missing", func(t *testing.T) {
+		c, ok := byID["ws-rt-web-missing-device-id"]
+		require.True(t, ok)
+		require.Len(t, c.Steps, 3)
+		assert.Contains(t, c.Steps[1].Message, "session:start")
+		assert.NotContains(t, c.Steps[1].Message, "deviceId")
+		assert.Equal(t, "ws_receive", c.Steps[2].Action)
+		assert.Equal(t, "error", c.Steps[2].Type)
+		assert.Equal(t, "MISSING_DEVICE_ID", c.Steps[2].Asserts["payload.code"])
+	})
+	t.Run("rate_limit", func(t *testing.T) {
+		c, ok := byID["ws-rt-bridge-bridge-rate-limit"]
+		require.True(t, ok)
+		// 1 connect + windows*messages sends + (windows-1) pacers + final
+		// frame receive + close expect. messages=3, windows=2 ⇒ 1+6+1+1+1 = 10.
+		// No pacer after the LAST window: the error frame arrives during the
+		// burst (per denied message), not at window end.
+		require.Len(t, c.Steps, 10)
+		sends, pacers := 0, 0
+		for _, s := range c.Steps {
+			switch s.Action {
+			case "ws_send":
+				sends++
+			case "ws_receive":
+				if s.ExpectAbsent {
+					pacers++
+				}
+			}
+		}
+		assert.Equal(t, 6, sends)
+		assert.Equal(t, 1, pacers) // only BETWEEN windows; none after the last
+		last := c.Steps[len(c.Steps)-1]
+		assert.Equal(t, "ws_expect_close", last.Action)
+		assert.Equal(t, 1008, last.Code)
+	})
+	t.Run("http_auth", func(t *testing.T) {
+		c, ok := byID["ws-rt-web-csrf-no-origin"]
+		require.True(t, ok)
+		require.Len(t, c.Steps, 1)
+		assert.Equal(t, "http_request", c.Steps[0].Action)
+		assert.Equal(t, "POST", c.Steps[0].Method)
+		assert.Equal(t, "http://x/api/dev/setup", c.Steps[0].URL)
+		assert.Equal(t, 403, c.Steps[0].ExpectStatus)
+		assert.Empty(t, c.Steps[0].Headers, "dropping Origin means simply not setting it")
+	})
+	t.Run("no claims binding", func(t *testing.T) {
+		// Only the violation cases: every other deterministic case binds the
+		// relay claim by design.
+		for _, id := range []string{"ws-rt-web-oversize-message", "ws-rt-web-missing-device-id", "ws-rt-bridge-bridge-rate-limit", "ws-rt-web-csrf-no-origin"} {
+			assert.Empty(t, byID[id].Claims, "violation case %s must not bind claims", id)
+		}
+	})
+	t.Run("none without declarations", func(t *testing.T) {
+		cfg := violationFixture()
+		cfg.Services[0].Protocol.Violations = nil
+		for _, c := range WSCases(cfg, "") {
+			assert.NotContains(t, c.ID, "oversize-message")
+			assert.NotContains(t, c.ID, "missing-device-id")
+			assert.NotContains(t, c.ID, "rate-limit")
+			assert.NotContains(t, c.ID, "csrf")
+		}
+	})
+}
+
 // TestWSCasesEmulatedRolesUnaffected: with no real-process actors the output
 // is byte-identical to the pre-guard behavior (regression pin).
 func TestWSCasesEmulatedRolesUnaffected(t *testing.T) {
