@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -751,7 +752,7 @@ func (e *WebSocketExecutor) pathParamsFor(actor string) map[string]string {
 // resolveRoleParamValue, this resolver does NOT generate a UUID for {{uuid}}:
 // it would be treated as an owning-actor param lookup named "uuid" and hard-
 // fail if absent.
-var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.]+)\}\}`)
+var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.:]+)\}\}`)
 
 // resolveMessageBody substitutes {{param}} / {{role.param}} placeholders in a
 // ws_send body against provisioned actor state: {{param}} reads the connection
@@ -785,6 +786,18 @@ func resolvePlaceholders(idx *WSProtocolIndex, proto *project.Protocol, owningAc
 	var unresolved string
 	out := wsBodyPlaceholderRe.ReplaceAllStringFunc(text, func(match string) string {
 		token := match[2 : len(match)-2] // strip the {{ }} delimiters
+		// {{pad:N}} intrinsic: render N filler bytes (oversize-payload tests).
+		// Checked before the dot handling — a ':' token is neither a role
+		// param nor an own param, so it could never resolve otherwise.
+		if strings.HasPrefix(token, "pad:") {
+			if n, err := strconv.Atoi(token[4:]); err == nil && n > 0 {
+				return strings.Repeat("x", n)
+			}
+			if unresolved == "" {
+				unresolved = match
+			}
+			return match
+		}
 		if i := strings.IndexByte(token, '.'); i > 0 {
 			role, param := token[:i], token[i+1:]
 			if proto != nil {
