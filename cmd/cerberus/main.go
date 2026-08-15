@@ -30,6 +30,7 @@ func main() {
 		discoverCmd(),
 		authCmd(),
 		protocolCmd(),
+		claimsCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

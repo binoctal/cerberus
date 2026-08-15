@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/config"
 	"github.com/binoctal/cerberus/internal/discover"
 	"github.com/binoctal/cerberus/internal/llm"
@@ -100,6 +101,23 @@ func runCmd() *cobra.Command {
 			sess.MaxWorkers = workersFlag
 			sess.AutoTestSafety = autoTestSafetyFlag
 			sess.SetupHeadDrivers(apiKey, baseURL, cfg.LLMAuthScheme, cfg.TierModels)
+
+			// Auto-extract the claims ledger before the run so the gate has a
+			// denominator even on projects that never ran `cerberus claims
+			// extract`. Silent no-op when a ledger exists or no doc source is
+			// found; an extraction failure skips (logged) rather than failing
+			// the run — the gate only bites on a ledger that exists.
+			claimsTotal, claimsPerCall := projCfg.Settings.AIBudget.SessionTotalTokens, projCfg.Settings.AIBudget.PerCallLimit
+			if claimsTotal <= 0 {
+				claimsTotal = 200000
+			}
+			if claimsPerCall <= 0 {
+				claimsPerCall = 10000
+			}
+			claimsDrv := ai.NewDriver(client, ai.NewTokenBudget(claimsTotal, claimsPerCall))
+			if _, err := autoExtractClaims(ctx, dirFlag, projCfg, claimsDrv, func(msg string) { logger.Info(msg) }); err != nil {
+				logger.Warn(fmt.Sprintf("claims auto-extract skipped: %v", err))
+			}
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()

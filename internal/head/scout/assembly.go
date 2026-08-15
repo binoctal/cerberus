@@ -150,7 +150,7 @@ func (c *caseAssembler) handle(call llm.ToolCall) {
 			ID: c.nextID(), Name: llm.StrField(call, "name"),
 			Expectation: llm.StrField(call, "expectation"), Action: "ws_flow",
 			Service: svcName,
-			Target: target,
+			Target:  target,
 		}
 	case "ws_connect":
 		if c.open == nil {

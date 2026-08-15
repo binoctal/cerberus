@@ -13,8 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/binoctal/cerberus/internal/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/binoctal/cerberus/internal/types"
 
 	_ "modernc.org/sqlite"
 )

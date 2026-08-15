@@ -21,8 +21,8 @@ func planTools() []llm.Tool {
 	return []llm.Tool{
 		{Name: "test_http_endpoint", Description: "Emit one HTTP test case.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"method": map[string]any{"type": "string", "enum": []any{"GET", "POST", "PUT", "PATCH", "DELETE"}},
-				"path": map[string]any{"type": "string", "description": "HTTP path (e.g. /api/devices). For dynamic provisioned values use {{role.param}} placeholders, resolved at run time from that role's actor provisioning — e.g. /api/devices/{{bridge.deviceId}}/restart. NEVER invent literal ids (test-device-01, nonexistent-device-id): an id you have not observed does not exist on the server."},
+				"method":  map[string]any{"type": "string", "enum": []any{"GET", "POST", "PUT", "PATCH", "DELETE"}},
+				"path":    map[string]any{"type": "string", "description": "HTTP path (e.g. /api/devices). For dynamic provisioned values use {{role.param}} placeholders, resolved at run time from that role's actor provisioning — e.g. /api/devices/{{bridge.deviceId}}/restart. NEVER invent literal ids (test-device-01, nonexistent-device-id): an id you have not observed does not exist on the server."},
 				"body":    map[string]any{"type": "string"},
 				"service": map[string]any{"type": "string"}, "expect_status": map[string]any{"type": "number"},
 				"expect_body": map[string]any{"type": "string"},
