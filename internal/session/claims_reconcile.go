@@ -42,9 +42,17 @@ type ClaimVerdict struct {
 // the harness-captured identities (deviceId etc., including the actor's
 // path-param values) the caller collected from session state. {{...}}
 // resolution is unavailable here, so the match runs against the raw strings.
+//
+// realRoleActors is keyed by ROLE NAME — the same namespace as
+// scout.realProcessRoles (protocol role names whose credential_ref names a
+// fidelity: real-process actor). Actor names must NOT be used as keys: step
+// Role/AuthRole carry role names, so an actor-keyed map would match nothing
+// and every case would silently degrade to the emulated tier.
 func caseEvidenceTier(tc agent.TestCase, realRoleActors map[string]bool, realActorIds []string) string {
 	for _, s := range tc.Steps {
-		if realRoleActors[s.Role] || realRoleActors[s.AuthRole] {
+		// Empty guard mirrors realActorIds: a caller-inserted "" key would
+		// otherwise match the empty Role/AuthRole most steps carry.
+		if realRoleActor(realRoleActors, s.Role) || realRoleActor(realRoleActors, s.AuthRole) {
 			return evidenceReal
 		}
 	}
@@ -58,6 +66,12 @@ func caseEvidenceTier(tc agent.TestCase, realRoleActors map[string]bool, realAct
 		}
 	}
 	return evidenceEmulated
+}
+
+// realRoleActor reports whether the name is a non-empty key of the
+// real-process role set.
+func realRoleActor(realRoleActors map[string]bool, name string) bool {
+	return name != "" && realRoleActors[name]
 }
 
 // rawSendBodies gathers every raw request body a case can emit: the legacy
@@ -79,10 +93,12 @@ func rawSendBodies(tc agent.TestCase) []string {
 }
 
 // ReconcileClaims computes every claim's verdict. claims: the ledger;
-// results: final step results (Status + TestCase); realRoleActors: role/
-// actor names with fidelity real-process; realActorIds: their captured
-// identity values present in the session. Repair-inherited bindings (Claims
-// copied onto a Replaces/FallbackFor case) prove like any other binding.
+// results: final step results (Status + TestCase); realRoleActors: role
+// names bound to fidelity real-process actors (keyed by ROLE NAME — same
+// namespace as scout.realProcessRoles; actor names must NOT be used as
+// keys, see caseEvidenceTier); realActorIds: their captured identity values
+// present in the session. Repair-inherited bindings (Claims copied onto a
+// Replaces/FallbackFor case) prove like any other binding.
 func ReconcileClaims(claims []project.Claim, results []agent.StepResult, realRoleActors map[string]bool, realActorIds []string) []ClaimVerdict {
 	verdicts := make([]ClaimVerdict, 0, len(claims))
 	for _, c := range claims {

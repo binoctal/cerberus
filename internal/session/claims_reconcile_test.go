@@ -61,6 +61,27 @@ func TestCaseEvidenceTier(t *testing.T) {
 		}}
 		assert.Equal(t, "emulated", caseEvidenceTier(tc, nil, nil))
 	})
+	// CONTRACT LOCK: realRoleActors is keyed by ROLE name (the namespace of
+	// scout.realProcessRoles — role names derived from credential_ref), NOT
+	// by actor name. Step Role/AuthRole carry role names; an actor-keyed map
+	// would match nothing and silently degrade every case to emulated.
+	t.Run("keyed by role name, not actor name", func(t *testing.T) {
+		// Actor "openagents-cli" (fidelity real-process) occupies role "device".
+		tc := agent.TestCase{ID: "tc-007", Steps: []agent.TestStep{
+			{Action: "ws_connect", Role: "device"},
+		}}
+		assert.Equal(t, "real", caseEvidenceTier(tc, map[string]bool{"device": true}, realIds))
+		assert.Equal(t, "emulated", caseEvidenceTier(tc, map[string]bool{"openagents-cli": true}, realIds),
+			"actor-name keys must not match step roles")
+	})
+	t.Run("empty key does not mark empty roles real", func(t *testing.T) {
+		// Most steps carry an empty Role/AuthRole; a caller-inserted "" key
+		// would otherwise flip every case to the real tier.
+		tc := agent.TestCase{ID: "tc-008", Steps: []agent.TestStep{
+			{Action: "http_request"},
+		}}
+		assert.Equal(t, "emulated", caseEvidenceTier(tc, map[string]bool{"": true}, realIds))
+	})
 }
 
 // TestReconcileClaims covers the full claim-status matrix: proven (both real
