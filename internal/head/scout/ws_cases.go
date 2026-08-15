@@ -109,6 +109,13 @@ func dropCasesConnectingRealRoles(cases []agent.TestCase, realRoles map[string]b
 	return out
 }
 
+// wsRelayClaimID is the ledger claim every deterministic WS case binds: the
+// promise "messages are relayed over WebSocket in real time" is the reason a
+// WS protocol service exists, so any of these cases passing evidences it.
+// Ledger-driven reconciliation ignores bindings to ids a project's claims.yaml
+// does not declare, so the binding is harmless for ledger-less projects.
+const wsRelayClaimID = "ws-relay-messaging"
+
 // wsCasesForService emits the deterministic WS cases for one service: the
 // peer-join relay coexistence cases (shared with LLM ws_relay), then a per-role
 // ws_flow case for every role not already connected by an LLM or relay case.
@@ -156,6 +163,11 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 			continue
 		}
 		cases = append(cases, wsFlowConnectCase(svc, roleName, role, goal, relaySignals))
+	}
+	// Bind the relay claim onto every emitted case so passing any of them
+	// evidences the ws-relay-messaging promise in the claims ledger.
+	for i := range cases {
+		cases[i].Claims = []string{wsRelayClaimID}
 	}
 	return cases
 }

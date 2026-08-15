@@ -1,0 +1,20 @@
+source:
+  files:
+    - path: ../../../open-agents/README.md
+claims:
+  - id: ws-relay-messaging
+    text: "WebSocket 实时消息转发"
+    critical: true
+  - id: schedule-real-cli
+    text: "调度真实 AI CLI 执行任务"
+    critical: true
+  - id: multi-device-orchestration
+    text: "多设备任务编排与调度"
+    critical: true
+  - id: permission-approval
+    text: "实时审批 AI 操作请求"
+    critical: true
+  - id: desktop-notify
+    text: "桌面通知"
+    critical: false
+    status_annotation: "no surface mapping"

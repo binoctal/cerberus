@@ -66,11 +66,11 @@ func (c Claim) WontTest() bool
 
 - `project.Config` gains `Claims *ClaimsFile` (`yaml:"-"`), loaded by the same loader pass that resolves protocol refs (loader.go:102-140 area); absence is not an error.
 
-- [ ] **Step 1: failing tests** — parse a YAML sample (fields round-trip), duplicate id rejected, `id_Invalid` rejected, `wont-test()` without reason rejected, `LoadClaims` on a temp dir with/without the file, `WontTest()` true for `wont-test(no surface)` / false for `""` and `maybe later`.
-- [ ] **Step 2: run** `go test ./internal/project/ -run Claims -v` — FAIL (undefined).
-- [ ] **Step 3: implement** claims.go + loader hook.
-- [ ] **Step 4: run** `go test ./internal/project/ -race` — PASS.
-- [ ] **Step 5: Commit:** `git commit -m "feat(project): claims ledger schema, loader, validation"`
+- [x] **Step 1: failing tests** — parse a YAML sample (fields round-trip), duplicate id rejected, `id_Invalid` rejected, `wont-test()` without reason rejected, `LoadClaims` on a temp dir with/without the file, `WontTest()` true for `wont-test(no surface)` / false for `""` and `maybe later`.
+- [x] **Step 2: run** `go test ./internal/project/ -run Claims -v` — FAIL (undefined).
+- [x] **Step 3: implement** claims.go + loader hook.
+- [x] **Step 4: run** `go test ./internal/project/ -race` — PASS.
+- [x] **Step 5: Commit:** `git commit -m "feat(project): claims ledger schema, loader, validation"`
 
 ### Task 2: TestCase.Claims + repair-case inheritance
 
@@ -83,11 +83,11 @@ func (c Claim) WontTest() bool
 - Produces: `TestCase.Claims []string \`json:"claims,omitempty"\``.
 - Inheritance rule: for every repaired case with `Replaces != ""` or `FallbackFor != ""`, copy `Claims` from the original case (looked up by ID in `rp.plan.Cases`) when the new case has none.
 
-- [ ] **Step 1: failing test** — plan with case A `{ID:"A", Claims:["schedule-real-cli"]}`, repair output case `{ID:"A-r", Replaces:"A"}`; run the merge helper; assert `A-r.Claims == ["schedule-real-cli"]`. Test the helper as a pure function `inheritClaims(newCases []agent.TestCase, originals []agent.TestCase) []agent.TestCase` living in run_phases_repair.go.
-- [ ] **Step 2: run** — FAIL.
-- [ ] **Step 3: implement** field + helper + call it where repaired cases join the plan.
-- [ ] **Step 4: run** `go test ./internal/session/ ./internal/head/agent/ -race` — PASS.
-- [ ] **Step 5: Commit:** `git commit -m "feat(agent): TestCase.Claims + repair-case claim inheritance"`
+- [x] **Step 1: failing test** — plan with case A `{ID:"A", Claims:["schedule-real-cli"]}`, repair output case `{ID:"A-r", Replaces:"A"}`; run the merge helper; assert `A-r.Claims == ["schedule-real-cli"]`. Test the helper as a pure function `inheritClaims(newCases []agent.TestCase, originals []agent.TestCase) []agent.TestCase` living in run_phases_repair.go.
+- [x] **Step 2: run** — FAIL.
+- [x] **Step 3: implement** field + helper + call it where repaired cases join the plan.
+- [x] **Step 4: run** `go test ./internal/session/ ./internal/head/agent/ -race` — PASS.
+- [x] **Step 5: Commit:** `git commit -m "feat(agent): TestCase.Claims + repair-case claim inheritance"`
 
 ### Task 3: Reconciliation core (pure)
 
@@ -131,16 +131,16 @@ func ReconcileClaims(claims []project.Claim, results []agent.StepResult, realRol
 func ClaimsGateFailed(verdicts []ClaimVerdict) bool
 ```
 
-- [ ] **Step 1: failing tests** — the full matrix:
+- [x] **Step 1: failing tests** — the full matrix:
   - passing case + connects as real role → proven
   - passing case + emulated + body contains `"deviceId":"device_x"` where device_x ∈ realActorIds → proven (spec amendment #1)
   - passing case + emulated + no reference → emulated-only
   - no bound cases → unevidenced; bound but failed → unevidenced
   - critical + emulated-only → gate failed; critical + wont-test → gate passes; non-critical + unevidenced → gate passes
   - repair-inherited case (Claims via Replaces path result) proves the claim
-- [ ] **Step 2: run** — FAIL. **Step 3: implement** (pure functions, no I/O).
-- [ ] **Step 4: run** `go test ./internal/session/ -race` — PASS.
-- [ ] **Step 5: Commit:** `git commit -m "feat(session): claims reconciliation core with fidelity tiering"`
+- [x] **Step 2: run** — FAIL. **Step 3: implement** (pure functions, no I/O).
+- [x] **Step 4: run** `go test ./internal/session/ -race` — PASS.
+- [x] **Step 5: Commit:** `git commit -m "feat(session): claims reconciliation core with fidelity tiering"`
 
 ### Task 4: Session wiring + summary + hard gate exit 3
 
@@ -157,9 +157,9 @@ func ClaimsGateFailed(verdicts []ClaimVerdict) bool
 
 Wiring: in `buildSummary` (and resume buildSummary), after FidelityComposition: if `s.Config.Claims != nil && len(Claims) > 0` → verdicts := ReconcileClaims(...) using `rp.results`; stash verdicts on the summary; if `ClaimsGateFailed(verdicts)` → mark `rp.summary.ClaimsGateTriggered = true`. `Session.Run` returns `ErrClaimsGate` (after finalize, i.e. as the final error) when the flag is set. `main_run.go` checks `errors.Is(err, session.ErrClaimsGate)` → prints the summary already logged, `os.Exit(3)`.
 
-- [ ] **Step 1: failing tests** — summary rendering with the three counts + red lines; gate sentinel returned from a Run-shaped path (unit-test the helper `gateErrorIfFailed(summary) error`); exit translation unit: call the run cmd's error-mapping helper with the sentinel and assert exit code 3 path (factor the mapping into `mapRunExitError(err) int` in main_run.go).
-- [ ] **Step 2: run** — FAIL. **Step 3: implement** all wiring.
-- [ ] **Step 4: run** `go test ./internal/session/ ./cmd/... -race` — PASS. **Step 5: Commit:** `git commit -m "feat(session): claims reconciliation wiring + hard gate (exit 3)"`
+- [x] **Step 1: failing tests** — summary rendering with the three counts + red lines; gate sentinel returned from a Run-shaped path (unit-test the helper `gateErrorIfFailed(summary) error`); exit translation unit: call the run cmd's error-mapping helper with the sentinel and assert exit code 3 path (factor the mapping into `mapRunExitError(err) int` in main_run.go).
+- [x] **Step 2: run** — FAIL. **Step 3: implement** all wiring.
+- [x] **Step 4: run** `go test ./internal/session/ ./cmd/... -race` — PASS. **Step 5: Commit:** `git commit -m "feat(session): claims reconciliation wiring + hard gate (exit 3)"`
 
 ### Task 5: `cerberus claims extract` (LLM, auto-merge) + run auto-extract
 
@@ -195,10 +195,10 @@ func MergeClaims(existing *project.ClaimsFile, draft []project.Claim, prune bool
 - Run auto-extract: in main_run.go before `sess.Run`, if the project dir has no claims.yaml and a doc source exists (project README* under --dir, else the first service's repo README located like vocab source paths — probe `../README.md` relative to the service workdir conventions used by dogfood), run Extract+Triage+Merge silently; log one line `claims ledger extracted (N claims, M critical)`.
 - LLM client pattern: follow `internal/protocoldiscover/infer.go` driver usage.
 
-- [ ] **Step 1: failing tests** — MergeClaims preserves annotations/critical on existing ids, appends new, prunes only with flag; SurfaceTriage marks `critical:true` when text contains an actor name or message type from cfg, else false+annotation; Extract parses the LLM's JSON payload (fake driver returning a canned JSON) and enforces max.
-- [ ] **Step 2: run** — FAIL. **Step 3: implement** (package + commands + auto-extract).
-- [ ] **Step 4: run** `go test ./internal/claimsdiscover/ ./cmd/... -race` — PASS.
-- [ ] **Step 5: Commit:** `git commit -m "feat(claims): LLM extraction with surface triage, auto-merge CLI, run auto-extract"`
+- [x] **Step 1: failing tests** — MergeClaims preserves annotations/critical on existing ids, appends new, prunes only with flag; SurfaceTriage marks `critical:true` when text contains an actor name or message type from cfg, else false+annotation; Extract parses the LLM's JSON payload (fake driver returning a canned JSON) and enforces max.
+- [x] **Step 2: run** — FAIL. **Step 3: implement** (package + commands + auto-extract).
+- [x] **Step 4: run** `go test ./internal/claimsdiscover/ ./cmd/... -race` — PASS.
+- [x] **Step 5: Commit:** `git commit -m "feat(claims): LLM extraction with surface triage, auto-merge CLI, run auto-extract"`
 
 ### Task 6: dogfood ledgers + gate validation (live)
 
@@ -233,10 +233,12 @@ claims:
 
 realtime-e2e ledger: same critical claims plus binding — its deterministic cases must carry `Claims`; since the L1/L2 proof lives in integration tests (outside `cerberus run`), bind the ws-relay claim to the run's cases and mark `schedule-real-cli` with `status_annotation: "wont-test(proven by TestRealBridge_L2 integration suite)"` — the documented exemption channel in action.
 
-- [ ] **Step 1: write both ledgers**; add `Claims: ["ws-relay-messaging"]` binding to the dogfood case generator output for ws-realtime relay cases (scout `ws_cases.go`: single const claim id bound to all ws cases of the service — thread through `wsCasesForService`).
-- [ ] **Step 2: live gate check (needs the api server on :8989 + GLM env, see memory `openagents-live-port-and-auth-gotchas`):** run `cerberus run` in `dogfood/ws-realtime` — EXPECT exit 3 with red lines for schedule-real-cli / multi-device-orchestration / permission-approval. Assert via the log grep: `Claims:` line present, `UNRECONCILED:` ≥ 3.
-- [ ] **Step 3: realtime-e2e ledger check:** `cerberus claims check` in that dir renders proven/exempt verdicts (no live run needed — reconcile from an empty/empty store is acceptable for the check command test; the live e2e run remains deferred from the previous session).
-- [ ] **Step 4: Commit:** `git commit -m "feat(dogfood): claims ledgers + relay-case claim binding; gate validated live"`
+- [x] **Step 1: write both ledgers**; add `Claims: ["ws-relay-messaging"]` binding to the dogfood case generator output for ws-realtime relay cases (scout `ws_cases.go`: single const claim id bound to all ws cases of the service — thread through `wsCasesForService`).
+- [x] **Step 2: live gate check (needs the api server on :8989 + GLM env, see memory `openagents-live-port-and-auth-gotchas`):** run `cerberus run` in `dogfood/ws-realtime` — EXPECT exit 3 with red lines for schedule-real-cli / multi-device-orchestration / permission-approval. Assert via the log grep: `Claims:` line present, `UNRECONCILED:` ≥ 3.
+- [x] **Step 3: realtime-e2e ledger check:** `cerberus claims check` in that dir renders proven/exempt verdicts (no live run needed — reconcile from an empty/empty store is acceptable for the check command test; the live e2e run remains deferred from the previous session).
+- [x] **Step 4: Commit:** `git commit -m "feat(dogfood): claims ledgers + relay-case claim binding; gate validated live"`
+
+> **Execution notes (2026-08-15):** Live run exited 3 as expected. Summary: 41 pass / 0 fail / 1 skip; `Claims: 0 proven / 1 emulated-only / 4 unevidenced`; 4 UNRECONCILED red lines (ws-relay-messaging was emulated-only — the run self-played all actors, so the gate correctly refused emulated evidence for a critical claim). realtime-e2e ledger scoped to the two L1/L2 claims (ws-relay-messaging + wont-test-exempt schedule-real-cli): multi-device/permission/desktop claims stay in ws-realtime's ledger, which documents the gap; carrying them critical-unexempt in realtime-e2e would gate-fail that run for claims it never claims to prove.
 
 ### Task 7: Deferred hand-off
 

@@ -1,0 +1,15 @@
+# Scoped to this run's L1/L2 fidelity ladder: claims the deterministic case set
+# can actually evidence. Broader SUT promises (multi-device-orchestration,
+# permission-approval, desktop-notify) stay in dogfood/ws-realtime's ledger,
+# which documents the current gap via the hard gate.
+source:
+  files:
+    - path: ../../../open-agents/README.md
+claims:
+  - id: ws-relay-messaging
+    text: "WebSocket 实时消息转发"
+    critical: true
+  - id: schedule-real-cli
+    text: "调度真实 AI CLI 执行任务"
+    critical: true
+    status_annotation: "wont-test(proven by TestRealBridge_L2 integration suite)"
