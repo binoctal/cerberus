@@ -1,0 +1,10 @@
+findings:
+    - id: tc-001-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: tc-001
+      session_ref: 5725b619-0fd1-4bd9-91b3-662ec283b70c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-15T23:36:33Z"
+      last_seen: "2026-08-15T23:36:33Z"
+      count: 1

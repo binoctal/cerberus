@@ -110,4 +110,8 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 	// Claims ledger reconciliation: fold the claim verdicts into the summary;
 	// the gate flag turns into ErrClaimsGate at the end of Session.Run.
 	reconcileClaimsInto(rp.summary, rp.session.Config, rp.results)
+
+	// Findings backflow: record every failed case as an observed defect in
+	// .cerberus/findings.yaml (no gate interaction).
+	backflowFindings(rp.session.ProjectDir, rp.session.Config, rp.results, rp.session.ID, rp.session.Logger)
 }
