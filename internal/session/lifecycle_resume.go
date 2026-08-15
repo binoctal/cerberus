@@ -74,5 +74,8 @@ func (s *Session) Resume(ctx context.Context) (err error) {
 	// Build summary
 	rp.buildSummary()
 
-	return nil
+	// Claims gate: mirrors Session.Run — an unproven critical claim makes the
+	// resumed session incomplete (cerberus run exits 3, not 1).
+	rp.err = gateErrorIfFailed(rp.summary)
+	return rp.err
 }

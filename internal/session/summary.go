@@ -73,6 +73,17 @@ type SessionSummary struct {
 	// run summary watermarks this so "coverage 1.0" cannot silently mean
 	// "self-played only".
 	AllEmulated bool `json:"all_emulated,omitempty"`
+
+	// Claims ledger reconciliation. Counts per status; ClaimsRedLines lists
+	// the critical claims failing the gate ("<id> — <text> (<status>)").
+	// ClaimsGateTriggered marks the session incomplete: cerberus run exits 3
+	// even when execution itself succeeded.
+	ClaimsProven        int            `json:"claims_proven,omitempty"`
+	ClaimsEmulatedOnly  int            `json:"claims_emulated_only,omitempty"`
+	ClaimsUnevidenced   int            `json:"claims_unevidenced,omitempty"`
+	ClaimsRedLines      []string       `json:"claims_red_lines,omitempty"`
+	ClaimsVerdicts      []ClaimVerdict `json:"claims_verdicts,omitempty"`
+	ClaimsGateTriggered bool           `json:"claims_gate_triggered,omitempty"`
 }
 
 // FidelityComposition derives the summary fidelity fields from the project
@@ -288,7 +299,8 @@ func (s *SessionSummary) String() string {
 		s.coverageRecoveredLine(),
 		s.failureHintsLine(),
 		s.nonRepairableLine()) +
-		s.fidelityLine()
+		s.fidelityLine() +
+		s.claimsLine()
 }
 
 // fidelityLine renders the fidelity composition: an emulated-only watermark
@@ -301,6 +313,22 @@ func (s *SessionSummary) fidelityLine() string {
 		return "\n  Real actors: " + strings.Join(s.RealActors, ", ")
 	}
 	return ""
+}
+
+// claimsLine renders the claims ledger reconciliation: the three status
+// counts plus one UNRECONCILED line per red line (a critical claim failing
+// the gate). Empty when no claims were reconciled.
+func (s *SessionSummary) claimsLine() string {
+	if s.ClaimsProven+s.ClaimsEmulatedOnly+s.ClaimsUnevidenced == 0 && len(s.ClaimsRedLines) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n  Claims: %d proven / %d emulated-only / %d unevidenced",
+		s.ClaimsProven, s.ClaimsEmulatedOnly, s.ClaimsUnevidenced)
+	for _, rl := range s.ClaimsRedLines {
+		b.WriteString("\n  UNRECONCILED: " + rl)
+	}
+	return b.String()
 }
 
 // nonRepairableLine notes how many correctable failures were skipped because

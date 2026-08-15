@@ -75,5 +75,10 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	// Build summary
 	rp.buildSummary(model)
 
-	return nil
+	// Claims gate: an unproven critical claim makes the session incomplete
+	// even when execution succeeded (cerberus run exits 3, not 1). Assigned
+	// before the deferred finalize so the summary persists with the gate flag
+	// and the terminal status becomes "incomplete".
+	rp.err = gateErrorIfFailed(rp.summary)
+	return rp.err
 }

@@ -91,4 +91,8 @@ func (rp *resumePhase) buildSummary() {
 
 	// Fidelity composition watermark (real vs self-played actors).
 	rp.summary.RealActors, rp.summary.AllEmulated = FidelityComposition(rp.session.Config)
+
+	// Claims ledger reconciliation: fold the claim verdicts into the summary;
+	// the gate flag turns into ErrClaimsGate at the end of Session.Resume.
+	reconcileClaimsInto(rp.summary, rp.session.Config, rp.results)
 }

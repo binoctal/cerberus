@@ -53,6 +53,11 @@ func (rp *resumePhase) finalize() {
 	if rp.err != nil {
 		status = "failed"
 	}
+	// The claims gate marks the session incomplete rather than failed:
+	// execution succeeded but a critical claim is unproven (run exits 3).
+	if rp.summary != nil && rp.summary.ClaimsGateTriggered {
+		status = "incomplete"
+	}
 	if statsErr := rp.session.Store.UpdateSessionStatus(rp.ctx, rp.session.ID, status); statsErr != nil {
 		rp.session.Logger.Error("update session status", zap.Error(statsErr))
 	}

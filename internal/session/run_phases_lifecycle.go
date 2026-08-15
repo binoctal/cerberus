@@ -64,6 +64,11 @@ func (rp *runPhase) finalize() {
 	if rp.err != nil {
 		status = "failed"
 	}
+	// The claims gate marks the session incomplete rather than failed:
+	// execution succeeded but a critical claim is unproven (run exits 3).
+	if rp.summary != nil && rp.summary.ClaimsGateTriggered {
+		status = "incomplete"
+	}
 	if updateErr := rp.session.Store.UpdateSessionStatus(rp.ctx, rp.session.ID, status); updateErr != nil {
 		rp.session.Logger.Error("update session status", zap.Error(updateErr))
 	}
@@ -101,4 +106,8 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 
 	// Fidelity composition watermark (real vs self-played actors).
 	rp.summary.RealActors, rp.summary.AllEmulated = FidelityComposition(rp.session.Config)
+
+	// Claims ledger reconciliation: fold the claim verdicts into the summary;
+	// the gate flag turns into ErrClaimsGate at the end of Session.Run.
+	reconcileClaimsInto(rp.summary, rp.session.Config, rp.results)
 }

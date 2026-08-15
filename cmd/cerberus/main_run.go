@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -110,14 +111,26 @@ func runCmd() *cobra.Command {
 				cancel()
 			}()
 
+			var runErr error
 			if resumeFlag != "" {
-				if err := sess.Resume(ctx); err != nil {
-					return fmt.Errorf("session resume: %w", err)
-				}
+				runErr = sess.Resume(ctx)
 			} else {
-				if err := sess.Run(ctx); err != nil {
-					return fmt.Errorf("session run: %w", err)
+				runErr = sess.Run(ctx)
+			}
+			if runErr != nil {
+				if code := mapRunExitError(runErr); code != 0 {
+					// Sentinel-mapped failures (claims gate) already logged the
+					// summary via finalize; exit with their dedicated code.
+					// os.Exit skips the deferred closes, so run them first.
+					sess.Close()
+					_ = s.Close()
+					_ = logger.Sync()
+					os.Exit(code)
 				}
+				if resumeFlag != "" {
+					return fmt.Errorf("session resume: %w", runErr)
+				}
+				return fmt.Errorf("session run: %w", runErr)
 			}
 
 			sess.Close()
@@ -136,6 +149,18 @@ func runCmd() *cobra.Command {
 	cmd.Flags().StringVar(&resumeFlag, "resume", "", "Resume a previous session by ID")
 	cmd.Flags().StringVar(&autoTestSafetyFlag, "auto-test-safety", "off", "AutoTest phase: off|approve|auto|dry-run")
 	return cmd
+}
+
+// mapRunExitError maps a session run/resume error to a dedicated process exit
+// code. The claims gate gets 3 — a session that is incomplete (a critical
+// claim unproven) is distinct from execution failure (1, cobra's default for
+// the returned error). 0 means "no dedicated code": return the error and let
+// the generic path handle it.
+func mapRunExitError(err error) int {
+	if errors.Is(err, session.ErrClaimsGate) {
+		return 3
+	}
+	return 0
 }
 
 // fileExists checks if a file exists at the given path.

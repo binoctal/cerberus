@@ -204,6 +204,40 @@ func TestPlannedCaseCount_ExcludesLazyFallback(t *testing.T) {
 	assert.Equal(t, 0, plannedCaseCount(nil), "nil plan -> 0")
 }
 
+// TestSessionSummary_ClaimsLines pins the claims reconciliation surface of
+// String(): the three-count line plus one UNRECONCILED line per red line, and
+// silence when no claims were reconciled.
+func TestSessionSummary_ClaimsLines(t *testing.T) {
+	s := &SessionSummary{
+		ClaimsProven:       2,
+		ClaimsEmulatedOnly: 1,
+		ClaimsUnevidenced:  3,
+		ClaimsRedLines: []string{
+			"multi-device — 支持多设备 (emulated-only)",
+			"mission-planning — 任务规划 (unevidenced)",
+		},
+	}
+	out := s.String()
+	assert.Contains(t, out, "Claims: 2 proven / 1 emulated-only / 3 unevidenced")
+	assert.Contains(t, out, "UNRECONCILED: multi-device — 支持多设备 (emulated-only)")
+	assert.Contains(t, out, "UNRECONCILED: mission-planning — 任务规划 (unevidenced)")
+
+	assert.NotContains(t, (&SessionSummary{}).String(), "Claims:")
+	assert.NotContains(t, (&SessionSummary{}).String(), "UNRECONCILED:")
+}
+
+// TestSessionSummary_ClaimsJSONTags pins the persisted field names.
+func TestSessionSummary_ClaimsJSONTags(t *testing.T) {
+	s := &SessionSummary{ClaimsProven: 1, ClaimsEmulatedOnly: 2, ClaimsUnevidenced: 3,
+		ClaimsRedLines: []string{"c — t (unevidenced)"}, ClaimsGateTriggered: true}
+	j := s.ToJSON()
+	assert.Contains(t, j, `"claims_proven": 1`)
+	assert.Contains(t, j, `"claims_emulated_only": 2`)
+	assert.Contains(t, j, `"claims_unevidenced": 3`)
+	assert.Contains(t, j, `"claims_red_lines"`)
+	assert.Contains(t, j, `"claims_gate_triggered": true`)
+}
+
 // TestSessionSummary_FidelityWatermark pins the fidelity composition surface:
 // a fully self-played run is watermarked emulated-only, a run with real-process
 // actors lists them instead.
