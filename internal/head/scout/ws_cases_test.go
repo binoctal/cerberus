@@ -1253,7 +1253,7 @@ func violationFixture() *project.Config {
 						Trigger: project.ViolationTrigger{Bytes: 1048577, Type: "chat:message"},
 						Expect:  project.ViolationExpect{CloseCode: 1009}},
 					{ID: "missing-device-id", Family: project.ViolationFamilyRouteMissing, Role: "web",
-						Trigger: project.ViolationTrigger{Type: "session:start", OmitFields: []string{"deviceId"}},
+						Trigger: project.ViolationTrigger{Type: "session:send", OmitFields: []string{"deviceId"}},
 						Expect:  project.ViolationExpect{FrameType: "error", Code: "MISSING_DEVICE_ID"}},
 					{ID: "bridge-rate-limit", Family: project.ViolationFamilyRateLimit, Role: "bridge",
 						Trigger: project.ViolationTrigger{Messages: 3, Windows: 2, Type: "chat:message"},
@@ -1291,7 +1291,8 @@ func TestViolationCases(t *testing.T) {
 		c, ok := byID["ws-rt-web-missing-device-id"]
 		require.True(t, ok)
 		require.Len(t, c.Steps, 3)
-		assert.Contains(t, c.Steps[1].Message, "session:start")
+		assert.Contains(t, c.Steps[1].Message, "session:send")
+		assert.Contains(t, c.Steps[1].Message, `"payload":{}`)
 		assert.NotContains(t, c.Steps[1].Message, "deviceId")
 		assert.Equal(t, "ws_receive", c.Steps[2].Action)
 		assert.Equal(t, "error", c.Steps[2].Type)

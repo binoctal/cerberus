@@ -64,7 +64,7 @@ violations:
   - id: missing-device-id
     family: route_missing
     role: web
-    trigger: {type: session:start, omit_fields: [deviceId]}
+    trigger: {type: session:send, omit_fields: [deviceId]}
     expect: {frame_type: error, code: MISSING_DEVICE_ID}
   - id: csrf-no-origin
     family: http_auth

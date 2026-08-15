@@ -222,13 +222,18 @@ func (se *stepExecution) runSteps() StepResult {
 		r.recordEvidence(se.ctx, se.traceID, "steps", action, result)
 		evidence = append(evidence, stepEvidence(s, result))
 		lastAction, lastResult = action, result
-		// http_request explicit status assertion: when expect_status is set, a
-		// non-matching status fails the step regardless of the executor's own
-		// success/ok gate.
+		// http_request explicit status assertion: when expect_status is set, it
+		// IS the step's success gate — a declared rejection (4xx/5xx) whose
+		// status matches passes even though the executor's own ok gate is
+		// false for non-2xx (negative case family). A non-matching status
+		// still fails.
 		if s.Action == "http_request" && s.ExpectStatus != 0 {
-			if hr, ok := result.(types.HTTPResult); ok && hr.StatusCode != s.ExpectStatus {
-				return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
-					Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}
+			if hr, ok := result.(types.HTTPResult); ok {
+				if hr.StatusCode != s.ExpectStatus {
+					return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
+						Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}
+				}
+				continue // expected rejection observed: step passes
 			}
 		}
 		if !result.Success() {

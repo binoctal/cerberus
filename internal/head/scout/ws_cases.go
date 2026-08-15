@@ -218,9 +218,13 @@ func violationCases(svc project.Service) []agent.TestCase {
 		}
 		switch v.Family {
 		case project.ViolationFamilyRouteMissing:
+			// An explicit (empty) payload object: the omitted route field is
+			// what triggers the error — a missing payload itself lands in the
+			// SUT's generic message-processing error before the route check.
 			tc.Steps = []agent.TestStep{
 				{Action: "ws_connect", ConnectionID: v.Role, Role: v.Role},
-				{Action: "ws_send", ConnectionID: v.Role, Message: wsSendBody(v.Trigger.Type, nil)},
+				{Action: "ws_send", ConnectionID: v.Role,
+					Message: fmt.Sprintf(`{"type":%q,"payload":{}}`, v.Trigger.Type)},
 				{Action: "ws_receive", ConnectionID: v.Role, Type: v.Expect.FrameType,
 					Asserts: map[string]any{"payload.code": v.Expect.Code}, Timeout: 10},
 			}
