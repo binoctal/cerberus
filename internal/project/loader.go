@@ -31,6 +31,13 @@ func LoadFromYAML(data []byte, baseDir string) (*Config, error) {
 	if err := resolveProtocolRefs(&cfg, baseDir); err != nil {
 		return nil, err
 	}
+	// Claims ledger: optional per project; absent file stays nil (the gate
+	// only applies when a ledger exists).
+	claims, err := LoadClaims(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Claims = claims
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}

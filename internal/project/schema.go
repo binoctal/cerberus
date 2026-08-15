@@ -8,6 +8,10 @@ type Config struct {
 	Code       CodeConfig  `yaml:"code,omitempty"`
 	Invariants []Invariant `yaml:"invariants,omitempty"`
 	Settings   Settings    `yaml:"settings,omitempty"`
+	// Claims is the project's claims ledger (.cerberus/claims.yaml), loaded
+	// alongside the config; nil when absent. Runtime-only (not part of
+	// project.yaml itself).
+	Claims *ClaimsFile `yaml:"-"`
 }
 
 type ProjectMeta struct {
