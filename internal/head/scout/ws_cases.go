@@ -194,9 +194,9 @@ func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCa
 //   - route_missing: connect → send (payload-less frame: the route field is
 //     omitted) → receive expect.frame_type asserting payload.code
 //   - oversize: connect → send {{pad:N}} body → ws_expect_close
-//   - rate_limit: connect → per window: messages sends + one ExpectAbsent
-//     pacer receive (waits out the 1s fixed window); the final window adds
-//     the error-frame receive then ws_expect_close
+//   - rate_limit: connect → one burst of trigger.messages sends (violations
+//     count per denied message, so a max+threshold burst closes mid-burst) →
+//     receive the error frame → ws_expect_close
 //   - http_auth: one http_request step (dropped headers simply not set,
 //     status asserted)
 // No claims binding (spec Non-goals). IDs: ws-<svc>-<role>-<id>.
@@ -236,34 +236,30 @@ func violationCases(svc project.Service) []agent.TestCase {
 				{Action: "ws_expect_close", ConnectionID: v.Role, Code: v.Expect.CloseCode, Timeout: 10},
 			}
 		case project.ViolationFamilyRateLimit:
+			// Violations count PER DENIED MESSAGE (rateLimiter.ts checkLimit:
+			// every message over the window max increments violations), so one
+			// burst of max+threshold messages closes the connection mid-burst.
+			// The exact declaration value is SUT arithmetic: e.g. open-agents
+			// bridge limit 200, MAX_VIOLATIONS 5 ⇒ message 205 is denied with
+			// violations=5 and the server closes with the policy code — sends
+			// past that would hit a dead socket, so the burst stops there.
 			tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_connect", ConnectionID: v.Role, Role: v.Role})
-			for w := 0; w < v.Trigger.Windows; w++ {
-				for i := 0; i < v.Trigger.Messages; i++ {
-					tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_send", ConnectionID: v.Role,
-						Message: wsSendBody(v.Trigger.Type, nil)})
-				}
-				if w < v.Trigger.Windows-1 {
-					// Pacer: wait out the 1s fixed window. Nothing of the
-					// trigger type may arrive meanwhile (we send it, not
-					// receive it), so ExpectAbsent holds.
-					tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_receive", ConnectionID: v.Role,
-						Type: v.Trigger.Type, ExpectAbsent: true, Timeout: 1})
-				}
+			for i := 0; i < v.Trigger.Messages; i++ {
+				tc.Steps = append(tc.Steps, agent.TestStep{Action: "ws_send", ConnectionID: v.Role,
+					Message: wsSendBody(v.Trigger.Type, nil)})
 			}
 			tc.Steps = append(tc.Steps,
 				agent.TestStep{Action: "ws_receive", ConnectionID: v.Role, Type: v.Expect.FrameType,
 					Asserts: map[string]any{"payload.code": v.Expect.Code}, Timeout: 10},
 				agent.TestStep{Action: "ws_expect_close", ConnectionID: v.Role, Code: v.Expect.CloseCode, Timeout: 10})
 		case project.ViolationFamilyHTTPAuth:
-			// Explicit trigger headers (e.g. a bad token) win over the role's
-			// auth injection, so AuthRole is dropped when any header is set.
-			authRole := v.Role
-			if len(v.Trigger.Headers) > 0 {
-				authRole = ""
-			}
+			// NO AuthRole: a rejection boundary must be probed as the bare
+			// client (open-agents CSRF allows "no Origin + valid Bearer", so
+			// an injected token would bypass the very rejection under test).
+			// Explicit trigger headers (e.g. a bad token) carry the variant.
 			tc.Steps = []agent.TestStep{{
 				Action: "http_request", URL: serviceHost(svc.URL) + v.Trigger.Path, Method: v.Trigger.Method,
-				Headers: v.Trigger.Headers, AuthRole: authRole, ExpectStatus: v.Expect.HTTPStatus,
+				Headers: v.Trigger.Headers, ExpectStatus: v.Expect.HTTPStatus,
 			}}
 		default:
 			continue // validation rejects unknown families; defensive

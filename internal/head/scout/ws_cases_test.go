@@ -1256,7 +1256,7 @@ func violationFixture() *project.Config {
 						Trigger: project.ViolationTrigger{Type: "session:send", OmitFields: []string{"deviceId"}},
 						Expect:  project.ViolationExpect{FrameType: "error", Code: "MISSING_DEVICE_ID"}},
 					{ID: "bridge-rate-limit", Family: project.ViolationFamilyRateLimit, Role: "bridge",
-						Trigger: project.ViolationTrigger{Messages: 3, Windows: 2, Type: "chat:message"},
+						Trigger: project.ViolationTrigger{Messages: 3, Type: "chat:message"},
 						Expect:  project.ViolationExpect{FrameType: "error", Code: "RATE_LIMIT_EXCEEDED", CloseCode: 1008}},
 					{ID: "csrf-no-origin", Family: project.ViolationFamilyHTTPAuth, Role: "web",
 						Trigger: project.ViolationTrigger{Method: "POST", Path: "/api/dev/setup", DropHeaders: []string{"Origin"}},
@@ -1301,24 +1301,15 @@ func TestViolationCases(t *testing.T) {
 	t.Run("rate_limit", func(t *testing.T) {
 		c, ok := byID["ws-rt-bridge-bridge-rate-limit"]
 		require.True(t, ok)
-		// 1 connect + windows*messages sends + (windows-1) pacers + final
-		// frame receive + close expect. messages=3, windows=2 ⇒ 1+6+1+1+1 = 10.
-		// No pacer after the LAST window: the error frame arrives during the
-		// burst (per denied message), not at window end.
-		require.Len(t, c.Steps, 10)
-		sends, pacers := 0, 0
+		// 1 connect + messages sends + error-frame receive + close expect.
+		require.Len(t, c.Steps, 6)
+		sends := 0
 		for _, s := range c.Steps {
-			switch s.Action {
-			case "ws_send":
+			if s.Action == "ws_send" {
 				sends++
-			case "ws_receive":
-				if s.ExpectAbsent {
-					pacers++
-				}
 			}
 		}
-		assert.Equal(t, 6, sends)
-		assert.Equal(t, 1, pacers) // only BETWEEN windows; none after the last
+		assert.Equal(t, 3, sends)
 		last := c.Steps[len(c.Steps)-1]
 		assert.Equal(t, "ws_expect_close", last.Action)
 		assert.Equal(t, 1008, last.Code)
@@ -1332,6 +1323,7 @@ func TestViolationCases(t *testing.T) {
 		assert.Equal(t, "http://x/api/dev/setup", c.Steps[0].URL)
 		assert.Equal(t, 403, c.Steps[0].ExpectStatus)
 		assert.Empty(t, c.Steps[0].Headers, "dropping Origin means simply not setting it")
+		assert.Empty(t, c.Steps[0].AuthRole, "rejection boundary is probed as the bare client (a Bearer token would bypass CSRF)")
 	})
 	t.Run("http_auth explicit header injection", func(t *testing.T) {
 		c, ok := byID["ws-rt-web-invalid-token"]

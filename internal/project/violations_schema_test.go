@@ -17,7 +17,7 @@ func validViolationsProtocol() *Protocol {
 				Trigger: ViolationTrigger{Bytes: 1048577, Type: "chat:message"},
 				Expect:  ViolationExpect{CloseCode: 1009}},
 			{ID: "bridge-rate-limit", Family: ViolationFamilyRateLimit, Role: "bridge",
-				Trigger: ViolationTrigger{Messages: 220, Windows: 6, Type: "chat:message"},
+				Trigger: ViolationTrigger{Messages: 205, Type: "chat:message"},
 				Expect:  ViolationExpect{FrameType: "error", Code: "RATE_LIMIT_EXCEEDED", CloseCode: 1008}},
 			{ID: "missing-device-id", Family: ViolationFamilyRouteMissing, Role: "web",
 				Trigger: ViolationTrigger{Type: "session:start", OmitFields: []string{"deviceId"}},
@@ -48,10 +48,10 @@ func TestValidateViolations(t *testing.T) {
 		p.Violations[0].Trigger.Bytes = 0
 		assert.ErrorContains(t, ValidateProtocol(p, []Actor{{Name: "web"}, {Name: "b1"}}), "violations[0].trigger.bytes")
 	})
-	t.Run("rate_limit needs messages, windows, frame and close", func(t *testing.T) {
+	t.Run("rate_limit needs messages, frame and close", func(t *testing.T) {
 		p := validViolationsProtocol()
-		p.Violations[1].Trigger.Windows = 0
-		assert.ErrorContains(t, ValidateProtocol(p, []Actor{{Name: "web"}, {Name: "b1"}}), "violations[1].trigger.messages and .windows")
+		p.Violations[1].Trigger.Messages = 0
+		assert.ErrorContains(t, ValidateProtocol(p, []Actor{{Name: "web"}, {Name: "b1"}}), "violations[1].trigger.messages")
 		p = validViolationsProtocol()
 		p.Violations[1].Expect.Code = ""
 		assert.ErrorContains(t, ValidateProtocol(p, []Actor{{Name: "web"}, {Name: "b1"}}), "violations[1].expect.frame_type")

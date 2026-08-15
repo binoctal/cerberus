@@ -38,9 +38,10 @@ http_triggers:
 # Negative behaviors (negative case family spec 2026-08-16). Sources probed
 # against the live dev api 2026-08-16:
 #   oversize:    room.ts:31-33 (1MiB limit, close 1009)
-#   rate_limit:  room.ts:37,243-250 + rateLimiter.ts:17-18 (200msg/s bridge,
-#                first violation error frame RATE_LIMIT_EXCEEDED, close 1008
-#                after 5 violating windows)
+#   rate_limit:  room.ts:37,243-250 + rateLimiter.ts (200msg/s bridge window;
+#                violations count PER DENIED message, MAX_VIOLATIONS=5 ⇒
+#                message 205 is denied with violations=5 and the server
+#                closes 1008 mid-burst — sends past 205 hit a dead socket)
 #   route_missing: room.ts:439,450 + sendError shape room.ts:543-549
 #   csrf:        middleware/security.ts — probed: no-Origin POST /api/dev/setup
 #                ⇒ 403 (bad-Origin also 403)
@@ -59,7 +60,7 @@ violations:
   - id: bridge-rate-limit
     family: rate_limit
     role: bridge
-    trigger: {messages: 220, windows: 6, type: chat:message}
+    trigger: {messages: 205, type: chat:message}
     expect: {frame_type: error, code: RATE_LIMIT_EXCEEDED, close_code: 1008}
   - id: missing-device-id
     family: route_missing

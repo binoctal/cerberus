@@ -32,8 +32,7 @@ type Violation struct {
 // subset the family names is meaningful (validated).
 type ViolationTrigger struct {
 	Bytes       int               `yaml:"bytes"`             // oversize: payload size to send
-	Messages    int               `yaml:"messages"`          // rate_limit: burst per window
-	Windows     int               `yaml:"windows"`           // rate_limit: violating 1s windows
+	Messages    int               `yaml:"messages"`          // rate_limit: burst size (max + threshold; violations count per denied message)
 	Type        string            `yaml:"type"`              // frame type to send
 	OmitFields  []string          `yaml:"omit_fields"`       // route_missing: payload keys to drop
 	Method      string            `yaml:"method"`            // http_auth
@@ -75,8 +74,8 @@ func validateViolations(p *Protocol) error {
 				return fmt.Errorf("%s.expect.close_code is required for oversize", prefix)
 			}
 		case ViolationFamilyRateLimit:
-			if v.Trigger.Messages <= 0 || v.Trigger.Windows <= 0 {
-				return fmt.Errorf("%s.trigger.messages and .windows are required for rate_limit", prefix)
+			if v.Trigger.Messages <= 0 {
+				return fmt.Errorf("%s.trigger.messages is required for rate_limit", prefix)
 			}
 			if v.Expect.FrameType == "" || v.Expect.Code == "" || v.Expect.CloseCode == 0 {
 				return fmt.Errorf("%s.expect.frame_type, .code and .close_code are required for rate_limit", prefix)
