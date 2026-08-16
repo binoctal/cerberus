@@ -46,3 +46,13 @@ Env mutations left in place: `.dev.vars` gained `INTERNAL_SECRET=cerberus-dogfoo
 - Negative/exception case family, HTTP route vocab extraction, Examiner ordering/count dimensions (plan Task 8).
 - M2 mixed ACP+PTY capability-matched scheduling.
 - The four open-agents findings above → file as issues in the open-agents repo.
+
+## M2 — capability-matched scheduling (2026-08-16, follow-up)
+
+`TestRealBridge_M2_CapabilityMatchedScheduling` (internal/head/agent/realbridge_m2_integration_test.go): two real bridges with DISJOINT capabilities fabricated via restricted PATH (`<shimDir>:/usr/bin:/bin` excludes the host's real claude/codex; the bridge's cliDetectMap is PATH-based, so the shim set IS the cliEnabled map it registers). Three seeded tasks, type `generate` (suits both claude and codex in AGENT_PROFILES, keeping the suitability-reassignment path out of the way):
+
+- claude task → the ONLY claude-capable device ✓
+- codex task → the ONLY codex-capable device ✓
+- gemini task (no capable device) → stays unassigned ✓
+
+Verdict: capability matching is REAL (selectDevice filters by `config.cliEnabled[requiredCli]`) and correctly refuses unroutable tasks. The earlier "round-robin can pick the busier device" finding stands only WITHIN equal-capability candidates. First live run passed (0.25s). This closes the last deferred item of the fidelity ladder's Task 8.
