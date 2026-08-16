@@ -6,6 +6,8 @@
 // sinks, sendToBridge route_field/on_missing_route, and dedups equal
 // (from_role,to_role,type,trigger) edges by merging their source.spans.
 import { Project, SyntaxKind } from 'ts-morph';
+import path from 'node:path';
+import fs from 'node:fs';
 
 const file = process.argv[2];
 if (!file) { console.error('usage: node extractor.mjs <source.ts>'); process.exit(2); }
@@ -142,7 +144,9 @@ function msgTypeLiterals(node) {
 
 const edges = [];
 const cls = sf.getClasses()[0];
-for (const method of cls.getMethods()) {
+// The WS pass assumes a DO room class; a classless entry (e.g. a Hono
+// worker.ts) only runs the HTTP pass below.
+if (cls) for (const method of cls.getMethods()) {
   const mname = method.getName();
   for (const call of method.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expr = call.getExpression();
@@ -187,7 +191,7 @@ for (const method of cls.getMethods()) {
 // Side-effects: notifyOrchestrator calls attach {kind, when_types} to
 // matching edges. Matching prefers an enclosing `if (msg.type === ...)`
 // condition; otherwise falls back to the CaseClause fall-through chain.
-for (const method of cls.getMethods()) {
+if (cls) for (const method of cls.getMethods()) {
   for (const call of method.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expr = call.getExpression();
     if (expr.getKind() !== SyntaxKind.PropertyAccessExpression) continue;
@@ -231,7 +235,7 @@ for (const method of cls.getMethods()) {
 // loop we cannot statically resolve in v1. window/key are best-effort
 // literals (spec §6 Step 7); correctness of the batched type is OOS.
 const BATCH = { window_ms: 50, key: 'payload.sessionId' };
-for (const method of cls.getMethods()) {
+if (cls) for (const method of cls.getMethods()) {
   for (const call of method.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expr = call.getExpression();
     if (expr.getKind() !== SyntaxKind.PropertyAccessExpression) continue;
@@ -284,4 +288,99 @@ for (const e of edges) {
     merged.set(k, e);
   }
 }
-console.log(JSON.stringify({ edges: [...merged.values()] }));
+// ── HTTP route extraction (Hono) ────────────────────────────────
+// Walks app.<method>('path') and app.route('/prefix', router) at module
+// level, following relative imports with Node resolution semantics
+// (exact file beats directory: base, base.ts, base/index.ts). Only mounted
+// routers are traversed; an imported-but-unmounted router never appears.
+const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head', 'all'];
+const httpRoutes = [];
+const routeMap = new Map();
+const traversed = [file];
+const visitedFiles = new Set();
+let skippedOn = 0;
+
+function joinPath(prefix, p) {
+  const a = prefix.replace(/\/+$/, '');
+  const b = p.replace(/^\/+/, '');
+  if (!b) return a || '/';
+  if (!a) return '/' + b;
+  return a + '/' + b;
+}
+
+function resolveSpecifier(fromFile, spec) {
+  if (!spec.startsWith('.')) return null;
+  const base = path.resolve(path.dirname(fromFile), spec);
+  for (const cand of [base, base + '.ts', path.join(base, 'index.ts')]) {
+    if (fs.existsSync(cand) && fs.statSync(cand).isFile()) return cand;
+  }
+  return null;
+}
+
+// importName → resolved source path for relative imports (default, named, ns).
+function importMap(sf) {
+  const m = new Map();
+  for (const imp of sf.getImportDeclarations()) {
+    const src = resolveSpecifier(sf.getFilePath(), imp.getModuleSpecifierValue());
+    if (!src) continue;
+    const def = imp.getDefaultImport();
+    if (def) m.set(def.getText(), src);
+    for (const n of imp.getNamedImports()) m.set(n.getName(), src);
+    const ns = imp.getNamespaceImport();
+    if (ns) m.set(ns.getText(), src);
+  }
+  return m;
+}
+
+function addRoute(method, fullPath, mount, line) {
+  const e = { method, path: fullPath, mount: mount || undefined,
+              source: { spans: [{ start: line, end: line }] } };
+  const k = `${e.method}|${e.path}`;
+  const ex = routeMap.get(k);
+  if (ex) { ex.source.spans.push(...e.source.spans); return; }
+  routeMap.set(k, e);
+  httpRoutes.push(e);
+}
+
+function walkFile(filePath, prefix, depth) {
+  const abs = path.resolve(filePath);
+  if (depth > 8 || visitedFiles.has(abs)) return;
+  visitedFiles.add(abs);
+  let sf2;
+  try { sf2 = project.addSourceFileAtPath(abs); } catch { return; }
+  const honoVars = new Set();
+  for (const d of sf2.getVariableDeclarations()) {
+    const init = d.getInitializer();
+    if (init?.getKind() === SyntaxKind.NewExpression && init.getExpression().getText() === 'Hono') {
+      honoVars.add(d.getName());
+    }
+  }
+  const imports = importMap(sf2);
+  for (const stmt of sf2.getStatements()) {
+    if (stmt.getKind() !== SyntaxKind.ExpressionStatement) continue;
+    const call = stmt.getExpression();
+    if (call.getKind() !== SyntaxKind.CallExpression) continue;
+    const prop = call.getExpression();
+    if (prop.getKind() !== SyntaxKind.PropertyAccessExpression) continue;
+    if (!honoVars.has(prop.getExpression().getText())) continue;
+    const name = prop.getName();
+    const arg0 = call.getArguments()[0];
+    const lit0 = arg0 && arg0.getKind() === SyntaxKind.StringLiteral ? lit(arg0) : null;
+    if (HTTP_METHODS.includes(name) && lit0 !== null) {
+      addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber());
+    } else if (name === 'route' && lit0 !== null) {
+      const target = imports.get(call.getArguments()[1]?.getText().trim());
+      if (target) { traversed.push(target); walkFile(target, joinPath(prefix, lit0), depth + 1); }
+    } else if (name === 'on') {
+      skippedOn++;
+    }
+  }
+}
+walkFile(file, '', 0);
+
+console.log(JSON.stringify({
+  edges: [...merged.values()],
+  http_routes: httpRoutes,
+  files: traversed.map((p) => ({ path: p })),
+  skipped_on_registrations: skippedOn,
+}));

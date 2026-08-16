@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -350,5 +351,76 @@ func TestExtract_DynamicType(t *testing.T) {
 	}
 	if !anyDynamic {
 		t.Errorf("expected a (dynamic) best_effort edge for non-literal broadcast arg, got: %+v", got.Edges)
+	}
+}
+
+func TestExtract_HonoRoutes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "hono", "worker.ts"))
+	if err != nil {
+		t.Skipf("node unavailable or npm failed: %v", err)
+	}
+	var got struct {
+		HTTPRoutes []struct {
+			Method string `json:"method"`
+			Path   string `json:"path"`
+			Mount  string `json:"mount"`
+		} `json:"http_routes"`
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		SkippedOn int `json:"skipped_on_registrations"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("parse extractor stdout: %v\nraw=%s", err, out)
+	}
+	seen := map[string]int{}
+	for _, r := range got.HTTPRoutes {
+		seen[r.Method+" "+r.Path]++
+	}
+	for _, w := range []string{
+		"GET /health",
+		"POST /api/dev/setup",
+		"GET /api/things",
+		"GET /api/things/:id",
+		"DELETE /api/things/nested/jobs/*",
+	} {
+		if seen[w] == 0 {
+			t.Errorf("route %q missing; got %+v", w, got.HTTPRoutes)
+		}
+	}
+	if seen["POST /api/dev/setup"] != 1 {
+		t.Errorf("duplicate registration must merge to one entry, got %d", seen["POST /api/dev/setup"])
+	}
+	if seen["PUT /secret"] != 0 {
+		t.Error("unmounted route leaked into http_routes")
+	}
+	if seen["GET /multi"] != 0 {
+		t.Error("app.on registration extracted despite v1 skip")
+	}
+	if got.SkippedOn != 1 {
+		t.Errorf("skipped_on_registrations = %d, want 1", got.SkippedOn)
+	}
+	fileSet := map[string]bool{}
+	for _, f := range got.Files {
+		fileSet[f.Path] = true
+	}
+	for _, w := range []string{"worker.ts", "things.ts", "nested"} {
+		found := false
+		for p := range fileSet {
+			if strings.Contains(filepath.ToSlash(p), w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("traversed file %q missing from files output: %+v", w, got.Files)
+		}
+	}
+	for p := range fileSet {
+		if strings.Contains(p, "unmounted") {
+			t.Errorf("unmounted file %q must not be traversed", p)
+		}
 	}
 }
