@@ -63,10 +63,10 @@ type wsEntry struct {
 	pumpErr       error             // set when the pump exits (read error / ctx done)
 	closeCode     int               // peer close status captured by the pump (0 = none)
 	closeReason   string
-	done          chan struct{}     // closed when the pump has exited
-	readMu        sync.Mutex        // serializes channel consumption (one consumer at a time)
-	pending       wsMsg             // a frame peeked then put back by readMatchingAll
-	hasPending    bool              // pending holds a frame when true
+	done          chan struct{} // closed when the pump has exited
+	readMu        sync.Mutex    // serializes channel consumption (one consumer at a time)
+	pending       wsMsg         // a frame peeked then put back by readMatchingAll
+	hasPending    bool          // pending holds a frame when true
 }
 
 // matchAllGrace is the idle gap that ends a MatchAll burst. It covers the pump's

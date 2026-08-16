@@ -36,13 +36,13 @@ func TestRenderJUnit_AllVerdicts(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, s.FinishTrace(ctx, trace4, "uncertain"))
 
-	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /api/health", "" , "pass", 0.99, "judge", "healthy", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /api/health", "", "pass", 0.99, "judge", "healthy", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
-	_, err = s.CreateVerdict(ctx, sess.ID, trace2, "POST /api/users", "" , "fail", 0.85, "judge", "duplicate email", nil, store.FailureReasonAssertionFailed, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace2, "POST /api/users", "", "fail", 0.85, "judge", "duplicate email", nil, store.FailureReasonAssertionFailed, false, "", "")
 	require.NoError(t, err)
-	_, err = s.CreateVerdict(ctx, sess.ID, trace3, "GET /api/skip", "" , "skip", 0.0, "judge", "not applicable", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace3, "GET /api/skip", "", "skip", 0.0, "judge", "not applicable", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
-	_, err = s.CreateVerdict(ctx, sess.ID, trace4, "GET /api/unknown", "" , "uncertain", 0.5, "judge", "unexpected status", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace4, "GET /api/unknown", "", "uncertain", 0.5, "judge", "unexpected status", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 
 	summary := session.SessionSummary{
@@ -112,7 +112,7 @@ func TestRenderJUnit_PassOnly(t *testing.T) {
 
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /ok")
 	require.NoError(t, s.FinishTrace(ctx, trace1, "pass"))
-	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /ok", "" , "pass", 1.0, "judge", "all good", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /ok", "", "pass", 1.0, "judge", "all good", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 
 	require.NoError(t, s.UpdateSessionStats(ctx, sess.ID, 100.0, session.SessionSummary{
@@ -216,7 +216,7 @@ func TestRenderJUnit_WithEvidence(t *testing.T) {
 	// Create trace + fail verdict with evidence.
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "POST /api/login")
 	require.NoError(t, s.FinishTrace(ctx, trace1, "fail"))
-	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "POST /api/login", "" , "fail", 0.7, "judge", "auth failed", nil, store.FailureReasonAssertionFailed, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "POST /api/login", "", "fail", 0.7, "judge", "auth failed", nil, store.FailureReasonAssertionFailed, false, "", "")
 	require.NoError(t, err)
 
 	// Record evidence for the trace.
@@ -279,7 +279,7 @@ func TestBuildReport_WithEvidence(t *testing.T) {
 
 	trace1, _ := s.CreateTrace(ctx, sess.ID, "http", "GET /api/items")
 	require.NoError(t, s.FinishTrace(ctx, trace1, "pass"))
-	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /api/items", "" , "pass", 0.95, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, sess.ID, trace1, "GET /api/items", "", "pass", 0.95, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 	_, err = s.CreateEvidence(ctx, trace1, "agent_observation", `{"summary":"200 items returned"}`)
 	require.NoError(t, err)

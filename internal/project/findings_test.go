@@ -14,8 +14,8 @@ func TestFindingsRoundtripAndValidate(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".cerberus"), 0o755))
 
 	ff := &FindingsFile{Findings: []Finding{{
-		ID: "ws-rt-web-csrf-no-origin-a1b2c3d4",
-		Summary: "expect_status 403, got 200",
+		ID:         "ws-rt-web-csrf-no-origin-a1b2c3d4",
+		Summary:    "expect_status 403, got 200",
 		CaseRef:    "ws-rt-web-csrf-no-origin",
 		SessionRef: "sess-1",
 		ClaimRefs:  []string{"ws-relay-messaging"},

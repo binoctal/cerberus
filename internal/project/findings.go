@@ -92,7 +92,7 @@ func UpsertFinding(ff *FindingsFile, in FindingInput) bool {
 		ID: id, Summary: in.ErrorSummary,
 		CaseRef: in.CaseRef, SessionRef: in.SessionRef,
 		ClaimRefs: in.ClaimRefs, Tier: in.Tier,
-		Status: FindingOpen,
+		Status:    FindingOpen,
 		FirstSeen: in.Now, LastSeen: in.Now, Count: 1,
 	})
 	return true

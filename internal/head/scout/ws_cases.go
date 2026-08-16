@@ -199,6 +199,7 @@ func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCa
 //     receive the error frame → ws_expect_close
 //   - http_auth: one http_request step (dropped headers simply not set,
 //     status asserted)
+//
 // No claims binding (spec Non-goals). IDs: ws-<svc>-<role>-<id>.
 func violationCases(svc project.Service) []agent.TestCase {
 	if svc.Protocol == nil || len(svc.Protocol.Violations) == 0 {

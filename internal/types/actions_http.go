@@ -310,7 +310,7 @@ func (a WSExpectCloseAction) Validate() error {
 	}
 	return nil
 }
-func (a WSDisconnectAction) Target() string            { return a.ConnectionID }
+func (a WSDisconnectAction) Target() string { return a.ConnectionID }
 func (a WSDisconnectAction) Validate() error {
 	if a.ConnectionID == "" {
 		return fmt.Errorf("connection_id is required")

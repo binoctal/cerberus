@@ -75,7 +75,7 @@ func TestModel_LoadSelected_WithData(t *testing.T) {
 	traceID, err := s.CreateTrace(ctx, dbSess.ID, "http", "GET /api")
 	require.NoError(t, err)
 	require.NoError(t, s.FinishTrace(ctx, traceID, "pass"))
-	_, err = s.CreateVerdict(ctx, dbSess.ID, traceID, "GET /api", "" , "pass", 0.95, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
+	_, err = s.CreateVerdict(ctx, dbSess.ID, traceID, "GET /api", "", "pass", 0.95, "judge", "ok", nil, store.FailureReasonNone, false, "", "")
 	require.NoError(t, err)
 
 	sessions, err := s.ListSessions(ctx, 50)
