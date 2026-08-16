@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/binoctal/cerberus/internal/project"
@@ -31,6 +32,13 @@ func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
 	if s.Action == "http_request" {
 		if hr, ok := result.(types.HTTPResult); ok {
 			ev.Content = fmt.Sprintf("http_request: %s %d", hr.URL, hr.StatusCode)
+			ev.URL = hr.URL
+			ev.StatusCode = hr.StatusCode
+			m := strings.ToUpper(s.Method)
+			if m == "" {
+				m = "GET"
+			}
+			ev.Method = m
 		}
 	}
 	return ev

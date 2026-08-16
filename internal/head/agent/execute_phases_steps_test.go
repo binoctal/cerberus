@@ -670,3 +670,23 @@ func TestResolveHTTPStep(t *testing.T) {
 		}
 	})
 }
+
+func TestStepEvidence_HTTPRequestStructured(t *testing.T) {
+	s := TestStep{Action: "http_request", Method: "post", URL: "http://x/api/sessions"}
+	res := types.HTTPResult{OK: true, StatusCode: 201, URL: "http://x/api/sessions", Latency: time.Millisecond}
+	ev := stepEvidence(s, res)
+	if ev.Method != "POST" {
+		t.Errorf("Method = %q, want POST (normalized upper)", ev.Method)
+	}
+	if ev.URL != "http://x/api/sessions" {
+		t.Errorf("URL = %q, want the executed URL", ev.URL)
+	}
+	if ev.StatusCode != 201 {
+		t.Errorf("StatusCode = %d, want 201", ev.StatusCode)
+	}
+	// Default method when the step omits it.
+	ev2 := stepEvidence(TestStep{Action: "http_request"}, types.HTTPResult{OK: true, StatusCode: 401, URL: "http://x/y"})
+	if ev2.Method != "GET" || ev2.StatusCode != 401 {
+		t.Errorf("defaults: Method=%q StatusCode=%d, want GET/401", ev2.Method, ev2.StatusCode)
+	}
+}

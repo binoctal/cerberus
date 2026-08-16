@@ -144,6 +144,11 @@ type Evidence struct {
 	MatchedType  string `json:"matched_type,omitempty"`  // ws_receive expected / ws_send sent type
 	Matched      bool   `json:"matched,omitempty"`       // ws_receive observed a matching frame
 	ExpectAbsent bool   `json:"expect_absent,omitempty"` // ws_receive: this was a negative (sender-exclusion) probe
+	// http_request structured facts for coverage attribution (route pattern
+	// matching). Rule-engine HTTP evidence does not populate these.
+	Method     string `json:"method,omitempty"`
+	URL        string `json:"url,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
 }
 
 // StepResult is the outcome of executing a single TestCase.
