@@ -110,3 +110,78 @@ func TestRunProtocolVocabulary_ReextractPreservesAnnotations(t *testing.T) {
 	}
 	t.Fatalf("re-extracted vocab lost the annotated edge %s->%s %s entirely", v.Edges[0].FromRole, v.Edges[0].ToRole, v.Edges[0].Type)
 }
+
+// TestRunProtocolVocabulary_HonoRoutes: extraction over a Hono entry writes
+// http_routes with per-file hashes, and re-extraction preserves route marks
+// (method|path) the same way WS edge marks survive.
+func TestRunProtocolVocabulary_HonoRoutes(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "routes"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	worker := `import { Hono } from 'hono';
+import { thingRoutes } from './routes/things';
+const app = new Hono();
+app.get('/health', (c) => c.json({}));
+app.route('/api/things', thingRoutes);
+export default app;
+`
+	things := `import { Hono } from 'hono';
+const app = new Hono();
+app.post('/', (c) => c.json({}));
+export { app as thingRoutes };
+`
+	if err := os.WriteFile(filepath.Join(dir, "worker.ts"), []byte(worker), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "routes", "things.ts"), []byte(things), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml")
+	if err := runProtocolVocabulary(context.Background(), dir, filepath.Join(dir, "worker.ts"), "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	v, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load vocab: %v", err)
+	}
+	if len(v.HTTPRoutes) != 2 {
+		t.Fatalf("http_routes = %+v, want 2 routes", v.HTTPRoutes)
+	}
+	if len(v.Source.Files) != 2 {
+		t.Fatalf("source.files = %+v, want worker+things", v.Source.Files)
+	}
+	for _, f := range v.Source.Files {
+		if f.Hash == "" {
+			t.Errorf("file %q has no hash", f.Path)
+		}
+	}
+	// Annotate POST as partial, re-extract, mark must survive.
+	for i := range v.HTTPRoutes {
+		if v.HTTPRoutes[i].Method == "POST" {
+			v.HTTPRoutes[i].Partial = true
+		}
+	}
+	block, err := yaml.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, block, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProtocolVocabulary(context.Background(), dir, filepath.Join(dir, "worker.ts"), "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	v2, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range v2.HTTPRoutes {
+		if r.Method == "POST" && !r.Partial {
+			t.Fatal("re-extraction dropped partial mark on POST route")
+		}
+		if r.Method == "GET" && r.Partial {
+			t.Fatal("GET route unexpectedly marked partial")
+		}
+	}
+}

@@ -50,7 +50,7 @@ var (
 func protocolVocabularyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vocabulary",
-		Short: "Extract a WS routing vocabulary from a TypeScript source file",
+		Short: "Extract a WS routing vocabulary and HTTP route surface from a TypeScript source file",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runProtocolVocabulary(cmd.Context(), ".", protocolVocabFrom, protocolVocabName,
 				protocolVocabDry, promptConfirm(os.Stdin, os.Stdout))
@@ -77,26 +77,44 @@ func runProtocolVocabulary(ctx context.Context, workDir, sourcePath, name string
 		return err
 	}
 	var extracted struct {
-		Edges []project.VocabEdge `json:"edges"`
+		Edges      []project.VocabEdge      `json:"edges"`
+		HTTPRoutes []project.VocabHTTPRoute `json:"http_routes"`
+		Files      []struct {
+			Path string `json:"path"`
+		} `json:"files"`
 	}
 	if err := json.Unmarshal(raw, &extracted); err != nil {
 		return fmt.Errorf("parse extractor output: %w", err)
 	}
-	srcPath := sourcePath
-	if !filepath.IsAbs(srcPath) {
-		srcPath = filepath.Join(workDir, srcPath)
+	// The extractor reports every traversed source file (absolute paths);
+	// fall back to the entry file when it reports none.
+	hashPaths := make([]string, 0, len(extracted.Files)+1)
+	for _, f := range extracted.Files {
+		hashPaths = append(hashPaths, f.Path)
 	}
-	srcData, err := os.ReadFile(srcPath)
-	if err != nil {
-		return fmt.Errorf("hash source: %w", err)
+	if len(hashPaths) == 0 {
+		srcPath := sourcePath
+		if !filepath.IsAbs(srcPath) {
+			srcPath = filepath.Join(workDir, srcPath)
+		}
+		hashPaths = append(hashPaths, srcPath)
 	}
-	sum := sha256.Sum256(srcData)
+	var files []project.VocabFile
+	for _, p := range hashPaths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return fmt.Errorf("hash source %s: %w", p, err)
+		}
+		sum := sha256.Sum256(data)
+		files = append(files, project.VocabFile{Path: p, Hash: hex.EncodeToString(sum[:])})
+	}
 	vocab := &project.Vocabulary{
 		Source: project.VocabSource{
-			Files:       []project.VocabFile{{Path: sourcePath, Hash: hex.EncodeToString(sum[:])}},
+			Files:       files,
 			ProtocolRef: name,
 		},
-		Edges: extracted.Edges,
+		Edges:      extracted.Edges,
+		HTTPRoutes: extracted.HTTPRoutes,
 	}
 	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
 	// Re-extraction must not drop manually-annotated marks (partial/unsupported)
@@ -115,9 +133,20 @@ func runProtocolVocabulary(ctx context.Context, workDir, sourcePath, name string
 				vocab.Edges[i].Unsupported = old.Unsupported
 			}
 		}
+		// Route marks follow the same rule, keyed method|path.
+		routeMarks := make(map[string]project.VocabHTTPRoute, len(prev.HTTPRoutes))
+		for _, r := range prev.HTTPRoutes {
+			routeMarks[r.Method+"|"+r.Path] = r
+		}
+		for i := range vocab.HTTPRoutes {
+			if old, ok := routeMarks[vocab.HTTPRoutes[i].Method+"|"+vocab.HTTPRoutes[i].Path]; ok {
+				vocab.HTTPRoutes[i].Partial = old.Partial
+				vocab.HTTPRoutes[i].Unsupported = old.Unsupported
+			}
+		}
 	}
 	block, _ := yaml.Marshal(vocab)
-	fmt.Printf("Draft vocabulary %q (%d edges):\n%s\n", name, len(vocab.Edges), string(block))
+	fmt.Printf("Draft vocabulary %q (%d edges, %d http routes):\n%s\n", name, len(vocab.Edges), len(vocab.HTTPRoutes), string(block))
 	if dryRun {
 		return nil
 	}
