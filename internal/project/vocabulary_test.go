@@ -1,6 +1,7 @@
 package project
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -36,5 +37,40 @@ func TestLoadVocabulary(t *testing.T) {
 	}
 	if !e1.Partial {
 		t.Errorf("edge1 partial = false, want true")
+	}
+}
+
+func TestValidateVocabulary_HTTPRoutes(t *testing.T) {
+	ok := &Vocabulary{HTTPRoutes: []VocabHTTPRoute{
+		{Method: "POST", Path: "/api/sessions"},
+		{Method: "GET", Path: "/api/sessions/:id"},
+		{Method: "ALL", Path: "/api/workflows/jobs/*"},
+	}}
+	if err := ValidateVocabulary(ok); err != nil {
+		t.Fatalf("valid routes rejected: %v", err)
+	}
+	bad := []VocabHTTPRoute{
+		{Method: "FETCH", Path: "/x"},   // method not in enum
+		{Method: "GET", Path: "x"},      // no leading slash
+		{Method: "GET", Path: "/a//b"},  // double slash
+		{Method: "GET", Path: "/a/*/b"}, // * must be the final segment
+		{Method: "GET", Path: "/a/:/b"}, // empty param name
+	}
+	for _, r := range bad {
+		if err := ValidateVocabulary(&Vocabulary{HTTPRoutes: []VocabHTTPRoute{r}}); err == nil {
+			t.Errorf("route %+v: want validation error, got nil", r)
+		}
+	}
+}
+
+func TestLoadVocabulary_RejectsBadRoute(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "v.vocab.yaml")
+	body := "source:\n  files: []\nhttp_routes:\n  - method: FETCH\n    path: /x\n"
+	if err := os.WriteFile(p, []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadVocabulary(p); err == nil {
+		t.Fatal("LoadVocabulary accepted an invalid http_route (broken denominator must not pass silently)")
 	}
 }

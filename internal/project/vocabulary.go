@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -15,6 +16,10 @@ import (
 type Vocabulary struct {
 	Source VocabSource `yaml:"source" json:"source"`
 	Edges  []VocabEdge `yaml:"edges" json:"edges"`
+	// HTTPRoutes is the mounted HTTP route surface (Hono-extracted). Kept
+	// separate from Edges: WS delivery semantics do not apply; coverage
+	// synthesizes one edge per route in requiredEdges (http_trigger pattern).
+	HTTPRoutes []VocabHTTPRoute `yaml:"http_routes,omitempty" json:"http_routes,omitempty"`
 }
 
 // VocabSource records where the vocabulary was extracted from.
@@ -84,6 +89,47 @@ type VocabSpan struct {
 	End   int `yaml:"end" json:"end"`
 }
 
+// VocabHTTPRoute is one mounted HTTP route. Identity is METHOD|Path. Path is
+// the full normalized pattern (mount chain + route path); :param matches one
+// segment, a trailing * matches one-or-more, ALL matches any method.
+type VocabHTTPRoute struct {
+	Method      string          `yaml:"method" json:"method"`
+	Path        string          `yaml:"path" json:"path"`
+	Mount       string          `yaml:"mount,omitempty" json:"mount,omitempty"`
+	Partial     bool            `yaml:"partial,omitempty" json:"partial,omitempty"`
+	Unsupported bool            `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
+	Source      VocabEdgeSource `yaml:"source" json:"source"`
+}
+
+// vocabRouteMethods is the closed method enum (ALL = Hono app.all).
+var vocabRouteMethods = map[string]bool{
+	"GET": true, "POST": true, "PUT": true, "DELETE": true,
+	"PATCH": true, "OPTIONS": true, "HEAD": true, "ALL": true,
+}
+
+// ValidateVocabulary checks the HTTP route surface so a broken denominator
+// cannot pass silently (same principle as claims).
+func ValidateVocabulary(v *Vocabulary) error {
+	for i, r := range v.HTTPRoutes {
+		if !vocabRouteMethods[r.Method] {
+			return fmt.Errorf("http_routes[%d]: method %q not in enum", i, r.Method)
+		}
+		if !strings.HasPrefix(r.Path, "/") || strings.Contains(r.Path, "//") {
+			return fmt.Errorf("http_routes[%d]: path %q must start with / and contain no empty segments", i, r.Path)
+		}
+		segs := strings.Split(strings.Trim(r.Path, "/"), "/")
+		for j, s := range segs {
+			if strings.Contains(s, "*") && (s != "*" || j != len(segs)-1) {
+				return fmt.Errorf("http_routes[%d]: * must be the lone final segment in %q", i, r.Path)
+			}
+			if s == ":" || (strings.HasPrefix(s, ":") && len(s) == 1) {
+				return fmt.Errorf("http_routes[%d]: empty param name in %q", i, r.Path)
+			}
+		}
+	}
+	return nil
+}
+
 // LoadVocabulary reads and parses a vocab.yaml file.
 func LoadVocabulary(path string) (*Vocabulary, error) {
 	data, err := os.ReadFile(path)
@@ -93,6 +139,9 @@ func LoadVocabulary(path string) (*Vocabulary, error) {
 	var v Vocabulary
 	if err := yaml.Unmarshal(data, &v); err != nil {
 		return nil, fmt.Errorf("vocab: parse %s: %w", path, err)
+	}
+	if err := ValidateVocabulary(&v); err != nil {
+		return nil, fmt.Errorf("vocab: %s: %w", path, err)
 	}
 	return &v, nil
 }
