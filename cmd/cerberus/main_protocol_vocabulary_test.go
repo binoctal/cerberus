@@ -17,7 +17,7 @@ func TestRunProtocolVocabulary_DryRun(t *testing.T) {
 	if err := os.WriteFile(src, []byte("class UserRoom { handleMessage(){} }\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	err := runProtocolVocabulary(context.Background(), dir, src, "open-agents", true, nil)
+	err := runProtocolVocabulary(context.Background(), dir, []string{src}, "open-agents", true, nil)
 	if err != nil {
 		t.Skipf("node unavailable: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestRunProtocolVocabulary_Writes(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, ".cerberus", "vocab", "open-agents.vocab.yaml")
-	err := runProtocolVocabulary(context.Background(), dir, src, "open-agents", false, func(string) bool { return true })
+	err := runProtocolVocabulary(context.Background(), dir, []string{src}, "open-agents", false, func(string) bool { return true })
 	if err != nil {
 		t.Skipf("node unavailable: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestRunProtocolVocabulary_ReextractPreservesAnnotations(t *testing.T) {
 	}
 	out := filepath.Join(dir, ".cerberus", "vocab", "open-agents.vocab.yaml")
 	// First extraction writes the vocab.
-	if err := runProtocolVocabulary(context.Background(), dir, src, "open-agents", false, func(string) bool { return true }); err != nil {
+	if err := runProtocolVocabulary(context.Background(), dir, []string{src}, "open-agents", false, func(string) bool { return true }); err != nil {
 		t.Skipf("node unavailable: %v", err)
 	}
 	v, err := project.LoadVocabulary(out)
@@ -93,7 +93,7 @@ func TestRunProtocolVocabulary_ReextractPreservesAnnotations(t *testing.T) {
 	}
 
 	// Re-extract the same source: the existing edge must keep its mark.
-	if err := runProtocolVocabulary(context.Background(), dir, src, "open-agents", false, func(string) bool { return true }); err != nil {
+	if err := runProtocolVocabulary(context.Background(), dir, []string{src}, "open-agents", false, func(string) bool { return true }); err != nil {
 		t.Skipf("node unavailable: %v", err)
 	}
 	v2, err := project.LoadVocabulary(out)
@@ -138,7 +138,7 @@ export { app as thingRoutes };
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml")
-	if err := runProtocolVocabulary(context.Background(), dir, filepath.Join(dir, "worker.ts"), "hono", false, func(string) bool { return true }); err != nil {
+	if err := runProtocolVocabulary(context.Background(), dir, []string{filepath.Join(dir, "worker.ts")}, "hono", false, func(string) bool { return true }); err != nil {
 		t.Skipf("node unavailable: %v", err)
 	}
 	v, err := project.LoadVocabulary(out)
@@ -169,7 +169,7 @@ export { app as thingRoutes };
 	if err := os.WriteFile(out, block, 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := runProtocolVocabulary(context.Background(), dir, filepath.Join(dir, "worker.ts"), "hono", false, func(string) bool { return true }); err != nil {
+	if err := runProtocolVocabulary(context.Background(), dir, []string{filepath.Join(dir, "worker.ts")}, "hono", false, func(string) bool { return true }); err != nil {
 		t.Skipf("node unavailable: %v", err)
 	}
 	v2, err := project.LoadVocabulary(out)
@@ -183,5 +183,74 @@ export { app as thingRoutes };
 		if r.Method == "GET" && r.Partial {
 			t.Fatal("GET route unexpectedly marked partial")
 		}
+	}
+}
+
+// TestRunProtocolVocabulary_MultiEntry: repeated --from entries merge into one
+// vocab (WS edges from a room-class entry + HTTP routes from a Hono worker
+// entry), files union without duplication, and route marks survive a
+// multi-entry re-extraction.
+func TestRunProtocolVocabulary_MultiEntry(t *testing.T) {
+	dir := t.TempDir()
+	room := `class UserRoom {
+  handleMessage(ws, meta, msg) {
+    switch (msg.type) {
+      case 'echo-everyone':
+        if (meta.type === 'bridge') { this.broadcastToWeb(msg); }
+        break;
+      default:
+    }
+  }
+  broadcastToWeb(msg) {}
+}
+`
+	worker := `import { Hono } from 'hono';
+const app = new Hono();
+app.get('/health', (c) => c.json({}));
+export default app;
+`
+	roomPath := filepath.Join(dir, "room.ts")
+	workerPath := filepath.Join(dir, "worker.ts")
+	if err := os.WriteFile(roomPath, []byte(room), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(workerPath, []byte(worker), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, ".cerberus", "vocab", "merged.vocab.yaml")
+	if err := runProtocolVocabulary(context.Background(), dir, []string{roomPath, workerPath}, "merged", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	v, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load vocab: %v", err)
+	}
+	if len(v.Edges) == 0 {
+		t.Fatal("WS edges from the room entry missing")
+	}
+	if len(v.HTTPRoutes) != 1 || v.HTTPRoutes[0].Method != "GET" || v.HTTPRoutes[0].Path != "/health" {
+		t.Fatalf("http_routes = %+v, want GET /health", v.HTTPRoutes)
+	}
+	if len(v.Source.Files) != 2 {
+		t.Fatalf("source.files = %+v, want room+worker", v.Source.Files)
+	}
+	// Route marks survive a multi-entry re-extraction.
+	v.HTTPRoutes[0].Partial = true
+	block, err := yaml.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, block, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProtocolVocabulary(context.Background(), dir, []string{roomPath, workerPath}, "merged", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	v2, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v2.Edges) == 0 || len(v2.HTTPRoutes) != 1 || !v2.HTTPRoutes[0].Partial {
+		t.Fatalf("re-extraction lost content or marks: %d edges, %+v", len(v2.Edges), v2.HTTPRoutes)
 	}
 }
