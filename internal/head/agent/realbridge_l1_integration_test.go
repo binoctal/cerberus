@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -55,9 +56,17 @@ type bridgeConfigFile struct {
 func writeClaudeShim(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	shim := "#!/bin/sh\n# Deterministic fake claude REPL for the L1 fidelity ladder.\nwhile IFS= read -r line; do\n  printf 'FAKE_CLAUDE_ECHO: %s\\n' \"$line\"\ndone\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "claude"), []byte(shim), 0o755))
+	writeShimCLI(t, dir, "claude", "#!/bin/sh\n# Deterministic fake claude REPL for the L1 fidelity ladder.\nwhile IFS= read -r line; do\n  printf 'FAKE_CLAUDE_ECHO: %s\\n' \"$line\"\ndone\n")
 	return dir
+}
+
+// writeShimCLI writes one named deterministic CLI shim binary into dir. The
+// bridge's capability detection is PATH-based (cliDetectMap), so a shim named
+// e.g. "codex" makes the bridge report cliEnabled[codex]=true without any
+// real CLI or LLM.
+func writeShimCLI(t *testing.T, dir, name, body string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755))
 }
 
 // launchRealBridges pairs and starts n real bridge devices under the SAME dev
@@ -83,83 +92,96 @@ func launchRealBridges(t *testing.T, withShim bool, names ...string) []realBridg
 	var bridges []realBridge
 	for _, name := range names {
 		home := t.TempDir()
-		childEnv := func() []string {
-			env := append(os.Environ(), "HOME="+home)
-			if shimDir != "" {
-				env = append(env, "PATH="+shimDir+":"+os.Getenv("PATH"))
-			}
-			return env
+		pathDirs := []string(nil)
+		if shimDir != "" {
+			pathDirs = []string{shimDir}
 		}
-		run := func(args ...string) string {
-			cmd := exec.Command(bin, args...)
-			cmd.Env = childEnv()
-			cmd.Dir = bridgeAbs
-			out, err := cmd.CombinedOutput()
-			require.NoError(t, err, "%s %v: %s", name, args, out)
-			return string(out)
-		}
-
-		// Pair (one-shot), then capture the deviceId from the written config.
-		run("pair", "--dev", "--server", "http://localhost:8989", "-n", name)
-		raw, err := os.ReadFile(filepath.Join(home, ".open-agents-bridge", "config.json"))
-		require.NoError(t, err, "read bridge config after pair")
-		var cfg bridgeConfigFile
-		require.NoError(t, json.Unmarshal(raw, &cfg), "parse bridge config")
-		require.NotEmpty(t, cfg.Devices[name].DeviceID, "deviceId for %s", name)
-
-		// Start in its own process group; wait for the ready line.
-		ctx, cancel := context.WithCancel(context.Background())
-		start := exec.CommandContext(ctx, bin, "start", "-d", name, "--log-level", "debug")
-		start.Env = childEnv()
-		start.Dir = bridgeAbs
-		start.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		ready := make(chan string, 64)
-		var outMu sync.Mutex
-		var outLog bytes.Buffer
-		pr, pw, err := os.Pipe()
-		require.NoError(t, err)
-		start.Stdout = pw
-		start.Stderr = pw
-		require.NoError(t, start.Start())
-		go func() {
-			buf := make([]byte, 4096)
-			readyRe := regexp.MustCompile(`Connected to server successfully`)
-			for {
-				n, err := pr.Read(buf)
-				if n > 0 {
-					outMu.Lock()
-					outLog.Write(buf[:n])
-					outMu.Unlock()
-					if readyRe.Match(buf[:n]) {
-						select {
-						case ready <- string(buf[:n]):
-						default:
-						}
-					}
-				}
-				if err != nil {
-					return
-				}
-			}
-		}()
-		t.Cleanup(func() {
-			outMu.Lock()
-			defer outMu.Unlock()
-			if outLog.Len() > 0 {
-				t.Logf("bridge %s output:\n%s", name, outLog.String())
-			}
-		})
-		b := realBridge{name: name, deviceId: cfg.Devices[name].DeviceID, homeDir: home, shimDir: shimDir, cmd: start, cancel: cancel}
-		bridges = append(bridges, b)
-		t.Cleanup(func() { stopBridgeGroup(t, b) })
-
-		select {
-		case <-ready:
-		case <-time.After(30 * time.Second):
-			t.Fatalf("bridge %s: no connect line within 30s", name)
-		}
+		bridges = append(bridges, launchOneRealBridge(t, bin, bridgeAbs, name, home, pathDirs))
 	}
 	return bridges
+}
+
+// launchOneRealBridge pairs and starts ONE real bridge with an explicit PATH
+// prefix. pathDirs entries are prepended to the host PATH (nil = inherit the
+// host PATH verbatim). M2 uses a RESTRICTED PATH via launchBridgesWithCLIs
+// instead, so capability detection sees only the shim CLIs.
+func launchOneRealBridge(t *testing.T, bin, bridgeAbs, name, home string, pathDirs []string) realBridge {
+	t.Helper()
+	childEnv := func() []string {
+		env := append(os.Environ(), "HOME="+home)
+		if len(pathDirs) > 0 {
+			env = append(env, "PATH="+strings.Join(pathDirs, ":")+":"+os.Getenv("PATH"))
+		}
+		return env
+	}
+	run := func(args ...string) string {
+		cmd := exec.Command(bin, args...)
+		cmd.Env = childEnv()
+		cmd.Dir = bridgeAbs
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "%s %v: %s", name, args, out)
+		return string(out)
+	}
+
+	// Pair (one-shot), then capture the deviceId from the written config.
+	run("pair", "--dev", "--server", "http://localhost:8989", "-n", name)
+	raw, err := os.ReadFile(filepath.Join(home, ".open-agents-bridge", "config.json"))
+	require.NoError(t, err, "read bridge config after pair")
+	var cfg bridgeConfigFile
+	require.NoError(t, json.Unmarshal(raw, &cfg), "parse bridge config")
+	require.NotEmpty(t, cfg.Devices[name].DeviceID, "deviceId for %s", name)
+
+	// Start in its own process group; wait for the ready line.
+	ctx, cancel := context.WithCancel(context.Background())
+	start := exec.CommandContext(ctx, bin, "start", "-d", name, "--log-level", "debug")
+	start.Env = childEnv()
+	start.Dir = bridgeAbs
+	start.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ready := make(chan string, 64)
+	var outMu sync.Mutex
+	var outLog bytes.Buffer
+	pr, pw, err := os.Pipe()
+	require.NoError(t, err)
+	start.Stdout = pw
+	start.Stderr = pw
+	require.NoError(t, start.Start())
+	go func() {
+		buf := make([]byte, 4096)
+		readyRe := regexp.MustCompile(`Connected to server successfully`)
+		for {
+			n, err := pr.Read(buf)
+			if n > 0 {
+				outMu.Lock()
+				outLog.Write(buf[:n])
+				outMu.Unlock()
+				if readyRe.Match(buf[:n]) {
+					select {
+					case ready <- string(buf[:n]):
+					default:
+					}
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	t.Cleanup(func() {
+		outMu.Lock()
+		defer outMu.Unlock()
+		if outLog.Len() > 0 {
+			t.Logf("bridge %s output:\n%s", name, outLog.String())
+		}
+	})
+	b := realBridge{name: name, deviceId: cfg.Devices[name].DeviceID, homeDir: home, cmd: start, cancel: cancel}
+	t.Cleanup(func() { stopBridgeGroup(t, b) })
+
+	select {
+	case <-ready:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("bridge %s: no connect line within 30s", name)
+	}
+	return b
 }
 
 func stopBridgeGroup(t *testing.T, b realBridge) {
