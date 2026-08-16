@@ -23,9 +23,13 @@ func TestDeriveDimensions_FanOutMembership(t *testing.T) {
 		},
 	}
 	dims := j.deriveDimensions(res)
-	require.Len(t, dims, 1)
-	d := dims[0]
-	assert.Equal(t, "membership", d.Kind)
+	var d *types.Dimension
+	for i := range dims {
+		if dims[i].Kind == "membership" {
+			d = &dims[i]
+		}
+	}
+	require.NotNil(t, d, "membership dim missing: %+v", dims)
 	assert.Equal(t, "c-web", d.Sender)
 	assert.ElementsMatch(t, []string{"c-bridge", "c-web-2"}, d.Recipients)
 	assert.Nil(t, d.Excluded, "exclusion not probed this spec")
@@ -43,9 +47,15 @@ func TestDeriveDimensions_SingleRecipientIsStillMembership(t *testing.T) {
 		},
 	}
 	dims := j.deriveDimensions(res)
-	require.Len(t, dims, 1)
-	assert.Equal(t, "c-web", dims[0].Sender)
-	assert.ElementsMatch(t, []string{"c-bridge"}, dims[0].Recipients)
+	var m *types.Dimension
+	for i := range dims {
+		if dims[i].Kind == "membership" {
+			m = &dims[i]
+		}
+	}
+	require.NotNil(t, m, "membership dim missing: %+v", dims)
+	assert.Equal(t, "c-web", m.Sender)
+	assert.ElementsMatch(t, []string{"c-bridge"}, m.Recipients)
 }
 
 // TestDeriveDimensions_UnmatchedReceiveExcluded verifies a ws_receive that did
@@ -61,8 +71,14 @@ func TestDeriveDimensions_UnmatchedReceiveExcluded(t *testing.T) {
 		},
 	}
 	dims := j.deriveDimensions(res)
-	require.Len(t, dims, 1)
-	assert.ElementsMatch(t, []string{"c-bridge"}, dims[0].Recipients, "unmatched receive is not a recipient")
+	var m *types.Dimension
+	for i := range dims {
+		if dims[i].Kind == "membership" {
+			m = &dims[i]
+		}
+	}
+	require.NotNil(t, m, "membership dim missing: %+v", dims)
+	assert.ElementsMatch(t, []string{"c-bridge"}, m.Recipients, "unmatched receive is not a recipient")
 }
 
 func TestDeriveDimensions_EmptyTrace(t *testing.T) {
@@ -96,9 +112,15 @@ func TestDeriveDimensionsProbeSetsExcluded(t *testing.T) {
 				},
 			}
 			dims := j.deriveDimensions(res)
-			require.Len(t, dims, 1)
-			require.NotNil(t, dims[0].Excluded, "Excluded must be set when a probe ran")
-			assert.Equal(t, tc.want, *dims[0].Excluded)
+			var m *types.Dimension
+			for i := range dims {
+				if dims[i].Kind == "membership" {
+					m = &dims[i]
+				}
+			}
+			require.NotNil(t, m, "membership dim missing: %+v", dims)
+			require.NotNil(t, m.Excluded, "Excluded must be set when a probe ran")
+			assert.Equal(t, tc.want, *m.Excluded)
 		})
 	}
 }
@@ -118,8 +140,14 @@ func TestDeriveDimensionsNonSenderProbeIgnored(t *testing.T) {
 		},
 	}
 	dims := j.deriveDimensions(res)
-	require.Len(t, dims, 1)
-	assert.Nil(t, dims[0].Excluded, "non-sender probe must not settle Excluded")
+	var m *types.Dimension
+	for i := range dims {
+		if dims[i].Kind == "membership" {
+			m = &dims[i]
+		}
+	}
+	require.NotNil(t, m, "membership dim missing: %+v", dims)
+	assert.Nil(t, m.Excluded, "non-sender probe must not settle Excluded")
 }
 
 // TestRenderDimensions_NilExcludedIsNeutralScope locks the over-trigger fix:
@@ -142,4 +170,86 @@ func TestRenderDimensions_NilExcludedIsNeutralScope(t *testing.T) {
 		"guidance must reference the render's 'not measured' phrasing")
 	assert.Contains(t, dimensionGuidance, "specifically requires",
 		"guidance must scope uncertainty to sub-facts the claim requires")
+}
+
+// TestDeriveDimensions_CountAndOrdering: positive receives accumulate a count
+// dimension per (type, connection) and an ordering dimension when the same
+// connection observed the same type at least twice. Count reports the
+// observed total only — comparison against the claim belongs to the judge.
+func TestDeriveDimensions_CountAndOrdering(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{ID: "batch"},
+		Evidence: []agent.Evidence{
+			{Action: "ws_receive", ConnectionID: "c1", MatchedType: "session:output", Matched: true,
+				MatchedCount: 2, MatchedOrder: []string{"1", "2"}},
+			{Action: "ws_receive", ConnectionID: "c1", MatchedType: "session:output", Matched: true,
+				MatchedCount: 3, MatchedOrder: []string{"3", "4", "5"}},
+			{Action: "ws_receive", ConnectionID: "c2", MatchedType: "session:output", Matched: true},
+		},
+	}
+	dims := j.deriveDimensions(res)
+	var c1, c2, ord *types.Dimension
+	for i := range dims {
+		switch {
+		case dims[i].Kind == "count" && dims[i].Label == "session:output on c1":
+			c1 = &dims[i]
+		case dims[i].Kind == "count" && dims[i].Label == "session:output on c2":
+			c2 = &dims[i]
+		case dims[i].Kind == "ordering" && dims[i].Label == "session:output order on c1":
+			ord = &dims[i]
+		}
+	}
+	require.NotNil(t, c1, "c1 count dim missing: %+v", dims)
+	assert.Equal(t, 5, c1.Count, "c1 accumulates 2+3 across receive steps")
+	require.NotNil(t, c2, "c2 count dim missing")
+	assert.Equal(t, 1, c2.Count, "single non-MatchAll match counts 1")
+	require.NotNil(t, ord, "c1 ordering dim missing")
+	assert.Equal(t, []string{"1", "2", "3", "4", "5"}, ord.Order, "orders concatenate in evidence order")
+	for _, d := range dims {
+		if d.Kind == "ordering" && d.Label == "session:output order on c2" {
+			t.Fatal("single-frame observation must not derive an ordering dim (noise)")
+		}
+	}
+}
+
+// TestDeriveDimensions_ServerPushWithoutSender: count/ordering derive without
+// any ws_send — server-pushed types (e.g. batched session:output) have no
+// sender in the trace. Membership stays absent; the early-return that used to
+// key on senders must not swallow these facts.
+func TestDeriveDimensions_ServerPushWithoutSender(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{ID: "push"},
+		Evidence: []agent.Evidence{
+			{Action: "ws_receive", ConnectionID: "c1", MatchedType: "session:output", Matched: true,
+				MatchedCount: 2, MatchedOrder: []string{"1", "2"}},
+		},
+	}
+	dims := j.deriveDimensions(res)
+	require.Len(t, dims, 2, "count + ordering, no membership: %+v", dims)
+	assert.Equal(t, "count", dims[0].Kind)
+	assert.Equal(t, "ordering", dims[1].Kind)
+}
+
+// TestDeriveDimensions_PlaceholderOrderNote: a positional (placeholder)
+// ordering list carries a Note so the judge does not compare "#0"/"#1" as ids.
+func TestDeriveDimensions_PlaceholderOrderNote(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{ID: "push"},
+		Evidence: []agent.Evidence{
+			{Action: "ws_receive", ConnectionID: "c1", MatchedType: "session:output", Matched: true,
+				MatchedCount: 2, MatchedOrder: []string{"#0", "#1"}},
+		},
+	}
+	dims := j.deriveDimensions(res)
+	for _, d := range dims {
+		if d.Kind == "ordering" {
+			assert.Contains(t, d.Note, "positional",
+				"placeholder order must be labeled positional: %+v", d)
+			return
+		}
+	}
+	t.Fatal("no ordering dim derived")
 }

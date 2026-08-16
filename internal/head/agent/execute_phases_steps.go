@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,16 @@ func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
 		ev.MatchedType = s.Type
 		ev.Matched = wsReceiveMatched(result)
 		ev.ExpectAbsent = s.ExpectAbsent
+		if wr, ok := result.(types.WSResult); ok {
+			n := wr.MatchedCount
+			if n == 0 && ev.Matched {
+				n = 1 // non-MatchAll receives count presence, not MatchedCount
+			}
+			ev.MatchedCount = n
+			if len(wr.MatchedMessages) > 0 {
+				ev.MatchedOrder = burstOrderKeys(wr.MatchedMessages)
+			}
+		}
 	}
 	if s.Action == "ws_send" {
 		ev.MatchedType = typeOfSend(s.Message)
@@ -52,6 +63,60 @@ func wsReceiveMatched(result types.ExecutorResult) bool {
 		return wr.MatchedCount > 0 || wr.MatchedMessage != ""
 	}
 	return false
+}
+
+// burstOrderKeys extracts one comparable key per matched frame for the
+// ordering dimension: the first scalar among seq/id/n found at the frame's
+// top level or inside payload (priority seq > id > n per level). When any
+// frame lacks a key the WHOLE burst falls back to positional placeholders so
+// the rendered order list stays homogeneous — a mixed key/placeholder list
+// invites the judge to compare incomparable values.
+func burstOrderKeys(frames []string) []string {
+	keys := make([]string, len(frames))
+	for i, f := range frames {
+		k, ok := frameKey(f)
+		if !ok {
+			for j := range keys {
+				keys[j] = fmt.Sprintf("#%d", j)
+			}
+			return keys
+		}
+		keys[i] = k
+	}
+	return keys
+}
+
+// frameKey finds the first comparable scalar key (seq/id/n, top level then
+// payload) in one JSON frame. Only strings and numbers qualify.
+func frameKey(frame string) (string, bool) {
+	var m map[string]any
+	if json.Unmarshal([]byte(frame), &m) != nil {
+		return "", false
+	}
+	for _, name := range []string{"seq", "id", "n"} {
+		if s, ok := scalarKey(m, name); ok {
+			return s, true
+		}
+		if p, ok := m["payload"].(map[string]any); ok {
+			if s, ok := scalarKey(p, name); ok {
+				return s, true
+			}
+		}
+	}
+	return "", false
+}
+
+// scalarKey renders m[name] when it is a non-empty string or a number.
+func scalarKey(m map[string]any, name string) (string, bool) {
+	switch v := m[name].(type) {
+	case string:
+		if v != "" {
+			return v, true
+		}
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), true
+	}
+	return "", false
 }
 
 // typeOfSend best-effort extracts the "type" field from a ws_send JSON message

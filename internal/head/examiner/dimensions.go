@@ -109,18 +109,32 @@ func renderDimensions(dims []types.Dimension) string {
 }
 
 // deriveDimensions produces flow-level dimensions (source 2) from a step
-// result's per-step trace. It derives membership: for each message type that a
-// ws_send sent, the recipients are the connections whose ws_receive matched it,
-// and the sender is the ws_send connection. Excluded is set from a sender
-// negative-probe (ExpectAbsent) when one ran for that type: no echo ⇒ *true
-// (sender excluded), echo ⇒ *false (sender received its own broadcast). Pass 1
-// establishes senders + recipients; pass 2 resolves probes against the
-// now-known sender so Evidence ordering does not matter. Without a probe,
-// Excluded stays nil — the honest "sender-exclusion not measured" state the judge
-// already renders.
+// result's per-step trace.
+//
+// membership: for each message type that a ws_send sent, the recipients are
+// the connections whose ws_receive matched it, and the sender is the ws_send
+// connection. Excluded is set from a sender negative-probe (ExpectAbsent) when
+// one ran for that type: no echo ⇒ *true (sender excluded), echo ⇒ *false
+// (sender received its own broadcast). Pass 1 establishes senders +
+// recipients; pass 2 resolves probes against the now-known sender so Evidence
+// ordering does not matter. Without a probe, Excluded stays nil — the honest
+// "sender-exclusion not measured" state the judge already renders.
+//
+// count: per (type, connection) — the total frames that connection positively
+// observed for the type, accumulated across receive steps. The observed count
+// only is reported; comparison against the claim (no-loss/no-dup) belongs to
+// the judge.
+//
+// ordering: per (type, connection) when the connection observed the type at
+// least twice — the concatenated order-key list (evidence order is temporal
+// order; MatchedOrder within a burst is arrival order). Derived WITHOUT any
+// ws_send requirement so server-pushed batched types (e.g. session:output)
+// still yield facts. Placeholder (#i) lists carry a "positional" Note.
 func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 	senders := map[string]string{}             // type -> sender connectionID
 	recipients := map[string]map[string]bool{} // type -> set of recipient connectionIDs
+	counts := map[string]int{}                 // type|conn -> observed frames
+	orders := map[string][]string{}            // type|conn -> ordered keys
 	var probes []agent.Evidence                // ExpectAbsent receives, resolved in pass 2
 	for _, ev := range r.Evidence {
 		if ev.MatchedType == "" {
@@ -144,6 +158,13 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 					recipients[ev.MatchedType] = map[string]bool{}
 				}
 				recipients[ev.MatchedType][ev.ConnectionID] = true
+				k := ev.MatchedType + "|" + ev.ConnectionID
+				n := ev.MatchedCount
+				if n == 0 {
+					n = 1
+				}
+				counts[k] += n
+				orders[k] = append(orders[k], ev.MatchedOrder...)
 			}
 		}
 	}
@@ -157,15 +178,12 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 		b := !p.Matched // no echo ⇒ sender excluded
 		excluded[p.MatchedType] = &b
 	}
-	if len(senders) == 0 {
-		return nil
-	}
+	out := make([]types.Dimension, 0, len(senders)+len(counts))
 	typesSorted := make([]string, 0, len(senders))
 	for t := range senders {
 		typesSorted = append(typesSorted, t)
 	}
 	sort.Strings(typesSorted)
-	out := make([]types.Dimension, 0, len(typesSorted))
 	for _, t := range typesSorted {
 		rcv := make([]string, 0, len(recipients[t]))
 		for c := range recipients[t] {
@@ -182,6 +200,30 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 			dim.Excluded = e
 		}
 		out = append(out, dim)
+	}
+	pairsSorted := make([]string, 0, len(counts))
+	for k := range counts {
+		pairsSorted = append(pairsSorted, k)
+	}
+	sort.Strings(pairsSorted)
+	for _, k := range pairsSorted {
+		parts := strings.SplitN(k, "|", 2)
+		out = append(out, types.Dimension{
+			Kind:  "count",
+			Label: parts[0] + " on " + parts[1],
+			Count: counts[k],
+		})
+		if len(orders[k]) >= 2 {
+			dim := types.Dimension{
+				Kind:  "ordering",
+				Label: parts[0] + " order on " + parts[1],
+				Order: orders[k],
+			}
+			if strings.HasPrefix(orders[k][0], "#") {
+				dim.Note = "positional order; frames carry no comparable ids"
+			}
+			out = append(out, dim)
+		}
 	}
 	return out
 }

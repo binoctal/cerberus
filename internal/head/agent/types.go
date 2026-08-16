@@ -149,6 +149,12 @@ type Evidence struct {
 	Method     string `json:"method,omitempty"`
 	URL        string `json:"url,omitempty"`
 	StatusCode int    `json:"status_code,omitempty"`
+	// ws_receive structured facts for the count/ordering dimensions:
+	// MatchedCount is the observed frame count (MatchAll burst size, or 1 for
+	// a single match); MatchedOrder is the homogeneous per-frame key list of
+	// the burst (see burstOrderKeys).
+	MatchedCount int      `json:"matched_count,omitempty"`
+	MatchedOrder []string `json:"matched_order,omitempty"`
 }
 
 // StepResult is the outcome of executing a single TestCase.

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -688,5 +689,51 @@ func TestStepEvidence_HTTPRequestStructured(t *testing.T) {
 	ev2 := stepEvidence(TestStep{Action: "http_request"}, types.HTTPResult{OK: true, StatusCode: 401, URL: "http://x/y"})
 	if ev2.Method != "GET" || ev2.StatusCode != 401 {
 		t.Errorf("defaults: Method=%q StatusCode=%d, want GET/401", ev2.Method, ev2.StatusCode)
+	}
+}
+
+// TestStepEvidence_ReceiveCountAndOrder: ws_receive evidence carries the
+// structured count (MatchAll burst size, or 1 for a single match) and the
+// homogeneous order-key list extracted from the burst frames.
+func TestStepEvidence_ReceiveCountAndOrder(t *testing.T) {
+	frames := []string{
+		`{"type":"session:output","payload":{"seq":1}}`,
+		`{"type":"session:output","payload":{"seq":2}}`,
+	}
+	res := types.WSResult{OK: true, MatchedCount: 2, MatchedMessages: frames, MatchedMessage: frames[0]}
+	ev := stepEvidence(TestStep{Action: "ws_receive", Type: "session:output"}, res)
+	if ev.MatchedCount != 2 {
+		t.Errorf("MatchedCount = %d, want 2 (burst size)", ev.MatchedCount)
+	}
+	if fmt.Sprint(ev.MatchedOrder) != "[1 2]" {
+		t.Errorf("MatchedOrder = %v, want [1 2] (payload.seq keys)", ev.MatchedOrder)
+	}
+
+	// Non-MatchAll single match: count is 1 (WSResult.MatchedCount is 0 for
+	// non-MatchAll receives; presence of the match is the count).
+	res2 := types.WSResult{OK: true, MatchedMessage: `{"type":"x"}`}
+	ev2 := stepEvidence(TestStep{Action: "ws_receive", Type: "x"}, res2)
+	if ev2.MatchedCount != 1 || ev2.MatchedOrder != nil {
+		t.Errorf("single match: MatchedCount=%d MatchedOrder=%v, want 1/nil", ev2.MatchedCount, ev2.MatchedOrder)
+	}
+
+	// Burst where one frame lacks a comparable key: the WHOLE burst falls
+	// back to positional placeholders (homogeneous list, no mixed compare).
+	frames3 := []string{
+		`{"type":"y","payload":{"seq":1}}`,
+		`{"type":"y","payload":{"data":"z"}}`,
+	}
+	res3 := types.WSResult{OK: true, MatchedCount: 2, MatchedMessages: frames3, MatchedMessage: frames3[0]}
+	ev3 := stepEvidence(TestStep{Action: "ws_receive", Type: "y"}, res3)
+	if fmt.Sprint(ev3.MatchedOrder) != "[#0 #1]" {
+		t.Errorf("MatchedOrder = %v, want [#0 #1] (homogeneous placeholders)", ev3.MatchedOrder)
+	}
+
+	// Top-level key beats nothing; payload seq beats payload id.
+	frames4 := []string{`{"type":"z","id":"a"}`, `{"type":"z","payload":{"seq":7,"id":"b"}}`}
+	res4 := types.WSResult{OK: true, MatchedCount: 2, MatchedMessages: frames4, MatchedMessage: frames4[0]}
+	ev4 := stepEvidence(TestStep{Action: "ws_receive", Type: "z"}, res4)
+	if fmt.Sprint(ev4.MatchedOrder) != "[a 7]" {
+		t.Errorf("MatchedOrder = %v, want [a 7] (top-level id, payload seq)", ev4.MatchedOrder)
 	}
 }
