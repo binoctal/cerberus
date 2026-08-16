@@ -450,3 +450,88 @@ func TestGapRender_HTTPTriggerOrigin(t *testing.T) {
 		t.Fatalf("non-empty FromRole render = %q", got2)
 	}
 }
+
+func TestRoutePatternMatches(t *testing.T) {
+	cases := []struct {
+		pattern, path string
+		want          bool
+	}{
+		{"/api/sessions", "/api/sessions", true},
+		{"/api/sessions/:id", "/api/sessions/s_1", true},
+		{"/api/sessions/:id", "/api/sessions", false},
+		{"/api/sessions/:id", "/api/sessions/s_1/extra", false},
+		{"/api/workflows/jobs/*", "/api/workflows/jobs/a/b", true},
+		{"/api/workflows/jobs/*", "/api/workflows/jobs", false},
+		{"/health", "/healthz", false},
+		{"/api/things", "/api/things/", true},
+	}
+	for _, c := range cases {
+		if got := routePatternMatches(c.pattern, c.path); got != c.want {
+			t.Errorf("routePatternMatches(%q, %q) = %v, want %v", c.pattern, c.path, got, c.want)
+		}
+	}
+}
+
+func TestRouteMethodMatches(t *testing.T) {
+	if !routeMethodMatches("ALL", "DELETE") {
+		t.Error("ALL must match any method")
+	}
+	if routeMethodMatches("GET", "POST") {
+		t.Error("GET must not match POST")
+	}
+	if !routeMethodMatches("GET", "GET") {
+		t.Error("GET must match GET")
+	}
+}
+
+func TestRequiredEdges_HTTPRoutes(t *testing.T) {
+	sess := &Session{Config: &project.Config{Services: []project.Service{{
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "POST", Path: "/api/sessions"},
+			{Method: "GET", Path: "/api/health", Unsupported: true},
+			{Method: "PUT", Path: "/api/x", Partial: true},
+		}},
+	}}}}
+	req := requiredEdges(sess)
+	if len(req) != 1 {
+		t.Fatalf("required = %+v, want exactly the non-exempt POST route", req)
+	}
+	e := req[0]
+	if e.FromRole != "http_client" || e.ToRole != "api" ||
+		e.Type != "POST /api/sessions" || e.Trigger != "http_request" {
+		t.Fatalf("synthesized route edge wrong: %+v", e)
+	}
+}
+
+func TestExercisedEdges_HTTP(t *testing.T) {
+	required := []project.VocabEdge{
+		{FromRole: "http_client", ToRole: "api", Type: "POST /api/sessions/:id", Trigger: "http_request"},
+		{FromRole: "http_client", ToRole: "api", Type: "GET /health", Trigger: "http_request"},
+	}
+	results := []agent.StepResult{{
+		TestCase: &agent.TestCase{
+			Steps: []agent.TestStep{}, // no ws_connect; http attribution needs no role
+		},
+		Evidence: []agent.Evidence{
+			{Action: "http_request", Method: "POST", URL: "http://localhost:8989/api/sessions/s_42?verbose=1", StatusCode: 401},
+		},
+	}}
+	ex, _ := exercisedEdges(results, required)
+	if !ex[edgeKey("http_client", "api", "POST /api/sessions/:id")] {
+		t.Error("401 response must still credit the :param route (any status exercises); query string must be ignored")
+	}
+	if ex[edgeKey("http_client", "api", "GET /health")] {
+		t.Error("unhit route credited")
+	}
+}
+
+func TestSessionHasVocab_HTTPRoutesOnly(t *testing.T) {
+	sess := &Session{Config: &project.Config{Services: []project.Service{{
+		Vocabulary: &project.Vocabulary{
+			HTTPRoutes: []project.VocabHTTPRoute{{Method: "GET", Path: "/health"}},
+		},
+	}}}}
+	if !sessionHasVocab(sess) {
+		t.Error("http_routes-only service must route to path coverage")
+	}
+}

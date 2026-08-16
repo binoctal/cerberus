@@ -3,8 +3,10 @@ package session
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -174,6 +176,34 @@ func measurementFromReport(report *autotest.CoverageReport) contract.CoverageMea
 // edgeKey is the stable identity of a vocab message edge.
 func edgeKey(from, to, typ string) string { return from + "|" + to + "|" + typ }
 
+// routePatternMatches reports whether a concrete request path matches a
+// Hono route pattern: :param consumes exactly one segment; a lone trailing *
+// consumes one-or-more. Paths are pre-stripped of query strings.
+func routePatternMatches(pattern, p string) bool {
+	ps := strings.Split(strings.Trim(pattern, "/"), "/")
+	vs := strings.Split(strings.Trim(p, "/"), "/")
+	for i, seg := range ps {
+		if seg == "*" {
+			return i < len(vs) // * is final; needs at least one segment
+		}
+		if i >= len(vs) {
+			return false
+		}
+		if strings.HasPrefix(seg, ":") {
+			continue
+		}
+		if seg != vs[i] {
+			return false
+		}
+	}
+	return len(ps) == len(vs)
+}
+
+// routeMethodMatches: ALL (Hono app.all) matches any method.
+func routeMethodMatches(declared, actual string) bool {
+	return declared == "ALL" || declared == actual
+}
+
 // originLabel returns the edge's origin role for gap-detail display. A
 // synthesized HTTP-triggered server-push edge has no sender role (empty
 // FromRole); render it as "server" instead of an empty segment.
@@ -216,6 +246,29 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (m
 			}
 		}
 		for _, ev := range r.Evidence {
+			// http_request steps credit routes directly: any response status
+			// proves the route was reached. Rule-engine HTTP evidence lacks
+			// structured Method/URL and is not attributed.
+			if ev.Action == "http_request" {
+				if ev.Method == "" || ev.URL == "" {
+					continue
+				}
+				if u, perr := url.Parse(ev.URL); perr == nil {
+					for _, e := range required {
+						if e.Trigger != "http_request" || e.FromRole != "http_client" {
+							continue
+						}
+						parts := strings.SplitN(e.Type, " ", 2)
+						if len(parts) != 2 {
+							continue
+						}
+						if routeMethodMatches(parts[0], ev.Method) && routePatternMatches(parts[1], u.Path) {
+							exercised[edgeKey(e.FromRole, e.ToRole, e.Type)] = true
+						}
+					}
+				}
+				continue
+			}
 			// Only a POSITIVE, matched receive attributes an edge. Sends are not
 			// consulted: the declared FromRole (not an explicit ws_send) identifies
 			// the sender, so push signals are captured.
@@ -268,7 +321,7 @@ func pathCoverage(results []agent.StepResult, required []project.VocabEdge) cont
 // a session is routed to path coverage based on declared edges, not Mode.
 func sessionHasVocab(sess *Session) bool {
 	for _, svc := range sess.Config.Services {
-		if svc.Vocabulary != nil && len(svc.Vocabulary.Edges) > 0 {
+		if svc.Vocabulary != nil && (len(svc.Vocabulary.Edges) > 0 || len(svc.Vocabulary.HTTPRoutes) > 0) {
 			return true
 		}
 	}
@@ -303,6 +356,24 @@ func requiredEdges(sess *Session) []project.VocabEdge {
 					ToRole:   tr.Effect.ToRole,
 					Type:     tr.Effect.MessageType,
 					Trigger:  "http_trigger",
+				})
+			}
+		}
+		// Mounted HTTP routes (Hono-extracted): one required edge per
+		// non-exempt route, same synthesis pattern as http_triggers. Any
+		// response status credits exercise at attribution time — 4xx/5xx
+		// still prove the route was reached; auth semantics belong to the
+		// violations layer.
+		if svc.Vocabulary != nil {
+			for _, r := range svc.Vocabulary.HTTPRoutes {
+				if r.Partial || r.Unsupported {
+					continue
+				}
+				out = append(out, project.VocabEdge{
+					FromRole: "http_client",
+					ToRole:   "api",
+					Type:     r.Method + " " + r.Path,
+					Trigger:  "http_request",
 				})
 			}
 		}

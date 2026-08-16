@@ -65,11 +65,17 @@ func runFindingsList(w io.Writer) error {
 		return err
 	}
 	for _, f := range ff.Findings {
-		fmt.Fprintf(w, "%s [%s/%s] x%d — %s\n", f.ID, f.Status, f.Tier, f.Count, f.Summary)
-		if len(f.ClaimRefs) > 0 {
-			fmt.Fprintf(w, "    claims: %v\n", f.ClaimRefs)
+		if _, err := fmt.Fprintf(w, "%s [%s/%s] x%d — %s\n", f.ID, f.Status, f.Tier, f.Count, f.Summary); err != nil {
+			return err
 		}
-		fmt.Fprintf(w, "    case: %s (last session %s, first %s)\n", f.CaseRef, f.SessionRef, f.FirstSeen)
+		if len(f.ClaimRefs) > 0 {
+			if _, err := fmt.Fprintf(w, "    claims: %v\n", f.ClaimRefs); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(w, "    case: %s (last session %s, first %s)\n", f.CaseRef, f.SessionRef, f.FirstSeen); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -117,6 +123,6 @@ func runFindingsPull(ctx context.Context, workDir, dbPath, sessionID string, w i
 	if ff, _ := project.LoadFindings(workDir); ff != nil {
 		after = len(ff.Findings)
 	}
-	fmt.Fprintf(w, "session %s: findings %d -> %d\n", sessionID, before, after)
-	return nil
+	_, err = fmt.Fprintf(w, "session %s: findings %d -> %d\n", sessionID, before, after)
+	return err
 }
