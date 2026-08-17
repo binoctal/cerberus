@@ -63,6 +63,9 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		cases = append(cases, realResponderCases(svc, realRoles)...)
 		// Web-origin workflow sends + session:send (see mission_send_cases.go).
 		cases = append(cases, missionSendCases(svc, realRoles)...)
+		// Gated mission seeding: the full orchestration chain observed on a
+		// web connection (see mission_seed_cases.go).
+		cases = append(cases, missionSeedCases(svc, realRoles)...)
 	}
 	// Real-process actors occupy their role with a real connection; drop every
 	// deterministic case that would ALSO connect as that role (emulated self-
