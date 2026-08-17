@@ -96,3 +96,33 @@ Side-effect note: public mutation routes were really hit with empty bodies
 
 Next: admin credential to upgrade the 166 admin routes from 401-reachability
 to authenticated semantics; WS-edge gap burn-down.
+
+---
+
+## Update 2026-08-17 (night): gap burn-down + admin + drift
+
+Branch `feat/real-role-send-credit` (1cd4a4f..): three backlog items closed
+in one validation cycle (runs 4-9; runs 4-6 hit two harness bugs — client-role
+selection picked the http_only admin role; stale binary — both fixed en route).
+
+| Move | What |
+|---|---|
+| Send-side credit | edges whose ToRole is a real-process actor credit on the web-side `ws_send` (the recipient's socket is unobservable); emulated recipients stay receive-driven |
+| Real-responder cases | declarative sync-family exchanges the REAL bridge answers (`responses:` in protocol yaml; request_payload values parse as raw JSON — the handlers type-assert arrays/objects and silently skip on shape mismatch) |
+| Admin JWT | admin-actor (superadmin via `/api/auth/dev/setup`, distinct email) + `http_only` protocol role; 166 admin routes now send authenticated requests |
+| Vocab marks | 19 partial (needs ACP CLI / real-CLI events / encryption / scanner events — notes in vocab yaml), 4 unsupported (device:listDir pair, merge_progress, scanner:rules:synced — new DO-drop found: web→bridge `scanner:rules:sync` is not whitelisted, added to known-issues #1) |
+
+Final run (run9): **683 pass / 0 fail / 0 uncertain / 3 recovered, coverage
+93.9%** (24 gaps), 6m35s, claims 1 proven / 0 emulated-only.
+
+Coverage progression today: 0.75% → 85% (route sweep) → 88.7% (send-credit +
+sync pairs) → 93.9% (marks + fixes).
+
+Drift corpus: ~683 LLM-judged cases across 5 runs, 0 uncertain — no drift
+regression from the count/ordering dimensions on this corpus. Route cases are
+individually simple; the drift question stays open for richer exchanges.
+
+The 24 residual gaps are the honest product backlog: 17 `workflow:*` edges
+(need mission-orchestration seeding, the M2 flow), `web→web session:send`
+(second web connection), `device:restart`/`device:online` (bridge reconnect
+pair), `control:takeover`, and the chat-send/cancel/resize session commands.

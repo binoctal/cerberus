@@ -307,6 +307,11 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	// Iterate roles in sorted name order so the returned slice is deterministic
 	// across runs regardless of map iteration order.
 	for _, roleName := range slices.Sorted(maps.Keys(svc.Protocol.Roles)) {
+		if r := svc.Protocol.Roles[roleName]; r != nil && r.HTTPOnly {
+			// HTTP-only roles carry a credential for AuthRole injection and
+			// never connect over WS — no connect/exchange case for them.
+			continue
+		}
 		if svcCovered[roleName] {
 			// Role-level skip: a ws_relay already connects this role, so
 			// suppress ALL of WSCases' forms for it (connect, connect+receive,

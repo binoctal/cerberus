@@ -186,6 +186,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs encryption enabled
 - from_role: bridge
   to_role: web
   type: device:online
@@ -208,6 +210,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: session protocol variant not driven by shim
 - from_role: bridge
   to_role: web
   type: session:started
@@ -241,6 +245,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: error path not triggered by shim
 - from_role: bridge
   to_role: web
   type: session:message
@@ -252,6 +258,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: session protocol variant not driven by shim
 - from_role: bridge
   to_role: web
   type: session:status
@@ -263,6 +271,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: session protocol variant not driven by shim
 - from_role: bridge
   to_role: web
   type: chat:response
@@ -285,6 +295,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs real CLI thought stream
 - from_role: bridge
   to_role: web
   type: chat:permission
@@ -296,6 +308,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs real CLI permission flow
 - from_role: bridge
   to_role: web
   type: permission:request
@@ -307,6 +321,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs real CLI permission flow
 - from_role: bridge
   to_role: web
   type: acp:status
@@ -318,6 +334,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs ACP CLI; shim is plain PTY
 - from_role: bridge
   to_role: web
   type: acp:output
@@ -329,6 +347,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs ACP CLI; shim is plain PTY
 - from_role: bridge
   to_role: web
   type: acp:tool_call
@@ -340,6 +360,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs ACP CLI; shim is plain PTY
 - from_role: bridge
   to_role: web
   type: acp:tool_result
@@ -351,6 +373,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs ACP CLI; shim is plain PTY
 - from_role: bridge
   to_role: web
   type: agent:status
@@ -362,6 +386,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs real CLI agent events
 - from_role: bridge
   to_role: web
   type: tool:call
@@ -373,6 +399,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs real CLI tool events
 - from_role: bridge
   to_role: web
   type: session:usage
@@ -384,6 +412,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: usage report not emitted by shim
 - from_role: bridge
   to_role: web
   type: workflow:task_started
@@ -567,6 +597,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  partial: true
+  note: needs security scanner event
 - from_role: bridge
   to_role: web
   type: scanner:rules:synced
@@ -578,6 +610,7 @@ edges:
     spans:
     - start: 395
       end: 395
+  unsupported: true
 - from_role: bridge
   to_role: web
   type: device:listDirResult
@@ -589,6 +622,8 @@ edges:
     spans:
     - start: 395
       end: 395
+  unsupported: true
+  note: web->bridge device:listDir has no handler (dead end-to-end)
 - from_role: web
   to_role: bridge
   type: session:start
@@ -679,6 +714,8 @@ edges:
     spans:
     - start: 437
       end: 437
+  partial: true
+  note: needs a pending permission request
 - from_role: web
   to_role: bridge
   type: control:takeover
@@ -904,6 +941,8 @@ edges:
     spans:
     - start: 437
       end: 437
+  partial: true
+  note: needs ACP CLI; shim is plain PTY
 - from_role: web
   to_role: bridge
   type: device:restart

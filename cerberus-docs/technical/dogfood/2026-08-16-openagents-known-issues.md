@@ -22,6 +22,10 @@ reach them):
 
 - `session:resume`
 - `scanner:toggle`
+- `scanner:rules:sync` (found 2026-08-17 in the realtime-e2e sweep: the DO
+  whitelist carries only the `scanner:rules:synced` ACK direction; the
+  bridge's `handleScannerRulesSync` is therefore dead from web origin, and
+  the ack edge is untriggerable — marked unsupported in the dogfood vocab)
 - `workflow:get_state`, `workflow:set_state`, `workflow:merge_all`,
   `workflow:task_cleanup`, `workflow:task_merge`
 
@@ -35,6 +39,13 @@ dead end-to-end: DO routes it, bridge ignores it, yet bridge *emits*
 web→bridge `session:resume` or the merge/cleanup workflow commands over WS;
 they cannot pass. `device:listDir` cases will observe the request forwarded
 but no `device:listDirResult` ever returning.
+
+**Payload-shape trap (2026-08-17):** even whitelisted sync commands can
+silently no-op on shape: `handleRulesSync`/`handleScannerRulesSync` type-assert
+`payload.rules` as a JSON ARRAY and `handleMCPSync` unmarshals `payload.servers`
+as an OBJECT keyed by server name — a missing field or wrong shape returns
+without any error frame. Sync cases must send `"rules": []` /
+`"servers": {}`.
 
 ## 2. Three divergent dev-setup endpoints
 

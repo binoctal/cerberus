@@ -30,10 +30,8 @@ roles:
       # silently skip (no ack) when absent — empty arrays satisfy them.
       rules:sync:
         rules: "[]"
-      scanner:rules:sync:
-        rules: "[]"
       mcp:sync:
-        servers: "[]"
+        servers: "{}"
     # Declarative request-response family the REAL bridge answers itself
     # (bridge handleMessage + DO ack whitelist). Drives realResponderCases.
     responses:
@@ -43,7 +41,6 @@ roles:
       mcp:sync: mcp:synced
       mcp:list: mcp:list_response
       storage:sync: storage:synced
-      scanner:rules:sync: scanner:rules:synced
   # HTTP-only role: never connects over WS; exists so httpRouteCases can
   # AuthRole-inject the admin-actor's superadmin JWT on /api/admin routes.
   admin:
