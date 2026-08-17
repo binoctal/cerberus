@@ -61,6 +61,8 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		// …and the declarative request-response exchanges the real process
 		// answers itself (role `responses`), e.g. the sync/ack family.
 		cases = append(cases, realResponderCases(svc, realRoles)...)
+		// Web-origin workflow sends + session:send (see mission_send_cases.go).
+		cases = append(cases, missionSendCases(svc, realRoles)...)
 	}
 	// Real-process actors occupy their role with a real connection; drop every
 	// deterministic case that would ALSO connect as that role (emulated self-
