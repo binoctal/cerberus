@@ -46,7 +46,10 @@ func TestHTTPRouteCases_TiersAndOrdering(t *testing.T) {
 		t.Errorf("flat expectation = %q", cases[1].Expectation)
 	}
 	if cases[0].Expectation == cases[1].Expectation {
-		t.Errorf("admin route must carry the auth-not-penetrated tier: %q", cases[0].Expectation)
+		t.Errorf("admin route must carry an admin tier distinct from flat: %q", cases[0].Expectation)
+	}
+	if cases[0].Steps[0].AuthRole != "" {
+		t.Errorf("no admin protocol role declared: AuthRole must stay empty, got %q", cases[0].Steps[0].AuthRole)
 	}
 	if cases[3].Expectation == cases[1].Expectation {
 		t.Errorf("param route must carry the placeholder tier: %q", cases[3].Expectation)
@@ -79,6 +82,44 @@ func indexOf(s, sub string) int {
 		}
 	}
 	return -1
+}
+
+// TestHTTPRouteCases_AdminRoleInjection: with an "admin" protocol role
+// declared, admin-path routes carry AuthRole=admin (JWT injection) while
+// flat routes stay bare.
+func TestHTTPRouteCases_AdminRoleInjection(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"admin": {CredentialRef: "admin-actor"},
+		}},
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "GET", Path: "/api/admin/stats"},
+			{Method: "GET", Path: "/api/health"},
+		}},
+	}
+	cases := httpRouteCases(svc)
+	if len(cases) != 2 {
+		t.Fatalf("cases = %d", len(cases))
+	}
+	var admin, flat *agent.TestCase
+	for i := range cases {
+		if isAdminPath(cases[i].Steps[0].URL) {
+			admin = &cases[i]
+		} else {
+			flat = &cases[i]
+		}
+	}
+	if admin.Steps[0].AuthRole != "admin" {
+		t.Errorf("admin route AuthRole = %q, want admin", admin.Steps[0].AuthRole)
+	}
+	if flat.Steps[0].AuthRole != "" {
+		t.Errorf("flat route AuthRole = %q, want empty", flat.Steps[0].AuthRole)
+	}
+	if !contains(admin.Expectation, "admin JWT injected") {
+		t.Errorf("admin expectation = %q", admin.Expectation)
+	}
 }
 
 // TestHTTPRouteCases_NoVocab: services without http_routes emit nothing.

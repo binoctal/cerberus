@@ -50,7 +50,7 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 	// call site needs no branching.
 	var measurement contract.CoverageMeasurement
 	if sessionHasVocab(sess) {
-		measurement = pathCoverage(results, requiredEdges(sess))
+		measurement = pathCoverage(results, requiredEdges(sess), realProcessRoles(sess.Config))
 	} else {
 		measurement = sess.lineCoverage(ctx)
 	}
@@ -64,7 +64,7 @@ func assessCoverageIfContract(ctx context.Context, sess *Session, examinerHead *
 			// PathThreshold; here we name each specific unexercised required
 			// edge so the report is actionable.
 			req := requiredEdges(sess)
-			exercised, _ := exercisedEdges(results, req)
+			exercised, _ := exercisedEdges(results, req, realProcessRoles(sess.Config))
 			for _, e := range req {
 				if !exercised[edgeKey(e.FromRole, e.ToRole, e.Type)] {
 					sess.Assessment.Gaps = append(sess.Assessment.Gaps, contract.Gap{
@@ -229,12 +229,24 @@ func originLabel(e project.VocabEdge) string {
 // out-of-band receives of undeclared (Rr, T) pairs count nothing). Returns the
 // exercised set (keyed edgeKey) and a nil connRole map (reserved). Pure;
 // unit-testable without a live server.
-func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (map[string]bool, map[string]string) {
+//
+// Real-recipient amendment: when the declared ToRole is backed by a
+// real-process actor (realRoles), its receive can never be observed — cerberus
+// does not own that socket. Such edges credit SEND-SIDE: a ws_send of T from a
+// connection whose role equals the declared FromRole. The sender side is the
+// only observable face of a real recipient. Emulated recipients keep the
+// strict receive-driven rule (a send alone proves nothing about delivery).
+func exercisedEdges(results []agent.StepResult, required []project.VocabEdge, realRoles map[string]bool) (map[string]bool, map[string]string) {
 	// (ToRole, Type) → edge keys declared in the vocab for that recipient+type.
 	byToType := map[string][]string{}
+	// (FromRole, Type) → edge keys whose recipient is real (send-side credit).
+	byFromTypeReal := map[string][]string{}
 	for _, e := range required {
 		k := edgeKey(e.FromRole, e.ToRole, e.Type)
 		byToType[e.ToRole+"|"+e.Type] = append(byToType[e.ToRole+"|"+e.Type], k)
+		if realRoles[e.ToRole] {
+			byFromTypeReal[e.FromRole+"|"+e.Type] = append(byFromTypeReal[e.FromRole+"|"+e.Type], k)
+		}
 	}
 	exercised := map[string]bool{}
 	for _, r := range results {
@@ -269,9 +281,21 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (m
 				}
 				continue
 			}
+			// Send-side credit: only for edges whose recipient is a real
+			// process (see the comment above for why this is sound).
+			if ev.Action == "ws_send" && ev.MatchedType != "" {
+				sender := connRole[ev.ConnectionID]
+				if sender == "" {
+					continue
+				}
+				for _, k := range byFromTypeReal[sender+"|"+ev.MatchedType] {
+					exercised[k] = true
+				}
+				continue
+			}
 			// Only a POSITIVE, matched receive attributes an edge. Sends are not
-			// consulted: the declared FromRole (not an explicit ws_send) identifies
-			// the sender, so push signals are captured.
+			// consulted for emulated recipients: the declared FromRole (not an
+			// explicit ws_send) identifies the sender, so push signals are captured.
 			if ev.Action != "ws_receive" || ev.ExpectAbsent || !ev.Matched || ev.MatchedType == "" {
 				continue
 			}
@@ -294,11 +318,11 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge) (m
 // Only exercised edges that are also in the required set count toward the hit —
 // exercisedEdges is intersected with required so out-of-band evidence (a type or
 // role-pair not declared in the vocab) cannot inflate coverage.
-func pathCoverage(results []agent.StepResult, required []project.VocabEdge) contract.CoverageMeasurement {
+func pathCoverage(results []agent.StepResult, required []project.VocabEdge, realRoles map[string]bool) contract.CoverageMeasurement {
 	if len(required) == 0 {
 		return contract.CoverageMeasurement{Known: false}
 	}
-	exercised, _ := exercisedEdges(results, required)
+	exercised, _ := exercisedEdges(results, required, realRoles)
 	requiredKeys := make(map[string]bool, len(required))
 	for _, e := range required {
 		requiredKeys[edgeKey(e.FromRole, e.ToRole, e.Type)] = true
@@ -379,4 +403,35 @@ func requiredEdges(sess *Session) []project.VocabEdge {
 		}
 	}
 	return out
+}
+
+// realProcessRoles maps protocol role names backed by real-process actors
+// (credential_ref names an actor with fidelity: real_process). Mirrors the
+// scout helper of the same purpose; duplicated here so the session package
+// stays scout-free.
+func realProcessRoles(cfg *project.Config) map[string]bool {
+	if cfg == nil {
+		return nil
+	}
+	realActors := map[string]bool{}
+	for _, a := range cfg.Actors {
+		if a.Fidelity == project.FidelityRealProcess {
+			realActors[a.Name] = true
+		}
+	}
+	if len(realActors) == 0 {
+		return nil
+	}
+	roles := map[string]bool{}
+	for _, svc := range cfg.Services {
+		if svc.Protocol == nil {
+			continue
+		}
+		for name, r := range svc.Protocol.Roles {
+			if r != nil && r.CredentialRef != "" && realActors[r.CredentialRef] {
+				roles[name] = true
+			}
+		}
+	}
+	return roles
 }

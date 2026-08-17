@@ -26,6 +26,20 @@ roles:
     request_payload:
       session:start:
         deviceId: "{{bridge.deviceId}}"
+    # Declarative request-response family the REAL bridge answers itself
+    # (bridge handleMessage + DO ack whitelist). Drives realResponderCases.
+    responses:
+      config:sync: config:synced
+      rules:sync: rules:synced
+      prompts:sync: prompts:synced
+      mcp:sync: mcp:synced
+      mcp:list: mcp:list_response
+      storage:sync: storage:synced
+      scanner:rules:sync: scanner:rules:synced
+  # HTTP-only role: never connects over WS; exists so httpRouteCases can
+  # AuthRole-inject the admin-actor's superadmin JWT on /api/admin routes.
+  admin:
+    credential_ref: admin-actor
   bridge2:
     credential_ref: bridge-pty-2
     params:

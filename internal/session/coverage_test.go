@@ -185,7 +185,7 @@ func TestExercisedEdges(t *testing.T) {
 			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
 		},
 	}}
-	exercised, _ := exercisedEdges(results, required)
+	exercised, _ := exercisedEdges(results, required, nil)
 	// device:online bridge→web exercised; session:send web→bridge NOT.
 	key := func(e project.VocabEdge) string { return e.FromRole + "|" + e.ToRole + "|" + e.Type }
 	if !exercised[key(required[0])] {
@@ -217,7 +217,7 @@ func TestExercisedEdges_PushProtocolReceiveDriven(t *testing.T) {
 			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
 		},
 	}}
-	exercised, _ := exercisedEdges(results, required)
+	exercised, _ := exercisedEdges(results, required, nil)
 	key := func(e project.VocabEdge) string { return e.FromRole + "|" + e.ToRole + "|" + e.Type }
 	if !exercised[key(required[0])] {
 		t.Fatalf("push signal device:online bridge->web must be exercised via receive-driven attribution; got %v", exercised)
@@ -230,7 +230,7 @@ func TestExercisedEdges_PushProtocolReceiveDriven(t *testing.T) {
 		{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true, ExpectAbsent: true},
 		{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "session:send", Matched: false},
 	}
-	exercised2, _ := exercisedEdges(results, required)
+	exercised2, _ := exercisedEdges(results, required, nil)
 	if len(exercised2) != 0 {
 		t.Fatalf("ExpectAbsent and unmatched receives must not attribute edges; got %v", exercised2)
 	}
@@ -241,7 +241,7 @@ func TestExercisedEdges_PushProtocolReceiveDriven(t *testing.T) {
 // of 2 declared edges → Pct=0.5, Unit="path", Known=true.
 func TestPathCoverage(t *testing.T) {
 	// Empty required vocab → unmeasured, not a fake 0.
-	m := pathCoverage(nil, nil)
+	m := pathCoverage(nil, nil, nil)
 	assert.False(t, m.Known, "no declared edges → Known=false")
 
 	// Brief fixture: device:online bridge→web exercised, session:send web→bridge not.
@@ -259,7 +259,7 @@ func TestPathCoverage(t *testing.T) {
 			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:online", Matched: true},
 		},
 	}}
-	m = pathCoverage(results, required)
+	m = pathCoverage(results, required, nil)
 	assert.True(t, m.Known)
 	assert.Equal(t, "path", m.Unit)
 	assert.InDelta(t, 0.5, m.Pct, 0.0001)
@@ -270,7 +270,7 @@ func TestPathCoverage(t *testing.T) {
 		{FromRole: "bridge", ToRole: "web", Type: "device:online", Trigger: "message_handled"},
 		{FromRole: "web", ToRole: "bridge", Type: "session:send", Trigger: "message_handled"},
 	}
-	zeroM := pathCoverage(nil, zeroRequired)
+	zeroM := pathCoverage(nil, zeroRequired, nil)
 	assert.True(t, zeroM.Known, "non-empty required + nothing exercised → Known=true (measured 0%)")
 	assert.Equal(t, "path", zeroM.Unit)
 	assert.InDelta(t, 0.0, zeroM.Pct, 0.0001)
@@ -309,7 +309,7 @@ func TestPathCoverage_OutOfBandDoesNotInflate(t *testing.T) {
 			{Action: "ws_receive", ConnectionID: "c-bridge", MatchedType: "device:online", Matched: true},
 		},
 	}}
-	m := pathCoverage(results, required)
+	m := pathCoverage(results, required, nil)
 	assert.True(t, m.Known)
 	assert.Equal(t, "path", m.Unit)
 	assert.InDelta(t, 0.5, m.Pct, 0.0001, "out-of-band edge must not inflate coverage (1 of 2 required hit)")
@@ -423,14 +423,14 @@ func TestExercisedEdges_HTTPTriggerCredit(t *testing.T) {
 			Action: "ws_receive", ConnectionID: "c-web", MatchedType: "device:restart", Matched: true,
 		}},
 	}}
-	exercised, _ := exercisedEdges(results, required)
+	exercised, _ := exercisedEdges(results, required, nil)
 	if !exercised["|web|device:restart"] {
 		t.Fatal("synthesized http_trigger edge must be credited by the web receive")
 	}
 	if !exercised["bridge|web|device:restart"] {
 		t.Fatal("the same-recipient WS edge must also be credited (distinct key, no collision)")
 	}
-	m := pathCoverage(results, required)
+	m := pathCoverage(results, required, nil)
 	if !m.Known || m.Pct != 1.0 {
 		t.Fatalf("pathCoverage = %+v, want Known=true Pct=1.0", m)
 	}
@@ -516,7 +516,7 @@ func TestExercisedEdges_HTTP(t *testing.T) {
 			{Action: "http_request", Method: "POST", URL: "http://localhost:8989/api/sessions/s_42?verbose=1", StatusCode: 401},
 		},
 	}}
-	ex, _ := exercisedEdges(results, required)
+	ex, _ := exercisedEdges(results, required, nil)
 	if !ex[edgeKey("http_client", "api", "POST /api/sessions/:id")] {
 		t.Error("401 response must still credit the :param route (any status exercises); query string must be ignored")
 	}
@@ -533,5 +533,40 @@ func TestSessionHasVocab_HTTPRoutesOnly(t *testing.T) {
 	}}}}
 	if !sessionHasVocab(sess) {
 		t.Error("http_routes-only service must route to path coverage")
+	}
+}
+
+// TestExercisedEdges_SendSideCreditForRealRecipients: when the declared
+// recipient role is backed by a real-process actor, its ws_receive cannot be
+// observed (cerberus does not own that socket). The edge is then credited
+// send-side: a ws_send of T from a connection whose role equals the declared
+// FromRole. Emulated recipients keep the strict receive-driven rule.
+func TestExercisedEdges_SendSideCreditForRealRecipients(t *testing.T) {
+	required := []project.VocabEdge{
+		{FromRole: "web", ToRole: "bridge", Type: "session:start", Trigger: "message_handled"},
+		{FromRole: "web", ToRole: "web", Type: "session:send", Trigger: "message_handled"},
+	}
+	results := []agent.StepResult{{
+		TestCase: &agent.TestCase{
+			Steps: []agent.TestStep{{Action: "ws_connect", ConnectionID: "c-web", Role: "web"}},
+		},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-web", MatchedType: "session:start"},
+			// A web recipient (emulated) is NOT credited by a send alone.
+			{Action: "ws_send", ConnectionID: "c-web", MatchedType: "session:send"},
+		},
+	}}
+	realBridge := map[string]bool{"bridge": true}
+	ex, _ := exercisedEdges(results, required, realBridge)
+	if !ex[edgeKey("web", "bridge", "session:start")] {
+		t.Error("real-recipient edge must credit on the send from the declared FromRole")
+	}
+	if ex[edgeKey("web", "web", "session:send")] {
+		t.Error("emulated-recipient edge must stay receive-driven (send alone credits nothing)")
+	}
+	// Without the real-role set, nothing credits (backward-compatible strictness).
+	ex2, _ := exercisedEdges(results, required, nil)
+	if ex2[edgeKey("web", "bridge", "session:start")] {
+		t.Error("send-side credit must apply only to real-process recipients")
 	}
 }

@@ -1,3382 +1,3384 @@
 source:
-    files:
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/realtime/room.ts
-          hash: 2baddd3f5d01b3a1052f0e81aff4d226312b76c1b9e5663db1353b2b14186c2e
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/worker.ts
-          hash: 48f7ddf08b98e74c9594fcfa2514f174c95cad89522fcedb40279989c1423a58
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth.ts
-          hash: b6f4451a1dbc5c7e8266ff1fd5db10bd54d62c10b66da332d49b7db96e99524c
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/oauth.ts
-          hash: 623415515e93975a746428abfaad727f35c92e5aa1c8e947c450bb3908821cac
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/dev.ts
-          hash: f82d395571c3938c21279e747e7aee3a1afb41c0543847661740b02a252e9e31
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/bridge.ts
-          hash: 56daff42dfb62a989cdd8c153a0fd792b168dbe82da6694ceecc7e431a7b1ab6
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/errors-report.ts
-          hash: a573053f5fc037c4f2b90a19d3e62f09a1f2b412e021b9ea82727f00cef9ea35
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/a2a.ts
-          hash: 2e929c7275664b4e3532408738181a2a5edae09aa00cdb53bcd6dabb1df5eddf
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/creem-webhook.ts
-          hash: c893513819321054dbfa6875ccfad120104ea41d256ce85ad037830962a9c28e
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/devices.ts
-          hash: bb881737d7316cb97c01a40343dadf3bbb6fd1de3902b4f5920fce91ff3be120
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/sessions.ts
-          hash: a5cd1dd601a3b4238c82e9ba900afb548e622ee4c7d965d74f54359a5fc488fb
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/prompts.ts
-          hash: 723312f523101055ca7ad618926e5846eba77682e0aa90e793d2060244653976
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/agents.ts
-          hash: 9bd1bfcefded5fef82432df3e9912c717cf2b1188f7b065fe615621fe09c42f5
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/skills.ts
-          hash: 3320ff75a6d939a34211e22caa86450cefdc90a62c17052fdfa6cbcaeeae9dc3
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/rules.ts
-          hash: c9b88ca559e16ee76ed6fa9e45378816b48d2dfa4d6ada30d50e1ff6ad4397d2
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/permissions.ts
-          hash: 6ce3c9328fa2a4adb541f7e3a701b079dfa78351dce0fc134faf7646a6def9c8
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/settings.ts
-          hash: a99d367cad88585ba366905614783a488e30f98376f85b742a48fe669b49d2f4
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/export.ts
-          hash: 691f9f48b106bf4b0ae42ac84d2334d6360fb55f9f8779074335f5e6c7cb0891
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/audit.ts
-          hash: d970ec96a5edfd07e22aeb7cdde09f56e6bc3f45f1d0b52f1e16df7e6d4c3651
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/batch.ts
-          hash: 0f6793589537685112b26f8a9e79487106d355d035a665e05c3267f3d5003c6f
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/missions.ts
-          hash: 1b8f8800d0c70ed9e07af0ae4fa165c2fdced6631468d4bbc1de9efca83a32ce
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/teams.ts
-          hash: 2a034a92322ff593a1f0f4019dee656cdb730f5c0564c275d64872f9cf164c74
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin.ts
-          hash: 47c66ddf3c37ba948d5f8e88e9ec8ecc185b6debf7e073a3a2d7f694c8fdeea6
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/index.ts
-          hash: 9b5c52c5c05532f665ede4d0bf5f061c8957d01a97a89f2ea3b6e7c7ee555365
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/plans.ts
-          hash: 55535a7532c12f10e4935ce3864ad7694aebfe36597c3c0997b8dce0d7802fd5
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/subscriptions.ts
-          hash: 50fcc2d5f59f421268124ee32a5e4e6dcc9329d928e5fca25e415ce63a1b142f
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/invoices.ts
-          hash: 363e1b5ffe0fde8dc465993e33fd26b02cf61dbe54e5078437b088b59387f9bd
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/payments.ts
-          hash: e7d015c06497b2ec34c112ff3863213797b8d4450b08d61f88621300bdd7b1d5
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/settings.ts
-          hash: c7a034217469007feecbe518ce3722d575100e4103f87e7da79761a27e302a6b
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/feedback.ts
-          hash: fbae01dd9019241914f8c920e2c206a99d6c649a7887be60b6f1678cf3dc82e5
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/blacklist.ts
-          hash: 763c078ef3fe8f2caf87b525e1832e52ab5e48fed76079756705754b9adb2b9d
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/analytics/index.ts
-          hash: 510b497c94a7afa65fe37956deda7539488825e73a2c526999b2889ca76e2149
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/compliance/index.ts
-          hash: 0e20bea8d5037de3ef94d3b679b1c1d883bc6b3786c9f739d67c0ec4a5e1fdd4
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/content/index.ts
-          hash: 8e209231f58a618908a93f74e527c8432147b540ebaaf0f3507446c3207c66fb
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-comparison/index.ts
-          hash: a5b85f4c9274de090a47a2eb99ea35825b46e5f748a1643e5f0e7c425ab05b51
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/cli-health/index.ts
-          hash: 5e2b330407c02e245d60a7dfa7354f97998aa28d7f475c5775974f2953975ed6
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/budget/index.ts
-          hash: cb64ad03fbe96211b0f45d2d26a9d9188dfe008d0474dd3e7123061628dca7de
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ip-whitelist/index.ts
-          hash: 7e21e0127dbe58610755ae001942fa63b43521b873915573151eb1218af2a09a
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/org-policies/index.ts
-          hash: 6676b3e4529ed9f368ae50e3db7f5d8a93c4807cf6bcb27887150cafc510e640
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/sso/index.ts
-          hash: 1bd5f0a5a9182015dd839dfc62d0a725845880dad2ca6e3f47fd47eb6c8f40be
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/audit-export/index.ts
-          hash: b52d244244605558ea7a9aad3d2cf9a48a9670f0e1c1baa8cdf28f844ad8f00c
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/coupons/index.ts
-          hash: 0c6a29bd67ee6f2fb06fcd8472fab48e71586fa254d86c53dd2f515d4dfa1607
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/segments/index.ts
-          hash: c19db01cbdb2aa1c05fe5e8510dd779b1cdec00ae02500c8db317dc4cd497e89
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/remote-logs/index.ts
-          hash: c2eb19d9be415b9ce8601500142c6ed5942862ec2eced35924d735a85599be8e
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/diagnostics/index.ts
-          hash: a773a48e1bcf75fd2ae9309721e6d11e33f20ce869141fcd79da151f58a7524e
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/database-ops.ts
-          hash: 7b6a3086c11bf0709e4a3bb9308d950f1c7a188d659082d46511b2c5eea9dc77
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/tenants/index.ts
-          hash: 4cf85dfcef8eac64928531ecc2bde8331cc47c265d9d738d315889a565d7d857
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/mcp-marketplace/index.ts
-          hash: 38dccba3db9cfe268d6b75c4a3160d2d66b71355f2ae5e2989ad60276ae23482
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/review-queue/index.ts
-          hash: 9d0c6134c0d6030744905b6d169b4c6bc09347bea5d61054a39c050e54fb2639
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/custom-stats/index.ts
-          hash: da803a7ab4432d46a11b119fc7cdad6308e4a2c0221725f5d5b8176400314c9c
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ab-tests/index.ts
-          hash: b4426ee20efeb73f6f87d89125bb3f74cb01510eb208fcb40976fdf0370c1c99
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/nps/index.ts
-          hash: 29fed66cf4bff4f24b90bc3845ca2c1c11109b991e5178c8230410170ed1614e
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/productivity/index.ts
-          hash: 7c876b7931f11c13480b2e907eaf70737e33d4850e687afdda05989298d47bbb
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/white-label/index.ts
-          hash: 2070fa09f01ebfbd831178b22f47d1283e5f8e1c0bede74b0d7d321f6c6a93e8
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/learning-metrics.ts
-          hash: f7e24af582b144a963b481cb7ba4df0be34eb1021674819b049892c23d629b52
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-providers.ts
-          hash: 40b1dcf9df5f3a483b0cce3514c1041731b19768f52b3c1a6b1eb3c725ddc11f
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/missions.ts
-          hash: 47c36d89f96f34dc28ce8477294c28494d9667f0b8c1dc62e6d3a228b338cfe2
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/api-keys.ts
-          hash: 77065eb880ea431d15898eb0f0b1341600448fee182c07cb60e1efe496e02f30
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/external-agents.ts
-          hash: 0a91e46bdfb58bd5089803d9b97ed08ab894055893fff6f6d89a468e5b79240e
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/user-usage.ts
-          hash: 6f714871ae1b53f00ec7cca905a97c08ca7e2d744aad808d3d154d40dfbddad6
-    protocol_ref: open-agents
+  files:
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/realtime/room.ts
+    hash: 2baddd3f5d01b3a1052f0e81aff4d226312b76c1b9e5663db1353b2b14186c2e
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/worker.ts
+    hash: 48f7ddf08b98e74c9594fcfa2514f174c95cad89522fcedb40279989c1423a58
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth.ts
+    hash: b6f4451a1dbc5c7e8266ff1fd5db10bd54d62c10b66da332d49b7db96e99524c
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/oauth.ts
+    hash: 623415515e93975a746428abfaad727f35c92e5aa1c8e947c450bb3908821cac
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/dev.ts
+    hash: f82d395571c3938c21279e747e7aee3a1afb41c0543847661740b02a252e9e31
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/bridge.ts
+    hash: 56daff42dfb62a989cdd8c153a0fd792b168dbe82da6694ceecc7e431a7b1ab6
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/errors-report.ts
+    hash: a573053f5fc037c4f2b90a19d3e62f09a1f2b412e021b9ea82727f00cef9ea35
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/a2a.ts
+    hash: 2e929c7275664b4e3532408738181a2a5edae09aa00cdb53bcd6dabb1df5eddf
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/creem-webhook.ts
+    hash: c893513819321054dbfa6875ccfad120104ea41d256ce85ad037830962a9c28e
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/devices.ts
+    hash: bb881737d7316cb97c01a40343dadf3bbb6fd1de3902b4f5920fce91ff3be120
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/sessions.ts
+    hash: a5cd1dd601a3b4238c82e9ba900afb548e622ee4c7d965d74f54359a5fc488fb
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/prompts.ts
+    hash: 723312f523101055ca7ad618926e5846eba77682e0aa90e793d2060244653976
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/agents.ts
+    hash: 9bd1bfcefded5fef82432df3e9912c717cf2b1188f7b065fe615621fe09c42f5
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/skills.ts
+    hash: 3320ff75a6d939a34211e22caa86450cefdc90a62c17052fdfa6cbcaeeae9dc3
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/rules.ts
+    hash: c9b88ca559e16ee76ed6fa9e45378816b48d2dfa4d6ada30d50e1ff6ad4397d2
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/permissions.ts
+    hash: 6ce3c9328fa2a4adb541f7e3a701b079dfa78351dce0fc134faf7646a6def9c8
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/settings.ts
+    hash: a99d367cad88585ba366905614783a488e30f98376f85b742a48fe669b49d2f4
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/export.ts
+    hash: 691f9f48b106bf4b0ae42ac84d2334d6360fb55f9f8779074335f5e6c7cb0891
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/audit.ts
+    hash: d970ec96a5edfd07e22aeb7cdde09f56e6bc3f45f1d0b52f1e16df7e6d4c3651
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/batch.ts
+    hash: 0f6793589537685112b26f8a9e79487106d355d035a665e05c3267f3d5003c6f
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/missions.ts
+    hash: 1b8f8800d0c70ed9e07af0ae4fa165c2fdced6631468d4bbc1de9efca83a32ce
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/teams.ts
+    hash: 2a034a92322ff593a1f0f4019dee656cdb730f5c0564c275d64872f9cf164c74
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin.ts
+    hash: 47c66ddf3c37ba948d5f8e88e9ec8ecc185b6debf7e073a3a2d7f694c8fdeea6
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/index.ts
+    hash: 9b5c52c5c05532f665ede4d0bf5f061c8957d01a97a89f2ea3b6e7c7ee555365
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/plans.ts
+    hash: 55535a7532c12f10e4935ce3864ad7694aebfe36597c3c0997b8dce0d7802fd5
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/subscriptions.ts
+    hash: 50fcc2d5f59f421268124ee32a5e4e6dcc9329d928e5fca25e415ce63a1b142f
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/invoices.ts
+    hash: 363e1b5ffe0fde8dc465993e33fd26b02cf61dbe54e5078437b088b59387f9bd
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/payments.ts
+    hash: e7d015c06497b2ec34c112ff3863213797b8d4450b08d61f88621300bdd7b1d5
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/settings.ts
+    hash: c7a034217469007feecbe518ce3722d575100e4103f87e7da79761a27e302a6b
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/feedback.ts
+    hash: fbae01dd9019241914f8c920e2c206a99d6c649a7887be60b6f1678cf3dc82e5
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/blacklist.ts
+    hash: 763c078ef3fe8f2caf87b525e1832e52ab5e48fed76079756705754b9adb2b9d
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/analytics/index.ts
+    hash: 510b497c94a7afa65fe37956deda7539488825e73a2c526999b2889ca76e2149
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/compliance/index.ts
+    hash: 0e20bea8d5037de3ef94d3b679b1c1d883bc6b3786c9f739d67c0ec4a5e1fdd4
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/content/index.ts
+    hash: 8e209231f58a618908a93f74e527c8432147b540ebaaf0f3507446c3207c66fb
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-comparison/index.ts
+    hash: a5b85f4c9274de090a47a2eb99ea35825b46e5f748a1643e5f0e7c425ab05b51
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/cli-health/index.ts
+    hash: 5e2b330407c02e245d60a7dfa7354f97998aa28d7f475c5775974f2953975ed6
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/budget/index.ts
+    hash: cb64ad03fbe96211b0f45d2d26a9d9188dfe008d0474dd3e7123061628dca7de
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ip-whitelist/index.ts
+    hash: 7e21e0127dbe58610755ae001942fa63b43521b873915573151eb1218af2a09a
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/org-policies/index.ts
+    hash: 6676b3e4529ed9f368ae50e3db7f5d8a93c4807cf6bcb27887150cafc510e640
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/sso/index.ts
+    hash: 1bd5f0a5a9182015dd839dfc62d0a725845880dad2ca6e3f47fd47eb6c8f40be
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/audit-export/index.ts
+    hash: b52d244244605558ea7a9aad3d2cf9a48a9670f0e1c1baa8cdf28f844ad8f00c
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/coupons/index.ts
+    hash: 0c6a29bd67ee6f2fb06fcd8472fab48e71586fa254d86c53dd2f515d4dfa1607
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/segments/index.ts
+    hash: c19db01cbdb2aa1c05fe5e8510dd779b1cdec00ae02500c8db317dc4cd497e89
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/remote-logs/index.ts
+    hash: c2eb19d9be415b9ce8601500142c6ed5942862ec2eced35924d735a85599be8e
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/diagnostics/index.ts
+    hash: a773a48e1bcf75fd2ae9309721e6d11e33f20ce869141fcd79da151f58a7524e
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/database-ops.ts
+    hash: 7b6a3086c11bf0709e4a3bb9308d950f1c7a188d659082d46511b2c5eea9dc77
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/tenants/index.ts
+    hash: 4cf85dfcef8eac64928531ecc2bde8331cc47c265d9d738d315889a565d7d857
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/mcp-marketplace/index.ts
+    hash: 38dccba3db9cfe268d6b75c4a3160d2d66b71355f2ae5e2989ad60276ae23482
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/review-queue/index.ts
+    hash: 9d0c6134c0d6030744905b6d169b4c6bc09347bea5d61054a39c050e54fb2639
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/custom-stats/index.ts
+    hash: da803a7ab4432d46a11b119fc7cdad6308e4a2c0221725f5d5b8176400314c9c
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ab-tests/index.ts
+    hash: b4426ee20efeb73f6f87d89125bb3f74cb01510eb208fcb40976fdf0370c1c99
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/nps/index.ts
+    hash: 29fed66cf4bff4f24b90bc3845ca2c1c11109b991e5178c8230410170ed1614e
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/productivity/index.ts
+    hash: 7c876b7931f11c13480b2e907eaf70737e33d4850e687afdda05989298d47bbb
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/white-label/index.ts
+    hash: 2070fa09f01ebfbd831178b22f47d1283e5f8e1c0bede74b0d7d321f6c6a93e8
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/learning-metrics.ts
+    hash: f7e24af582b144a963b481cb7ba4df0be34eb1021674819b049892c23d629b52
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-providers.ts
+    hash: 40b1dcf9df5f3a483b0cce3514c1041731b19768f52b3c1a6b1eb3c725ddc11f
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/missions.ts
+    hash: 47c36d89f96f34dc28ce8477294c28494d9667f0b8c1dc62e6d3a228b338cfe2
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/api-keys.ts
+    hash: 77065eb880ea431d15898eb0f0b1341600448fee182c07cb60e1efe496e02f30
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/external-agents.ts
+    hash: 0a91e46bdfb58bd5089803d9b97ed08ab894055893fff6f6d89a468e5b79240e
+  - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/user-usage.ts
+    hash: 6f714871ae1b53f00ec7cca905a97c08ca7e2d744aad808d3d154d40dfbddad6
+  protocol_ref: open-agents
 edges:
-    - from_role: ""
-      to_role: bridge
-      type: (dynamic)
-      trigger: fetch_branch
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      source:
-        spans:
-            - start: 102
-              end: 102
-    - from_role: ""
-      to_role: web
-      type: (dynamic)
-      trigger: fetch_branch
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 108
-              end: 108
-    - from_role: ""
-      to_role: web
-      type: device:online
-      trigger: fetch_branch
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 183
-              end: 183
-    - from_role: bridge
-      to_role: web
-      type: device:offline
-      trigger: disconnect_bridge
-      guard: meta.type === 'bridge' && meta.deviceId
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 309
-              end: 309
-    - from_role: bridge
-      to_role: web
-      type: sessions:disconnected
-      trigger: disconnect_bridge
-      guard: meta.type === 'bridge' && meta.deviceId
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 316
-              end: 316
-    - from_role: bridge
-      to_role: web
-      type: encrypted
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: device:online
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:created
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:started
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:stopped
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:error
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:message
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:status
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: chat:response
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: chat:thought
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: chat:permission
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: permission:request
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: acp:status
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: acp:output
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: acp:tool_call
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: acp:tool_result
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: agent:status
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: tool:call
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: session:usage
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_started
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_progress
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_completed
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_failed
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:job_completed
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_result
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_error
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_question
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_status_update
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:merge_progress
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: prompts:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: mcp:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: mcp:list_response
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: security:alert
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: scanner:rules:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: device:listDirResult
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: web
-      to_role: bridge
-      type: session:start
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: session:stop
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: session:cancel
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: session:resize
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: chat:send
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: permission:response
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: control:takeover
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: config:sync
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: rules:sync
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: storage:sync
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: prompts:sync
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: mcp:sync
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: mcp:list
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:start
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:pause
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:cancel
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:start_task
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_assign
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_answer
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_guidance
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: acp:query_status
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: device:restart
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: device:listDir
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 437
-              end: 437
-    - from_role: web
-      to_role: bridge
-      type: session:send
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 454
-              end: 454
-    - from_role: web
-      to_role: web
-      type: session:send
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: broadcast_web
-        exclude_sender: true
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 456
-              end: 456
-    - from_role: bridge
-      to_role: web
-      type: config:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 465
-              end: 465
-    - from_role: bridge
-      to_role: web
-      type: rules:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 465
-              end: 465
-    - from_role: bridge
-      to_role: web
-      type: storage:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 465
-              end: 465
-    - from_role: ""
-      to_role: web
-      type: session:output-batch
-      trigger: flushBatch
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 497
-              end: 497
-    - from_role: bridge
-      to_role: web
-      type: session:output
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      batch:
-        window_ms: 50
-        key: payload.sessionId
-      partial: true
-      source:
-        spans:
-            - start: 344
-              end: 344
+- from_role: ''
+  to_role: bridge
+  type: (dynamic)
+  trigger: fetch_branch
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  source:
+    spans:
+    - start: 102
+      end: 102
+- from_role: ''
+  to_role: web
+  type: (dynamic)
+  trigger: fetch_branch
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 108
+      end: 108
+- from_role: ''
+  to_role: web
+  type: device:online
+  trigger: fetch_branch
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 183
+      end: 183
+- from_role: bridge
+  to_role: web
+  type: device:offline
+  trigger: disconnect_bridge
+  guard: meta.type === 'bridge' && meta.deviceId
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 309
+      end: 309
+- from_role: bridge
+  to_role: web
+  type: sessions:disconnected
+  trigger: disconnect_bridge
+  guard: meta.type === 'bridge' && meta.deviceId
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 316
+      end: 316
+- from_role: bridge
+  to_role: web
+  type: encrypted
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: device:online
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:created
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:started
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:stopped
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:error
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:message
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:status
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: chat:response
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: chat:thought
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: chat:permission
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: permission:request
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: acp:status
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: acp:output
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: acp:tool_call
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: acp:tool_result
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: agent:status
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: tool:call
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: session:usage
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_started
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_progress
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  side_effects:
+  - kind: notify_orchestrator
+    when_types:
+    - workflow:task_result
+    - workflow:task_error
+    - workflow:task_progress
+    - workflow:task_question
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_completed
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_failed
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:job_completed
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_result
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  side_effects:
+  - kind: notify_orchestrator
+    when_types:
+    - workflow:task_result
+    - workflow:task_error
+    - workflow:task_progress
+    - workflow:task_question
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_error
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  side_effects:
+  - kind: notify_orchestrator
+    when_types:
+    - workflow:task_result
+    - workflow:task_error
+    - workflow:task_progress
+    - workflow:task_question
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_question
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  side_effects:
+  - kind: notify_orchestrator
+    when_types:
+    - workflow:task_result
+    - workflow:task_error
+    - workflow:task_progress
+    - workflow:task_question
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:task_status_update
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: workflow:merge_progress
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+  unsupported: true
+- from_role: bridge
+  to_role: web
+  type: prompts:synced
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: mcp:synced
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: mcp:list_response
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: security:alert
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: scanner:rules:synced
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: bridge
+  to_role: web
+  type: device:listDirResult
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 395
+      end: 395
+- from_role: web
+  to_role: bridge
+  type: session:start
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: session:stop
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: session:cancel
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: session:resize
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: chat:send
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: permission:response
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: control:takeover
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: config:sync
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: rules:sync
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: storage:sync
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: prompts:sync
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: mcp:sync
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: mcp:list
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:start
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:pause
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:cancel
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:start_task
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:task_assign
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:task_answer
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: workflow:task_guidance
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: acp:query_status
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: device:restart
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+- from_role: web
+  to_role: bridge
+  type: device:listDir
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 437
+      end: 437
+  unsupported: true
+- from_role: web
+  to_role: bridge
+  type: session:send
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 454
+      end: 454
+- from_role: web
+  to_role: web
+  type: session:send
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: broadcast_web
+    exclude_sender: true
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 456
+      end: 456
+- from_role: bridge
+  to_role: web
+  type: config:synced
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 465
+      end: 465
+- from_role: bridge
+  to_role: web
+  type: rules:synced
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 465
+      end: 465
+- from_role: bridge
+  to_role: web
+  type: storage:synced
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 465
+      end: 465
+- from_role: ''
+  to_role: web
+  type: session:output-batch
+  trigger: flushBatch
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 497
+      end: 497
+- from_role: bridge
+  to_role: web
+  type: session:output
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  batch:
+    window_ms: 50
+    key: payload.sessionId
+  partial: true
+  source:
+    spans:
+    - start: 344
+      end: 344
 http_routes:
-    - method: POST
-      path: /api/auth/register
-      mount: /api/auth
-      source:
-        spans:
-            - start: 159
-              end: 159
-    - method: POST
-      path: /api/auth/login
-      mount: /api/auth
-      source:
-        spans:
-            - start: 250
-              end: 250
-    - method: POST
-      path: /api/auth/verify-email
-      mount: /api/auth
-      source:
-        spans:
-            - start: 325
-              end: 325
-    - method: POST
-      path: /api/auth/resend-verification
-      mount: /api/auth
-      source:
-        spans:
-            - start: 366
-              end: 366
-    - method: POST
-      path: /api/auth/forgot-password
-      mount: /api/auth
-      source:
-        spans:
-            - start: 405
-              end: 405
-    - method: POST
-      path: /api/auth/reset-password
-      mount: /api/auth
-      source:
-        spans:
-            - start: 445
-              end: 445
-    - method: POST
-      path: /api/auth/change-password
-      mount: /api/auth
-      source:
-        spans:
-            - start: 484
-              end: 484
-    - method: POST
-      path: /api/auth/delete-account
-      mount: /api/auth
-      source:
-        spans:
-            - start: 531
-              end: 531
-    - method: PUT
-      path: /api/auth/profile
-      mount: /api/auth
-      source:
-        spans:
-            - start: 565
-              end: 565
-    - method: GET
-      path: /api/auth/me
-      mount: /api/auth
-      source:
-        spans:
-            - start: 601
-              end: 601
-    - method: POST
-      path: /api/auth/refresh
-      mount: /api/auth
-      source:
-        spans:
-            - start: 628
-              end: 628
-    - method: POST
-      path: /api/auth/logout
-      mount: /api/auth
-      source:
-        spans:
-            - start: 669
-              end: 669
-    - method: POST
-      path: /api/auth/logout-all
-      mount: /api/auth
-      source:
-        spans:
-            - start: 681
-              end: 681
-    - method: POST
-      path: /api/auth/dev/setup
-      mount: /api/auth
-      source:
-        spans:
-            - start: 704
-              end: 704
-    - method: GET
-      path: /api/oauth/github
-      mount: /api/oauth
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: GET
-      path: /api/oauth/github/callback
-      mount: /api/oauth
-      source:
-        spans:
-            - start: 29
-              end: 29
-    - method: GET
-      path: /api/oauth/google
-      mount: /api/oauth
-      source:
-        spans:
-            - start: 72
-              end: 72
-    - method: GET
-      path: /api/oauth/google/callback
-      mount: /api/oauth
-      source:
-        spans:
-            - start: 86
-              end: 86
-    - method: POST
-      path: /api/dev/setup
-      mount: /api/dev
-      source:
-        spans:
-            - start: 13
-              end: 13
-            - start: 102
-              end: 102
-    - method: POST
-      path: /api/dev/login
-      mount: /api/dev
-      source:
-        spans:
-            - start: 112
-              end: 112
-    - method: POST
-      path: /api/devices/pair/verify
-      source:
-        spans:
-            - start: 173
-              end: 173
-    - method: GET
-      path: /api/bridge/permission-rules
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 29
-              end: 29
-    - method: GET
-      path: /api/bridge/agents/:id
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 47
-              end: 47
-    - method: POST
-      path: /api/bridge/sessions
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 68
-              end: 68
-    - method: DELETE
-      path: /api/bridge/sessions/:id
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 118
-              end: 118
-    - method: POST
-      path: /api/bridge/messages
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 140
-              end: 140
-    - method: POST
-      path: /api/bridge/crash
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 163
-              end: 163
-    - method: GET
-      path: /api/bridge/update-check
-      mount: /api/bridge
-      source:
-        spans:
-            - start: 201
-              end: 201
-    - method: POST
-      path: /api/errors/report
-      mount: /api/errors
-      source:
-        spans:
-            - start: 28
-              end: 28
-    - method: GET
-      path: /a2a/.well-known/agent.json
-      mount: /a2a
-      source:
-        spans:
-            - start: 142
-              end: 142
-    - method: POST
-      path: /a2a
-      mount: /a2a
-      source:
-        spans:
-            - start: 194
-              end: 194
-    - method: POST
-      path: /api/webhooks/creem
-      mount: /api/webhooks/creem
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: GET
-      path: /api/devices
-      mount: /api/devices
-      source:
-        spans:
-            - start: 33
-              end: 33
-    - method: POST
-      path: /api/devices
-      mount: /api/devices
-      source:
-        spans:
-            - start: 53
-              end: 53
-    - method: POST
-      path: /api/devices/pair/generate
-      mount: /api/devices
-      source:
-        spans:
-            - start: 81
-              end: 81
-    - method: GET
-      path: /api/devices/pair/status/:code
-      mount: /api/devices
-      source:
-        spans:
-            - start: 100
-              end: 100
-    - method: PATCH
-      path: /api/devices/:id
-      mount: /api/devices
-      source:
-        spans:
-            - start: 128
-              end: 128
-    - method: DELETE
-      path: /api/devices/:id
-      mount: /api/devices
-      source:
-        spans:
-            - start: 150
-              end: 150
-    - method: GET
-      path: /api/devices/:id/connection
-      mount: /api/devices
-      source:
-        spans:
-            - start: 165
-              end: 165
-    - method: POST
-      path: /api/devices/:id/regenerate-token
-      mount: /api/devices
-      source:
-        spans:
-            - start: 185
-              end: 185
-    - method: POST
-      path: /api/devices/:id/pair-code
-      mount: /api/devices
-      source:
-        spans:
-            - start: 205
-              end: 205
-    - method: GET
-      path: /api/devices/:id/acp-status
-      mount: /api/devices
-      source:
-        spans:
-            - start: 231
-              end: 231
-    - method: POST
-      path: /api/devices/:id/restart
-      mount: /api/devices
-      source:
-        spans:
-            - start: 296
-              end: 296
-    - method: POST
-      path: /api/devices/:id/heartbeat
-      mount: /api/devices
-      source:
-        spans:
-            - start: 336
-              end: 336
-    - method: GET
-      path: /api/sessions/stats
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 13
-              end: 13
-    - method: POST
-      path: /api/sessions
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 62
-              end: 62
-    - method: GET
-      path: /api/sessions
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 184
-              end: 184
-    - method: POST
-      path: /api/sessions/:id/end
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 286
-              end: 286
-    - method: POST
-      path: /api/sessions/cleanup/:deviceId
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 324
-              end: 324
-    - method: POST
-      path: /api/sessions/admin/cleanup
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 384
-              end: 384
-    - method: GET
-      path: /api/sessions/admin/integrity
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 484
-              end: 484
-    - method: PATCH
-      path: /api/sessions/:id
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 537
-              end: 537
-    - method: PATCH
-      path: /api/sessions/:id/messages/:msgId
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 597
-              end: 597
-    - method: POST
-      path: /api/sessions/:id/messages
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 645
-              end: 645
-    - method: GET
-      path: /api/sessions/:id/messages
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 700
-              end: 700
-    - method: POST
-      path: /api/sessions/:id/messages/batch
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 759
-              end: 759
-    - method: DELETE
-      path: /api/sessions/:id/messages
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 809
-              end: 809
-    - method: GET
-      path: /api/sessions/:id
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 846
-              end: 846
-    - method: DELETE
-      path: /api/sessions/:id
-      mount: /api/sessions
-      source:
-        spans:
-            - start: 938
-              end: 938
-    - method: GET
-      path: /api/prompts
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 12
-              end: 12
-    - method: POST
-      path: /api/prompts
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 24
-              end: 24
-    - method: PUT
-      path: /api/prompts/:id
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 56
-              end: 56
-    - method: DELETE
-      path: /api/prompts/:id
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 78
-              end: 78
-    - method: POST
-      path: /api/prompts/:id/use
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 93
-              end: 93
-    - method: GET
-      path: /api/prompts/:id/versions
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 106
-              end: 106
-    - method: POST
-      path: /api/prompts/:id/versions
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 121
-              end: 121
-    - method: POST
-      path: /api/prompts/:id/rollback/:version
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 137
-              end: 137
-    - method: POST
-      path: /api/prompts/:id/rate
-      mount: /api/prompts
-      source:
-        spans:
-            - start: 156
-              end: 156
-    - method: GET
-      path: /api/agents
-      mount: /api/agents
-      source:
-        spans:
-            - start: 11
-              end: 11
-    - method: GET
-      path: /api/agents/available
-      mount: /api/agents
-      source:
-        spans:
-            - start: 27
-              end: 27
-    - method: GET
-      path: /api/agents/:id
-      mount: /api/agents
-      source:
-        spans:
-            - start: 34
-              end: 34
-    - method: POST
-      path: /api/agents/:id/preview
-      mount: /api/agents
-      source:
-        spans:
-            - start: 50
-              end: 50
-    - method: POST
-      path: /api/agents
-      mount: /api/agents
-      source:
-        spans:
-            - start: 66
-              end: 66
-    - method: PUT
-      path: /api/agents/:id
-      mount: /api/agents
-      source:
-        spans:
-            - start: 103
-              end: 103
-    - method: DELETE
-      path: /api/agents/:id
-      mount: /api/agents
-      source:
-        spans:
-            - start: 136
-              end: 136
-    - method: GET
-      path: /api/skills
-      mount: /api/skills
-      source:
-        spans:
-            - start: 10
-              end: 10
-    - method: GET
-      path: /api/skills/mine
-      mount: /api/skills
-      source:
-        spans:
-            - start: 21
-              end: 21
-    - method: GET
-      path: /api/skills/search
-      mount: /api/skills
-      source:
-        spans:
-            - start: 32
-              end: 32
-    - method: GET
-      path: /api/skills/:id
-      mount: /api/skills
-      source:
-        spans:
-            - start: 45
-              end: 45
-    - method: POST
-      path: /api/skills
-      mount: /api/skills
-      source:
-        spans:
-            - start: 60
-              end: 60
-    - method: PUT
-      path: /api/skills/:id
-      mount: /api/skills
-      source:
-        spans:
-            - start: 97
-              end: 97
-    - method: DELETE
-      path: /api/skills/:id
-      mount: /api/skills
-      source:
-        spans:
-            - start: 130
-              end: 130
-    - method: POST
-      path: /api/skills/import
-      mount: /api/skills
-      source:
-        spans:
-            - start: 156
-              end: 156
-    - method: POST
-      path: /api/skills/export
-      mount: /api/skills
-      source:
-        spans:
-            - start: 220
-              end: 220
-    - method: GET
-      path: /api/rules
-      mount: /api/rules
-      source:
-        spans:
-            - start: 33
-              end: 33
-    - method: POST
-      path: /api/rules
-      mount: /api/rules
-      source:
-        spans:
-            - start: 44
-              end: 44
-    - method: PUT
-      path: /api/rules/:id
-      mount: /api/rules
-      source:
-        spans:
-            - start: 87
-              end: 87
-    - method: PUT
-      path: /api/rules/priorities
-      mount: /api/rules
-      source:
-        spans:
-            - start: 120
-              end: 120
-    - method: DELETE
-      path: /api/rules/:id
-      mount: /api/rules
-      source:
-        spans:
-            - start: 131
-              end: 131
-    - method: GET
-      path: /api/permissions
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 43
-              end: 43
-    - method: GET
-      path: /api/permissions/stats
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 71
-              end: 71
-    - method: GET
-      path: /api/permissions/:id
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 78
-              end: 78
-    - method: POST
-      path: /api/permissions
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 89
-              end: 89
-    - method: PATCH
-      path: /api/permissions/:id
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 112
-              end: 112
-    - method: DELETE
-      path: /api/permissions/:id
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 131
-              end: 131
-    - method: DELETE
-      path: /api/permissions
-      mount: /api/permissions
-      source:
-        spans:
-            - start: 142
-              end: 142
-    - method: GET
-      path: /api/settings
-      mount: /api/settings
-      source:
-        spans:
-            - start: 9
-              end: 9
-    - method: PUT
-      path: /api/settings
-      mount: /api/settings
-      source:
-        spans:
-            - start: 18
-              end: 18
-    - method: PATCH
-      path: /api/settings
-      mount: /api/settings
-      source:
-        spans:
-            - start: 38
-              end: 38
-    - method: GET
-      path: /api/export
-      mount: /api/export
-      source:
-        spans:
-            - start: 10
-              end: 10
-    - method: GET
-      path: /api/export/:type
-      mount: /api/export
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: POST
-      path: /api/export/jobs
-      mount: /api/export
-      source:
-        spans:
-            - start: 56
-              end: 56
-    - method: GET
-      path: /api/export/jobs/:jobId
-      mount: /api/export
-      source:
-        spans:
-            - start: 109
-              end: 109
-    - method: DELETE
-      path: /api/export/jobs/:jobId
-      mount: /api/export
-      source:
-        spans:
-            - start: 125
-              end: 125
-    - method: GET
-      path: /api/audit
-      mount: /api/audit
-      source:
-        spans:
-            - start: 31
-              end: 31
-    - method: GET
-      path: /api/audit/:id
-      mount: /api/audit
-      source:
-        spans:
-            - start: 65
-              end: 65
-    - method: GET
-      path: /api/audit/summary/recent
-      mount: /api/audit
-      source:
-        spans:
-            - start: 80
-              end: 80
-    - method: DELETE
-      path: /api/audit/cleanup
-      mount: /api/audit
-      source:
-        spans:
-            - start: 91
-              end: 91
-    - method: POST
-      path: /api/batch/delete
-      mount: /api/batch
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: POST
-      path: /api/batch/rules/toggle
-      mount: /api/batch
-      source:
-        spans:
-            - start: 97
-              end: 97
-    - method: POST
-      path: /api/batch/permissions/respond
-      mount: /api/batch
-      source:
-        spans:
-            - start: 124
-              end: 124
-    - method: GET
-      path: /api/missions
-      mount: /api/missions
-      source:
-        spans:
-            - start: 50
-              end: 50
-    - method: POST
-      path: /api/missions
-      mount: /api/missions
-      source:
-        spans:
-            - start: 58
-              end: 58
-    - method: GET
-      path: /api/missions/agent-metrics
-      mount: /api/missions
-      source:
-        spans:
-            - start: 159
-              end: 159
-    - method: GET
-      path: /api/missions/online-devices
-      mount: /api/missions
-      source:
-        spans:
-            - start: 166
-              end: 166
-    - method: GET
-      path: /api/missions/routing-rules
-      mount: /api/missions
-      source:
-        spans:
-            - start: 201
-              end: 201
-    - method: PUT
-      path: /api/missions/routing-rules
-      mount: /api/missions
-      source:
-        spans:
-            - start: 207
-              end: 207
-    - method: POST
-      path: /api/missions/routing-rules/update-priorities
-      mount: /api/missions
-      source:
-        spans:
-            - start: 215
-              end: 215
-    - method: GET
-      path: /api/missions/learning-metrics
-      mount: /api/missions
-      source:
-        spans:
-            - start: 221
-              end: 221
-    - method: POST
-      path: /api/missions/internal/orchestrator/alarm
-      mount: /api/missions
-      source:
-        spans:
-            - start: 236
-              end: 236
-    - method: POST
-      path: /api/missions/internal/orchestrator/event
-      mount: /api/missions
-      source:
-        spans:
-            - start: 251
-              end: 251
-    - method: POST
-      path: /api/missions/internal/planner/decompose
-      mount: /api/missions
-      source:
-        spans:
-            - start: 299
-              end: 299
-    - method: GET
-      path: /api/missions/:id
-      mount: /api/missions
-      source:
-        spans:
-            - start: 463
-              end: 463
-    - method: POST
-      path: /api/missions/:id/confirm
-      mount: /api/missions
-      source:
-        spans:
-            - start: 474
-              end: 474
-    - method: POST
-      path: /api/missions/:id/pause
-      mount: /api/missions
-      source:
-        spans:
-            - start: 486
-              end: 486
-    - method: POST
-      path: /api/missions/:id/resume
-      mount: /api/missions
-      source:
-        spans:
-            - start: 498
-              end: 498
-    - method: POST
-      path: /api/missions/:id/cancel
-      mount: /api/missions
-      source:
-        spans:
-            - start: 510
-              end: 510
-    - method: POST
-      path: /api/missions/:id/tasks/:taskId/cancel
-      mount: /api/missions
-      source:
-        spans:
-            - start: 522
-              end: 522
-    - method: POST
-      path: /api/missions/:id/tasks/:taskId/retry
-      mount: /api/missions
-      source:
-        spans:
-            - start: 529
-              end: 529
-    - method: PUT
-      path: /api/missions/:id/tasks/:taskId
-      mount: /api/missions
-      source:
-        spans:
-            - start: 559
-              end: 559
-    - method: POST
-      path: /api/missions/:id/rerun
-      mount: /api/missions
-      source:
-        spans:
-            - start: 577
-              end: 577
-    - method: POST
-      path: /api/missions/:id/rate
-      mount: /api/missions
-      source:
-        spans:
-            - start: 690
-              end: 690
-    - method: POST
-      path: /api/missions/:id/feedback
-      mount: /api/missions
-      source:
-        spans:
-            - start: 698
-              end: 698
-    - method: GET
-      path: /api/missions/:missionId/questions
-      mount: /api/missions
-      source:
-        spans:
-            - start: 756
-              end: 756
-    - method: POST
-      path: /api/missions/:missionId/tasks/:taskId/answer
-      mount: /api/missions
-      source:
-        spans:
-            - start: 763
-              end: 763
-    - method: POST
-      path: /api/missions/:missionId/tasks/:taskId/guidance
-      mount: /api/missions
-      source:
-        spans:
-            - start: 777
-              end: 777
-    - method: POST
-      path: /api/missions/:missionId/tasks/:taskId/merge
-      mount: /api/missions
-      source:
-        spans:
-            - start: 790
-              end: 790
-    - method: POST
-      path: /api/missions/:missionId/merge-all
-      mount: /api/missions
-      source:
-        spans:
-            - start: 807
-              end: 807
-    - method: GET
-      path: /api/missions/:missionId/devices
-      mount: /api/missions
-      source:
-        spans:
-            - start: 844
-              end: 844
-    - method: DELETE
-      path: /api/missions/:id
-      mount: /api/missions
-      source:
-        spans:
-            - start: 851
-              end: 851
-    - method: PUT
-      path: /api/missions/:missionId/state/:key
-      mount: /api/missions
-      source:
-        spans:
-            - start: 862
-              end: 862
-    - method: GET
-      path: /api/missions/:missionId/state/:key
-      mount: /api/missions
-      source:
-        spans:
-            - start: 886
-              end: 886
-    - method: GET
-      path: /api/missions/:missionId/state
-      mount: /api/missions
-      source:
-        spans:
-            - start: 903
-              end: 903
-    - method: ALL
-      path: /api/workflows/jobs/*
-      source:
-        spans:
-            - start: 309
-              end: 309
-    - method: GET
-      path: /api/teams
-      mount: /api/teams
-      source:
-        spans:
-            - start: 13
-              end: 13
-    - method: POST
-      path: /api/teams
-      mount: /api/teams
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: GET
-      path: /api/teams/:id
-      mount: /api/teams
-      source:
-        spans:
-            - start: 31
-              end: 31
-    - method: PUT
-      path: /api/teams/:id
-      mount: /api/teams
-      source:
-        spans:
-            - start: 39
-              end: 39
-    - method: DELETE
-      path: /api/teams/:id
-      mount: /api/teams
-      source:
-        spans:
-            - start: 49
-              end: 49
-    - method: GET
-      path: /api/teams/:id/members
-      mount: /api/teams
-      source:
-        spans:
-            - start: 58
-              end: 58
-    - method: PUT
-      path: /api/teams/:id/members/:userId
-      mount: /api/teams
-      source:
-        spans:
-            - start: 67
-              end: 67
-    - method: DELETE
-      path: /api/teams/:id/members/:userId
-      mount: /api/teams
-      source:
-        spans:
-            - start: 77
-              end: 77
-    - method: POST
-      path: /api/teams/:id/invitations
-      mount: /api/teams
-      source:
-        spans:
-            - start: 86
-              end: 86
-    - method: GET
-      path: /api/teams/:id/invitations
-      mount: /api/teams
-      source:
-        spans:
-            - start: 97
-              end: 97
-    - method: DELETE
-      path: /api/teams/:id/invitations/:invId
-      mount: /api/teams
-      source:
-        spans:
-            - start: 106
-              end: 106
-    - method: POST
-      path: /api/teams/invitations/accept
-      mount: /api/teams
-      source:
-        spans:
-            - start: 115
-              end: 115
-    - method: POST
-      path: /api/teams/:id/devices
-      mount: /api/teams
-      source:
-        spans:
-            - start: 124
-              end: 124
-    - method: DELETE
-      path: /api/teams/:id/devices/:deviceId
-      mount: /api/teams
-      source:
-        spans:
-            - start: 134
-              end: 134
-    - method: GET
-      path: /api/teams/:id/devices
-      mount: /api/teams
-      source:
-        spans:
-            - start: 143
-              end: 143
-    - method: GET
-      path: /api/admin/billing/plans
-      mount: /api/admin/billing/plans
-      source:
-        spans:
-            - start: 23
-              end: 23
-    - method: GET
-      path: /api/admin/billing/plans/:id
-      mount: /api/admin/billing/plans
-      source:
-        spans:
-            - start: 41
-              end: 41
-    - method: POST
-      path: /api/admin/billing/plans
-      mount: /api/admin/billing/plans
-      source:
-        spans:
-            - start: 57
-              end: 57
-    - method: PUT
-      path: /api/admin/billing/plans/:id
-      mount: /api/admin/billing/plans
-      source:
-        spans:
-            - start: 83
-              end: 83
-    - method: DELETE
-      path: /api/admin/billing/plans/:id
-      mount: /api/admin/billing/plans
-      source:
-        spans:
-            - start: 148
-              end: 148
-    - method: GET
-      path: /api/admin/billing/subscriptions
-      mount: /api/admin/billing/subscriptions
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: GET
-      path: /api/admin/billing/subscriptions/:id
-      mount: /api/admin/billing/subscriptions
-      source:
-        spans:
-            - start: 69
-              end: 69
-    - method: PUT
-      path: /api/admin/billing/subscriptions/:id
-      mount: /api/admin/billing/subscriptions
-      source:
-        spans:
-            - start: 95
-              end: 95
-    - method: POST
-      path: /api/admin/billing/subscriptions/:id/cancel
-      mount: /api/admin/billing/subscriptions
-      source:
-        spans:
-            - start: 148
-              end: 148
-    - method: GET
-      path: /api/admin/billing/invoices
-      mount: /api/admin/billing/invoices
-      source:
-        spans:
-            - start: 41
-              end: 41
-    - method: GET
-      path: /api/admin/billing/invoices/:id
-      mount: /api/admin/billing/invoices
-      source:
-        spans:
-            - start: 87
-              end: 87
-    - method: POST
-      path: /api/admin/billing/invoices
-      mount: /api/admin/billing/invoices
-      source:
-        spans:
-            - start: 109
-              end: 109
-    - method: PUT
-      path: /api/admin/billing/invoices/:id
-      mount: /api/admin/billing/invoices
-      source:
-        spans:
-            - start: 135
-              end: 135
-    - method: POST
-      path: /api/admin/billing/invoices/:id/pay
-      mount: /api/admin/billing/invoices
-      source:
-        spans:
-            - start: 179
-              end: 179
-    - method: POST
-      path: /api/admin/billing/invoices/:id/void
-      mount: /api/admin/billing/invoices
-      source:
-        spans:
-            - start: 200
-              end: 200
-    - method: GET
-      path: /api/admin/billing/payments
-      mount: /api/admin/billing/payments
-      source:
-        spans:
-            - start: 11
-              end: 11
-    - method: GET
-      path: /api/admin/billing/payments/:id
-      mount: /api/admin/billing/payments
-      source:
-        spans:
-            - start: 63
-              end: 63
-    - method: POST
-      path: /api/admin/billing/payments
-      mount: /api/admin/billing/payments
-      source:
-        spans:
-            - start: 87
-              end: 87
-    - method: PUT
-      path: /api/admin/billing/payments/:id/status
-      mount: /api/admin/billing/payments
-      source:
-        spans:
-            - start: 120
-              end: 120
-    - method: GET
-      path: /api/admin/settings
-      mount: /api/admin/settings
-      source:
-        spans:
-            - start: 18
-              end: 18
-    - method: GET
-      path: /api/admin/settings/:key
-      mount: /api/admin/settings
-      source:
-        spans:
-            - start: 51
-              end: 51
-    - method: PUT
-      path: /api/admin/settings/:key
-      mount: /api/admin/settings
-      source:
-        spans:
-            - start: 67
-              end: 67
-    - method: GET
-      path: /api/admin/settings/:key/history
-      mount: /api/admin/settings
-      source:
-        spans:
-            - start: 108
-              end: 108
-    - method: POST
-      path: /api/admin/settings/:key/rollback
-      mount: /api/admin/settings
-      source:
-        spans:
-            - start: 137
-              end: 137
-    - method: DELETE
-      path: /api/admin/settings/:key
-      mount: /api/admin/settings
-      source:
-        spans:
-            - start: 182
-              end: 182
-    - method: GET
-      path: /api/admin/feedback
-      mount: /api/admin/feedback
-      source:
-        spans:
-            - start: 18
-              end: 18
-    - method: GET
-      path: /api/admin/feedback/:id
-      mount: /api/admin/feedback
-      source:
-        spans:
-            - start: 81
-              end: 81
-    - method: PUT
-      path: /api/admin/feedback/:id
-      mount: /api/admin/feedback
-      source:
-        spans:
-            - start: 103
-              end: 103
-    - method: POST
-      path: /api/admin/feedback/:id/assign
-      mount: /api/admin/feedback
-      source:
-        spans:
-            - start: 148
-              end: 148
-    - method: DELETE
-      path: /api/admin/feedback/:id
-      mount: /api/admin/feedback
-      source:
-        spans:
-            - start: 178
-              end: 178
-    - method: GET
-      path: /api/admin/blacklist
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 28
-              end: 28
-    - method: GET
-      path: /api/admin/blacklist/check
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 79
-              end: 79
-    - method: GET
-      path: /api/admin/blacklist/:id
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 100
-              end: 100
-    - method: POST
-      path: /api/admin/blacklist
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 116
-              end: 116
-    - method: POST
-      path: /api/admin/blacklist/batch
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 150
-              end: 150
-    - method: DELETE
-      path: /api/admin/blacklist/:id
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 202
-              end: 202
-    - method: POST
-      path: /api/admin/blacklist/clean-expired
-      mount: /api/admin/blacklist
-      source:
-        spans:
-            - start: 220
-              end: 220
-    - method: GET
-      path: /api/admin/analytics/overview
-      mount: /api/admin/analytics
-      source:
-        spans:
-            - start: 12
-              end: 12
-    - method: GET
-      path: /api/admin/analytics/users
-      mount: /api/admin/analytics
-      source:
-        spans:
-            - start: 79
-              end: 79
-    - method: GET
-      path: /api/admin/analytics/usage
-      mount: /api/admin/analytics
-      source:
-        spans:
-            - start: 122
-              end: 122
-    - method: GET
-      path: /api/admin/analytics/funnel
-      mount: /api/admin/analytics
-      source:
-        spans:
-            - start: 169
-              end: 169
-    - method: POST
-      path: /api/admin/analytics/events
-      mount: /api/admin/analytics
-      source:
-        spans:
-            - start: 209
-              end: 209
-    - method: GET
-      path: /api/admin/compliance/reports
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 32
-              end: 32
-    - method: POST
-      path: /api/admin/compliance/reports
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 71
-              end: 71
-    - method: GET
-      path: /api/admin/compliance/reports/:id
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 87
-              end: 87
-    - method: GET
-      path: /api/admin/compliance/check
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 103
-              end: 103
-    - method: GET
-      path: /api/admin/compliance/retention
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 164
-              end: 164
-    - method: POST
-      path: /api/admin/compliance/retention
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 175
-              end: 175
-    - method: PUT
-      path: /api/admin/compliance/retention/:id
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 191
-              end: 191
-    - method: DELETE
-      path: /api/admin/compliance/retention/:id
-      mount: /api/admin/compliance
-      source:
-        spans:
-            - start: 235
-              end: 235
-    - method: GET
-      path: /api/admin/content
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 23
-              end: 23
-    - method: GET
-      path: /api/admin/content/:id
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 66
-              end: 66
-    - method: POST
-      path: /api/admin/content
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 82
-              end: 82
-    - method: PUT
-      path: /api/admin/content/:id
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 111
-              end: 111
-    - method: POST
-      path: /api/admin/content/:id/publish
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 159
-              end: 159
-    - method: POST
-      path: /api/admin/content/:id/unpublish
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 181
-              end: 181
-    - method: POST
-      path: /api/admin/content/:id/archive
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 201
-              end: 201
-    - method: DELETE
-      path: /api/admin/content/:id
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 221
-              end: 221
-    - method: GET
-      path: /api/admin/content/moderation
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 231
-              end: 231
-    - method: POST
-      path: /api/admin/content/moderation/:id
-      mount: /api/admin/content
-      source:
-        spans:
-            - start: 263
-              end: 263
-    - method: GET
-      path: /api/admin/ai-comparison/models
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 42
-              end: 42
-    - method: GET
-      path: /api/admin/ai-comparison/metrics
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 58
-              end: 58
-    - method: GET
-      path: /api/admin/ai-comparison/compare
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 99
-              end: 99
-    - method: POST
-      path: /api/admin/ai-comparison/metrics
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 159
-              end: 159
-    - method: GET
-      path: /api/admin/ai-comparison/reports
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 189
-              end: 189
-    - method: POST
-      path: /api/admin/ai-comparison/reports
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 214
-              end: 214
-    - method: GET
-      path: /api/admin/ai-comparison/reports/:id
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 279
-              end: 279
-    - method: DELETE
-      path: /api/admin/ai-comparison/reports/:id
-      mount: /api/admin/ai-comparison
-      source:
-        spans:
-            - start: 295
-              end: 295
-    - method: GET
-      path: /api/admin/cli-health/overview
-      mount: /api/admin/cli-health
-      source:
-        spans:
-            - start: 9
-              end: 9
-    - method: GET
-      path: /api/admin/cli-health/metrics
-      mount: /api/admin/cli-health
-      source:
-        spans:
-            - start: 45
-              end: 45
-    - method: GET
-      path: /api/admin/budget
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: POST
-      path: /api/admin/budget
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 39
-              end: 39
-    - method: PUT
-      path: /api/admin/budget/:id
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 49
-              end: 49
-    - method: DELETE
-      path: /api/admin/budget/:id
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 69
-              end: 69
-    - method: GET
-      path: /api/admin/budget/costs
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 76
-              end: 76
-    - method: GET
-      path: /api/admin/budget/costs/report
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 100
-              end: 100
-    - method: GET
-      path: /api/admin/budget/costs/daily-trend
-      mount: /api/admin/budget
-      source:
-        spans:
-            - start: 127
-              end: 127
-    - method: GET
-      path: /api/admin/ip-whitelist
-      mount: /api/admin/ip-whitelist
-      source:
-        spans:
-            - start: 18
-              end: 18
-    - method: POST
-      path: /api/admin/ip-whitelist
-      mount: /api/admin/ip-whitelist
-      source:
-        spans:
-            - start: 36
-              end: 36
-    - method: PUT
-      path: /api/admin/ip-whitelist/:id
-      mount: /api/admin/ip-whitelist
-      source:
-        spans:
-            - start: 53
-              end: 53
-    - method: DELETE
-      path: /api/admin/ip-whitelist/:id
-      mount: /api/admin/ip-whitelist
-      source:
-        spans:
-            - start: 72
-              end: 72
-    - method: POST
-      path: /api/admin/ip-whitelist/check
-      mount: /api/admin/ip-whitelist
-      source:
-        spans:
-            - start: 78
-              end: 78
-    - method: GET
-      path: /api/admin/org-policies
-      mount: /api/admin/org-policies
-      source:
-        spans:
-            - start: 18
-              end: 18
-    - method: GET
-      path: /api/admin/org-policies/:id
-      mount: /api/admin/org-policies
-      source:
-        spans:
-            - start: 37
-              end: 37
-    - method: POST
-      path: /api/admin/org-policies
-      mount: /api/admin/org-policies
-      source:
-        spans:
-            - start: 44
-              end: 44
-    - method: PUT
-      path: /api/admin/org-policies/:id
-      mount: /api/admin/org-policies
-      source:
-        spans:
-            - start: 54
-              end: 54
-    - method: DELETE
-      path: /api/admin/org-policies/:id
-      mount: /api/admin/org-policies
-      source:
-        spans:
-            - start: 74
-              end: 74
-    - method: GET
-      path: /api/admin/sso
-      mount: /api/admin/sso
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: POST
-      path: /api/admin/sso
-      mount: /api/admin/sso
-      source:
-        spans:
-            - start: 30
-              end: 30
-    - method: PUT
-      path: /api/admin/sso/:id
-      mount: /api/admin/sso
-      source:
-        spans:
-            - start: 40
-              end: 40
-    - method: DELETE
-      path: /api/admin/sso/:id
-      mount: /api/admin/sso
-      source:
-        spans:
-            - start: 60
-              end: 60
-    - method: GET
-      path: /api/admin/audit-export
-      mount: /api/admin/audit-export
-      source:
-        spans:
-            - start: 9
-              end: 9
-    - method: POST
-      path: /api/admin/audit-export
-      mount: /api/admin/audit-export
-      source:
-        spans:
-            - start: 23
-              end: 23
-    - method: GET
-      path: /api/admin/audit-export/:id
-      mount: /api/admin/audit-export
-      source:
-        spans:
-            - start: 35
-              end: 35
-    - method: DELETE
-      path: /api/admin/audit-export/:id
-      mount: /api/admin/audit-export
-      source:
-        spans:
-            - start: 42
-              end: 42
-    - method: GET
-      path: /api/admin/coupons
-      mount: /api/admin/coupons
-      source:
-        spans:
-            - start: 28
-              end: 28
-    - method: POST
-      path: /api/admin/coupons
-      mount: /api/admin/coupons
-      source:
-        spans:
-            - start: 42
-              end: 42
-    - method: PUT
-      path: /api/admin/coupons/:id
-      mount: /api/admin/coupons
-      source:
-        spans:
-            - start: 53
-              end: 53
-    - method: DELETE
-      path: /api/admin/coupons/:id
-      mount: /api/admin/coupons
-      source:
-        spans:
-            - start: 72
-              end: 72
-    - method: POST
-      path: /api/admin/coupons/:id/validate
-      mount: /api/admin/coupons
-      source:
-        spans:
-            - start: 78
-              end: 78
-    - method: GET
-      path: /api/admin/segments
-      mount: /api/admin/segments
-      source:
-        spans:
-            - start: 21
-              end: 21
-    - method: POST
-      path: /api/admin/segments
-      mount: /api/admin/segments
-      source:
-        spans:
-            - start: 47
-              end: 47
-    - method: GET
-      path: /api/admin/segments/:id
-      mount: /api/admin/segments
-      source:
-        spans:
-            - start: 61
-              end: 61
-    - method: PUT
-      path: /api/admin/segments/:id
-      mount: /api/admin/segments
-      source:
-        spans:
-            - start: 77
-              end: 77
-    - method: DELETE
-      path: /api/admin/segments/:id
-      mount: /api/admin/segments
-      source:
-        spans:
-            - start: 91
-              end: 91
-    - method: GET
-      path: /api/admin/remote-logs
-      mount: /api/admin/remote-logs
-      source:
-        spans:
-            - start: 9
-              end: 9
-    - method: POST
-      path: /api/admin/remote-logs
-      mount: /api/admin/remote-logs
-      source:
-        spans:
-            - start: 32
-              end: 32
-    - method: GET
-      path: /api/admin/remote-logs/stats
-      mount: /api/admin/remote-logs
-      source:
-        spans:
-            - start: 43
-              end: 43
-    - method: GET
-      path: /api/admin/diagnostics
-      mount: /api/admin/diagnostics
-      source:
-        spans:
-            - start: 8
-              end: 8
-    - method: GET
-      path: /api/admin/diagnostics/health
-      mount: /api/admin/diagnostics
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: POST
-      path: /api/admin/diagnostics/check
-      mount: /api/admin/diagnostics
-      source:
-        spans:
-            - start: 43
-              end: 43
-    - method: GET
-      path: /api/admin/database-ops
-      mount: /api/admin/database-ops
-      source:
-        spans:
-            - start: 12
-              end: 12
-    - method: POST
-      path: /api/admin/database-ops
-      mount: /api/admin/database-ops
-      source:
-        spans:
-            - start: 38
-              end: 38
-    - method: GET
-      path: /api/admin/database-ops/:id
-      mount: /api/admin/database-ops
-      source:
-        spans:
-            - start: 52
-              end: 52
-    - method: DELETE
-      path: /api/admin/database-ops/:id
-      mount: /api/admin/database-ops
-      source:
-        spans:
-            - start: 68
-              end: 68
-    - method: GET
-      path: /api/admin/tenants
-      mount: /api/admin/tenants
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: POST
-      path: /api/admin/tenants
-      mount: /api/admin/tenants
-      source:
-        spans:
-            - start: 35
-              end: 35
-    - method: GET
-      path: /api/admin/tenants/:id
-      mount: /api/admin/tenants
-      source:
-        spans:
-            - start: 46
-              end: 46
-    - method: PUT
-      path: /api/admin/tenants/:id
-      mount: /api/admin/tenants
-      source:
-        spans:
-            - start: 54
-              end: 54
-    - method: DELETE
-      path: /api/admin/tenants/:id
-      mount: /api/admin/tenants
-      source:
-        spans:
-            - start: 76
-              end: 76
-    - method: GET
-      path: /api/admin/mcp-marketplace
-      mount: /api/admin/mcp-marketplace
-      source:
-        spans:
-            - start: 22
-              end: 22
-    - method: POST
-      path: /api/admin/mcp-marketplace
-      mount: /api/admin/mcp-marketplace
-      source:
-        spans:
-            - start: 41
-              end: 41
-    - method: POST
-      path: /api/admin/mcp-marketplace/:id/approve
-      mount: /api/admin/mcp-marketplace
-      source:
-        spans:
-            - start: 52
-              end: 52
-    - method: POST
-      path: /api/admin/mcp-marketplace/:id/reject
-      mount: /api/admin/mcp-marketplace
-      source:
-        spans:
-            - start: 59
-              end: 59
-    - method: POST
-      path: /api/admin/mcp-marketplace/:id/download
-      mount: /api/admin/mcp-marketplace
-      source:
-        spans:
-            - start: 66
-              end: 66
-    - method: POST
-      path: /api/admin/mcp-marketplace/:id/reviews
-      mount: /api/admin/mcp-marketplace
-      source:
-        spans:
-            - start: 73
-              end: 73
-    - method: GET
-      path: /api/admin/review-queue
-      mount: /api/admin/review-queue
-      source:
-        spans:
-            - start: 10
-              end: 10
-    - method: POST
-      path: /api/admin/review-queue
-      mount: /api/admin/review-queue
-      source:
-        spans:
-            - start: 29
-              end: 29
-    - method: POST
-      path: /api/admin/review-queue/:id/approve
-      mount: /api/admin/review-queue
-      source:
-        spans:
-            - start: 40
-              end: 40
-    - method: POST
-      path: /api/admin/review-queue/:id/reject
-      mount: /api/admin/review-queue
-      source:
-        spans:
-            - start: 48
-              end: 48
-    - method: GET
-      path: /api/admin/custom-stats
-      mount: /api/admin/custom-stats
-      source:
-        spans:
-            - start: 17
-              end: 17
-    - method: POST
-      path: /api/admin/custom-stats
-      mount: /api/admin/custom-stats
-      source:
-        spans:
-            - start: 35
-              end: 35
-    - method: GET
-      path: /api/admin/ab-tests
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 25
-              end: 25
-    - method: POST
-      path: /api/admin/ab-tests
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 40
-              end: 40
-    - method: POST
-      path: /api/admin/ab-tests/:id/start
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 51
-              end: 51
-    - method: POST
-      path: /api/admin/ab-tests/:id/stop
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 58
-              end: 58
-    - method: POST
-      path: /api/admin/ab-tests/:id/complete
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 65
-              end: 65
-    - method: GET
-      path: /api/admin/ab-tests/:id/variants
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 72
-              end: 72
-    - method: POST
-      path: /api/admin/ab-tests/:id/variants
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 79
-              end: 79
-    - method: POST
-      path: /api/admin/ab-tests/:id/events
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 90
-              end: 90
-    - method: GET
-      path: /api/admin/ab-tests/:id/results
-      mount: /api/admin/ab-tests
-      source:
-        spans:
-            - start: 101
-              end: 101
-    - method: GET
-      path: /api/admin/nps
-      mount: /api/admin/nps
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: POST
-      path: /api/admin/nps
-      mount: /api/admin/nps
-      source:
-        spans:
-            - start: 29
-              end: 29
-    - method: GET
-      path: /api/admin/nps/:id/responses
-      mount: /api/admin/nps
-      source:
-        spans:
-            - start: 40
-              end: 40
-    - method: POST
-      path: /api/admin/nps/:id/responses
-      mount: /api/admin/nps
-      source:
-        spans:
-            - start: 50
-              end: 50
-    - method: GET
-      path: /api/admin/nps/:id/stats
-      mount: /api/admin/nps
-      source:
-        spans:
-            - start: 61
-              end: 61
-    - method: GET
-      path: /api/admin/productivity
-      mount: /api/admin/productivity
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: POST
-      path: /api/admin/productivity
-      mount: /api/admin/productivity
-      source:
-        spans:
-            - start: 40
-              end: 40
-    - method: GET
-      path: /api/admin/productivity/summary
-      mount: /api/admin/productivity
-      source:
-        spans:
-            - start: 51
-              end: 51
-    - method: GET
-      path: /api/admin/white-label
-      mount: /api/admin/white-label
-      source:
-        spans:
-            - start: 21
-              end: 21
-    - method: POST
-      path: /api/admin/white-label
-      mount: /api/admin/white-label
-      source:
-        spans:
-            - start: 36
-              end: 36
-    - method: PUT
-      path: /api/admin/white-label/:id
-      mount: /api/admin/white-label
-      source:
-        spans:
-            - start: 47
-              end: 47
-    - method: DELETE
-      path: /api/admin/white-label/:id
-      mount: /api/admin/white-label
-      source:
-        spans:
-            - start: 72
-              end: 72
-    - method: GET
-      path: /api/admin/learning-metrics
-      mount: /api/admin/learning-metrics
-      source:
-        spans:
-            - start: 8
-              end: 8
-    - method: POST
-      path: /api/admin/learning-metrics/update-priorities
-      mount: /api/admin/learning-metrics
-      source:
-        spans:
-            - start: 114
-              end: 114
-    - method: GET
-      path: /api/admin/learning-metrics/agent-comparison
-      mount: /api/admin/learning-metrics
-      source:
-        spans:
-            - start: 120
-              end: 120
-    - method: GET
-      path: /api/admin/ai-providers
-      mount: /api/admin/ai-providers
-      source:
-        spans:
-            - start: 55
-              end: 55
-    - method: GET
-      path: /api/admin/ai-providers/:id
-      mount: /api/admin/ai-providers
-      source:
-        spans:
-            - start: 81
-              end: 81
-    - method: POST
-      path: /api/admin/ai-providers
-      mount: /api/admin/ai-providers
-      source:
-        spans:
-            - start: 102
-              end: 102
-    - method: PUT
-      path: /api/admin/ai-providers/:id
-      mount: /api/admin/ai-providers
-      source:
-        spans:
-            - start: 130
-              end: 130
-    - method: DELETE
-      path: /api/admin/ai-providers/:id
-      mount: /api/admin/ai-providers
-      source:
-        spans:
-            - start: 164
-              end: 164
-    - method: GET
-      path: /api/admin/missions/stats
-      mount: /api/admin/missions
-      source:
-        spans:
-            - start: 50
-              end: 50
-    - method: GET
-      path: /api/admin/missions
-      mount: /api/admin/missions
-      source:
-        spans:
-            - start: 94
-              end: 94
-    - method: GET
-      path: /api/admin/missions/:id
-      mount: /api/admin/missions
-      source:
-        spans:
-            - start: 152
-              end: 152
-    - method: POST
-      path: /api/admin/missions/:id/cancel
-      mount: /api/admin/missions
-      source:
-        spans:
-            - start: 192
-              end: 192
-    - method: POST
-      path: /api/admin/missions/:id/tasks/:taskId/retry
-      mount: /api/admin/missions
-      source:
-        spans:
-            - start: 223
-              end: 223
-    - method: GET
-      path: /api/api-keys
-      mount: /api/api-keys
-      source:
-        spans:
-            - start: 30
-              end: 30
-    - method: POST
-      path: /api/api-keys
-      mount: /api/api-keys
-      source:
-        spans:
-            - start: 48
-              end: 48
-    - method: DELETE
-      path: /api/api-keys/:id
-      mount: /api/api-keys
-      source:
-        spans:
-            - start: 93
-              end: 93
-    - method: GET
-      path: /api/external-agents
-      mount: /api/external-agents
-      source:
-        spans:
-            - start: 30
-              end: 30
-    - method: POST
-      path: /api/external-agents
-      mount: /api/external-agents
-      source:
-        spans:
-            - start: 48
-              end: 48
-    - method: GET
-      path: /api/external-agents/:id
-      mount: /api/external-agents
-      source:
-        spans:
-            - start: 109
-              end: 109
-    - method: PUT
-      path: /api/external-agents/:id
-      mount: /api/external-agents
-      source:
-        spans:
-            - start: 129
-              end: 129
-    - method: DELETE
-      path: /api/external-agents/:id
-      mount: /api/external-agents
-      source:
-        spans:
-            - start: 146
-              end: 146
-    - method: POST
-      path: /api/external-agents/:id/health-check
-      mount: /api/external-agents
-      source:
-        spans:
-            - start: 156
-              end: 156
-    - method: GET
-      path: /api/user/usage
-      mount: /api/user
-      source:
-        spans:
-            - start: 11
-              end: 11
-    - method: GET
-      path: /health
-      source:
-        spans:
-            - start: 321
-              end: 321
-    - method: GET
-      path: /metrics
-      source:
-        spans:
-            - start: 324
-              end: 324
+- method: POST
+  path: /api/auth/register
+  mount: /api/auth
+  source:
+    spans:
+    - start: 159
+      end: 159
+- method: POST
+  path: /api/auth/login
+  mount: /api/auth
+  source:
+    spans:
+    - start: 250
+      end: 250
+- method: POST
+  path: /api/auth/verify-email
+  mount: /api/auth
+  source:
+    spans:
+    - start: 325
+      end: 325
+- method: POST
+  path: /api/auth/resend-verification
+  mount: /api/auth
+  source:
+    spans:
+    - start: 366
+      end: 366
+- method: POST
+  path: /api/auth/forgot-password
+  mount: /api/auth
+  source:
+    spans:
+    - start: 405
+      end: 405
+- method: POST
+  path: /api/auth/reset-password
+  mount: /api/auth
+  source:
+    spans:
+    - start: 445
+      end: 445
+- method: POST
+  path: /api/auth/change-password
+  mount: /api/auth
+  source:
+    spans:
+    - start: 484
+      end: 484
+- method: POST
+  path: /api/auth/delete-account
+  mount: /api/auth
+  source:
+    spans:
+    - start: 531
+      end: 531
+- method: PUT
+  path: /api/auth/profile
+  mount: /api/auth
+  source:
+    spans:
+    - start: 565
+      end: 565
+- method: GET
+  path: /api/auth/me
+  mount: /api/auth
+  source:
+    spans:
+    - start: 601
+      end: 601
+- method: POST
+  path: /api/auth/refresh
+  mount: /api/auth
+  source:
+    spans:
+    - start: 628
+      end: 628
+- method: POST
+  path: /api/auth/logout
+  mount: /api/auth
+  source:
+    spans:
+    - start: 669
+      end: 669
+- method: POST
+  path: /api/auth/logout-all
+  mount: /api/auth
+  source:
+    spans:
+    - start: 681
+      end: 681
+- method: POST
+  path: /api/auth/dev/setup
+  mount: /api/auth
+  source:
+    spans:
+    - start: 704
+      end: 704
+- method: GET
+  path: /api/oauth/github
+  mount: /api/oauth
+  source:
+    spans:
+    - start: 16
+      end: 16
+- method: GET
+  path: /api/oauth/github/callback
+  mount: /api/oauth
+  source:
+    spans:
+    - start: 29
+      end: 29
+- method: GET
+  path: /api/oauth/google
+  mount: /api/oauth
+  source:
+    spans:
+    - start: 72
+      end: 72
+- method: GET
+  path: /api/oauth/google/callback
+  mount: /api/oauth
+  source:
+    spans:
+    - start: 86
+      end: 86
+- method: POST
+  path: /api/dev/setup
+  mount: /api/dev
+  source:
+    spans:
+    - start: 13
+      end: 13
+    - start: 102
+      end: 102
+- method: POST
+  path: /api/dev/login
+  mount: /api/dev
+  source:
+    spans:
+    - start: 112
+      end: 112
+- method: POST
+  path: /api/devices/pair/verify
+  source:
+    spans:
+    - start: 173
+      end: 173
+- method: GET
+  path: /api/bridge/permission-rules
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 29
+      end: 29
+- method: GET
+  path: /api/bridge/agents/:id
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 47
+      end: 47
+- method: POST
+  path: /api/bridge/sessions
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 68
+      end: 68
+- method: DELETE
+  path: /api/bridge/sessions/:id
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 118
+      end: 118
+- method: POST
+  path: /api/bridge/messages
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 140
+      end: 140
+- method: POST
+  path: /api/bridge/crash
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 163
+      end: 163
+- method: GET
+  path: /api/bridge/update-check
+  mount: /api/bridge
+  source:
+    spans:
+    - start: 201
+      end: 201
+- method: POST
+  path: /api/errors/report
+  mount: /api/errors
+  source:
+    spans:
+    - start: 28
+      end: 28
+- method: GET
+  path: /a2a/.well-known/agent.json
+  mount: /a2a
+  source:
+    spans:
+    - start: 142
+      end: 142
+- method: POST
+  path: /a2a
+  mount: /a2a
+  source:
+    spans:
+    - start: 194
+      end: 194
+- method: POST
+  path: /api/webhooks/creem
+  mount: /api/webhooks/creem
+  source:
+    spans:
+    - start: 16
+      end: 16
+- method: GET
+  path: /api/devices
+  mount: /api/devices
+  source:
+    spans:
+    - start: 33
+      end: 33
+- method: POST
+  path: /api/devices
+  mount: /api/devices
+  source:
+    spans:
+    - start: 53
+      end: 53
+- method: POST
+  path: /api/devices/pair/generate
+  mount: /api/devices
+  source:
+    spans:
+    - start: 81
+      end: 81
+- method: GET
+  path: /api/devices/pair/status/:code
+  mount: /api/devices
+  source:
+    spans:
+    - start: 100
+      end: 100
+- method: PATCH
+  path: /api/devices/:id
+  mount: /api/devices
+  source:
+    spans:
+    - start: 128
+      end: 128
+- method: DELETE
+  path: /api/devices/:id
+  mount: /api/devices
+  source:
+    spans:
+    - start: 150
+      end: 150
+- method: GET
+  path: /api/devices/:id/connection
+  mount: /api/devices
+  source:
+    spans:
+    - start: 165
+      end: 165
+- method: POST
+  path: /api/devices/:id/regenerate-token
+  mount: /api/devices
+  source:
+    spans:
+    - start: 185
+      end: 185
+- method: POST
+  path: /api/devices/:id/pair-code
+  mount: /api/devices
+  source:
+    spans:
+    - start: 205
+      end: 205
+- method: GET
+  path: /api/devices/:id/acp-status
+  mount: /api/devices
+  source:
+    spans:
+    - start: 231
+      end: 231
+- method: POST
+  path: /api/devices/:id/restart
+  mount: /api/devices
+  source:
+    spans:
+    - start: 296
+      end: 296
+- method: POST
+  path: /api/devices/:id/heartbeat
+  mount: /api/devices
+  source:
+    spans:
+    - start: 336
+      end: 336
+- method: GET
+  path: /api/sessions/stats
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 13
+      end: 13
+- method: POST
+  path: /api/sessions
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 62
+      end: 62
+- method: GET
+  path: /api/sessions
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 184
+      end: 184
+- method: POST
+  path: /api/sessions/:id/end
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 286
+      end: 286
+- method: POST
+  path: /api/sessions/cleanup/:deviceId
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 324
+      end: 324
+- method: POST
+  path: /api/sessions/admin/cleanup
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 384
+      end: 384
+- method: GET
+  path: /api/sessions/admin/integrity
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 484
+      end: 484
+- method: PATCH
+  path: /api/sessions/:id
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 537
+      end: 537
+- method: PATCH
+  path: /api/sessions/:id/messages/:msgId
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 597
+      end: 597
+- method: POST
+  path: /api/sessions/:id/messages
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 645
+      end: 645
+- method: GET
+  path: /api/sessions/:id/messages
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 700
+      end: 700
+- method: POST
+  path: /api/sessions/:id/messages/batch
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 759
+      end: 759
+- method: DELETE
+  path: /api/sessions/:id/messages
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 809
+      end: 809
+- method: GET
+  path: /api/sessions/:id
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 846
+      end: 846
+- method: DELETE
+  path: /api/sessions/:id
+  mount: /api/sessions
+  source:
+    spans:
+    - start: 938
+      end: 938
+- method: GET
+  path: /api/prompts
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 12
+      end: 12
+- method: POST
+  path: /api/prompts
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 24
+      end: 24
+- method: PUT
+  path: /api/prompts/:id
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 56
+      end: 56
+- method: DELETE
+  path: /api/prompts/:id
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 78
+      end: 78
+- method: POST
+  path: /api/prompts/:id/use
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 93
+      end: 93
+- method: GET
+  path: /api/prompts/:id/versions
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 106
+      end: 106
+- method: POST
+  path: /api/prompts/:id/versions
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 121
+      end: 121
+- method: POST
+  path: /api/prompts/:id/rollback/:version
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 137
+      end: 137
+- method: POST
+  path: /api/prompts/:id/rate
+  mount: /api/prompts
+  source:
+    spans:
+    - start: 156
+      end: 156
+- method: GET
+  path: /api/agents
+  mount: /api/agents
+  source:
+    spans:
+    - start: 11
+      end: 11
+- method: GET
+  path: /api/agents/available
+  mount: /api/agents
+  source:
+    spans:
+    - start: 27
+      end: 27
+- method: GET
+  path: /api/agents/:id
+  mount: /api/agents
+  source:
+    spans:
+    - start: 34
+      end: 34
+- method: POST
+  path: /api/agents/:id/preview
+  mount: /api/agents
+  source:
+    spans:
+    - start: 50
+      end: 50
+- method: POST
+  path: /api/agents
+  mount: /api/agents
+  source:
+    spans:
+    - start: 66
+      end: 66
+- method: PUT
+  path: /api/agents/:id
+  mount: /api/agents
+  source:
+    spans:
+    - start: 103
+      end: 103
+- method: DELETE
+  path: /api/agents/:id
+  mount: /api/agents
+  source:
+    spans:
+    - start: 136
+      end: 136
+- method: GET
+  path: /api/skills
+  mount: /api/skills
+  source:
+    spans:
+    - start: 10
+      end: 10
+- method: GET
+  path: /api/skills/mine
+  mount: /api/skills
+  source:
+    spans:
+    - start: 21
+      end: 21
+- method: GET
+  path: /api/skills/search
+  mount: /api/skills
+  source:
+    spans:
+    - start: 32
+      end: 32
+- method: GET
+  path: /api/skills/:id
+  mount: /api/skills
+  source:
+    spans:
+    - start: 45
+      end: 45
+- method: POST
+  path: /api/skills
+  mount: /api/skills
+  source:
+    spans:
+    - start: 60
+      end: 60
+- method: PUT
+  path: /api/skills/:id
+  mount: /api/skills
+  source:
+    spans:
+    - start: 97
+      end: 97
+- method: DELETE
+  path: /api/skills/:id
+  mount: /api/skills
+  source:
+    spans:
+    - start: 130
+      end: 130
+- method: POST
+  path: /api/skills/import
+  mount: /api/skills
+  source:
+    spans:
+    - start: 156
+      end: 156
+- method: POST
+  path: /api/skills/export
+  mount: /api/skills
+  source:
+    spans:
+    - start: 220
+      end: 220
+- method: GET
+  path: /api/rules
+  mount: /api/rules
+  source:
+    spans:
+    - start: 33
+      end: 33
+- method: POST
+  path: /api/rules
+  mount: /api/rules
+  source:
+    spans:
+    - start: 44
+      end: 44
+- method: PUT
+  path: /api/rules/:id
+  mount: /api/rules
+  source:
+    spans:
+    - start: 87
+      end: 87
+- method: PUT
+  path: /api/rules/priorities
+  mount: /api/rules
+  source:
+    spans:
+    - start: 120
+      end: 120
+- method: DELETE
+  path: /api/rules/:id
+  mount: /api/rules
+  source:
+    spans:
+    - start: 131
+      end: 131
+- method: GET
+  path: /api/permissions
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 43
+      end: 43
+- method: GET
+  path: /api/permissions/stats
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 71
+      end: 71
+- method: GET
+  path: /api/permissions/:id
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 78
+      end: 78
+- method: POST
+  path: /api/permissions
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 89
+      end: 89
+- method: PATCH
+  path: /api/permissions/:id
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 112
+      end: 112
+- method: DELETE
+  path: /api/permissions/:id
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 131
+      end: 131
+- method: DELETE
+  path: /api/permissions
+  mount: /api/permissions
+  source:
+    spans:
+    - start: 142
+      end: 142
+- method: GET
+  path: /api/settings
+  mount: /api/settings
+  source:
+    spans:
+    - start: 9
+      end: 9
+- method: PUT
+  path: /api/settings
+  mount: /api/settings
+  source:
+    spans:
+    - start: 18
+      end: 18
+- method: PATCH
+  path: /api/settings
+  mount: /api/settings
+  source:
+    spans:
+    - start: 38
+      end: 38
+- method: GET
+  path: /api/export
+  mount: /api/export
+  source:
+    spans:
+    - start: 10
+      end: 10
+- method: GET
+  path: /api/export/:type
+  mount: /api/export
+  source:
+    spans:
+    - start: 20
+      end: 20
+- method: POST
+  path: /api/export/jobs
+  mount: /api/export
+  source:
+    spans:
+    - start: 56
+      end: 56
+- method: GET
+  path: /api/export/jobs/:jobId
+  mount: /api/export
+  source:
+    spans:
+    - start: 109
+      end: 109
+- method: DELETE
+  path: /api/export/jobs/:jobId
+  mount: /api/export
+  source:
+    spans:
+    - start: 125
+      end: 125
+- method: GET
+  path: /api/audit
+  mount: /api/audit
+  source:
+    spans:
+    - start: 31
+      end: 31
+- method: GET
+  path: /api/audit/:id
+  mount: /api/audit
+  source:
+    spans:
+    - start: 65
+      end: 65
+- method: GET
+  path: /api/audit/summary/recent
+  mount: /api/audit
+  source:
+    spans:
+    - start: 80
+      end: 80
+- method: DELETE
+  path: /api/audit/cleanup
+  mount: /api/audit
+  source:
+    spans:
+    - start: 91
+      end: 91
+- method: POST
+  path: /api/batch/delete
+  mount: /api/batch
+  source:
+    spans:
+    - start: 16
+      end: 16
+- method: POST
+  path: /api/batch/rules/toggle
+  mount: /api/batch
+  source:
+    spans:
+    - start: 97
+      end: 97
+- method: POST
+  path: /api/batch/permissions/respond
+  mount: /api/batch
+  source:
+    spans:
+    - start: 124
+      end: 124
+- method: GET
+  path: /api/missions
+  mount: /api/missions
+  source:
+    spans:
+    - start: 50
+      end: 50
+- method: POST
+  path: /api/missions
+  mount: /api/missions
+  source:
+    spans:
+    - start: 58
+      end: 58
+- method: GET
+  path: /api/missions/agent-metrics
+  mount: /api/missions
+  source:
+    spans:
+    - start: 159
+      end: 159
+- method: GET
+  path: /api/missions/online-devices
+  mount: /api/missions
+  source:
+    spans:
+    - start: 166
+      end: 166
+- method: GET
+  path: /api/missions/routing-rules
+  mount: /api/missions
+  source:
+    spans:
+    - start: 201
+      end: 201
+- method: PUT
+  path: /api/missions/routing-rules
+  mount: /api/missions
+  source:
+    spans:
+    - start: 207
+      end: 207
+- method: POST
+  path: /api/missions/routing-rules/update-priorities
+  mount: /api/missions
+  source:
+    spans:
+    - start: 215
+      end: 215
+- method: GET
+  path: /api/missions/learning-metrics
+  mount: /api/missions
+  source:
+    spans:
+    - start: 221
+      end: 221
+- method: POST
+  path: /api/missions/internal/orchestrator/alarm
+  mount: /api/missions
+  source:
+    spans:
+    - start: 236
+      end: 236
+- method: POST
+  path: /api/missions/internal/orchestrator/event
+  mount: /api/missions
+  source:
+    spans:
+    - start: 251
+      end: 251
+- method: POST
+  path: /api/missions/internal/planner/decompose
+  mount: /api/missions
+  source:
+    spans:
+    - start: 299
+      end: 299
+- method: GET
+  path: /api/missions/:id
+  mount: /api/missions
+  source:
+    spans:
+    - start: 463
+      end: 463
+- method: POST
+  path: /api/missions/:id/confirm
+  mount: /api/missions
+  source:
+    spans:
+    - start: 474
+      end: 474
+- method: POST
+  path: /api/missions/:id/pause
+  mount: /api/missions
+  source:
+    spans:
+    - start: 486
+      end: 486
+- method: POST
+  path: /api/missions/:id/resume
+  mount: /api/missions
+  source:
+    spans:
+    - start: 498
+      end: 498
+- method: POST
+  path: /api/missions/:id/cancel
+  mount: /api/missions
+  source:
+    spans:
+    - start: 510
+      end: 510
+- method: POST
+  path: /api/missions/:id/tasks/:taskId/cancel
+  mount: /api/missions
+  source:
+    spans:
+    - start: 522
+      end: 522
+- method: POST
+  path: /api/missions/:id/tasks/:taskId/retry
+  mount: /api/missions
+  source:
+    spans:
+    - start: 529
+      end: 529
+- method: PUT
+  path: /api/missions/:id/tasks/:taskId
+  mount: /api/missions
+  source:
+    spans:
+    - start: 559
+      end: 559
+- method: POST
+  path: /api/missions/:id/rerun
+  mount: /api/missions
+  source:
+    spans:
+    - start: 577
+      end: 577
+- method: POST
+  path: /api/missions/:id/rate
+  mount: /api/missions
+  source:
+    spans:
+    - start: 690
+      end: 690
+- method: POST
+  path: /api/missions/:id/feedback
+  mount: /api/missions
+  source:
+    spans:
+    - start: 698
+      end: 698
+- method: GET
+  path: /api/missions/:missionId/questions
+  mount: /api/missions
+  source:
+    spans:
+    - start: 756
+      end: 756
+- method: POST
+  path: /api/missions/:missionId/tasks/:taskId/answer
+  mount: /api/missions
+  source:
+    spans:
+    - start: 763
+      end: 763
+- method: POST
+  path: /api/missions/:missionId/tasks/:taskId/guidance
+  mount: /api/missions
+  source:
+    spans:
+    - start: 777
+      end: 777
+- method: POST
+  path: /api/missions/:missionId/tasks/:taskId/merge
+  mount: /api/missions
+  source:
+    spans:
+    - start: 790
+      end: 790
+- method: POST
+  path: /api/missions/:missionId/merge-all
+  mount: /api/missions
+  source:
+    spans:
+    - start: 807
+      end: 807
+- method: GET
+  path: /api/missions/:missionId/devices
+  mount: /api/missions
+  source:
+    spans:
+    - start: 844
+      end: 844
+- method: DELETE
+  path: /api/missions/:id
+  mount: /api/missions
+  source:
+    spans:
+    - start: 851
+      end: 851
+- method: PUT
+  path: /api/missions/:missionId/state/:key
+  mount: /api/missions
+  source:
+    spans:
+    - start: 862
+      end: 862
+- method: GET
+  path: /api/missions/:missionId/state/:key
+  mount: /api/missions
+  source:
+    spans:
+    - start: 886
+      end: 886
+- method: GET
+  path: /api/missions/:missionId/state
+  mount: /api/missions
+  source:
+    spans:
+    - start: 903
+      end: 903
+- method: ALL
+  path: /api/workflows/jobs/*
+  source:
+    spans:
+    - start: 309
+      end: 309
+- method: GET
+  path: /api/teams
+  mount: /api/teams
+  source:
+    spans:
+    - start: 13
+      end: 13
+- method: POST
+  path: /api/teams
+  mount: /api/teams
+  source:
+    spans:
+    - start: 20
+      end: 20
+- method: GET
+  path: /api/teams/:id
+  mount: /api/teams
+  source:
+    spans:
+    - start: 31
+      end: 31
+- method: PUT
+  path: /api/teams/:id
+  mount: /api/teams
+  source:
+    spans:
+    - start: 39
+      end: 39
+- method: DELETE
+  path: /api/teams/:id
+  mount: /api/teams
+  source:
+    spans:
+    - start: 49
+      end: 49
+- method: GET
+  path: /api/teams/:id/members
+  mount: /api/teams
+  source:
+    spans:
+    - start: 58
+      end: 58
+- method: PUT
+  path: /api/teams/:id/members/:userId
+  mount: /api/teams
+  source:
+    spans:
+    - start: 67
+      end: 67
+- method: DELETE
+  path: /api/teams/:id/members/:userId
+  mount: /api/teams
+  source:
+    spans:
+    - start: 77
+      end: 77
+- method: POST
+  path: /api/teams/:id/invitations
+  mount: /api/teams
+  source:
+    spans:
+    - start: 86
+      end: 86
+- method: GET
+  path: /api/teams/:id/invitations
+  mount: /api/teams
+  source:
+    spans:
+    - start: 97
+      end: 97
+- method: DELETE
+  path: /api/teams/:id/invitations/:invId
+  mount: /api/teams
+  source:
+    spans:
+    - start: 106
+      end: 106
+- method: POST
+  path: /api/teams/invitations/accept
+  mount: /api/teams
+  source:
+    spans:
+    - start: 115
+      end: 115
+- method: POST
+  path: /api/teams/:id/devices
+  mount: /api/teams
+  source:
+    spans:
+    - start: 124
+      end: 124
+- method: DELETE
+  path: /api/teams/:id/devices/:deviceId
+  mount: /api/teams
+  source:
+    spans:
+    - start: 134
+      end: 134
+- method: GET
+  path: /api/teams/:id/devices
+  mount: /api/teams
+  source:
+    spans:
+    - start: 143
+      end: 143
+- method: GET
+  path: /api/admin/billing/plans
+  mount: /api/admin/billing/plans
+  source:
+    spans:
+    - start: 23
+      end: 23
+- method: GET
+  path: /api/admin/billing/plans/:id
+  mount: /api/admin/billing/plans
+  source:
+    spans:
+    - start: 41
+      end: 41
+- method: POST
+  path: /api/admin/billing/plans
+  mount: /api/admin/billing/plans
+  source:
+    spans:
+    - start: 57
+      end: 57
+- method: PUT
+  path: /api/admin/billing/plans/:id
+  mount: /api/admin/billing/plans
+  source:
+    spans:
+    - start: 83
+      end: 83
+- method: DELETE
+  path: /api/admin/billing/plans/:id
+  mount: /api/admin/billing/plans
+  source:
+    spans:
+    - start: 148
+      end: 148
+- method: GET
+  path: /api/admin/billing/subscriptions
+  mount: /api/admin/billing/subscriptions
+  source:
+    spans:
+    - start: 20
+      end: 20
+- method: GET
+  path: /api/admin/billing/subscriptions/:id
+  mount: /api/admin/billing/subscriptions
+  source:
+    spans:
+    - start: 69
+      end: 69
+- method: PUT
+  path: /api/admin/billing/subscriptions/:id
+  mount: /api/admin/billing/subscriptions
+  source:
+    spans:
+    - start: 95
+      end: 95
+- method: POST
+  path: /api/admin/billing/subscriptions/:id/cancel
+  mount: /api/admin/billing/subscriptions
+  source:
+    spans:
+    - start: 148
+      end: 148
+- method: GET
+  path: /api/admin/billing/invoices
+  mount: /api/admin/billing/invoices
+  source:
+    spans:
+    - start: 41
+      end: 41
+- method: GET
+  path: /api/admin/billing/invoices/:id
+  mount: /api/admin/billing/invoices
+  source:
+    spans:
+    - start: 87
+      end: 87
+- method: POST
+  path: /api/admin/billing/invoices
+  mount: /api/admin/billing/invoices
+  source:
+    spans:
+    - start: 109
+      end: 109
+- method: PUT
+  path: /api/admin/billing/invoices/:id
+  mount: /api/admin/billing/invoices
+  source:
+    spans:
+    - start: 135
+      end: 135
+- method: POST
+  path: /api/admin/billing/invoices/:id/pay
+  mount: /api/admin/billing/invoices
+  source:
+    spans:
+    - start: 179
+      end: 179
+- method: POST
+  path: /api/admin/billing/invoices/:id/void
+  mount: /api/admin/billing/invoices
+  source:
+    spans:
+    - start: 200
+      end: 200
+- method: GET
+  path: /api/admin/billing/payments
+  mount: /api/admin/billing/payments
+  source:
+    spans:
+    - start: 11
+      end: 11
+- method: GET
+  path: /api/admin/billing/payments/:id
+  mount: /api/admin/billing/payments
+  source:
+    spans:
+    - start: 63
+      end: 63
+- method: POST
+  path: /api/admin/billing/payments
+  mount: /api/admin/billing/payments
+  source:
+    spans:
+    - start: 87
+      end: 87
+- method: PUT
+  path: /api/admin/billing/payments/:id/status
+  mount: /api/admin/billing/payments
+  source:
+    spans:
+    - start: 120
+      end: 120
+- method: GET
+  path: /api/admin/settings
+  mount: /api/admin/settings
+  source:
+    spans:
+    - start: 18
+      end: 18
+- method: GET
+  path: /api/admin/settings/:key
+  mount: /api/admin/settings
+  source:
+    spans:
+    - start: 51
+      end: 51
+- method: PUT
+  path: /api/admin/settings/:key
+  mount: /api/admin/settings
+  source:
+    spans:
+    - start: 67
+      end: 67
+- method: GET
+  path: /api/admin/settings/:key/history
+  mount: /api/admin/settings
+  source:
+    spans:
+    - start: 108
+      end: 108
+- method: POST
+  path: /api/admin/settings/:key/rollback
+  mount: /api/admin/settings
+  source:
+    spans:
+    - start: 137
+      end: 137
+- method: DELETE
+  path: /api/admin/settings/:key
+  mount: /api/admin/settings
+  source:
+    spans:
+    - start: 182
+      end: 182
+- method: GET
+  path: /api/admin/feedback
+  mount: /api/admin/feedback
+  source:
+    spans:
+    - start: 18
+      end: 18
+- method: GET
+  path: /api/admin/feedback/:id
+  mount: /api/admin/feedback
+  source:
+    spans:
+    - start: 81
+      end: 81
+- method: PUT
+  path: /api/admin/feedback/:id
+  mount: /api/admin/feedback
+  source:
+    spans:
+    - start: 103
+      end: 103
+- method: POST
+  path: /api/admin/feedback/:id/assign
+  mount: /api/admin/feedback
+  source:
+    spans:
+    - start: 148
+      end: 148
+- method: DELETE
+  path: /api/admin/feedback/:id
+  mount: /api/admin/feedback
+  source:
+    spans:
+    - start: 178
+      end: 178
+- method: GET
+  path: /api/admin/blacklist
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 28
+      end: 28
+- method: GET
+  path: /api/admin/blacklist/check
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 79
+      end: 79
+- method: GET
+  path: /api/admin/blacklist/:id
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 100
+      end: 100
+- method: POST
+  path: /api/admin/blacklist
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 116
+      end: 116
+- method: POST
+  path: /api/admin/blacklist/batch
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 150
+      end: 150
+- method: DELETE
+  path: /api/admin/blacklist/:id
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 202
+      end: 202
+- method: POST
+  path: /api/admin/blacklist/clean-expired
+  mount: /api/admin/blacklist
+  source:
+    spans:
+    - start: 220
+      end: 220
+- method: GET
+  path: /api/admin/analytics/overview
+  mount: /api/admin/analytics
+  source:
+    spans:
+    - start: 12
+      end: 12
+- method: GET
+  path: /api/admin/analytics/users
+  mount: /api/admin/analytics
+  source:
+    spans:
+    - start: 79
+      end: 79
+- method: GET
+  path: /api/admin/analytics/usage
+  mount: /api/admin/analytics
+  source:
+    spans:
+    - start: 122
+      end: 122
+- method: GET
+  path: /api/admin/analytics/funnel
+  mount: /api/admin/analytics
+  source:
+    spans:
+    - start: 169
+      end: 169
+- method: POST
+  path: /api/admin/analytics/events
+  mount: /api/admin/analytics
+  source:
+    spans:
+    - start: 209
+      end: 209
+- method: GET
+  path: /api/admin/compliance/reports
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 32
+      end: 32
+- method: POST
+  path: /api/admin/compliance/reports
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 71
+      end: 71
+- method: GET
+  path: /api/admin/compliance/reports/:id
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 87
+      end: 87
+- method: GET
+  path: /api/admin/compliance/check
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 103
+      end: 103
+- method: GET
+  path: /api/admin/compliance/retention
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 164
+      end: 164
+- method: POST
+  path: /api/admin/compliance/retention
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 175
+      end: 175
+- method: PUT
+  path: /api/admin/compliance/retention/:id
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 191
+      end: 191
+- method: DELETE
+  path: /api/admin/compliance/retention/:id
+  mount: /api/admin/compliance
+  source:
+    spans:
+    - start: 235
+      end: 235
+- method: GET
+  path: /api/admin/content
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 23
+      end: 23
+- method: GET
+  path: /api/admin/content/:id
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 66
+      end: 66
+- method: POST
+  path: /api/admin/content
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 82
+      end: 82
+- method: PUT
+  path: /api/admin/content/:id
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 111
+      end: 111
+- method: POST
+  path: /api/admin/content/:id/publish
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 159
+      end: 159
+- method: POST
+  path: /api/admin/content/:id/unpublish
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 181
+      end: 181
+- method: POST
+  path: /api/admin/content/:id/archive
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 201
+      end: 201
+- method: DELETE
+  path: /api/admin/content/:id
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 221
+      end: 221
+- method: GET
+  path: /api/admin/content/moderation
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 231
+      end: 231
+- method: POST
+  path: /api/admin/content/moderation/:id
+  mount: /api/admin/content
+  source:
+    spans:
+    - start: 263
+      end: 263
+- method: GET
+  path: /api/admin/ai-comparison/models
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 42
+      end: 42
+- method: GET
+  path: /api/admin/ai-comparison/metrics
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 58
+      end: 58
+- method: GET
+  path: /api/admin/ai-comparison/compare
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 99
+      end: 99
+- method: POST
+  path: /api/admin/ai-comparison/metrics
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 159
+      end: 159
+- method: GET
+  path: /api/admin/ai-comparison/reports
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 189
+      end: 189
+- method: POST
+  path: /api/admin/ai-comparison/reports
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 214
+      end: 214
+- method: GET
+  path: /api/admin/ai-comparison/reports/:id
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 279
+      end: 279
+- method: DELETE
+  path: /api/admin/ai-comparison/reports/:id
+  mount: /api/admin/ai-comparison
+  source:
+    spans:
+    - start: 295
+      end: 295
+- method: GET
+  path: /api/admin/cli-health/overview
+  mount: /api/admin/cli-health
+  source:
+    spans:
+    - start: 9
+      end: 9
+- method: GET
+  path: /api/admin/cli-health/metrics
+  mount: /api/admin/cli-health
+  source:
+    spans:
+    - start: 45
+      end: 45
+- method: GET
+  path: /api/admin/budget
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 20
+      end: 20
+- method: POST
+  path: /api/admin/budget
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 39
+      end: 39
+- method: PUT
+  path: /api/admin/budget/:id
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 49
+      end: 49
+- method: DELETE
+  path: /api/admin/budget/:id
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 69
+      end: 69
+- method: GET
+  path: /api/admin/budget/costs
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 76
+      end: 76
+- method: GET
+  path: /api/admin/budget/costs/report
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 100
+      end: 100
+- method: GET
+  path: /api/admin/budget/costs/daily-trend
+  mount: /api/admin/budget
+  source:
+    spans:
+    - start: 127
+      end: 127
+- method: GET
+  path: /api/admin/ip-whitelist
+  mount: /api/admin/ip-whitelist
+  source:
+    spans:
+    - start: 18
+      end: 18
+- method: POST
+  path: /api/admin/ip-whitelist
+  mount: /api/admin/ip-whitelist
+  source:
+    spans:
+    - start: 36
+      end: 36
+- method: PUT
+  path: /api/admin/ip-whitelist/:id
+  mount: /api/admin/ip-whitelist
+  source:
+    spans:
+    - start: 53
+      end: 53
+- method: DELETE
+  path: /api/admin/ip-whitelist/:id
+  mount: /api/admin/ip-whitelist
+  source:
+    spans:
+    - start: 72
+      end: 72
+- method: POST
+  path: /api/admin/ip-whitelist/check
+  mount: /api/admin/ip-whitelist
+  source:
+    spans:
+    - start: 78
+      end: 78
+- method: GET
+  path: /api/admin/org-policies
+  mount: /api/admin/org-policies
+  source:
+    spans:
+    - start: 18
+      end: 18
+- method: GET
+  path: /api/admin/org-policies/:id
+  mount: /api/admin/org-policies
+  source:
+    spans:
+    - start: 37
+      end: 37
+- method: POST
+  path: /api/admin/org-policies
+  mount: /api/admin/org-policies
+  source:
+    spans:
+    - start: 44
+      end: 44
+- method: PUT
+  path: /api/admin/org-policies/:id
+  mount: /api/admin/org-policies
+  source:
+    spans:
+    - start: 54
+      end: 54
+- method: DELETE
+  path: /api/admin/org-policies/:id
+  mount: /api/admin/org-policies
+  source:
+    spans:
+    - start: 74
+      end: 74
+- method: GET
+  path: /api/admin/sso
+  mount: /api/admin/sso
+  source:
+    spans:
+    - start: 16
+      end: 16
+- method: POST
+  path: /api/admin/sso
+  mount: /api/admin/sso
+  source:
+    spans:
+    - start: 30
+      end: 30
+- method: PUT
+  path: /api/admin/sso/:id
+  mount: /api/admin/sso
+  source:
+    spans:
+    - start: 40
+      end: 40
+- method: DELETE
+  path: /api/admin/sso/:id
+  mount: /api/admin/sso
+  source:
+    spans:
+    - start: 60
+      end: 60
+- method: GET
+  path: /api/admin/audit-export
+  mount: /api/admin/audit-export
+  source:
+    spans:
+    - start: 9
+      end: 9
+- method: POST
+  path: /api/admin/audit-export
+  mount: /api/admin/audit-export
+  source:
+    spans:
+    - start: 23
+      end: 23
+- method: GET
+  path: /api/admin/audit-export/:id
+  mount: /api/admin/audit-export
+  source:
+    spans:
+    - start: 35
+      end: 35
+- method: DELETE
+  path: /api/admin/audit-export/:id
+  mount: /api/admin/audit-export
+  source:
+    spans:
+    - start: 42
+      end: 42
+- method: GET
+  path: /api/admin/coupons
+  mount: /api/admin/coupons
+  source:
+    spans:
+    - start: 28
+      end: 28
+- method: POST
+  path: /api/admin/coupons
+  mount: /api/admin/coupons
+  source:
+    spans:
+    - start: 42
+      end: 42
+- method: PUT
+  path: /api/admin/coupons/:id
+  mount: /api/admin/coupons
+  source:
+    spans:
+    - start: 53
+      end: 53
+- method: DELETE
+  path: /api/admin/coupons/:id
+  mount: /api/admin/coupons
+  source:
+    spans:
+    - start: 72
+      end: 72
+- method: POST
+  path: /api/admin/coupons/:id/validate
+  mount: /api/admin/coupons
+  source:
+    spans:
+    - start: 78
+      end: 78
+- method: GET
+  path: /api/admin/segments
+  mount: /api/admin/segments
+  source:
+    spans:
+    - start: 21
+      end: 21
+- method: POST
+  path: /api/admin/segments
+  mount: /api/admin/segments
+  source:
+    spans:
+    - start: 47
+      end: 47
+- method: GET
+  path: /api/admin/segments/:id
+  mount: /api/admin/segments
+  source:
+    spans:
+    - start: 61
+      end: 61
+- method: PUT
+  path: /api/admin/segments/:id
+  mount: /api/admin/segments
+  source:
+    spans:
+    - start: 77
+      end: 77
+- method: DELETE
+  path: /api/admin/segments/:id
+  mount: /api/admin/segments
+  source:
+    spans:
+    - start: 91
+      end: 91
+- method: GET
+  path: /api/admin/remote-logs
+  mount: /api/admin/remote-logs
+  source:
+    spans:
+    - start: 9
+      end: 9
+- method: POST
+  path: /api/admin/remote-logs
+  mount: /api/admin/remote-logs
+  source:
+    spans:
+    - start: 32
+      end: 32
+- method: GET
+  path: /api/admin/remote-logs/stats
+  mount: /api/admin/remote-logs
+  source:
+    spans:
+    - start: 43
+      end: 43
+- method: GET
+  path: /api/admin/diagnostics
+  mount: /api/admin/diagnostics
+  source:
+    spans:
+    - start: 8
+      end: 8
+- method: GET
+  path: /api/admin/diagnostics/health
+  mount: /api/admin/diagnostics
+  source:
+    spans:
+    - start: 16
+      end: 16
+- method: POST
+  path: /api/admin/diagnostics/check
+  mount: /api/admin/diagnostics
+  source:
+    spans:
+    - start: 43
+      end: 43
+- method: GET
+  path: /api/admin/database-ops
+  mount: /api/admin/database-ops
+  source:
+    spans:
+    - start: 12
+      end: 12
+- method: POST
+  path: /api/admin/database-ops
+  mount: /api/admin/database-ops
+  source:
+    spans:
+    - start: 38
+      end: 38
+- method: GET
+  path: /api/admin/database-ops/:id
+  mount: /api/admin/database-ops
+  source:
+    spans:
+    - start: 52
+      end: 52
+- method: DELETE
+  path: /api/admin/database-ops/:id
+  mount: /api/admin/database-ops
+  source:
+    spans:
+    - start: 68
+      end: 68
+- method: GET
+  path: /api/admin/tenants
+  mount: /api/admin/tenants
+  source:
+    spans:
+    - start: 20
+      end: 20
+- method: POST
+  path: /api/admin/tenants
+  mount: /api/admin/tenants
+  source:
+    spans:
+    - start: 35
+      end: 35
+- method: GET
+  path: /api/admin/tenants/:id
+  mount: /api/admin/tenants
+  source:
+    spans:
+    - start: 46
+      end: 46
+- method: PUT
+  path: /api/admin/tenants/:id
+  mount: /api/admin/tenants
+  source:
+    spans:
+    - start: 54
+      end: 54
+- method: DELETE
+  path: /api/admin/tenants/:id
+  mount: /api/admin/tenants
+  source:
+    spans:
+    - start: 76
+      end: 76
+- method: GET
+  path: /api/admin/mcp-marketplace
+  mount: /api/admin/mcp-marketplace
+  source:
+    spans:
+    - start: 22
+      end: 22
+- method: POST
+  path: /api/admin/mcp-marketplace
+  mount: /api/admin/mcp-marketplace
+  source:
+    spans:
+    - start: 41
+      end: 41
+- method: POST
+  path: /api/admin/mcp-marketplace/:id/approve
+  mount: /api/admin/mcp-marketplace
+  source:
+    spans:
+    - start: 52
+      end: 52
+- method: POST
+  path: /api/admin/mcp-marketplace/:id/reject
+  mount: /api/admin/mcp-marketplace
+  source:
+    spans:
+    - start: 59
+      end: 59
+- method: POST
+  path: /api/admin/mcp-marketplace/:id/download
+  mount: /api/admin/mcp-marketplace
+  source:
+    spans:
+    - start: 66
+      end: 66
+- method: POST
+  path: /api/admin/mcp-marketplace/:id/reviews
+  mount: /api/admin/mcp-marketplace
+  source:
+    spans:
+    - start: 73
+      end: 73
+- method: GET
+  path: /api/admin/review-queue
+  mount: /api/admin/review-queue
+  source:
+    spans:
+    - start: 10
+      end: 10
+- method: POST
+  path: /api/admin/review-queue
+  mount: /api/admin/review-queue
+  source:
+    spans:
+    - start: 29
+      end: 29
+- method: POST
+  path: /api/admin/review-queue/:id/approve
+  mount: /api/admin/review-queue
+  source:
+    spans:
+    - start: 40
+      end: 40
+- method: POST
+  path: /api/admin/review-queue/:id/reject
+  mount: /api/admin/review-queue
+  source:
+    spans:
+    - start: 48
+      end: 48
+- method: GET
+  path: /api/admin/custom-stats
+  mount: /api/admin/custom-stats
+  source:
+    spans:
+    - start: 17
+      end: 17
+- method: POST
+  path: /api/admin/custom-stats
+  mount: /api/admin/custom-stats
+  source:
+    spans:
+    - start: 35
+      end: 35
+- method: GET
+  path: /api/admin/ab-tests
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 25
+      end: 25
+- method: POST
+  path: /api/admin/ab-tests
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 40
+      end: 40
+- method: POST
+  path: /api/admin/ab-tests/:id/start
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 51
+      end: 51
+- method: POST
+  path: /api/admin/ab-tests/:id/stop
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 58
+      end: 58
+- method: POST
+  path: /api/admin/ab-tests/:id/complete
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 65
+      end: 65
+- method: GET
+  path: /api/admin/ab-tests/:id/variants
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 72
+      end: 72
+- method: POST
+  path: /api/admin/ab-tests/:id/variants
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 79
+      end: 79
+- method: POST
+  path: /api/admin/ab-tests/:id/events
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 90
+      end: 90
+- method: GET
+  path: /api/admin/ab-tests/:id/results
+  mount: /api/admin/ab-tests
+  source:
+    spans:
+    - start: 101
+      end: 101
+- method: GET
+  path: /api/admin/nps
+  mount: /api/admin/nps
+  source:
+    spans:
+    - start: 16
+      end: 16
+- method: POST
+  path: /api/admin/nps
+  mount: /api/admin/nps
+  source:
+    spans:
+    - start: 29
+      end: 29
+- method: GET
+  path: /api/admin/nps/:id/responses
+  mount: /api/admin/nps
+  source:
+    spans:
+    - start: 40
+      end: 40
+- method: POST
+  path: /api/admin/nps/:id/responses
+  mount: /api/admin/nps
+  source:
+    spans:
+    - start: 50
+      end: 50
+- method: GET
+  path: /api/admin/nps/:id/stats
+  mount: /api/admin/nps
+  source:
+    spans:
+    - start: 61
+      end: 61
+- method: GET
+  path: /api/admin/productivity
+  mount: /api/admin/productivity
+  source:
+    spans:
+    - start: 20
+      end: 20
+- method: POST
+  path: /api/admin/productivity
+  mount: /api/admin/productivity
+  source:
+    spans:
+    - start: 40
+      end: 40
+- method: GET
+  path: /api/admin/productivity/summary
+  mount: /api/admin/productivity
+  source:
+    spans:
+    - start: 51
+      end: 51
+- method: GET
+  path: /api/admin/white-label
+  mount: /api/admin/white-label
+  source:
+    spans:
+    - start: 21
+      end: 21
+- method: POST
+  path: /api/admin/white-label
+  mount: /api/admin/white-label
+  source:
+    spans:
+    - start: 36
+      end: 36
+- method: PUT
+  path: /api/admin/white-label/:id
+  mount: /api/admin/white-label
+  source:
+    spans:
+    - start: 47
+      end: 47
+- method: DELETE
+  path: /api/admin/white-label/:id
+  mount: /api/admin/white-label
+  source:
+    spans:
+    - start: 72
+      end: 72
+- method: GET
+  path: /api/admin/learning-metrics
+  mount: /api/admin/learning-metrics
+  source:
+    spans:
+    - start: 8
+      end: 8
+- method: POST
+  path: /api/admin/learning-metrics/update-priorities
+  mount: /api/admin/learning-metrics
+  source:
+    spans:
+    - start: 114
+      end: 114
+- method: GET
+  path: /api/admin/learning-metrics/agent-comparison
+  mount: /api/admin/learning-metrics
+  source:
+    spans:
+    - start: 120
+      end: 120
+- method: GET
+  path: /api/admin/ai-providers
+  mount: /api/admin/ai-providers
+  source:
+    spans:
+    - start: 55
+      end: 55
+- method: GET
+  path: /api/admin/ai-providers/:id
+  mount: /api/admin/ai-providers
+  source:
+    spans:
+    - start: 81
+      end: 81
+- method: POST
+  path: /api/admin/ai-providers
+  mount: /api/admin/ai-providers
+  source:
+    spans:
+    - start: 102
+      end: 102
+- method: PUT
+  path: /api/admin/ai-providers/:id
+  mount: /api/admin/ai-providers
+  source:
+    spans:
+    - start: 130
+      end: 130
+- method: DELETE
+  path: /api/admin/ai-providers/:id
+  mount: /api/admin/ai-providers
+  source:
+    spans:
+    - start: 164
+      end: 164
+- method: GET
+  path: /api/admin/missions/stats
+  mount: /api/admin/missions
+  source:
+    spans:
+    - start: 50
+      end: 50
+- method: GET
+  path: /api/admin/missions
+  mount: /api/admin/missions
+  source:
+    spans:
+    - start: 94
+      end: 94
+- method: GET
+  path: /api/admin/missions/:id
+  mount: /api/admin/missions
+  source:
+    spans:
+    - start: 152
+      end: 152
+- method: POST
+  path: /api/admin/missions/:id/cancel
+  mount: /api/admin/missions
+  source:
+    spans:
+    - start: 192
+      end: 192
+- method: POST
+  path: /api/admin/missions/:id/tasks/:taskId/retry
+  mount: /api/admin/missions
+  source:
+    spans:
+    - start: 223
+      end: 223
+- method: GET
+  path: /api/api-keys
+  mount: /api/api-keys
+  source:
+    spans:
+    - start: 30
+      end: 30
+- method: POST
+  path: /api/api-keys
+  mount: /api/api-keys
+  source:
+    spans:
+    - start: 48
+      end: 48
+- method: DELETE
+  path: /api/api-keys/:id
+  mount: /api/api-keys
+  source:
+    spans:
+    - start: 93
+      end: 93
+- method: GET
+  path: /api/external-agents
+  mount: /api/external-agents
+  source:
+    spans:
+    - start: 30
+      end: 30
+- method: POST
+  path: /api/external-agents
+  mount: /api/external-agents
+  source:
+    spans:
+    - start: 48
+      end: 48
+- method: GET
+  path: /api/external-agents/:id
+  mount: /api/external-agents
+  source:
+    spans:
+    - start: 109
+      end: 109
+- method: PUT
+  path: /api/external-agents/:id
+  mount: /api/external-agents
+  source:
+    spans:
+    - start: 129
+      end: 129
+- method: DELETE
+  path: /api/external-agents/:id
+  mount: /api/external-agents
+  source:
+    spans:
+    - start: 146
+      end: 146
+- method: POST
+  path: /api/external-agents/:id/health-check
+  mount: /api/external-agents
+  source:
+    spans:
+    - start: 156
+      end: 156
+- method: GET
+  path: /api/user/usage
+  mount: /api/user
+  source:
+    spans:
+    - start: 11
+      end: 11
+- method: GET
+  path: /health
+  source:
+    spans:
+    - start: 321
+      end: 321
+- method: GET
+  path: /metrics
+  source:
+    spans:
+    - start: 324
+      end: 324

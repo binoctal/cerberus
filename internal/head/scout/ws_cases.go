@@ -56,8 +56,11 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		cases = append(cases, wsCasesForService(svc, goal, covered[svc.Name], coveringCase[svc.Name])...)
 		// Real-process roles additionally get the L1 routed-session case: the
 		// emulated side driving a session THROUGH the real process (positive
-		// counterpart of the self-play suppression below).
+		// counterpart of the self-play suppression below)…
 		cases = append(cases, realE2ECases(svc, realRoles)...)
+		// …and the declarative request-response exchanges the real process
+		// answers itself (role `responses`), e.g. the sync/ack family.
+		cases = append(cases, realResponderCases(svc, realRoles)...)
 	}
 	// Real-process actors occupy their role with a real connection; drop every
 	// deterministic case that would ALSO connect as that role (emulated self-
