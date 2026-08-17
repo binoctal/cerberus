@@ -37,8 +37,8 @@ func TestRealResponderCases_DeclarativeExchanges(t *testing.T) {
 	if !containsStr(c.Steps[1].Message, `"deviceId":"{{bridge.deviceId}}"`) {
 		t.Errorf("deviceId routing placeholder missing: %q", c.Steps[1].Message)
 	}
-	if !containsStr(c.Steps[1].Message, `"version":"9"`) {
-		t.Errorf("request_payload default missing: %q", c.Steps[1].Message)
+	if !containsStr(c.Steps[1].Message, `"version":9`) {
+		t.Errorf("request_payload default missing (raw JSON number): %q", c.Steps[1].Message)
 	}
 	if c.Steps[2].Type != "config:synced" {
 		t.Errorf("reply receive = %q", c.Steps[2].Type)

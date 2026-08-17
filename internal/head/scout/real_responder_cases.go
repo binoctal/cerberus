@@ -1,6 +1,7 @@
 package scout
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -47,11 +48,14 @@ func realResponderCases(svc project.Service, realRoles map[string]bool) []agent.
 		}
 		for _, recvType := range slices.Sorted(maps.Keys(role.Responses)) {
 			replyType := role.Responses[recvType]
-			payload := map[string]string{
+			// request_payload values parse as raw JSON when they look like it
+			// (e.g. "[]" for the sync families whose handlers type-assert
+			// arrays); otherwise they ship as strings.
+			payload := map[string]any{
 				"deviceId": "{{" + roleName + ".deviceId}}",
 			}
 			for k, v := range role.RequestPayload[recvType] {
-				payload[k] = v
+				payload[k] = rawJSONOrString(v)
 			}
 			cases = append(cases, agent.TestCase{
 				ID:      wsCaseID(svc.Name, roleName+"-realresp", sanitizeTypeID(recvType)),
@@ -65,11 +69,31 @@ func realResponderCases(svc project.Service, realRoles map[string]bool) []agent.
 				Claims:   []string{wsRelayClaimID},
 				Steps: []agent.TestStep{
 					{Action: "ws_connect", ConnectionID: client, Role: client},
-					{Action: "ws_send", ConnectionID: client, Message: wsSendBody(recvType, payload)},
+					{Action: "ws_send", ConnectionID: client, Message: wsSendBodyAny(recvType, payload)},
 					{Action: "ws_receive", ConnectionID: client, Type: replyType, Timeout: 15},
 				},
 			})
 		}
 	}
 	return cases
+}
+
+// wsSendBodyAny marshals a send frame with an arbitrary-typed payload map
+// (wsSendBody stringifies every value; the sync families need real arrays).
+func wsSendBodyAny(typ string, payload map[string]any) string {
+	b, err := json.Marshal(map[string]any{"type": typ, "payload": payload})
+	if err != nil {
+		return fmt.Sprintf(`{"type":%q}`, typ)
+	}
+	return string(b)
+}
+
+// rawJSONOrString parses v as JSON when possible (arrays/objects/numbers),
+// else returns it verbatim as a string.
+func rawJSONOrString(v string) any {
+	var out any
+	if err := json.Unmarshal([]byte(v), &out); err == nil {
+		return out
+	}
+	return v
 }

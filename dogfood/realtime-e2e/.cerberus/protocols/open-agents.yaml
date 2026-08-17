@@ -26,6 +26,14 @@ roles:
     request_payload:
       session:start:
         deviceId: "{{bridge.deviceId}}"
+      # The sync handlers type-assert these payload fields as arrays and
+      # silently skip (no ack) when absent — empty arrays satisfy them.
+      rules:sync:
+        rules: "[]"
+      scanner:rules:sync:
+        rules: "[]"
+      mcp:sync:
+        servers: "[]"
     # Declarative request-response family the REAL bridge answers itself
     # (bridge handleMessage + DO ack whitelist). Drives realResponderCases.
     responses:
