@@ -26,14 +26,18 @@ func TestProjectConfig_Loads(t *testing.T) {
 		t.Fatalf("framing=%q want json", svc.Protocol.Framing)
 	}
 
-	if len(cfg.Actors) != 3 {
-		t.Fatalf("actors=%d want 3 (web + 2 real bridges)", len(cfg.Actors))
+	if len(cfg.Actors) != 4 {
+		t.Fatalf("actors=%d want 4 (web + admin + 2 real bridges)", len(cfg.Actors))
 	}
 	if cfg.Actors[0].Name != "web-actor" || (cfg.Actors[0].Fidelity != project.FidelityEmulated && cfg.Actors[0].Fidelity != "") {
 		t.Fatalf("web actor=%+v", cfg.Actors[0])
 	}
+	// admin-actor (HTTP-only superadmin JWT) sorts between web and bridges.
+	if cfg.Actors[1].Name != "admin-actor" {
+		t.Fatalf("actor[1]=%+v want admin-actor", cfg.Actors[1])
+	}
 	for i, want := range []string{"bridge-pty-1", "bridge-pty-2"} {
-		a := cfg.Actors[i+1]
+		a := cfg.Actors[i+2]
 		if a.Name != want || a.Fidelity != project.FidelityRealProcess || a.Process == nil {
 			t.Fatalf("actor[%d]=%+v", i+1, a)
 		}
