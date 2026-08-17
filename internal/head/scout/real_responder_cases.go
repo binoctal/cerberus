@@ -29,7 +29,9 @@ func realResponderCases(svc project.Service, realRoles map[string]bool) []agent.
 		if realRoles[roleName] {
 			continue
 		}
-		if r := svc.Protocol.Roles[roleName]; r != nil && r.CredentialRef != "" {
+		// HTTP-only roles carry a credential but never connect over WS —
+		// they exist for AuthRole injection, not as the emulated client.
+		if r := svc.Protocol.Roles[roleName]; r != nil && r.CredentialRef != "" && !r.HTTPOnly {
 			client = roleName
 			break
 		}

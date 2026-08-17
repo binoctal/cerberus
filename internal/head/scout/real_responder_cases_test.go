@@ -69,3 +69,25 @@ func containsStr(s, sub string) bool {
 	}
 	return false
 }
+
+// TestRealResponderCases_SkipsHTTPOnlyClient: an http_only role (credential
+// carrier for AuthRole injection, never WS-connects) must not be picked as
+// the emulated client even when its name sorts first.
+func TestRealResponderCases_SkipsHTTPOnlyClient(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "ws://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"admin":  {CredentialRef: "admin-actor", HTTPOnly: true},
+			"web":    {CredentialRef: "web-actor"},
+			"bridge": {CredentialRef: "bridge-pty-1", Responses: map[string]string{"config:sync": "config:synced"}},
+		}},
+	}
+	cases := realResponderCases(svc, map[string]bool{"bridge": true})
+	if len(cases) != 1 {
+		t.Fatalf("cases = %d, want 1", len(cases))
+	}
+	if cases[0].Steps[0].Role != "web" {
+		t.Errorf("client = %q, want web (http_only admin skipped)", cases[0].Steps[0].Role)
+	}
+}

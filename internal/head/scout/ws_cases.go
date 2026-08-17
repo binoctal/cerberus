@@ -139,7 +139,8 @@ func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCa
 		if realRoles[roleName] {
 			continue
 		}
-		if r := svc.Protocol.Roles[roleName]; r != nil && r.CredentialRef != "" {
+		// HTTP-only roles never connect over WS (AuthRole injection only).
+		if r := svc.Protocol.Roles[roleName]; r != nil && r.CredentialRef != "" && !r.HTTPOnly {
 			client = roleName
 			break
 		}

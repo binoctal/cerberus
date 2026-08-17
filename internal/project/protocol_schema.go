@@ -98,6 +98,10 @@ type ProtocolRole struct {
 	Subprotocols []string `yaml:"subprotocols,omitempty"`
 	// Handshake is the optional mandatory post-connect exchange.
 	Handshake *RoleHandshake `yaml:"handshake,omitempty"`
+	// HTTPOnly marks a role that never connects over WebSocket — it exists
+	// solely so HTTP steps can AuthRole-inject its credential (e.g. an admin
+	// JWT for the /api/admin route sweep). Client-role selection skips it.
+	HTTPOnly bool `yaml:"http_only,omitempty"`
 	// Responses maps a received message type to the reply type this role's test
 	// driver sends in response (received_type → reply_type). Drives the
 	// deterministic two-role request-response case generator. Empty ⇒ this role
