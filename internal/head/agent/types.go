@@ -100,6 +100,11 @@ type TestStep struct {
 	// http_request: expected response status; 0 ⇒ do not assert (rely on the
 	// executor's own success/ok gate).
 	ExpectStatus int `json:"expect_status,omitempty"`
+	// http_request: expected status CLASS (2xx|3xx|4xx|5xx|any) evaluated
+	// after ExpectStatus (exact status wins when both set). "any" passes on
+	// any HTTP response — transport errors (status 0) still fail, proving
+	// only reachability. An unknown value fails the step with an error.
+	ExpectStatusClass string `json:"expect_status_class,omitempty"`
 	// http_request: a declared role whose actor's HTTP token (http_login) is
 	// injected as Authorization: Bearer <token>. Empty ⇒ no auth injection
 	// (Headers must supply auth, if needed).

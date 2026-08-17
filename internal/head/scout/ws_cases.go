@@ -47,6 +47,9 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 	realRoles := realProcessRoles(cfg)
 	var cases []agent.TestCase
 	for _, svc := range cfg.Services {
+		// Vocab HTTP routes emit independently of any WS protocol — an
+		// http_routes-only service still gets its reachability sweep.
+		cases = append(cases, httpRouteCases(svc)...)
 		if svc.Protocol == nil || len(svc.Protocol.Roles) == 0 {
 			continue
 		}
@@ -332,7 +335,10 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	}
 	// Violation cases append AFTER the claim binding: negatives stay out of
 	// the claims ledger by design (spec Non-goals).
-	return append(cases, violationCases(svc)...)
+	cases = append(cases, violationCases(svc)...)
+	// Vocab HTTP routes: one bare-client reachability smoke each (auth not
+	// penetrated; any response credits the route — see http_route_cases.go).
+	return append(cases, httpRouteCases(svc)...)
 }
 
 // relayCoexistence resolves the deterministic peer-join relay cases against what

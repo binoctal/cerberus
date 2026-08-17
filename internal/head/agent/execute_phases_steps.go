@@ -65,6 +65,30 @@ func wsReceiveMatched(result types.ExecutorResult) bool {
 	return false
 }
 
+// statusInClass reports whether an HTTP status code falls in a declared class
+// ("2xx".."5xx", or "any" = every real status). Status 0 (transport error) is
+// in NO class — reachability means a response was received. An unknown class
+// name returns an error instead of being silently treated as "any".
+func statusInClass(class string, code int) (bool, error) {
+	switch class {
+	case "any":
+		return code >= 100 && code <= 599, nil
+	case "2xx", "3xx", "4xx", "5xx":
+		want := int(class[0]-'0') * 100
+		return code >= want && code < want+100, nil
+	default:
+		return false, fmt.Errorf("expect_status_class: unknown class %q (want 2xx|3xx|4xx|5xx|any)", class)
+	}
+}
+
+// statusClassError renders the statusClassIn failure reason.
+func statusClassError(class string, code int, err error) error {
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("expect_status_class %q: got status %d (transport errors carry status 0)", class, code)
+}
+
 // burstOrderKeys extracts one comparable key per matched frame for the
 // ordering dimension: the first scalar among seq/id/n found at the frame's
 // top level or inside payload (priority seq > id > n per level). When any
@@ -307,6 +331,19 @@ func (se *stepExecution) runSteps() StepResult {
 						Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}
 				}
 				continue // expected rejection observed: step passes
+			}
+		}
+		if s.Action == "http_request" && s.ExpectStatusClass != "" {
+			if hr, ok := result.(types.HTTPResult); ok {
+				ok2, cerr := statusInClass(s.ExpectStatusClass, hr.StatusCode)
+				if cerr != nil || !ok2 {
+					return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
+						Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence,
+						Error: statusClassError(s.ExpectStatusClass, hr.StatusCode, cerr)}
+				}
+				// Any response in the class proves reachability; transport
+				// errors (status 0) are in no class and fail above.
+				continue
 			}
 		}
 		if !result.Success() {

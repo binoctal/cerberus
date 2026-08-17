@@ -737,3 +737,38 @@ func TestStepEvidence_ReceiveCountAndOrder(t *testing.T) {
 		t.Errorf("MatchedOrder = %v, want [a 7] (top-level id, payload seq)", ev4.MatchedOrder)
 	}
 }
+
+func TestStatusInClass(t *testing.T) {
+	cases := []struct {
+		class string
+		code  int
+		want  bool
+		err   bool
+	}{
+		{"any", 200, true, false},
+		{"any", 401, true, false},
+		{"any", 503, true, false},
+		{"any", 0, false, false}, // transport error: in no class
+		{"4xx", 403, true, false},
+		{"4xx", 500, false, false},
+		{"2xx", 204, true, false},
+		{"2xx", 301, false, false},
+		{"ANY", 200, false, true}, // unknown value must error, not pass
+		{"6xx", 600, false, true},
+	}
+	for _, c := range cases {
+		got, err := statusInClass(c.class, c.code)
+		if c.err {
+			if err == nil {
+				t.Errorf("statusInClass(%q,%d): want error, got %v", c.class, c.code, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("statusInClass(%q,%d): unexpected error %v", c.class, c.code, err)
+		}
+		if got != c.want {
+			t.Errorf("statusInClass(%q,%d) = %v, want %v", c.class, c.code, got, c.want)
+		}
+	}
+}
