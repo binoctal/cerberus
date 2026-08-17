@@ -97,6 +97,16 @@ func TestMissionSendCases_Assembly(t *testing.T) {
 	if s == nil || !hasStep(s, "ws_connect", "web-2") {
 		t.Fatal("session:send needs a second web connection")
 	}
+	// No ws-only case may ship an unresolvable {{case.*}} placeholder: case
+	// params are only populated by http_request Capture steps, which none of
+	// these cases run — the literal would reach the bridge verbatim.
+	for _, c := range cases {
+		for _, st := range c.Steps {
+			if strings.Contains(st.Message, "{{case.") {
+				t.Fatalf("%s ships unresolvable placeholder in %q", c.ID, st.Message)
+			}
+		}
+	}
 }
 
 func TestMissionSendCases_NoBridgeReal_EmitsNothing(t *testing.T) {

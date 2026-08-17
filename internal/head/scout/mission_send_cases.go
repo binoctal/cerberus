@@ -16,6 +16,14 @@ import (
 // FromRole and whose ToRole is real). task_answer/task_guidance are NOT
 // emitted here: their effect is conditional (pendingQuestion / live session)
 // and they stay vocab partial marks.
+//
+// jobId is the literal "cerberus-wf-seed", NOT a {{case.*}} placeholder:
+// case params are only populated by http_request Capture steps, and these
+// ws-only cases would ship the placeholder verbatim. Routing is
+// payload.deviceId-only (room.ts:431-441); jobId is bridge-internal, so the
+// literal does not affect send-side credit or the task_started echo.
+const wfSeedJobID = "cerberus-wf-seed"
+
 func missionSendCases(svc project.Service, realRoles map[string]bool) []agent.TestCase {
 	if !realRoles["bridge"] || svc.Protocol == nil || svc.Vocabulary == nil {
 		return nil
@@ -38,7 +46,7 @@ func missionSendCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		payload := map[string]any{"deviceId": deviceID}
 		if e.send == "workflow:start" {
 			// bridge.go:2601-2627 emits task_started only per payload.tasks item.
-			payload["jobId"] = "{{case.missionId}}"
+			payload["jobId"] = wfSeedJobID
 			payload["tasks"] = []any{map[string]any{"id": "t-seed"}}
 		}
 		cases = append(cases, newCase(e.id, e.name, []agent.TestStep{
@@ -52,7 +60,7 @@ func missionSendCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			fmt.Sprintf("web sends %s at the real bridge (send-side credit; bridge logs only)", send),
 			[]agent.TestStep{
 				connect,
-				{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny(send, map[string]any{"deviceId": deviceID, "jobId": "{{case.missionId}}"})},
+				{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny(send, map[string]any{"deviceId": deviceID, "jobId": wfSeedJobID})},
 			}))
 	}
 	// web→web session:send — broadcast excludes the sender (room.ts:449-460),
