@@ -3,7 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -55,11 +59,12 @@ func newStepExecutionWithIdx(t *testing.T, tc *TestCase, wsIdx *WSProtocolIndex)
 	require.NoError(t, err)
 
 	return &stepExecution{
-		loop:    loop,
-		ctx:     ctx,
-		tc:      tc,
-		traceID: traceID,
-		start:   time.Now(),
+		loop:       loop,
+		ctx:        ctx,
+		tc:         tc,
+		traceID:    traceID,
+		start:      time.Now(),
+		caseParams: map[string]string{},
 	}
 }
 
@@ -770,5 +775,46 @@ func TestStatusInClass(t *testing.T) {
 		if got != c.want {
 			t.Errorf("statusInClass(%q,%d) = %v, want %v", c.class, c.code, got, c.want)
 		}
+	}
+}
+
+// newHTTPTestServer starts a plain net/http test server for runSteps
+// http_request chain tests (response capture -> later-step substitution).
+func newHTTPTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// TestRunStepsHTTPCaptureChain: a first http_request captures a nested id,
+// a second request consumes it in URL and body.
+func TestRunStepsHTTPCaptureChain(t *testing.T) {
+	var secondBody string
+	srv := newHTTPTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/one" {
+			_, _ = w.Write([]byte(`{"plan":{"id":"plan_abc"}}`))
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		secondBody = string(b)
+		_, _ = w.Write([]byte(`{}`))
+	})
+	tc := &TestCase{
+		ID: "tc-http-capture", Target: srv.URL, Action: "ws_flow",
+		Steps: []TestStep{
+			{Action: "http_request", URL: srv.URL + "/one", Method: "GET",
+				Capture: map[string]string{"plan.id": "planId"}},
+			{Action: "http_request", URL: srv.URL + "/two/{{case.planId}}", Method: "POST",
+				Body: `{"plan":"{{case.planId}}"}`, ExpectStatusClass: "2xx"},
+		},
+	}
+	se := newStepExecution(t, tc)
+	result := se.runSteps()
+	if result.Status != StepPassed {
+		t.Fatalf("status %s evidence %+v", result.Status, result.Evidence)
+	}
+	if !strings.Contains(secondBody, "plan_abc") {
+		t.Fatalf("captured value not forwarded: %q", secondBody)
 	}
 }

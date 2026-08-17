@@ -109,6 +109,10 @@ type TestStep struct {
 	// injected as Authorization: Bearer <token>. Empty ⇒ no auth injection
 	// (Headers must supply auth, if needed).
 	AuthRole string `json:"auth_role,omitempty"`
+	// http_request: response capture. Dot-path into the JSON response body
+	// -> per-case param name, substitutable in later steps as {{case.<name>}}
+	// (http_request URL/Body, ws_send Message).
+	Capture map[string]string `json:"capture,omitempty"`
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.

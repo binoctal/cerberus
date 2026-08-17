@@ -32,6 +32,11 @@ type stepExecution struct {
 	// unreachable target on some attempt is classified environmental even when a
 	// later, non-environmental attempt became the final judged result.
 	environmentalSeen bool
+	// caseParams holds values captured from earlier http_request response
+	// bodies (TestStep.Capture), substituted into later steps' URL/Body/Message
+	// as {{case.<name>}}. Initialized at construction so maps.Copy always has
+	// a destination.
+	caseParams map[string]string
 }
 
 // driftSkipThreshold is the consecutive-zero-call steer count at which the

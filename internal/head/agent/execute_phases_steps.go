@@ -3,6 +3,7 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"strconv"
 	"strings"
@@ -280,6 +281,36 @@ func suppressAwaitTypes(steps []TestStep) map[string][]string {
 	return out
 }
 
+// httpStepPassed evaluates the http_request explicit status gates. When a
+// gate applies and passes it is the step's ONLY success criterion — a declared
+// rejection (4xx/5xx) whose status matches passes even though the executor's
+// own ok gate is false for non-2xx (negative case family). The second return
+// is the failure reason to attach to the StepResult when passed is false
+// (nil for a plain expect_status mismatch). When no gate applies the
+// executor's own success gate decides.
+func httpStepPassed(s TestStep, result types.ExecutorResult) (bool, error) {
+	if s.ExpectStatus != 0 {
+		if hr, ok := result.(types.HTTPResult); ok {
+			if hr.StatusCode != s.ExpectStatus {
+				return false, nil
+			}
+			return true, nil
+		}
+	}
+	if s.ExpectStatusClass != "" {
+		if hr, ok := result.(types.HTTPResult); ok {
+			ok2, cerr := statusInClass(s.ExpectStatusClass, hr.StatusCode)
+			if cerr != nil || !ok2 {
+				return false, statusClassError(s.ExpectStatusClass, hr.StatusCode, cerr)
+			}
+			// Any response in the class proves reachability; transport errors
+			// (status 0) are in no class and fail above.
+			return true, nil
+		}
+	}
+	return result.Success(), nil
+}
+
 // runSteps executes a deterministic multi-step WS case: each step runs via the
 // shared executor under the case context (caseIDKey already set by executeStep).
 // Steps citing the SAME connection_id share one connection; steps citing
@@ -291,10 +322,14 @@ func suppressAwaitTypes(steps []TestStep) map[string][]string {
 func (se *stepExecution) runSteps() StepResult {
 	r := se.loop
 	suppress := suppressAwaitTypes(se.tc.Steps)
+	if se.caseParams == nil {
+		se.caseParams = map[string]string{}
+	}
 	var evidence []Evidence
 	var lastAction types.TypedAction
 	var lastResult types.ExecutorResult
 	for _, s := range se.tc.Steps {
+		s = substituteCaseParams(s, se.caseParams)
 		var action types.TypedAction
 		var err error
 		if s.Action == "http_request" {
@@ -319,32 +354,27 @@ func (se *stepExecution) runSteps() StepResult {
 		r.recordEvidence(se.ctx, se.traceID, "steps", action, result)
 		evidence = append(evidence, stepEvidence(s, result))
 		lastAction, lastResult = action, result
-		// http_request explicit status assertion: when expect_status is set, it
-		// IS the step's success gate — a declared rejection (4xx/5xx) whose
-		// status matches passes even though the executor's own ok gate is
-		// false for non-2xx (negative case family). A non-matching status
-		// still fails.
-		if s.Action == "http_request" && s.ExpectStatus != 0 {
-			if hr, ok := result.(types.HTTPResult); ok {
-				if hr.StatusCode != s.ExpectStatus {
-					return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
-						Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}
-				}
-				continue // expected rejection observed: step passes
+		if s.Action == "http_request" {
+			passed, gateErr := httpStepPassed(s, result)
+			if !passed {
+				return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
+					Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence,
+					Error: gateErr}
 			}
-		}
-		if s.Action == "http_request" && s.ExpectStatusClass != "" {
-			if hr, ok := result.(types.HTTPResult); ok {
-				ok2, cerr := statusInClass(s.ExpectStatusClass, hr.StatusCode)
-				if cerr != nil || !ok2 {
-					return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
-						Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence,
-						Error: statusClassError(s.ExpectStatusClass, hr.StatusCode, cerr)}
+			// Capture dot-paths from the response body into per-case params so
+			// later steps can consume server-generated ids ({{case.<name>}}).
+			// Missing paths are hard errors — a silently-wrong later request is
+			// worse than a clear failure here.
+			if len(s.Capture) > 0 {
+				if hr, ok := result.(types.HTTPResult); ok {
+					captured, err := captureFromHTTPBody(hr.Body, s.Capture)
+					if err != nil {
+						return se.failureResult(err, 1)
+					}
+					maps.Copy(se.caseParams, captured)
 				}
-				// Any response in the class proves reachability; transport
-				// errors (status 0) are in no class and fail above.
-				continue
 			}
+			continue
 		}
 		if !result.Success() {
 			return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,

@@ -18,6 +18,7 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		start:               time.Now(),
 		consecutiveTimeouts: 0,
 		recoverAttempts:     0,
+		caseParams:          map[string]string{},
 	}
 
 	// Surface per-case timeouts as analyzable diagnostics rather than a silent
