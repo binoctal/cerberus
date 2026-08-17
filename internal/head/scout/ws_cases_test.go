@@ -2,6 +2,7 @@ package scout
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -1348,6 +1349,41 @@ func TestViolationCases(t *testing.T) {
 			assert.NotContains(t, c.ID, "csrf")
 		}
 	})
+}
+
+// loadDogfoodVocab loads the dogfood realtime-e2e vocabulary via the same
+// project.LoadVocabulary the production loader uses (reuse, not reinvent).
+func loadDogfoodVocab(t *testing.T) *project.Vocabulary {
+	t.Helper()
+	path := filepath.Join("..", "..", "..", "dogfood", "realtime-e2e", ".cerberus", "vocab", "open-agents.vocab.yaml")
+	v, err := project.LoadVocabulary(path)
+	require.NoError(t, err, "dogfood vocab must parse: %s", path)
+	return v
+}
+
+// findVocabEdgeByType linear-scans a vocabulary for the (from, to, type) edge.
+func findVocabEdgeByType(t *testing.T, v *project.Vocabulary, from, to, typ string) project.VocabEdge {
+	t.Helper()
+	for _, e := range v.Edges {
+		if e.FromRole == from && e.ToRole == to && e.Type == typ {
+			return e
+		}
+	}
+	t.Fatalf("edge %s→%s %s not found in vocabulary", from, to, typ)
+	return project.VocabEdge{}
+}
+
+// TestWorkflowDeadTypesMarked: the two dead wire types (no emitter in
+// apps/api or bridge — spec §9) must carry unsupported marks so
+// requiredEdges drops them from the denominator.
+func TestWorkflowDeadTypesMarked(t *testing.T) {
+	vocab := loadDogfoodVocab(t)
+	for _, typ := range []string{"workflow:job_completed", "workflow:task_status_update"} {
+		e := findVocabEdgeByType(t, vocab, "bridge", "web", typ)
+		if !e.Unsupported {
+			t.Errorf("%s must be marked unsupported (dead type, DO-drop family)", typ)
+		}
+	}
 }
 
 // TestWSCasesEmulatedRolesUnaffected: with no real-process actors the output

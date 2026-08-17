@@ -476,6 +476,11 @@ edges:
     spans:
     - start: 395
       end: 395
+  unsupported: true
+  note: >-
+    Dead type: whitelisted in room.ts but no emitter in apps/api or bridge
+    (verified 2026-08-18). Completion is signalled by workflow:job_status /
+    workflow:state_updated, broadcast DO-side (known issue #5, DO-drop family).
 - from_role: bridge
   to_role: web
   type: workflow:task_result
@@ -541,6 +546,11 @@ edges:
     spans:
     - start: 395
       end: 395
+  unsupported: true
+  note: >-
+    Dead type: whitelisted in room.ts but no emitter in apps/api or bridge
+    (verified 2026-08-18). Completion is signalled by workflow:job_status /
+    workflow:state_updated, broadcast DO-side (known issue #5, DO-drop family).
 - from_role: bridge
   to_role: web
   type: workflow:merge_progress

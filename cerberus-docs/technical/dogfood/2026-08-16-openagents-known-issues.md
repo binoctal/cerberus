@@ -94,6 +94,25 @@ The same subsystem carries three names depending on layer:
 (HTTP) as one concept. Coverage attribution keyed on literal prefixes will
 under-count. The legacy redirect means both prefixes appear in logs.
 
+## 5. `workflow:job_completed` / `workflow:task_status_update` have no emitter
+
+Both types exist **only in the room.ts bridge→web whitelist**
+(`apps/api/src/realtime/room.ts:375` and `room.ts:381`) — no code path in
+apps/api or the Go bridge ever emits them. Completion and per-task status
+are signalled by different types, broadcast DO-side and outside the
+room.ts case handler:
+
+- `workflow:job_status` with `status: completed|failed`
+  (`apps/api/src/realtime/orchestrator.ts:949`, finalizeMissionIfDone)
+- `workflow:state_updated` (`orchestrator.ts:1073`)
+
+**Cerberus consequence:** no ws_receive can ever observe these two types —
+any case awaiting them fails on timeout. The dogfood vocab marks both
+bridge→web edges `unsupported: true` (2026-08-18), which drops them from
+the `requiredEdges` coverage denominator. Workflow success criteria must
+instead assert the out-of-band `workflow:job_status {status: completed}`
+frame.
+
 ---
 
 ## Re-verification
