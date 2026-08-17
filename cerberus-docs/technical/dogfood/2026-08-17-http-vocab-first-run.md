@@ -62,3 +62,37 @@ negative-family suite) before closing the drift question.
 2. Admin credential in dogfood project.yaml to unlock the 166-route admin
    block.
 3. Wider run for the drift split.
+
+---
+
+## Update 2026-08-17 (evening): route sweep generator live
+
+Branch `feat/http-route-generator` (c358963): `httpRouteCases` emits one
+bare-client reachability smoke per non-exempt vocab route
+(`expect_status_class: any` — transport errors fail, any response passes),
+honesty-tier expectations, `ALL`→GET, emitted independent of the WS protocol
+gate.
+
+Second live run (same setup, 24m25s, ~194K tokens):
+
+| Metric | Before sweep | After sweep |
+|---|---|---|
+| Verdicts | 2 pass | **676 pass / 0 fail / 0 uncertain** |
+| Coverage | 0.75% | **85%** |
+| HTTP route gaps | 337 | **0** |
+| WS edge gaps | 61 | 61 (unchanged) |
+
+All 337 routes exercised, zero transport failures. The 61 residual gaps are
+WS edges (same set as pre-sweep — server-push/batch edges needing live
+conditions), untouched by the sweep.
+
+Drift: 0 uncertain across 676 LLM-judged cases (route cases judged at
+correctness 0.95) — the count/ordering dimensions plus the sweep show no
+drift regression on this corpus (route cases are simple; still not a
+stress test of the dims).
+
+Side-effect note: public mutation routes were really hit with empty bodies
+(dev DB junk accepted, as designed).
+
+Next: admin credential to upgrade the 166 admin routes from 401-reachability
+to authenticated semantics; WS-edge gap burn-down.
