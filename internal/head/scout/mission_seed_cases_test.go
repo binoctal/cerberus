@@ -59,9 +59,14 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 	}
 	// The route sweep's admin writes exhaust the fallback api_hourly (100)
 	// within the hour; the seeded plan must lift both api counters or the
-	// mission-setup POSTs 429 before any orchestration starts.
+	// mission-setup POSTs 429 before any orchestration starts. max_agents
+	// must be lifted too (fallback 5) or agent-row creation 403s after a
+	// handful of repeat runs.
 	if !strings.Contains(planStep.Body, "api_hourly") || !strings.Contains(planStep.Body, "api_daily") {
 		t.Fatal("plan payload must lift api_hourly + api_daily")
+	}
+	if !strings.Contains(planStep.Body, "max_agents") {
+		t.Fatal("plan payload must lift resources.max_agents")
 	}
 	// Read-back wiring: plan step captures the id; user step substitutes it.
 	if planStep.Capture["id"] != "planId" {

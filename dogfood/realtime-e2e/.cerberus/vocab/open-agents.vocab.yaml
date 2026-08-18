@@ -537,9 +537,10 @@ edges:
       end: 395
   partial: true
   note: >-
-    Failure-path only (live-verified 2026-08-18): emitted when session creation
-    fails or a task merge fails -- neither is reachable from the happy-path
-    message surface without breaking the bridge.
+    Failure-path only (code-path analysis 2026-08-18, bridge.go: emitted when
+    session creation fails or a task merge fails; NOT observed live -- no
+    failure was induced during the run). Neither trigger is reachable from the
+    happy-path message surface without breaking the bridge.
 - from_role: bridge
   to_role: web
   type: workflow:task_question

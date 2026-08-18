@@ -11,7 +11,7 @@ root-caused before the next run — none was forced.
 | Metric | Value |
 |---|---|
 | Verdicts | 690 pass / 1 fail / 0 uncertain / 3 recovered |
-| Coverage | **98.39%** (progression today: 93.9% → 96.01% → 97.85% → 98.12% → 98.39%) |
+| Coverage | **98.39%** — covered=366, denominator=372, gaps=6 (366/372 = 0.98387096…; run output: `coverage assessment … gaps:7 coverage_pct:0.9838709677419355`, 7 = headline gate gap + 6 edges). Progression today: 93.9% → 96.01% → 97.85% → 98.12% → 98.39% |
 | Gaps | **6, all non-workflow** (device:online, session:cancel, session:resize, chat:send, control:takeover, device:restart) |
 | Claims | 1 proven / 0 emulated-only / 1 unevidenced — gate unchanged, no exit 3 |
 | Duration | 11m51s, ~192K tokens |
