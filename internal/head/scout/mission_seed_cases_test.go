@@ -120,19 +120,22 @@ func TestMissionSeedCases_ReceiveWindow(t *testing.T) {
 	// Deterministic pushes get MINUTE-SCALE windows (default 10s fails them:
 	// decompose + orchestrator alarms + ACP connect timeout are all upstream).
 	for _, to := range recvTimeouts {
-		if to < 120 {
-			t.Fatalf("receive timeout %d < 120s", to)
+		if to < 60 {
+			t.Fatalf("receive timeout %d < 60s", to)
 		}
 	}
 	// The orchestration path pushes task_progress (not task_started — that is
-	// only the echo of web-origin sends) and never the dead completion types;
-	// task_result/completion are callback-only and unreachable (ws:// scheme).
+	// only the echo of web-origin sends) and never the dead job_completed.
+	// Since the open-agents callback fix (fix/workflow-callback-url,
+	// 2026-08-19) completion IS observable: task_completed + job_status via
+	// the bridge HTTP callback -> DO broadcast, and task_result as the
+	// bridge's reply to a web-initiated task_merge.
 	for _, s := range cases[0].Steps {
 		if s.Action != "ws_receive" {
 			continue
 		}
 		switch s.Type {
-		case "workflow:job_completed", "workflow:job_status", "workflow:task_result", "workflow:task_started":
+		case "workflow:job_completed", "workflow:task_started":
 			t.Fatalf("receive of %s is not emitted on the orchestration path (live-verified 2026-08-18)", s.Type)
 		}
 	}

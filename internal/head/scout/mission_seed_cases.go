@@ -103,19 +103,42 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// web-origin start/start_task, covered by the send cases) — and the
 		// PTY echo of the task prompt (which carries the [QUESTION]
 		// instruction) deterministically yields workflow:task_question.
-		// task_result / completion are NOT expected: the bridge reports
-		// completion only via its HTTP callback, whose URL is built from the
-		// ws:// server URL (unsupported protocol scheme — live-verified), so
-		// the orchestrator never learns the task finished.
 		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: "web"},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 300},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 120},
+		// 7. Completion frames (reopened 2026-08-19 after the open-agents
+		// callback fix, fix/workflow-callback-url): the bridge now reports
+		// completion via its HTTP callback (POST /api/missions/internal/
+		// orchestrator/event with X-Internal-Secret), so the orchestrator's
+		// handleTaskResult broadcasts workflow:task_completed and, once every
+		// task is done, finalizeMissionIfDone broadcasts workflow:job_status
+		// (status:"completed"). Before the fix the callback POST died on
+		// "unsupported protocol scheme" (ws:// APIURL) and missions could
+		// only ever leave via stuckRecovery.
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 120},
+		// 8. Merge the task branch: web-origin workflow:task_merge (room-
+		// routed to the bridge via payload.deviceId since the same open-agents
+		// fix added task_merge to the web→bridge whitelist and the DO
+		// /broadcast routing) makes the bridge merge the task worktree branch
+		// and reply workflow:task_result (merged:true) — the ONLY emitter of
+		// the bridge→web task_result frame. taskId is deterministic,
+		// {missionId}_t{i} (missions.ts task-row build), and t0 exists for any
+		// plan the planner produces; the no-file-change task leaves the branch
+		// at HEAD so the merge is a clean "already up to date".
+		agent.TestStep{Action: "ws_send", ConnectionID: "web",
+			Message: wsSendBodyAny("workflow:task_merge", map[string]any{
+				"deviceId": "{{bridge.deviceId}}",
+				"jobId":    "{{case.missionId}}",
+				"taskId":   "{{case.missionId}}_t0",
+			})},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_result", Timeout: 60},
 	)
 	return []agent.TestCase{{
 		ID: wsCaseID(svc.Name, "wf", "mission-seed"), Service: svc.Name, Target: svc.URL,
 		Name:   "seeded mission drives real orchestration end to end",
 		Action: "ws_flow", Priority: 0.8,
-		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, and the task session pushes workflow:task_progress + workflow:task_question to the web connection",
+		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, the task session pushes workflow:task_progress + workflow:task_question, completion flows back through the bridge HTTP callback (workflow:task_completed + workflow:job_status), and a web-initiated task_merge elicits workflow:task_result",
 		Steps:       steps,
 	}}
 }

@@ -454,12 +454,6 @@ edges:
     spans:
     - start: 395
       end: 395
-  partial: true
-  note: >-
-    DO-side broadcast on task completion (orchestrator.ts:716). Completion depends
-    on the bridge HTTP callback, whose URL is built from the ws:// server URL
-    (live-verified 2026-08-18) -- unreachable in the live dev environment until the
-    callback scheme is fixed.
 - from_role: bridge
   to_role: web
   type: workflow:task_failed
@@ -473,9 +467,11 @@ edges:
       end: 395
   partial: true
   note: >-
-    DO-side broadcast on task failure (orchestrator.ts:861). Same dependency as
-    task_completed: the orchestrator learns of failure via the bridge HTTP callback
-    whose ws:// scheme URL never delivers (live-verified 2026-08-18).
+    DO-side broadcast on task failure (orchestrator.ts:861). The bridge HTTP
+    callback is fixed (open-agents fix/workflow-callback-url, 2026-08-19) so the
+    transport reaches the orchestrator, but the failure trigger is not inducible
+    from the happy-path message surface: it needs a nonzero task exit (a CLI
+    crash/timeout) while every dogfood task exits 0.
 - from_role: bridge
   to_role: web
   type: workflow:job_completed
@@ -510,13 +506,6 @@ edges:
     spans:
     - start: 395
       end: 395
-  partial: true
-  note: >-
-    Live-verified 2026-08-18: the bridge reports task completion ONLY via its HTTP
-    callback, whose URL is built from the ws:// server URL ('unsupported protocol
-    scheme' in bridge logs) -- the orchestrator never learns the task finished.
-    The room-side task_result frame is emitted only on the web-initiated merge path
-    (bridge.go handleWorkflowTaskMerge).
 - from_role: bridge
   to_role: web
   type: workflow:task_error
@@ -540,7 +529,10 @@ edges:
     Failure-path only (code-path analysis 2026-08-18, bridge.go: emitted when
     session creation fails or a task merge fails; NOT observed live -- no
     failure was induced during the run). Neither trigger is reachable from the
-    happy-path message surface without breaking the bridge.
+    happy-path message surface without breaking the bridge. Note the
+    HTTP-callback transport for task_error is fixed (open-agents
+    fix/workflow-callback-url, 2026-08-19); only the trigger remains
+    uninducible.
 - from_role: bridge
   to_role: web
   type: workflow:task_question

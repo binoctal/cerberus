@@ -44,3 +44,17 @@ export CERBERUS_MIGRATION_DIR="${CERBERUS_MIGRATION_DIR:-$REPO_ROOT/migrations}"
 export CERBERUS_PLANNER_API_KEY="$ANTHROPIC_AUTH_TOKEN"
 export CERBERUS_PLANNER_API_URL="https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
 export CERBERUS_PLANNER_MODEL="glm-4.5-air"
+
+# Bridge completion-callback secret (open-agents fix/workflow-callback-url,
+# 2026-08-19): the bridge POSTs task results to
+# /api/missions/internal/orchestrator/event, which the /internal/* middleware
+# guards with X-Internal-Secret. The bridge reads it from this env var
+# (inherited by the dogfood-launched bridge processes). Parsed from the
+# sibling .dev.vars — that file is a secret, NEVER stage it or echo the value.
+_DEVVARS="${REPO_ROOT}/../open-agents/apps/api/.dev.vars"
+_BRIDGE_SECRET="$(grep -E '^INTERNAL_SECRET=' "${_DEVVARS}" 2>/dev/null | head -1 | cut -d= -f2-)"
+if [ -n "${_BRIDGE_SECRET}" ]; then
+  export OPEN_AGENTS_INTERNAL_SECRET="${_BRIDGE_SECRET}"
+else
+  echo "WARNING: INTERNAL_SECRET not found in ${_DEVVARS} — bridge completion callbacks will be 403"
+fi

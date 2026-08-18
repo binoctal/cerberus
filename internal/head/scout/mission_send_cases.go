@@ -74,10 +74,11 @@ func missionSendCases(svc project.Service, realRoles map[string]bool) []agent.Te
 	// absolute workdir the ACP adapter connects and never echoes the prompt,
 	// so the [QUESTION] marker only fires on the PTY-fallback path (relative
 	// worktree cwd), which the mission-seed case exercises instead. No
-	// task_result/completion receive either: completion is callback-only and
-	// the callback URL is built from the ws:// server URL (unsupported
-	// protocol scheme — live-verified 2026-08-18), so it never reaches the
-	// API.
+	// completion receive either: this case's jobId is the synthetic
+	// wfSeedJobID, not a real mission, so although the (now fixed) bridge
+	// HTTP callback fires when the session exits, the completion frames that
+	// matter for coverage are awaited by the mission-seed case against a real
+	// mission.
 	assignTaskID := "t-assign-seed"
 	cases = append(cases, newCase("task-assign",
 		"web assigns a task to the real bridge and follows up with answer and guidance",
