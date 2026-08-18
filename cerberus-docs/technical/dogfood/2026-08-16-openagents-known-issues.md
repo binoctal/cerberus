@@ -103,7 +103,7 @@ are signalled by different types, broadcast DO-side and outside the
 room.ts case handler:
 
 - `workflow:job_status` with `status: completed|failed`
-  (`apps/api/src/realtime/orchestrator.ts:949`, finalizeMissionIfDone)
+  (`apps/api/src/services/orchestrator.ts:949`, finalizeMissionIfDone)
 - `workflow:state_updated` (`orchestrator.ts:1073`)
 
 **Cerberus consequence:** no ws_receive can ever observe these two types —
