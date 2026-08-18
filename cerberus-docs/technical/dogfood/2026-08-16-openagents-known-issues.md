@@ -1,6 +1,8 @@
 # open-agents Known Issues (Protocol Inconsistencies)
 
-Date: 2026-08-16
+Date: 2026-08-16 (items 1-5), extended 2026-08-18 (items 6-12, live-verified
+during the workflow-orchestration coverage run — see
+`2026-08-18-workflow-coverage-run.md`).
 Source: research for the fidelity-ladder real-E2E plan (2026-08-14), re-verified
 against `../open-agents` HEAD on 2026-08-16. Closes fidelity-ladder Task 8
 item 4 (see `superpowers/plans/2026-08-14-fidelity-ladder-real-e2e.md`).
@@ -115,9 +117,119 @@ frame.
 
 ---
 
+## 6. Bridge workflow callbacks POST to a ws:// URL (completion unreachable)
+
+The bridge's callback manager builds its HTTP URL from the WS server URL:
+`bridge/internal/bridge/bridge.go:208` passes `APIURL: cfg.ServerURL` (the
+same `ws://…` URL the bridge connects on), and
+`bridge/internal/workflows/callback.go:184` does
+`url := m.config.APIURL + "/api/workflows/internal/orchestrator/event"`.
+Every task result / error callback therefore fails with
+`Post "ws://localhost:8989/api/workflows/internal/orchestrator/event":
+unsupported protocol scheme`.
+
+**Cerberus consequence:** `workflow:task_result` / `task_completed` /
+`task_failed` never reach the API on the dispatch path; missions never
+complete and stuckRecovery is the only exit. The dogfood vocab marks the four
+completion-family bridge→web edges `partial` with this live-verified reason
+(2026-08-18). Success criteria must assert the observable chain
+(task_progress / task_question) instead of completion frames. Reopens when
+open-agents derives the http(s) callback base from the ws:// URL.
+
+## 7. Orchestration dispatch never emits `workflow:task_started`
+
+On the orchestrator→bridge dispatch path the bridge's `startTaskSession`
+reports start as `workflow:task_progress {progress: 0, step: "started"}`
+(`bridge/internal/bridge/bridge.go:2748-2754`). The only bridge emitters of
+`workflow:task_started` are `handleWorkflowStartJob` (bridge.go:2621) and
+`handleWorkflowStartTask` (bridge.go:2666) — echoes of web-origin commands.
+The API can emit it (`apps/api/src/services/orchestrator.ts:889`,
+`handleTaskProgress` with `progress === 0`) but that path is driven by the
+internal orchestrator event endpoint, i.e. the callback broken in item 6.
+
+**Cerberus consequence:** a ws_receive on `workflow:task_started` fails on
+timeout in every live dispatch scenario; await `task_progress` with
+`step: "started"` instead.
+
+## 8. Planner agent-list injection is copy-prone
+
+`apps/api/src/services/planner.ts:177` renders the available-agent list as
+`- ${a.baseCli}: ${a.name}` into the planner prompt. glm-4.5 (and likely
+similar models) sometimes copies the whole literal into `assigned_agent`
+(observed `claude: cerberus-bridge-agent`). `resolveCliForAgent`
+(orchestrator.ts:354) then finds no agent row with that id/name, falls back
+to the literal as the required CLI, and `selectDevice` skips the task forever
+("no device with CLI 'claude: cerberus-bridge-agent'").
+
+**Cerberus consequence:** harness-side workaround shipped — the seeded agent
+row is named identically to its baseCli so either copy shape resolves. Any
+case-seeding that diversifies agent names must re-check this.
+
+## 9. `[QUESTION]` false positive on PTY prompt echo
+
+The task prompt itself instructs the marker
+(`bridge/internal/bridge/bridge.go:2785`, buildTaskPrompt: "output a line
+starting with [QUESTION]…"), and output handling runs
+`handleQuestionMarker` on every content chunk (bridge.go:712-713 → 3033). On
+the PTY path the terminal echoes the prompt, so the marker detection fires
+deterministically on harness-generated text, not agent intent (spurious
+`workflow:task_question` + pending-question machinery).
+
+**Cerberus consequence:** a `task_question` frame on the PTY path is NOT
+evidence the agent asked; treat it as expected noise of the fallback path.
+(Usually combined with item 10 — see below.)
+
+## 10. Worktree dispatch passes a relative cwd → ACP rejection → PTY fallback
+
+The bridge constructs its worktree manager with a literal relative base
+(`bridge/internal/bridge/bridge.go:206`,
+`workflows.NewWorktreeManager(".")`), and `CreateWorktree`
+(`bridge/internal/workflows/worktree.go:36-58`) returns
+`filepath.Join(w.projectDir, …)` — a relative path like
+`./.open-agents-bridge-worktrees/task-…`. The ACP adapter only absolutizes
+`""` and `"."` (`bridge/internal/protocol/acp.go:417-421`), so a worktree
+path reaches `session/new` as a relative `cwd` →
+`Invalid params: cwd must be an absolute path` → 60s hang → PTY fallback.
+(Ladder finding #4, root-caused 2026-08-18.)
+
+**Cerberus consequence:** the mission dispatch path deterministically lands
+on PTY in this environment; ACP-path-only assertions cannot pass until
+upstream absolutizes the worktree path.
+
+## 11. Plan updates don't invalidate the 5-min `getPlanLimits` cache
+
+`getPlanLimits` caches per plan for 5 minutes
+(`apps/api/src/lib/plan-limits.ts:55,68-71,138`); an invalidator exists
+(`invalidatePlanCache`, plan-limits.ts:246) but its only production caller is
+the Creem webhook (`apps/api/src/routes/creem-webhook.ts:87`). The admin
+plans PUT (`apps/api/src/routes/admin/billing/plans.ts:140` UPDATE
+subscription_plans) never invalidates, so updated limits keep serving stale
+for up to 5 minutes.
+
+**Cerberus consequence:** after a plan-limits fix, either wait out the TTL
+or restart the worker before re-running; a harness that PUTs a plan and
+immediately asserts new limits will read cached old values.
+
+## 12. Plan-limits deep-merge trap for harness setup
+
+Stored plan limits are deep-merged with `FALLBACK_LIMITS`
+(plan-limits.ts:82-89): `{...FALLBACK_LIMITS.rate_limits, ...parsed.rate_limits}`
+per sub-object, so any key the plan JSON omits silently falls back to the
+code defaults — `api_hourly: 100`, `api_daily: 500`, `max_agents: 5`
+(plan-limits.ts:46-50). A harness whose setup performs ~130 admin writes
+exhausts api_hourly and every mission-setup POST 429s
+(`HOURLY_RATE_LIMIT_EXCEEDED`) before orchestration starts.
+
+**Cerberus consequence:** the seeded plan must explicitly lift
+`api_hourly` / `api_daily` / `max_agents` (shipped in
+`internal/head/scout/mission_seed_cases.go`).
+
+---
+
 ## Re-verification
 
-All file:line references checked 2026-08-16 against
+Items 1-5 checked 2026-08-16; items 6-12 checked 2026-08-18 (code read +
+live-run evidence) against
 `/home/mason/Documents/code_projects/private/open-agents` working tree.
 If open-agents refactors, re-run the greps in this doc's history before
 trusting the consequences.
