@@ -35,10 +35,20 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 		}
 	}()
 
-	// Apply per-case timeout.
+	// Apply per-case timeout. Stepped (deterministic) cases declare their own
+	// time expectations via ws_receive windows — a mission-orchestration case
+	// legitimately runs minutes (planner decompose, orchestrator alarms, ACP
+	// connect timeout) — so the deadlock guard must not fire before the
+	// declared windows do. For those cases the budget is the sum of the
+	// receive windows plus setup/connect slack; the default applies to
+	// LLM-steered and rule-engine cases.
 	if r.config.PerCaseTimeout > 0 {
+		timeout := r.config.PerCaseTimeout
+		if declared := declaredReceiveBudget(tc); declared > 0 {
+			timeout = declared + time.Minute
+		}
 		var cancel context.CancelFunc
-		se.ctx, cancel = context.WithTimeout(se.ctx, r.config.PerCaseTimeout)
+		se.ctx, cancel = context.WithTimeout(se.ctx, timeout)
 		defer cancel()
 	}
 	// Carry the case identifier so the WS executor can namespace connection-table
@@ -71,4 +81,16 @@ func (r *ReActLoop) executeStep(ctx context.Context, tc *TestCase, sessionID str
 
 	// Phase 2: ReAct loop (max MaxSteerAttempts).
 	return se.runReactLoop()
+}
+
+// declaredReceiveBudget sums the case's explicit ws_receive windows. Zero when
+// the case declares none (guard falls back to the configured PerCaseTimeout).
+func declaredReceiveBudget(tc *TestCase) time.Duration {
+	var total time.Duration
+	for _, s := range tc.Steps {
+		if s.Action == "ws_receive" && s.Timeout > 0 {
+			total += time.Duration(s.Timeout) * time.Second
+		}
+	}
+	return total
 }

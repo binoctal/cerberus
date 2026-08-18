@@ -57,6 +57,12 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 	if !strings.Contains(planStep.Body, `"workflows":true`) || !strings.Contains(planStep.Body, "daily_missions") {
 		t.Fatal("plan payload must gate workflows + raise daily_missions")
 	}
+	// The route sweep's admin writes exhaust the fallback api_hourly (100)
+	// within the hour; the seeded plan must lift both api counters or the
+	// mission-setup POSTs 429 before any orchestration starts.
+	if !strings.Contains(planStep.Body, "api_hourly") || !strings.Contains(planStep.Body, "api_daily") {
+		t.Fatal("plan payload must lift api_hourly + api_daily")
+	}
 	// Read-back wiring: plan step captures the id; user step substitutes it.
 	if planStep.Capture["id"] != "planId" {
 		t.Fatalf("plan step capture = %v", planStep.Capture)
@@ -80,6 +86,22 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 	if missionStep.Capture["mission.id"] != "missionId" {
 		t.Fatalf("mission step capture = %v", missionStep.Capture)
 	}
+	// User-scoped steps run under the WEB role: open-agents scopes device
+	// ownership + room broadcast per user (checkDeviceOnline requires
+	// devices.user_id = mission user), and only the web user owns the bridges.
+	// Admin routes (plan seed, user switch, provider) stay under admin.
+	for _, s := range steps {
+		if s.Action != "http_request" {
+			continue
+		}
+		isAdminRoute := strings.Contains(s.URL, "/api/admin/")
+		if isAdminRoute && s.AuthRole != "admin" {
+			t.Fatalf("admin route %q must use admin role, got %q", s.URL, s.AuthRole)
+		}
+		if !isAdminRoute && s.AuthRole != "web" {
+			t.Fatalf("user-scoped route %q must use web role, got %q", s.URL, s.AuthRole)
+		}
+	}
 }
 
 func TestMissionSeedCases_ReceiveWindow(t *testing.T) {
@@ -90,16 +112,23 @@ func TestMissionSeedCases_ReceiveWindow(t *testing.T) {
 			recvTimeouts = append(recvTimeouts, s.Timeout)
 		}
 	}
-	// Deterministic pushes get MINUTE-SCALE windows (default 10s fails them).
+	// Deterministic pushes get MINUTE-SCALE windows (default 10s fails them:
+	// decompose + orchestrator alarms + ACP connect timeout are all upstream).
 	for _, to := range recvTimeouts {
 		if to < 120 {
 			t.Fatalf("receive timeout %d < 120s", to)
 		}
 	}
-	// The completion signal is job_status (out-of-band), never job_completed.
+	// The orchestration path pushes task_progress (not task_started — that is
+	// only the echo of web-origin sends) and never the dead completion types;
+	// task_result/completion are callback-only and unreachable (ws:// scheme).
 	for _, s := range cases[0].Steps {
-		if s.Action == "ws_receive" && s.Type == "workflow:job_completed" {
-			t.Fatal("job_completed is a dead type; completion is workflow:job_status")
+		if s.Action != "ws_receive" {
+			continue
+		}
+		switch s.Type {
+		case "workflow:job_completed", "workflow:job_status", "workflow:task_result", "workflow:task_started":
+			t.Fatalf("receive of %s is not emitted on the orchestration path (live-verified 2026-08-18)", s.Type)
 		}
 	}
 }

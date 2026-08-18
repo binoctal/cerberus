@@ -1,6 +1,7 @@
 package scout
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -17,6 +18,7 @@ func missionSendFixture() project.Service {
 			Roles: map[string]*project.ProtocolRole{
 				"web":    {Params: map[string]string{"type": "web"}},
 				"bridge": {Params: map[string]string{"type": "bridge"}},
+				"admin":  {CredentialRef: "admin-actor"},
 			},
 		},
 		Vocabulary: workflowVocabFixture(), // edges: web->bridge workflow:start/pause/cancel/start_task + web->web session:send
@@ -76,8 +78,8 @@ func hasStep(c *agent.TestCase, action, typeOrConn string) bool {
 func TestMissionSendCases_Assembly(t *testing.T) {
 	cases := missionSendCases(missionSendFixture(), map[string]bool{"bridge": true})
 	byID := caseByID(cases)
-	if len(cases) != 5 {
-		t.Fatalf("expected 5 cases (start, start_task, pause, cancel, session:send), got %d", len(cases))
+	if len(cases) != 6 {
+		t.Fatalf("expected 6 cases (start, start_task, pause, cancel, task_assign, session:send), got %d", len(cases))
 	}
 	// start_task: send + hard receive of the deterministic echo.
 	c := byID["open-agents-wf-start-task"]
@@ -96,6 +98,39 @@ func TestMissionSendCases_Assembly(t *testing.T) {
 	s := byID["open-agents-wf-session-send-web"]
 	if s == nil || !hasStep(s, "ws_connect", "web-2") {
 		t.Fatal("session:send needs a second web connection")
+	}
+	// task_assign: drives the real task session (progress receive), then
+	// answer + guidance sends against the live session. No question receive:
+	// the [QUESTION] marker only fires on the PTY fallback (mission case).
+	a := byID["open-agents-wf-task-assign"]
+	if a == nil {
+		t.Fatal("task_assign case missing")
+	}
+	if !hasStep(a, "ws_receive", "workflow:task_progress") {
+		t.Fatal("task_assign must receive task_progress")
+	}
+	if hasStep(a, "ws_receive", "workflow:task_question") {
+		t.Fatal("task_assign must not await task_question (ACP path never echoes the prompt)")
+	}
+	if !hasStep(a, "ws_send", "") {
+		t.Fatal("task_assign must send")
+	}
+	sends := map[string]int{}
+	for _, st := range a.Steps {
+		if st.Action == "ws_send" {
+			var m struct {
+				Type string `json:"type"`
+			}
+			if err := json.Unmarshal([]byte(st.Message), &m); err != nil {
+				t.Fatalf("bad send message: %v", err)
+			}
+			sends[m.Type]++
+		}
+	}
+	for _, typ := range []string{"workflow:task_assign", "workflow:task_answer", "workflow:task_guidance"} {
+		if sends[typ] == 0 {
+			t.Fatalf("task_assign case missing %s send", typ)
+		}
 	}
 	// No ws-only case may ship an unresolvable {{case.*}} placeholder: case
 	// params are only populated by http_request Capture steps, which none of

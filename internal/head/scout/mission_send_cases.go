@@ -13,9 +13,10 @@ import (
 // (spec §8): start/start_task echo task_started deterministically; pause and
 // cancel only log — send-only steps whose coverage is send-side credit
 // (coverage.go:286-293 credits a send whose connection maps the declared
-// FromRole and whose ToRole is real). task_answer/task_guidance are NOT
-// emitted here: their effect is conditional (pendingQuestion / live session)
-// and they stay vocab partial marks.
+// FromRole and whose ToRole is real). task_answer/task_guidance ride the
+// task_assign case: the assign leaves a pending [QUESTION] and a live
+// session on the bridge, so the answer resolves the question and the
+// guidance injects into the session (both deterministic after the assign).
 //
 // jobId is the literal "cerberus-wf-seed", NOT a {{case.*}} placeholder:
 // case params are only populated by http_request Capture steps, and these
@@ -63,6 +64,39 @@ func missionSendCases(svc project.Service, realRoles map[string]bool) []agent.Te
 				{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny(send, map[string]any{"deviceId": deviceID, "jobId": wfSeedJobID})},
 			}))
 	}
+	// task_assign drives the REAL task machinery (the same handler the
+	// orchestrator's dispatch reaches, bridge.go handleWorkflowTaskAssign):
+	// the bridge creates a session for the task and pushes
+	// workflow:task_progress (step:"started"). The follow-up task_answer and
+	// task_guidance sends hit handleWorkflowTaskAnswer/Guidance against that
+	// live session (answer with no pending question degrades to a direct
+	// message injection — bridge.go). No task_question receive here: with an
+	// absolute workdir the ACP adapter connects and never echoes the prompt,
+	// so the [QUESTION] marker only fires on the PTY-fallback path (relative
+	// worktree cwd), which the mission-seed case exercises instead. No
+	// task_result/completion receive either: completion is callback-only and
+	// the callback URL is built from the ws:// server URL (unsupported
+	// protocol scheme — live-verified 2026-08-18), so it never reaches the
+	// API.
+	assignTaskID := "t-assign-seed"
+	cases = append(cases, newCase("task-assign",
+		"web assigns a task to the real bridge and follows up with answer and guidance",
+		[]agent.TestStep{
+			connect,
+			{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny("workflow:task_assign", map[string]any{
+				"deviceId": deviceID, "jobId": wfSeedJobID, "taskId": assignTaskID,
+				"agent": "claude", "title": "Say done", "description": "Reply with the single word done.",
+			})},
+			// An ACP connect attempt (or its 60s timeout before the PTY
+			// fallback) precedes the session start — minute-scale window.
+			{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 180},
+			{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny("workflow:task_answer", map[string]any{
+				"deviceId": deviceID, "taskId": assignTaskID, "answer": "done",
+			})},
+			{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny("workflow:task_guidance", map[string]any{
+				"deviceId": deviceID, "taskId": assignTaskID, "guidance": "finish up",
+			})},
+		}))
 	// web→web session:send — broadcast excludes the sender (room.ts:449-460),
 	// so a second web connection receives it.
 	cases = append(cases, newCase("session-send-web",

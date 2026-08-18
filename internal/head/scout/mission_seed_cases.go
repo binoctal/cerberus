@@ -15,12 +15,17 @@ import (
 // (stall guard) → mission create. Emitted only when the service declares
 // workflow-family vocab edges and the bridge role is a real process.
 //
-// The admin actor carries no statically-known user id (dogfood project.yaml
-// declares none), so step 0 captures it from GET /api/auth/me — the route
-// returns the JWT user's id at the top level (auth.ts:601-626) — and the
-// user-plan step consumes it as {{case.userId}}. All authenticated steps run
-// under the admin JWT (AuthRole injection), so the captured id IS the mission
-// user: the plan switch, agent row, and mission all land on that user.
+// The mission user must be the WEB actor's user (the dev backdoor user the
+// bridges pair under), NOT the admin: open-agents scopes device ownership and
+// room broadcast per user — checkDeviceOnline (workflows.ts:371-379) requires
+// devices.user_id = mission user, and workflow:* pushes go to the mission
+// user's room. Under the admin JWT the orchestrator logs "no online devices"
+// forever (verified live 2026-08-18) and no frame ever reaches the web
+// connection. So the user-scoped steps (auth/me, agents, missions) run under
+// the web role's JWT, while admin routes (plan seed, user switch, provider)
+// stay under the admin JWT. The web actor carries no statically-known user id,
+// so step 0 captures it from GET /api/auth/me (top-level id, auth.ts:601-626)
+// and the user-plan step consumes it as {{case.userId}}.
 func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.TestCase {
 	if !realRoles["bridge"] || svc.Protocol == nil || svc.Vocabulary == nil || !hasWorkflowEdges(svc.Vocabulary) {
 		return nil
@@ -34,14 +39,20 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 	plannerURL := os.Getenv("CERBERUS_PLANNER_API_URL")
 	plannerModel := os.Getenv("CERBERUS_PLANNER_MODEL")
 	steps := []agent.TestStep{
-		// 0. Capture the admin JWT's user id (the future mission user).
+		// 0. Capture the web user's id (the future mission user — see the
+		// function comment: it must own the bridge devices and the room).
 		{Action: "http_request", URL: host + "/api/auth/me", Method: "GET",
-			AuthRole: admin, ExpectStatusClass: "2xx",
+			AuthRole: "web", ExpectStatusClass: "2xx",
 			Capture: map[string]string{"id": "userId"}},
 		// 1. Seed the plan. NEVER max_concurrent_tasks (spec §2 0-trap).
+		// api_hourly/api_daily must be lifted too: plan-limits.ts deep-merges
+		// unset keys with the free-plan fallback (api_hourly 100, api_daily
+		// 500), and the route sweep's ~130 admin writes under the same JWT
+		// exhaust api_hourly within the hour — the mission-setup POSTs then
+		// 429 (HOURLY_RATE_LIMIT_EXCEEDED) before any orchestration starts.
 		{Action: "http_request", URL: host + "/api/admin/billing/plans", Method: "POST",
 			AuthRole: admin, ExpectStatusClass: "2xx",
-			Body:    `{"name":"cerberus-dogfood","price_monthly":0,"limits":{"feature_gates":{"workflows":true},"rate_limits":{"daily_missions":9999}}}`,
+			Body:    `{"name":"cerberus-dogfood","price_monthly":0,"limits":{"feature_gates":{"workflows":true},"rate_limits":{"daily_missions":9999,"api_hourly":9999,"api_daily":9999},"resources":{"max_agents":100}}}`,
 			Capture: map[string]string{"id": "planId"}},
 		// 2. Switch the user to it (both ids read back in steps 0-1).
 		{Action: "http_request", URL: host + "/api/admin/users/{{case.userId}}", Method: "PUT",
@@ -58,32 +69,46 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		})
 	}
 	steps = append(steps,
-		// 4. Agent row — the stall guard (spec §5): user-scoped route.
-		// baseCli "claude" is one of the bridge PTY's cliEnabled capabilities
-		// (bridge config.example.json; cli_detect.go enables detected CLIs,
-		// and the dogfood shim puts a claude binary on PATH).
+		// 4. Agent row — the stall guard (spec §5): user-scoped route, so it
+		// runs under the web (mission) user. The row NAME must equal its
+		// baseCli: the planner injects the user's agents as "- baseCli: name"
+		// and glm-4.5 sometimes copies that literal into assigned_agent
+		// (live-observed 2026-08-18: "claude: cerberus-bridge-agent" → no
+		// device with that "CLI" → task skipped forever). With name ==
+		// "claude", BOTH of the orchestrator's resolution paths succeed:
+		// resolveCliForAgent matches the agents-table name → base_cli, and a
+		// raw "claude" falls through to the device's cliEnabled map (the
+		// dogfood shim puts a claude binary on the bridge PATH).
 		agent.TestStep{Action: "http_request", URL: host + "/api/agents", Method: "POST",
-			AuthRole: admin, ExpectStatusClass: "2xx",
-			Body:    `{"name":"cerberus-bridge-agent","baseCli":"claude"}`,
+			AuthRole: "web", ExpectStatusClass: "2xx",
+			Body:    `{"name":"claude","baseCli":"claude"}`,
 			Capture: map[string]string{"id": "agentId"}},
-		// 5. The mission itself (create returns {mission:{id}} → dot-path capture).
+		// 5. The mission itself (create returns {mission:{id}} → dot-path
+		// capture). Web role: the mission user must be the device owner.
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
-			AuthRole: admin, ExpectStatusClass: "2xx",
+			AuthRole: "web", ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"Reply with the single word done. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "missionId"}},
-		// 6. Observe on a web connection: deterministic pushes only.
+		// 6. Observe on a web connection: the pushes the orchestration path
+		// REALLY emits (live-verified 2026-08-18). startTaskSession pushes
+		// workflow:task_progress (step:"started") when the task session comes
+		// up — NOT task_started (that type only exists as the echo of
+		// web-origin start/start_task, covered by the send cases) — and the
+		// PTY echo of the task prompt (which carries the [QUESTION]
+		// instruction) deterministically yields workflow:task_question.
+		// task_result / completion are NOT expected: the bridge reports
+		// completion only via its HTTP callback, whose URL is built from the
+		// ws:// server URL (unsupported protocol scheme — live-verified), so
+		// the orchestrator never learns the task finished.
 		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: "web"},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_started", Timeout: 600},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 600},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_result", Timeout: 600},
-		// Completion signal is job_status (out-of-band type; job_completed is dead — spec §9).
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 600},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 300},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 120},
 	)
 	return []agent.TestCase{{
 		ID: wsCaseID(svc.Name, "wf", "mission-seed"), Service: svc.Name, Target: svc.URL,
-		Name:   "seeded mission drives the workflow family end to end",
+		Name:   "seeded mission drives real orchestration end to end",
 		Action: "ws_flow", Priority: 0.8,
-		Expectation: "mission created (plan gate, provider, agent row seeded) and the real bridge executes it: task_started, task_progress, task_result observed on web; completion via workflow:job_status",
+		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, and the task session pushes workflow:task_progress + workflow:task_question to the web connection",
 		Steps:       steps,
 	}}
 }

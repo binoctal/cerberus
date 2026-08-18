@@ -89,7 +89,7 @@ actors:
       ready_pattern: "Connected to server successfully"
       ready_timeout: 30s
 settings:
-  max_duration: 12m
+  max_duration: 25m   # mission-orchestration case alone runs ~4-6min (decompose + alarms + ACP timeout); 12m truncated the examiner phase
   confidence_threshold: 0.7
   ai_budget:
     session_total_tokens: 200000   # 80K starved the Examiner in ws-realtime dogfood (2026-08-14)
