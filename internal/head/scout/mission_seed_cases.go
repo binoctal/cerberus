@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/project"
@@ -60,12 +61,18 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			Body: `{"plan":"{{case.planId}}"}`},
 	}
 	if plannerKey != "" {
+		// Negative priority so each run's row WINS the resolveAiConfig tie
+		// (orders by priority ASC, created_at ASC; every dogfood run POSTs a
+		// fresh row, and with the default priority 0 the OLDEST row would
+		// win forever — verified live 2026-08-18: 7 piled-up glm-4.5 rows,
+		// the 2026-08-17 one silently pinning the planner model).
+		providerPriority := -time.Now().Unix()
 		steps = append(steps, agent.TestStep{
 			// 3. Planner provider (encrypt-at-rest requires PROVIDER_KEY_KEK in .dev.vars — harness concern, Task 5).
 			Action: "http_request", URL: host + "/api/admin/ai-providers", Method: "POST",
 			AuthRole: admin, ExpectStatusClass: "2xx",
-			Body: fmt.Sprintf(`{"name":"cerberus-planner","provider":"anthropic","api_url":%q,"api_key":%q,"models":[{"id":%q,"display_name":"planner","input_price_per_million":0,"output_price_per_million":0}],"is_active":true}`,
-				plannerURL, plannerKey, plannerModel),
+			Body: fmt.Sprintf(`{"name":"cerberus-planner","provider":"anthropic","api_url":%q,"api_key":%q,"models":[{"id":%q,"display_name":"planner","input_price_per_million":0,"output_price_per_million":0}],"is_active":true,"priority":%d}`,
+				plannerURL, plannerKey, plannerModel, providerPriority),
 		})
 	}
 	steps = append(steps,

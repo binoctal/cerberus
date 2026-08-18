@@ -23,9 +23,21 @@ Why these values (all measured live, 2026-08-18):
   GLM **coding-plan** endpoint (`/api/coding/paas/v4/...`) is the one this key
   has balance on; the general `/api/paas/v4/...` endpoint returns 1113
   (insufficient balance).
-- Latency on the real 1.7KB planner system prompt: glm-4.5 ≈ 3-5s, glm-4.5-air
-  ≈ 12s, glm-4.7/4.6 ≈ 30-40s. `callLLM` has a hard 60s `AbortSignal` cap, so
-  glm-4.5 is the only safe pick.
+- Latency (UPDATED 2026-08-18, full decompose prompt — system prompt + mission
+  text + agent list, 3 runs each): glm-4.5 14.6-46.0s (median 38 — this is
+  what the live worker runs actually paid; the earlier "3-5s" was the bare
+  1.7KB system prompt), glm-4.5-air 4.3-12.0s (median 10; clean plans,
+  `recommendedAgent: "claude"` — no agent-literal copy), glm-4.5-flash ≈27s,
+  glm-4.7/4.6 30-40s on the bare prompt alone. **Picked: glm-4.5-air**
+  (`CERBERUS_PLANNER_MODEL` in the env script). The `callLLM` 60s cap was
+  also raised to 180s upstream (open-agents branch
+  `fix/planner-llm-timeout-headroom`, commit b0458e6) as headroom insurance.
+- Provider-row tie trap (2026-08-18): every run POSTs a fresh
+  `cerberus-planner` row and `resolveAiConfig` orders by `priority ASC,
+  created_at ASC` — with the default priority 0 the OLDEST row wins forever
+  (7 glm-4.5 rows had piled up; the 2026-08-17 one silently pinned the
+  model). Fixed seed-side: the POST now carries `priority: -unix(now)`, so
+  each run's row wins; no D1 cleanup needed.
 - `glm-5.3[1m]` (the interactive env's sonnet mapping) is a Claude-Code-side
   tag — the raw API rejects it (1214 modelCode 不存在).
 

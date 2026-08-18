@@ -31,10 +31,16 @@ export CERBERUS_MIGRATION_DIR="${CERBERUS_MIGRATION_DIR:-$REPO_ROOT/migrations}"
 # Planner provider row (missionSeedCases step 3). open-agents' planner
 # (apps/api/src/services/planner.ts callLLM) speaks the OpenAI chat-completions
 # shape and fetches api_url VERBATIM, so this is the GLM coding-plan OpenAI
-# endpoint (full path), NOT the anthropic base URL above. glm-4.5 measured
-# 3-5s on the real 1.7KB planner prompt (glm-4.7/4.6 take 30-40s and flirt
-# with callLLM's 60s AbortSignal cap); glm-5.3[1m] is a Claude-Code-side tag
-# the raw API rejects.
+# endpoint (full path), NOT the anthropic base URL above.
+#
+# Model choice (measured 2026-08-18 on the FULL decompose prompt — system
+# prompt + mission text + agent list; the earlier 3-5s figure was the bare
+# 1.7KB system prompt and does not hold):
+#   glm-4.5      14.6-46.0s (median 38) — flirts with callLLM's 60s cap
+#   glm-4.5-air   4.3-12.0s (median 10) — clean plans, recommendedAgent OK
+#   glm-4.5-flash ~27s — no advantage over air
+#   glm-4.7/4.6  30-40s on the bare prompt alone
+# glm-5.3[1m] is a Claude-Code-side tag the raw API rejects (1214).
 export CERBERUS_PLANNER_API_KEY="$ANTHROPIC_AUTH_TOKEN"
 export CERBERUS_PLANNER_API_URL="https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
-export CERBERUS_PLANNER_MODEL="glm-4.5"
+export CERBERUS_PLANNER_MODEL="glm-4.5-air"
