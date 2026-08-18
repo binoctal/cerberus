@@ -240,3 +240,50 @@ func TestLaunchRealProcessActors(t *testing.T) {
 		assert.Nil(t, s.harness, "failed launch must reset the harness")
 	})
 }
+
+// TestHarness_Restart covers the restart path: a self-terminating child (as
+// device:restart causes via os.Exit) is torn down if needed, and Restart
+// relaunches WITHOUT re-running setup (pairing persists), re-capturing path
+// params and re-waiting the ready pattern. The re-launched child must be a
+// NEW pid.
+func TestHarness_Restart(t *testing.T) {
+	dir := t.TempDir()
+	setupPath := filepath.Join(dir, "setup.sh")
+	marker := filepath.Join(dir, "setup-ran")
+	writeScript(t, setupPath, fmt.Sprintf("#!/bin/sh\ntouch %s\necho '{\"devices\":{\"b1\":{\"deviceId\":\"device_x\",\"deviceToken\":\"tok\"}}}' > %s/cfg.json\n", marker, dir))
+
+	spec := &project.ProcessSpec{
+		Setup:        []string{setupPath},
+		Start:        []string{"sh", "-c", "echo BRIDGE_READY; exec sleep 60"},
+		CaptureFile:  filepath.Join(dir, "cfg.json"),
+		CaptureJSON:  map[string]string{"deviceId": "devices.b1.deviceId"},
+		ReadyPattern: `BRIDGE_READY`,
+		ReadyTimeout: "5s",
+	}
+	h := newHarness(zap.NewNop(), dir)
+	actor := &project.Actor{Name: "b1", Fidelity: project.FidelityRealProcess, Process: spec}
+	require.NoError(t, h.LaunchActor(t.Context(), actor))
+	pid1 := h.procs["b1"].cmd.Process.Pid
+
+	// Simulate the device:restart self-exit: kill the child out-of-band.
+	require.NoError(t, h.procs["b1"].cmd.Process.Signal(syscall.SIGKILL))
+
+	require.NoError(t, h.Restart(t.Context(), actor))
+	defer h.StopAll()
+	pid2 := h.procs["b1"].cmd.Process.Pid
+	assert.NotEqual(t, pid1, pid2, "restart must launch a new child")
+	assert.NoError(t, h.procs["b1"].cmd.Process.Signal(syscall.Signal(0)))
+	assert.Equal(t, "device_x", actor.Credentials.PathParams["deviceId"], "capture must re-run")
+	_, err := os.Stat(marker)
+	assert.NoError(t, err, "sanity: setup ran during initial launch")
+	info, err := os.Stat(marker)
+	require.NoError(t, err)
+	_ = info
+	// Setup must NOT re-run: rewrite the marker with a sentinel and verify a
+	// second restart leaves it untouched.
+	require.NoError(t, os.WriteFile(marker, []byte("sentinel"), 0o644))
+	require.NoError(t, h.Restart(t.Context(), actor))
+	data, err := os.ReadFile(marker)
+	require.NoError(t, err)
+	assert.Equal(t, "sentinel", string(data), "restart must not re-run setup")
+}

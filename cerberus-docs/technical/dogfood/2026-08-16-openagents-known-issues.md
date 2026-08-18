@@ -42,6 +42,11 @@ web→bridge `session:resume` or the merge/cleanup workflow commands over WS;
 they cannot pass. `device:listDir` cases will observe the request forwarded
 but no `device:listDirResult` ever returning.
 
+**Bridge→web drops (2026-08-18):** `session:cancelled` is also missing from
+the DO's bridge→web whitelist (room.ts:351-399) — the bridge EMITS it in
+handleSessionCancel (bridge.go:1557), but web can never observe a cancel
+ack. The web→bridge `session:cancel` edge is send-side credit only.
+
 **Payload-shape trap (2026-08-17):** even whitelisted sync commands can
 silently no-op on shape: `handleRulesSync`/`handleScannerRulesSync` type-assert
 `payload.rules` as a JSON ARRAY and `handleMCPSync` unmarshals `payload.servers`

@@ -195,6 +195,66 @@ func compileReady(pattern string) (*regexp.Regexp, error) {
 	return regexp.Compile(pattern)
 }
 
+// Restart tears down the actor's child (if still running) and re-launches it
+// WITHOUT re-running setup: pairing state (config.json in the isolated HOME)
+// persists across restarts, so the re-launched process reconnects with the
+// same deviceId. Re-captures path params (idempotent) and re-waits the ready
+// pattern. Used by the process_restart step for reconnect-broadcast coverage
+// (device:restart → device:online).
+func (h *harness) Restart(ctx context.Context, actor *project.Actor) error {
+	if actor.Process == nil || len(actor.Process.Start) == 0 {
+		return fmt.Errorf("harness %s: no process.start declared", actor.Name)
+	}
+	h.stopOne(actor.Name)
+	if spec := actor.Process; spec.CaptureFile != "" && len(spec.CaptureJSON) > 0 {
+		if err := h.capture(actor); err != nil {
+			return err
+		}
+	}
+	return h.startAndWait(ctx, actor)
+}
+
+// startAndWait runs LaunchActor's start portion: launch in its own process
+// group and wait for the ready pattern.
+func (h *harness) startAndWait(ctx context.Context, actor *project.Actor) error {
+	spec := actor.Process
+	readyRe, err := compileReady(spec.ReadyPattern)
+	if err != nil {
+		return fmt.Errorf("harness %s: ready_pattern: %w", actor.Name, err)
+	}
+	timeout := 30 * time.Second
+	if spec.ReadyTimeout != "" {
+		if timeout, err = time.ParseDuration(spec.ReadyTimeout); err != nil {
+			return fmt.Errorf("harness %s: ready_timeout %q: %w", actor.Name, spec.ReadyTimeout, err)
+		}
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	cmd := exec.CommandContext(runCtx, h.tmpl(spec.Start[0], actor), h.tmplSlice(spec.Start[1:], actor)...)
+	cmd.Env = h.childEnv(spec, actor)
+	cmd.Dir = h.tmpl(spec.Workdir, actor)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	scanner := &readyScanner{name: actor.Name, pattern: readyRe, hit: make(chan struct{}), log: h.log}
+	cmd.Stdout = scanner
+	cmd.Stderr = scanner
+	if err := cmd.Start(); err != nil {
+		cancel()
+		return fmt.Errorf("harness %s: start: %w", actor.Name, err)
+	}
+	h.mu.Lock()
+	h.procs[actor.Name] = &harnessProc{name: actor.Name, cmd: cmd, cancel: cancel}
+	h.mu.Unlock()
+	if readyRe != nil {
+		select {
+		case <-scanner.hit:
+		case <-time.After(timeout):
+			h.stopOne(actor.Name)
+			return fmt.Errorf("harness %s: ready pattern %q not seen within %s", actor.Name, spec.ReadyPattern, timeout)
+		}
+	}
+	h.log.Info("real-process actor restarted", zap.String("actor", actor.Name), zap.Int("pid", cmd.Process.Pid))
+	return nil
+}
+
 func (h *harness) capture(actor *project.Actor) error {
 	spec := actor.Process
 	raw, err := os.ReadFile(h.tmpl(spec.CaptureFile, actor))
@@ -328,4 +388,19 @@ func (s *Session) harnessStopAll() {
 		s.harness.StopAll()
 		s.harness = nil
 	}
+}
+
+// RestartActor tears down and re-launches one real-process actor, satisfying
+// the agent head's ActorRestarter (process_restart steps). Setup does not
+// re-run: pairing state persists, so the actor returns with its identity.
+func (s *Session) RestartActor(ctx context.Context, actorName string) error {
+	if s.harness == nil {
+		return fmt.Errorf("restart actor %s: no real-process harness active", actorName)
+	}
+	for i := range s.Config.Actors {
+		if s.Config.Actors[i].Name == actorName && s.Config.Actors[i].Fidelity == project.FidelityRealProcess {
+			return s.harness.Restart(ctx, &s.Config.Actors[i])
+		}
+	}
+	return fmt.Errorf("restart actor %s: not a real-process actor", actorName)
 }

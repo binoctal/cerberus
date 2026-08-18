@@ -24,18 +24,27 @@ type RecoverDecision struct {
 	Skip   bool
 }
 
+// ActorRestarter tears down and re-launches one real-process actor (managed
+// by the session harness, outside the agent package). The process_restart
+// step delegates here; nil means no harness is attached (step fails with a
+// clear error instead of silently passing).
+type ActorRestarter interface {
+	RestartActor(ctx context.Context, actorName string) error
+}
+
 // ReActLoop executes test steps using a Reason-Act-Observe cycle.
 type ReActLoop struct {
-	driver      *ai.Driver
-	store       *store.Store
-	engine      *RuleEngine
-	executor    TypedExecutor
-	wsIdx       *WSProtocolIndex // index for http_request step resolution; nil ⇒ no http triggers
-	recovery    recoverer
-	config      ReActConfig
-	logger      *zap.Logger
-	gate        escalation.Gate
-	processMgr  *ProcessManager
-	progressCh  chan<- ProgressEvent
-	projectName string
+	driver       *ai.Driver
+	store        *store.Store
+	engine       *RuleEngine
+	executor     TypedExecutor
+	wsIdx        *WSProtocolIndex // index for http_request step resolution; nil ⇒ no http triggers
+	recovery     recoverer
+	config       ReActConfig
+	logger       *zap.Logger
+	gate         escalation.Gate
+	processMgr   *ProcessManager
+	progressCh   chan<- ProgressEvent
+	projectName  string
+	actorRestart ActorRestarter
 }

@@ -1,253 +1,37 @@
 findings:
-    - id: tc-002-6c8f0fb4
-      summary: ws error http://localhost:8989/ws/%7BuserId%7D (matched=0 seen=0, 6.532µs)
-      case_ref: tc-002
-      session_ref: cc79672a-d981-4d34-8546-a244dbb796e5
-      tier: real
-      status: open
-      first_seen: "2026-08-18T00:57:06Z"
-      last_seen: "2026-08-18T00:57:06Z"
-      count: 1
-    - id: ws-realtime-wf-mission-seed-a8ff7a3d
-      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
-      case_ref: ws-realtime-wf-mission-seed
-      session_ref: 228035ff-ab07-4a05-853f-3f80083e436f
-      tier: real
-      status: open
-      first_seen: "2026-08-18T00:57:06Z"
-      last_seen: "2026-08-18T01:07:37Z"
-      count: 2
-    - id: tc-002-0e0ae6e4
-      summary: 'error: policy denied: MCP method not allowed: ws_connect'
-      case_ref: tc-002
-      session_ref: 228035ff-ab07-4a05-853f-3f80083e436f
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:07:37Z"
-      last_seen: "2026-08-18T01:07:37Z"
-      count: 1
-    - id: tc-003-b683181c
-      summary: HTTP 426 http://localhost:8989/ws/user-1 (7.962951ms)
-      case_ref: tc-003
-      session_ref: 228035ff-ab07-4a05-853f-3f80083e436f
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:07:37Z"
-      last_seen: "2026-08-18T01:07:37Z"
-      count: 1
-    - id: tc-004-bd8f0c99
-      summary: HTTP 400 http://localhost:8989/ws/ (1.390941ms)
-      case_ref: tc-004
-      session_ref: 228035ff-ab07-4a05-853f-3f80083e436f
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:07:37Z"
-      last_seen: "2026-08-18T01:07:37Z"
-      count: 1
-    - id: tc-005-43379506
-      summary: HTTP 404 http://localhost:8989/ (1.969579ms)
-      case_ref: tc-005
-      session_ref: 228035ff-ab07-4a05-853f-3f80083e436f
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:07:37Z"
-      last_seen: "2026-08-18T01:07:37Z"
-      count: 1
-    - id: tc-001-39af8254
-      summary: HTTP 426 http://localhost:8989/ws/user-test-1 (28.64726ms)
-      case_ref: tc-001
-      session_ref: b36fd886-1fc1-4fb4-9ce6-12aaad9e78c1
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:19:13Z"
-      last_seen: "2026-08-18T01:19:13Z"
-      count: 1
-    - id: tc-002-e075f319
-      summary: HTTP 400 http://localhost:8989/ws/ (1.80359ms)
-      case_ref: tc-002
-      session_ref: b36fd886-1fc1-4fb4-9ce6-12aaad9e78c1
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:19:13Z"
-      last_seen: "2026-08-18T01:19:13Z"
-      count: 1
-    - id: tc-004-c36dee30
-      summary: HTTP 404 http://localhost:8989/ (1.919035ms)
-      case_ref: tc-004
-      session_ref: b36fd886-1fc1-4fb4-9ce6-12aaad9e78c1
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:19:13Z"
-      last_seen: "2026-08-18T01:19:13Z"
-      count: 1
-    - id: ws-realtime-wf-mission-seed-28e303f3
-      summary: ws error  (matched=0 seen=0, 1m54.856593065s)
-      case_ref: ws-realtime-wf-mission-seed
-      session_ref: b36fd886-1fc1-4fb4-9ce6-12aaad9e78c1
-      tier: real
-      status: open
-      first_seen: "2026-08-18T01:19:13Z"
-      last_seen: "2026-08-18T01:19:13Z"
-      count: 1
-    - id: tc-001-f856803d
-      summary: HTTP 404 http://localhost:8989/healthz (1.766922ms)
-      case_ref: tc-001
-      session_ref: 22ecddf1-edd9-4cbe-a063-7743bb079e84
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:29:48Z"
-      last_seen: "2026-08-18T01:29:48Z"
-      count: 1
-    - id: ws-realtime-wf-mission-seed-7132b734
-      summary: ws error  (matched=0 seen=8, 1m54.619749167s)
-      case_ref: ws-realtime-wf-mission-seed
-      session_ref: 22ecddf1-edd9-4cbe-a063-7743bb079e84
-      tier: real
-      status: open
-      first_seen: "2026-08-18T01:29:48Z"
-      last_seen: "2026-08-18T01:29:48Z"
-      count: 1
-    - id: tc-003-0e0ae6e4
-      summary: 'error: policy denied: MCP method not allowed: ws_connect'
-      case_ref: tc-003
-      session_ref: 48efb091-358a-4817-9208-5f574dc386d7
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:52:13Z"
-      last_seen: "2026-08-18T01:52:13Z"
-      count: 1
-    - id: tc-004-a0b071f4
-      summary: HTTP 404 http://localhost:8989/ws (2.111119ms)
-      case_ref: tc-004
-      session_ref: 48efb091-358a-4817-9208-5f574dc386d7
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T01:52:13Z"
-      last_seen: "2026-08-18T01:52:13Z"
-      count: 1
-    - id: ws-realtime-wf-task-assign-2981e803
-      summary: ws error  (matched=0 seen=12, 2m0.001352171s)
-      case_ref: ws-realtime-wf-task-assign
-      session_ref: 48efb091-358a-4817-9208-5f574dc386d7
-      tier: real
-      status: open
-      first_seen: "2026-08-18T01:52:13Z"
-      last_seen: "2026-08-18T01:52:13Z"
-      count: 1
-    - id: tc-002-77393e6a
-      summary: HTTP 400 http://localhost:8989/ws/ (1.546856ms)
-      case_ref: tc-002
-      session_ref: 5722e9fa-d257-4a6a-9a9e-bc1f57d80c18
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:08:53Z"
-      last_seen: "2026-08-18T02:08:53Z"
-      count: 1
-    - id: tc-003-d9ac8f52
-      summary: HTTP 426 http://localhost:8989/ws/test-user-1 (39.881328ms)
-      case_ref: tc-003
-      session_ref: 5722e9fa-d257-4a6a-9a9e-bc1f57d80c18
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:08:53Z"
-      last_seen: "2026-08-18T02:08:53Z"
-      count: 1
-    - id: tc-004-c796ae20
-      summary: HTTP 426 http://localhost:8989/ws/user-with-special%21chars (38.960917ms)
-      case_ref: tc-004
-      session_ref: 5722e9fa-d257-4a6a-9a9e-bc1f57d80c18
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:08:53Z"
-      last_seen: "2026-08-18T02:08:53Z"
-      count: 1
-    - id: ws-realtime-wf-mission-seed-7c4e2239
-      summary: ws error  (matched=0 seen=4, 5m0.000252915s)
-      case_ref: ws-realtime-wf-mission-seed
-      session_ref: 5722e9fa-d257-4a6a-9a9e-bc1f57d80c18
-      tier: real
-      status: open
-      first_seen: "2026-08-18T02:08:53Z"
-      last_seen: "2026-08-18T02:08:53Z"
-      count: 1
-    - id: tc-002-d53190b7
-      summary: 'error: steer attempt 3: context deadline exceeded'
-      case_ref: tc-002
-      session_ref: e911cb5c-954a-44ed-8c1e-2aca116227f6
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:30:05Z"
-      last_seen: "2026-08-18T02:30:05Z"
-      count: 1
     - id: tc-003-d53190b7
       summary: 'error: steer attempt 3: context deadline exceeded'
       case_ref: tc-003
-      session_ref: e911cb5c-954a-44ed-8c1e-2aca116227f6
+      session_ref: 5d0df93b-535f-433b-9edb-bc041ea8e03e
       tier: emulated
       status: open
-      first_seen: "2026-08-18T02:30:05Z"
-      last_seen: "2026-08-18T02:30:05Z"
+      first_seen: "2026-08-18T12:31:28Z"
+      last_seen: "2026-08-18T12:31:28Z"
       count: 1
     - id: tc-004-d53190b7
       summary: 'error: steer attempt 3: context deadline exceeded'
       case_ref: tc-004
-      session_ref: e911cb5c-954a-44ed-8c1e-2aca116227f6
+      session_ref: 5d0df93b-535f-433b-9edb-bc041ea8e03e
       tier: emulated
       status: open
-      first_seen: "2026-08-18T02:30:05Z"
-      last_seen: "2026-08-18T02:30:05Z"
+      first_seen: "2026-08-18T12:31:28Z"
+      last_seen: "2026-08-18T12:31:28Z"
       count: 1
     - id: http-route-realtime-get-api-oauth-github-b6a83828
       summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-oauth-github
-      session_ref: e911cb5c-954a-44ed-8c1e-2aca116227f6
+      session_ref: 5d0df93b-535f-433b-9edb-bc041ea8e03e
       tier: emulated
       status: open
-      first_seen: "2026-08-18T02:30:05Z"
-      last_seen: "2026-08-18T02:30:05Z"
+      first_seen: "2026-08-18T12:31:28Z"
+      last_seen: "2026-08-18T12:31:28Z"
       count: 2
     - id: http-route-realtime-get-api-oauth-google-b6a83828
       summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-oauth-google
-      session_ref: e911cb5c-954a-44ed-8c1e-2aca116227f6
+      session_ref: 5d0df93b-535f-433b-9edb-bc041ea8e03e
       tier: emulated
       status: open
-      first_seen: "2026-08-18T02:30:05Z"
-      last_seen: "2026-08-18T02:30:05Z"
+      first_seen: "2026-08-18T12:31:28Z"
+      last_seen: "2026-08-18T12:31:28Z"
       count: 2
-    - id: tc-001-0e0ae6e4
-      summary: 'error: policy denied: MCP method not allowed: ws_connect'
-      case_ref: tc-001
-      session_ref: 55c20b91-9f5a-432b-b893-d622b86d5747
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:43:10Z"
-      last_seen: "2026-08-18T02:43:10Z"
-      count: 1
-    - id: tc-003-c84714b2
-      summary: HTTP 400 http://localhost:8989/ws/ (3.595614ms)
-      case_ref: tc-003
-      session_ref: 55c20b91-9f5a-432b-b893-d622b86d5747
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:43:10Z"
-      last_seen: "2026-08-18T02:43:10Z"
-      count: 1
-    - id: tc-004-9bc06830
-      summary: HTTP 426 http://localhost:8989/ws/%20%20 (9.893226ms)
-      case_ref: tc-004
-      session_ref: 55c20b91-9f5a-432b-b893-d622b86d5747
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:43:10Z"
-      last_seen: "2026-08-18T02:43:10Z"
-      count: 1
-    - id: tc-005-7fb65ef6
-      summary: HTTP 404 http://localhost:8989/ (3.772605ms)
-      case_ref: tc-005
-      session_ref: 55c20b91-9f5a-432b-b893-d622b86d5747
-      tier: emulated
-      status: open
-      first_seen: "2026-08-18T02:43:10Z"
-      last_seen: "2026-08-18T02:43:10Z"
-      count: 1

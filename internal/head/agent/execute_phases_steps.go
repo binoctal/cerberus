@@ -13,6 +13,32 @@ import (
 	"github.com/binoctal/cerberus/internal/types"
 )
 
+// runProcessRestart executes a process_restart step: resolve the declared
+// Role to its real-process actor (credential_ref) and delegate to the session
+// harness via the ActorRestarter hook. The step is only emitted when a
+// sacrificial second real bridge exists; a nil hook or failed relaunch fails
+// the step with a clear error.
+func (se *stepExecution) runProcessRestart(s TestStep) (types.ProcessRestartResult, error) {
+	r := se.loop
+	start := time.Now()
+	fail := func(err error) (types.ProcessRestartResult, error) {
+		return types.ProcessRestartResult{OK: false, Actor: s.Role, Latency: time.Since(start), Err: err.Error()}, err
+	}
+	if r.actorRestart == nil {
+		return fail(fmt.Errorf("process_restart: no actor restarter attached (no real-process harness)"))
+	}
+	actor := s.Role
+	if proto := protocolForURL(r.wsIdx, se.tc.Target); proto != nil {
+		if role, ok := proto.Roles[s.Role]; ok && role != nil && role.CredentialRef != "" {
+			actor = role.CredentialRef
+		}
+	}
+	if err := r.actorRestart.RestartActor(se.ctx, actor); err != nil {
+		return fail(err)
+	}
+	return types.ProcessRestartResult{OK: true, Actor: actor, Latency: time.Since(start)}, nil
+}
+
 // stepEvidence builds one trace entry carrying the structured WS facts
 // downstream fan-out derivation needs (connectionID + matched type). Kept as a
 // helper so the field population is unit-testable without a live WS server.
@@ -40,6 +66,11 @@ func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
 	}
 	if s.Action == "ws_send" {
 		ev.MatchedType = typeOfSend(s.Message)
+	}
+	if s.Action == "process_restart" {
+		if pr, ok := result.(types.ProcessRestartResult); ok {
+			ev.Content = fmt.Sprintf("process_restart: %s", pr.Actor)
+		}
 	}
 	if s.Action == "http_request" {
 		if hr, ok := result.(types.HTTPResult); ok {
@@ -332,6 +363,21 @@ func (se *stepExecution) runSteps() StepResult {
 		s = substituteCaseParams(s, se.caseParams)
 		var action types.TypedAction
 		var err error
+		if s.Action == "process_restart" {
+			// Not a typed executor action: the harness lives at the session
+			// layer. Role names the DECLARED protocol role; its credential_ref
+			// resolves to the real-process actor to relaunch. No
+			// recordEvidence here — it requires a TypedAction; the step's
+			// Evidence entry below carries the facts.
+			result, rerr := se.runProcessRestart(s)
+			evidence = append(evidence, stepEvidence(s, result))
+			if rerr != nil || !result.Success() {
+				return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
+					Attempts: 1, Duration: time.Since(se.start), Result: result, Evidence: evidence,
+					Error: rerr}
+			}
+			continue
+		}
 		if s.Action == "http_request" {
 			action, err = resolveHTTPStep(r.wsIdx, s)
 		} else {

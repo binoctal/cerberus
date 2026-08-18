@@ -39,6 +39,8 @@ func (rp *resumePhase) executeRemainingCases() error {
 		Logger:   rp.session.Logger,
 		Embedder: emb,
 		Project:  rp.session.Config.Project.Name,
+		// process_restart steps reach the session harness through here.
+		ActorRestart: rp.session,
 	})
 
 	var err error

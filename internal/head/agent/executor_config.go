@@ -24,6 +24,9 @@ type ReActLoopConfig struct {
 	Logger   *zap.Logger
 	Embedder embed.Provider
 	Project  string
+	// ActorRestart lets process_restart steps reach the session harness
+	// (real-process actor teardown + relaunch). Optional: nil fails the step.
+	ActorRestart ActorRestarter
 }
 
 // NewReActLoopWithGateWithConfig creates a ReAct execution loop with an explicit escalation gate using config.
@@ -33,17 +36,18 @@ func NewReActLoopWithGateWithConfig(cfg ReActLoopConfig) *ReActLoop {
 	}
 
 	loop := &ReActLoop{
-		driver:      cfg.Driver,
-		store:       cfg.Store,
-		engine:      cfg.Engine,
-		executor:    cfg.Executor,
-		wsIdx:       cfg.WSIdx,
-		recovery:    NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger, cfg.Embedder),
-		config:      cfg.Config,
-		gate:        cfg.Gate,
-		logger:      cfg.Logger,
-		processMgr:  NewProcessManager(cfg.Logger),
-		projectName: cfg.Project,
+		driver:       cfg.Driver,
+		store:        cfg.Store,
+		engine:       cfg.Engine,
+		executor:     cfg.Executor,
+		wsIdx:        cfg.WSIdx,
+		recovery:     NewRecovery(cfg.Driver, cfg.Store, cfg.Config, cfg.Logger, cfg.Embedder),
+		config:       cfg.Config,
+		gate:         cfg.Gate,
+		logger:       cfg.Logger,
+		processMgr:   NewProcessManager(cfg.Logger),
+		projectName:  cfg.Project,
+		actorRestart: cfg.ActorRestart,
 	}
 
 	// Set project name on recovery if it implements the interface
