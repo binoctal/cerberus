@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fail-fast npx stub for the offline dogfood env: the claude ACP adapter
+# (cliType "claude") shells out to `npx @agentclientprotocol/claude-agent-acp`,
+# which cannot be fetched offline. The real npx leaves a JSON-protocol process
+# alive that errors on every prompt line and never exits -- a task retried onto
+# the fallback CLI then hangs forever with no failure report. Exiting 1
+# immediately models "adapter not installed": ACP fails fast, the PTY fallback
+# fails fast, and the session exit reaches the orchestrator so retry
+# exhaustion -> workflow:task_failed stays deterministic.
+exit 1

@@ -142,12 +142,40 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 				"taskId":   "{{case.missionId}}_t0",
 			})},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_result", Timeout: 60},
+		// 9. Failure path (reopened 2026-08-19): a second mission whose tasks
+		// must fail. The planner folds the inputText into the task
+		// title/description; the dogfood shim exits 1 on a CERBERUS_FAIL line,
+		// so the bridge reports task_error via its (now working) callback and
+		// the orchestrator retries (MAX_RETRIES 3, backoff 5s/15s/45s). The
+		// retry fallback ladder climbs claude-pty → claude (npx ACP) → codex;
+		// every rung except claude-pty is a fail-fast exit-1 stub in the
+		// dogfood shim dir (a REAL fallback CLI would stay alive and the 4th
+		// error would never arrive — live-verified: tasks stuck at
+		// retry_count=3 on the host's real codex). Retry exhaustion
+		// broadcasts workflow:task_failed — the only emitter of that frame.
+		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
+			AuthRole: "web", ExpectStatusClass: "2xx",
+			Body:    `{"inputText":"CERBERUS_FAIL: this mission must fail. Every task prints the marker CERBERUS_FAIL in its description and then exits with an error. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
+			Capture: map[string]string{"mission.id": "failMissionId"}},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_failed", Timeout: 600},
+		// 10. Merge-failure task_error: the ONLY emitter of the bridge→web
+		// workflow:task_error frame is a failed branch merge
+		// (handleWorkflowTaskMerge). A taskId with no worktree branch makes
+		// `git merge task-...` fail ("not something we can merge"), which
+		// reports errorType merge_failed — deterministic, no bridge breakage.
+		agent.TestStep{Action: "ws_send", ConnectionID: "web",
+			Message: wsSendBodyAny("workflow:task_merge", map[string]any{
+				"deviceId": "{{bridge.deviceId}}",
+				"jobId":    "{{case.failMissionId}}",
+				"taskId":   "{{case.failMissionId}}_no-branch",
+			})},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_error", Timeout: 60},
 	)
 	return []agent.TestCase{{
 		ID: wsCaseID(svc.Name, "wf", "mission-seed"), Service: svc.Name, Target: svc.URL,
 		Name:   "seeded mission drives real orchestration end to end",
 		Action: "ws_flow", Priority: 0.8,
-		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, the task session pushes workflow:task_progress + workflow:task_question, completion flows back through the bridge HTTP callback (workflow:task_completed + workflow:job_status), and a web-initiated task_merge elicits workflow:task_result",
+		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, the task session pushes workflow:task_progress + workflow:task_question, completion flows back through the bridge HTTP callback (workflow:task_completed + workflow:job_status), a web-initiated task_merge elicits workflow:task_result, a failing mission exhausts its retries into workflow:task_failed, and a branchless merge elicits workflow:task_error",
 		Steps:       steps,
 	}}
 }

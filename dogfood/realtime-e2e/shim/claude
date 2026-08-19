@@ -4,16 +4,23 @@
 # process via the claude-pty path and streams its output back through both
 # batching layers.
 #
-# Task sessions (workflow task_assign) feed buildTaskPrompt output, whose last
-# line carries the [QUESTION] instruction. A real CLI finishes the task and
-# exits there, so after echoing such a line the shim exits 0 — that closes the
-# PTY session, fires the bridge's exit callback and with it the completion
-# HTTP callback (task_result -> task_completed/job_status broadcasts).
-# Interactive session cases never type a [QUESTION] line, so they keep the
+# Two exit semantics model a real CLI:
+# - A line carrying CERBERUS_FAIL (task prompts put mission text in the
+#   title/description, which precede the instruction line) means the task
+#   must fail: echo it, then exit 1 two seconds later. The nonzero exit
+#   rides the bridge's exit callback as a task_error report, and retry
+#   exhaustion broadcasts workflow:task_failed.
+# - A line carrying [QUESTION] (the buildTaskPrompt instruction every task
+#   prompt ends with) means the task is done: echo it, then exit 0 two
+#   seconds later — that closes the PTY session, fires the exit callback and
+#   with it the completion HTTP callback (task_result ->
+#   task_completed/job_status broadcasts).
+# Interactive session cases never type either marker, so they keep the
 # long-lived echo loop.
 while IFS= read -r line; do
   printf 'FAKE_CLAUDE_ECHO: %s\n' "$line"
   case "$line" in
+    *"CERBERUS_FAIL"*) sleep 2; exit 1 ;;
     *"[QUESTION]"*) sleep 2; exit 0 ;;
   esac
 done

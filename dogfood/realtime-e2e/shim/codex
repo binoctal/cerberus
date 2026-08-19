@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fail-fast codex stub (offline dogfood env): the orchestrator's retry fallback
+# ladder can switch a failing task to any detected CLI; a real codex would
+# stay alive and the failure would never report, stalling retry exhaustion
+# (live-verified 2026-08-19: tasks stuck at retry_count=3 on codex). Every
+# non-claude-pty CLI is modelled as unusable offline: exit 1 immediately.
+exit 1
