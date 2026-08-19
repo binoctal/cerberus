@@ -86,10 +86,15 @@ func missionSendCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			connect,
 			{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny("workflow:task_assign", map[string]any{
 				"deviceId": deviceID, "jobId": wfSeedJobID, "taskId": assignTaskID,
-				"agent": "claude", "title": "Say done", "description": "Reply with the single word done.",
+				// claude-pty, NOT claude: base cli "claude" is the npx ACP
+				// adapter, a fail-fast stub offline — the session would die
+				// before the answer/guidance follow-ups and the judge flags
+				// the dead-session behavior (live-observed 2026-08-19,
+				// correctness 0.3 flip). claude-pty runs the shim, which
+				// stays alive for 5s after the prompt echo — a wide-enough
+				// live window for the follow-ups.
+				"agent": "claude-pty", "title": "Say done", "description": "Reply with the single word done.",
 			})},
-			// An ACP connect attempt (or its 60s timeout before the PTY
-			// fallback) precedes the session start — minute-scale window.
 			{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 180},
 			{Action: "ws_send", ConnectionID: "web", Message: wsSendBodyAny("workflow:task_answer", map[string]any{
 				"deviceId": deviceID, "taskId": assignTaskID, "answer": "done",

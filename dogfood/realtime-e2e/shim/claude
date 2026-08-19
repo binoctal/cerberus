@@ -20,7 +20,7 @@
 while IFS= read -r line; do
   printf 'FAKE_CLAUDE_ECHO: %s\n' "$line"
   case "$line" in
-    *"CERBERUS_FAIL"*) sleep 2; exit 1 ;;
-    *"[QUESTION]"*) sleep 2; exit 0 ;;
+    *"CERBERUS_FAIL"*) sleep 5; exit 1 ;;
+    *"[QUESTION]"*) sleep 5; exit 0 ;;
   esac
 done
