@@ -269,6 +269,11 @@ offline — legacy rows need the one-time D1 cleanup in the env doc).
 **Result:** live run 2026-08-19 — "Callback successful", mission-seed
 PASS, completion frames (`task_completed`, `job_status`, merge-path
 `task_result`) all received, coverage 100% with the family reopened.
+Follow-up rounds the same day (runs 5-9) reopened the failure family too
+(`task_failed` via retry exhaustion, `task_error` via branchless merge)
+at coverage 100% with 0 judge degradations. Four more layers (alarm-route
+user, stuck-recovery SQL, planner agent-literal copy, rate-limiter
+crowding) are documented in `2026-08-19-completion-family-run-record.md`.
 
 ---
 

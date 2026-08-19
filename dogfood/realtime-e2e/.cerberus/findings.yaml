@@ -161,3 +161,102 @@ findings:
       first_seen: "2026-08-19T01:39:36Z"
       last_seen: "2026-08-19T01:39:36Z"
       count: 1
+    - id: tc-001-42372081
+      summary: HTTP 404 http://localhost:8989/ (1.796621ms)
+      case_ref: tc-001
+      session_ref: 0f0b8b5b-71f5-4bfe-9e65-159372273b14
+      tier: emulated
+      status: open
+      first_seen: "2026-08-19T02:37:58Z"
+      last_seen: "2026-08-19T02:37:58Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-4df71412
+      summary: ws error  (matched=0 seen=1, 5m0.005503385s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 0f0b8b5b-71f5-4bfe-9e65-159372273b14
+      tier: real
+      status: open
+      first_seen: "2026-08-19T02:37:58Z"
+      last_seen: "2026-08-19T02:37:58Z"
+      count: 1
+    - id: tc-003-c2e3a184
+      summary: HTTP 404 http://localhost:8989/health (3.018336ms)
+      case_ref: tc-003
+      session_ref: 2dd3bedd-d558-4863-875b-4f663474d3c7
+      tier: emulated
+      status: open
+      first_seen: "2026-08-19T03:11:02Z"
+      last_seen: "2026-08-19T03:11:02Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-88b52372
+      summary: ws error  (matched=0 seen=8298, 10m0.000773685s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 2dd3bedd-d558-4863-875b-4f663474d3c7
+      tier: real
+      status: open
+      first_seen: "2026-08-19T03:11:02Z"
+      last_seen: "2026-08-19T03:11:02Z"
+      count: 1
+    - id: tc-003-a61d317d
+      summary: HTTP 404 http://localhost:8989/ (2.14461ms)
+      case_ref: tc-003
+      session_ref: 90850721-21fa-4836-8a21-10eab5739763
+      tier: emulated
+      status: open
+      first_seen: "2026-08-19T03:45:12Z"
+      last_seen: "2026-08-19T03:45:12Z"
+      count: 1
+    - id: tc-004-a1c4d49f
+      summary: HTTP 400 http://localhost:8989/ws/ (1.601951ms)
+      case_ref: tc-004
+      session_ref: 90850721-21fa-4836-8a21-10eab5739763
+      tier: emulated
+      status: open
+      first_seen: "2026-08-19T03:45:12Z"
+      last_seen: "2026-08-19T03:45:12Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-1e4875fb
+      summary: ws error  (matched=0 seen=10624, 10m0.002363696s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 90850721-21fa-4836-8a21-10eab5739763
+      tier: real
+      status: open
+      first_seen: "2026-08-19T03:45:12Z"
+      last_seen: "2026-08-19T03:45:12Z"
+      count: 1
+    - id: tc-002-654c8cfa
+      summary: HTTP 426 http://localhost:8989/ws/test-user (29.897841ms)
+      case_ref: tc-002
+      session_ref: 08bbaccf-99ab-4cdf-81f1-94f60ba4974e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-19T05:31:01Z"
+      last_seen: "2026-08-19T05:31:01Z"
+      count: 1
+    - id: tc-001-33282486
+      summary: MCP error (1.764µs)
+      case_ref: tc-001
+      session_ref: 182bd8a1-5196-4808-95ee-b10030ebfdaa
+      tier: emulated
+      status: open
+      first_seen: "2026-08-19T05:57:00Z"
+      last_seen: "2026-08-19T05:57:00Z"
+      count: 1
+    - id: tc-004-e969928c
+      summary: ws error http://localhost:8989/ws/%7BuserId%7D (matched=0 seen=0, 6.192µs)
+      case_ref: tc-004
+      session_ref: 182bd8a1-5196-4808-95ee-b10030ebfdaa
+      tier: real
+      status: open
+      first_seen: "2026-08-19T05:57:00Z"
+      last_seen: "2026-08-19T05:57:00Z"
+      count: 1
+    - id: repair-tc-004-b3b00ded
+      summary: ws error ws://localhost:8989/ws/bridge-pty-1?actor=bridge-pty-1 (matched=0 seen=0, 9.347µs)
+      case_ref: repair-tc-004
+      session_ref: 182bd8a1-5196-4808-95ee-b10030ebfdaa
+      tier: real
+      status: open
+      first_seen: "2026-08-19T05:57:00Z"
+      last_seen: "2026-08-19T05:57:00Z"
+      count: 1

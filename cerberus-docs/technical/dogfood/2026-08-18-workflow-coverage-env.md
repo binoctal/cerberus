@@ -58,6 +58,7 @@ The local D1 predates the current schema baseline; run from `apps/api`:
 ```
 npx wrangler d1 execute open-agents --local --command "ALTER TABLE agents ADD COLUMN steering TEXT"
 npx wrangler d1 execute open-agents --local --command "ALTER TABLE cost_records ADD COLUMN request_type TEXT"
+npx wrangler d1 execute open-agents --local --file migrations/0002_hitl_questions.sql   # added 2026-08-19: task_question callbacks 500 on the missing multiagent_task_questions table
 ```
 
 - `agents.steering`: `POST /api/agents` 500s (D1_ERROR: no column named steering).

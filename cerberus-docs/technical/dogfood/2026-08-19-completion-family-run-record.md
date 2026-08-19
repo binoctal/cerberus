@@ -52,6 +52,41 @@ bump for the examiner head or a smaller suite; not addressed here.
 
 ## Leftovers
 
-- `/internal/orchestrator/alarm` still resolves no user (alarm payloads
-  carry neither userId nor missionId) — open, unfixed on the branch.
 - open-agents branch is NOT merged to main (awaiting review).
+
+## Follow-up rounds (same day, failure family + drift)
+
+Runs 5-9 chased the remaining leftovers; four more open-agents defects
+surfaced and were fixed on the same branch:
+
+7. **Alarm route had no user either** (`0c62e11`): `scheduleAlarm` now
+   stamps the orchestrator's userId into the alarm data; the alarm route
+   resolves it like the event route.
+8. **recoverStuckTasks filtered multiagent_tasks by user_id** — a column
+   that table doesn't have; every user-resolved stuckRecovery alarm 500'd
+   (`de920a5`, JOIN to missions now).
+9. **Planner copied the injected agent-list line verbatim** into
+   recommendedAgent ("claude-pty: claude-pty") — task matched no device
+   CLI, skipped forever (`de920a5`, `sanitizeRecommendedAgent`).
+10. **Internal routes crowded the rate limiter**: secret-authed callbacks
+    (no JWT) all keyed into one 'anonymous' IP bucket; a task-output burst
+    429'd the retryTask alarms mid-chain (`ab4c17f`, internal routes skip
+    the limiter). Also `392f87c`: the event route tolerates unknown
+    missions instead of 500-ing the bridge into retry/cache storms.
+
+Dogfood companions: fail-fast stubs for the whole retry fallback ladder
+(npx + codex/cline/kiro — the ladder otherwise lands on the HOST's real
+codex, which stays alive and stalls retry exhaustion at count 3); the
+task-assign case rides the live claude-pty shim (5s post-marker window)
+after the judge rightly flipped its dead-session behavior at 0.3.
+
+**Run 9 (final): coverage 100% (gaps 0), mission-seed PASS with the full
+failure chain (CERBERUS_FAIL mission → retry exhaustion →
+workflow:task_failed; branchless merge → workflow:task_error), 692 pass /
+1 fail (tc-004 scout exploration stub, auth) / 1 recovered, 0 judge
+degradations — ALL 694 verdicts judged with correctness, judge/step
+disagreements 0 (only tc-004 fails, where executor and judge agree).**
+
+**Drift datum (2026-08-19, run 9): 0 incorrect / 694 judged, 0 degraded,
+0 under-confidence flips.** The 2026-08-18/19 budget starvation is gone
+(session_total_tokens 700K + max_duration 60m in project.yaml).
