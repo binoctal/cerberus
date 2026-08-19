@@ -63,6 +63,19 @@ npx wrangler d1 execute open-agents --local --command "ALTER TABLE cost_records 
 - `agents.steering`: `POST /api/agents` 500s (D1_ERROR: no column named steering).
 - `cost_records.request_type`: decompose's cost recording errors after a
   successful plan (non-fatal but noisy, and it happens on EVERY decompose).
+- Legacy agent rows (added 2026-08-19, after the completion-callback reopen):
+  pre-2026-08-19 runs seeded `{name:"claude", baseCli:"claude"}` rows. Those
+  resolve to the ACP adapter (`npx @agentclientprotocol/claude-agent-acp`),
+  which never finishes offline, so the planner must not be able to pick them:
+
+  ```
+  npx wrangler d1 execute open-agents --local --command "DELETE FROM agents WHERE base_cli = 'claude'"
+  ```
+
+  The mission-seed case now seeds `{name:"claude-pty", baseCli:"claude-pty"}`
+  (PTY transport = the dogfood shim, which exits after the task prompt and so
+  fires the completion callback). Rows with the same base_cli accumulate
+  harmlessly; only heterogeneous base_clis are a problem.
 
 ## provider_test landmine
 

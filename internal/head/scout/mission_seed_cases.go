@@ -81,14 +81,23 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// baseCli: the planner injects the user's agents as "- baseCli: name"
 		// and glm-4.5 sometimes copies that literal into assigned_agent
 		// (live-observed 2026-08-18: "claude: cerberus-bridge-agent" → no
-		// device with that "CLI" → task skipped forever). With name ==
-		// "claude", BOTH of the orchestrator's resolution paths succeed:
-		// resolveCliForAgent matches the agents-table name → base_cli, and a
-		// raw "claude" falls through to the device's cliEnabled map (the
-		// dogfood shim puts a claude binary on the bridge PATH).
+		// device with that "CLI" → task skipped forever). name == baseCli ==
+		// "claude-pty" makes every glm pick safe (it copies baseCli or name,
+		// both resolve). The dispatch message carries assigned_agent
+		// verbatim and the bridge picks the CLI by it: "claude" would run
+		// the ACP adapter (npx @agentclientprotocol/claude-agent-acp),
+		// which in the offline dogfood env never finishes (60s connect
+		// timeout, then a JSON-protocol process fed raw prompt text that
+		// errors on every line — live-verified 2026-08-19), while
+		// "claude-pty" runs the claude binary on PATH (the dogfood shim):
+		// it echoes the prompt and, on a task prompt, exits after the
+		// [QUESTION] line — the session exit that fires the completion
+		// callback. Legacy rows with base_cli "claude" from pre-2026-08-19
+		// runs must be cleaned from the dev D1 once (see the env doc), or
+		// glm may pick them instead.
 		agent.TestStep{Action: "http_request", URL: host + "/api/agents", Method: "POST",
 			AuthRole: "web", ExpectStatusClass: "2xx",
-			Body:    `{"name":"claude","baseCli":"claude"}`,
+			Body:    `{"name":"claude-pty","baseCli":"claude-pty"}`,
 			Capture: map[string]string{"id": "agentId"}},
 		// 5. The mission itself (create returns {mission:{id}} → dot-path
 		// capture). Web role: the mission user must be the device owner.

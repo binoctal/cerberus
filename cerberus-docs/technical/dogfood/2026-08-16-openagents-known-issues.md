@@ -231,6 +231,47 @@ exhausts api_hourly and every mission-setup POST 429s
 
 ---
 
+## 13. Workflow completion callback family — six stacked defects (found 2026-08-19, FIXED on open-agents `fix/workflow-callback-url`, unmerged)
+
+Item 6's ws:// scheme diagnosis was only the top layer. Dissecting the
+full "mission never completes" chain (live, 4 dogfood runs) surfaced six
+defects, all fixed on the branch:
+
+1. **Scheme** (bridge.go:208): `CallbackConfig.APIURL` was the raw
+   `ws://` ServerURL → `unsupported protocol scheme` (the known item 6).
+2. **Path** (callback.go): posted `/api/workflows/internal/orchestrator/event`,
+   which does not exist — real route is `/api/missions/internal/orchestrator/event`
+   (the legacy redirect only covers `/api/workflows/jobs/*`).
+3. **Auth** (missions.ts `/internal/*` middleware): the callback sent no
+   `X-Internal-Secret` → 403.
+4. **Merge routing dead** (room.ts): `workflow:task_merge` was neither in
+   the DO `/broadcast` sendToBridge set nor the web→bridge whitelist, and
+   `sendMergeCommand` carried no deviceId — `handleWorkflowTaskMerge`
+   (the only bridge→web `workflow:task_result` emitter) was unreachable.
+5. **Internal routes have no user context** (missions.ts): `getOrchestrator`
+   read `c.get('userId')`, undefined on secret-authed routes → every
+   event callback 500'd with D1_TYPE_ERROR (bind undefined). Fixed by
+   payload.userId on the bridge side + `getOrchestratorForUser` /
+   mission-owner fallback on the route. Note: `/internal/orchestrator/alarm`
+   still has this gap (alarm payloads carry no userId/missionId) — unfixed.
+6. **Natural CLI exit never reported** (bridge.go / protocol/pty.go): a
+   CLI that finishes by itself only emits status=idle with an exit_code
+   meta; nothing stopped the session, so the exit callback
+   (`SendTaskResult`) never fired. Fixed by stopping the session on
+   exit_code status.
+
+**Dogfood-side companions** (cerberus): the shim now exits 0 after
+echoing a `[QUESTION]` line (models a task CLI that finishes), and the
+mission-seed agent row is `claude-pty` (base cli `claude` resolves to
+`npx @agentclientprotocol/claude-agent-acp`, which never finishes
+offline — legacy rows need the one-time D1 cleanup in the env doc).
+
+**Result:** live run 2026-08-19 — "Callback successful", mission-seed
+PASS, completion frames (`task_completed`, `job_status`, merge-path
+`task_result`) all received, coverage 100% with the family reopened.
+
+---
+
 ## Re-verification
 
 Items 1-5 checked 2026-08-16; items 6-12 checked 2026-08-18 (code read +
