@@ -30,11 +30,13 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 	}
 	steps := cases[0].Steps
 	// 0 user id capture, 1 plan seed, 2 user plan update, 3 provider,
-	// 4 agent seed, 5 mission create. The /api/auth/me step leads because the
-	// admin actor carries no statically-known user id (ruling: capture it).
+	// 4 agent seed, 5 mission create, 6 failing-mission create (the failure
+	// path: retry exhaustion -> workflow:task_failed). The /api/auth/me step
+	// leads because the admin actor carries no statically-known user id
+	// (ruling: capture it).
 	wantURLs := []string{
 		"/api/auth/me", "/api/admin/billing/plans", "/api/admin/users/", "/api/admin/ai-providers",
-		"/api/agents", "/api/missions",
+		"/api/agents", "/api/missions", "/api/missions",
 	}
 	idx := 0
 	for _, s := range steps {

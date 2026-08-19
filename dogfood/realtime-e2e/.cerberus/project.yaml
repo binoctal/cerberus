@@ -89,8 +89,11 @@ actors:
       ready_pattern: "Connected to server successfully"
       ready_timeout: 30s
 settings:
-  max_duration: 25m   # mission-orchestration case alone runs ~4-6min (decompose + alarms + ACP timeout); 12m truncated the examiner phase
+  max_duration: 60m   # mission-orchestration case alone runs ~4-6min; full judge of ~700 verdicts needs ~15-25min more (25m truncated it once the budget stopped starving the judge)
   confidence_threshold: 0.7
   ai_budget:
-    session_total_tokens: 200000   # 80K starved the Examiner in ws-realtime dogfood (2026-08-14)
+    # 200K still starved the Examiner (2026-08-19: scout+agent left ~9K,
+    # below the 10K per-call cap, degrading 458/691 judge verdicts to step
+    # status — no drift aggregate). 700K lets all ~700 verdicts judge.
+    session_total_tokens: 700000
     per_call_limit: 10000
