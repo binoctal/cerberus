@@ -52,7 +52,8 @@ bump for the examiner head or a smaller suite; not addressed here.
 
 ## Leftovers
 
-- open-agents branch is NOT merged to main (awaiting review).
+- ~~open-agents branch is NOT merged to main (awaiting review).~~
+  RESOLVED 2026-08-19: merged to main as 146164c.
 
 ## Follow-up rounds (same day, failure family + drift)
 

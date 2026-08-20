@@ -58,7 +58,8 @@ func (s *Scout) executeDirectPlanning(ctx context.Context, goal string, model *p
 // redundantly re-connect them.
 func (s *Scout) augmentPlan(plan *agent.TestPlan, goal string, covered map[string]map[string]bool, coveringCase map[string]map[string]string, httpCovering map[string]map[string]string) {
 	s.appendExecutorCases(plan, goal, covered, coveringCase, httpCovering)
-	filterWSEndpointDrift(plan, s.config) // Finding-3: drop WS-endpoint HTTP drift
+	filterWSEndpointDrift(plan, s.config)      // Finding-3: drop WS-endpoint HTTP drift
+	filterProcessBoundConnects(plan, s.config) // tc-004: drop connects as real-process roles
 }
 
 // Plan generates a TestPlan from the goal and project model.
@@ -142,6 +143,49 @@ func filterWSEndpointDrift(plan *agent.TestPlan, cfg *project.Config) {
 		kept = append(kept, c)
 	}
 	plan.Cases = kept
+}
+
+// filterProcessBoundConnects drops LLM ws_flow cases that ws_connect as a
+// process-bound role — a role whose connection is owned by a real-process
+// actor. The executor has no token for such an actor, so the connect fails at
+// injectAuth ("ws auth: no token for actor") on every run (the tc-004 dogfood
+// failure). The deterministic generators never connect as these roles; this
+// filter closes the LLM exploration path. No-op when no role is process-bound.
+func filterProcessBoundConnects(plan *agent.TestPlan, cfg *project.Config) {
+	bound := map[string]bool{}
+	for _, svc := range cfg.Services {
+		if svc.Protocol == nil {
+			continue
+		}
+		for name, role := range svc.Protocol.Roles {
+			if role != nil && role.ProcessBound {
+				bound[name] = true
+			}
+		}
+	}
+	if len(bound) == 0 {
+		return
+	}
+	kept := make([]agent.TestCase, 0, len(plan.Cases))
+	for _, c := range plan.Cases {
+		if c.Action == "ws_flow" && connectsAsBoundRole(c.Steps, bound) {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	plan.Cases = kept
+}
+
+// connectsAsBoundRole reports whether any step is a ws_connect naming a
+// process-bound role. Other ws_* steps on a bound connection_id cannot occur
+// without the connect (the executor fails them as unknown connections).
+func connectsAsBoundRole(steps []agent.TestStep, bound map[string]bool) bool {
+	for _, st := range steps {
+		if st.Action == "ws_connect" && bound[st.Role] {
+			return true
+		}
+	}
+	return false
 }
 
 // urlPathOf returns the path component of a target, which may be an absolute

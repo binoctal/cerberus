@@ -231,7 +231,7 @@ exhausts api_hourly and every mission-setup POST 429s
 
 ---
 
-## 13. Workflow completion callback family — six stacked defects (found 2026-08-19, FIXED on open-agents `fix/workflow-callback-url`, unmerged)
+## 13. Workflow completion callback family — six stacked defects (found 2026-08-19, FIXED on open-agents `fix/workflow-callback-url`, MERGED to main 2026-08-19 as 146164c)
 
 Item 6's ws:// scheme diagnosis was only the top layer. Dissecting the
 full "mission never completes" chain (live, 4 dogfood runs) surfaced six
