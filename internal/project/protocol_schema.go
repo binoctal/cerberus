@@ -102,6 +102,13 @@ type ProtocolRole struct {
 	// solely so HTTP steps can AuthRole-inject its credential (e.g. an admin
 	// JWT for the /api/admin route sweep). Client-role selection skips it.
 	HTTPOnly bool `yaml:"http_only,omitempty"`
+	// ProcessBound marks a role whose connection is owned by a real-process
+	// actor (fidelity: real-process, empty credentials): the executor has no
+	// token to inject and must never dial as it — the live process holds the
+	// connection. Scout drops LLM exploration cases that try (the tc-004
+	// dogfood failure: a ws_connect as bridge failed every run at injectAuth
+	// with "no token for actor").
+	ProcessBound bool `yaml:"process_bound,omitempty"`
 	// Responses maps a received message type to the reply type this role's test
 	// driver sends in response (received_type → reply_type). Drives the
 	// deterministic two-role request-response case generator. Empty ⇒ this role

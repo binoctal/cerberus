@@ -15,11 +15,14 @@ roles:
       timeout: 5
       optional: true
   # Both bridge roles are bound to REAL bridge processes (fidelity:
-  # real-process): the deterministic generators never connect as them, and
+  # real-process): process_bound forbids executor-side ws_connect as them
+  # (the actor holds no token — the tc-004 LLM case failed every run at
+  # injectAuth), the deterministic generators never connect as them, and
   # {{bridge.deviceId}} / {{bridge2.deviceId}} resolve from each real actor's
   # captured pairing config at send time.
   bridge:
     credential_ref: bridge-pty-1
+    process_bound: true
     params:
       type: bridge
       deviceId: "{deviceId}"
@@ -48,6 +51,7 @@ roles:
     http_only: true
   bridge2:
     credential_ref: bridge-pty-2
+    process_bound: true
     params:
       type: bridge
       deviceId: "{deviceId}"
