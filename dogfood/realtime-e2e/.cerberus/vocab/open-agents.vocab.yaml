@@ -236,6 +236,65 @@ edges:
       end: 395
 - from_role: bridge
   to_role: web
+  type: session:cancelled
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 478
+      end: 478
+- from_role: bridge
+  to_role: web
+  type: session:resumed
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 478
+      end: 478
+- from_role: bridge
+  to_role: web
+  type: session:resume:failed
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 478
+      end: 478
+- from_role: bridge
+  to_role: web
+  type: session:resumed-with-context
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 478
+      end: 478
+- from_role: bridge
+  to_role: web
+  type: session:resume-with-context:failed
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 478
+      end: 478
+  partial: true
+  note: >-
+    Negative ack fires only when session creation fails; the dogfood env
+    (claude-pty shim) takes the session:resumed-with-context success path.
+- from_role: bridge
+  to_role: web
   type: session:error
   trigger: message_handled
   guard: meta.type === 'bridge'
@@ -467,22 +526,6 @@ edges:
       end: 395
 - from_role: bridge
   to_role: web
-  type: workflow:job_completed
-  trigger: message_handled
-  guard: meta.type === 'bridge'
-  delivery:
-    mode: broadcast_web
-  source:
-    spans:
-    - start: 395
-      end: 395
-  unsupported: true
-  note: >-
-    Dead type: whitelisted in room.ts but no emitter in apps/api or bridge
-    (verified 2026-08-18). Completion is signalled by workflow:job_status /
-    workflow:state_updated, broadcast DO-side (known issue #5, DO-drop family).
-- from_role: bridge
-  to_role: web
   type: workflow:task_result
   trigger: message_handled
   guard: meta.type === 'bridge'
@@ -535,22 +578,6 @@ edges:
     spans:
     - start: 395
       end: 395
-- from_role: bridge
-  to_role: web
-  type: workflow:task_status_update
-  trigger: message_handled
-  guard: meta.type === 'bridge'
-  delivery:
-    mode: broadcast_web
-  source:
-    spans:
-    - start: 395
-      end: 395
-  unsupported: true
-  note: >-
-    Dead type: whitelisted in room.ts but no emitter in apps/api or bridge
-    (verified 2026-08-18). Completion is signalled by workflow:job_status /
-    workflow:state_updated, broadcast DO-side (known issue #5, DO-drop family).
 - from_role: bridge
   to_role: web
   type: workflow:merge_progress
@@ -620,7 +647,17 @@ edges:
     spans:
     - start: 395
       end: 395
-  unsupported: true
+- from_role: bridge
+  to_role: web
+  type: scanner:status
+  trigger: message_handled
+  guard: meta.type === 'bridge'
+  delivery:
+    mode: broadcast_web
+  source:
+    spans:
+    - start: 478
+      end: 478
 - from_role: bridge
   to_role: web
   type: device:listDirResult
@@ -632,8 +669,6 @@ edges:
     spans:
     - start: 395
       end: 395
-  unsupported: true
-  note: web->bridge device:listDir has no handler (dead end-to-end)
 - from_role: web
   to_role: bridge
   type: session:start
@@ -679,6 +714,36 @@ edges:
     spans:
     - start: 437
       end: 437
+- from_role: web
+  to_role: bridge
+  type: session:resume
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 490
+      end: 490
+- from_role: web
+  to_role: bridge
+  type: session:resume-with-context
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 490
+      end: 490
 - from_role: web
   to_role: bridge
   type: session:resize
@@ -983,7 +1048,36 @@ edges:
     spans:
     - start: 437
       end: 437
-  unsupported: true
+- from_role: web
+  to_role: bridge
+  type: scanner:toggle
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 490
+      end: 490
+- from_role: web
+  to_role: bridge
+  type: scanner:rules:sync
+  trigger: message_handled
+  guard: meta.type === 'web'
+  delivery:
+    mode: send_bridge_by_device
+  route_field: payload.deviceId
+  on_missing_route:
+    kind: send_error
+    code: MISSING_DEVICE_ID
+  source:
+    spans:
+    - start: 490
+      end: 490
 - from_role: web
   to_role: bridge
   type: session:send

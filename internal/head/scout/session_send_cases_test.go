@@ -39,24 +39,21 @@ func TestSessionSendCases_LifecycleSteps(t *testing.T) {
 			t.Fatalf("unexpected action %q", s.Action)
 		}
 	}
-	want := []string{"session:start", "chat:send", "session:resize", "control:takeover", "session:cancel"}
+	want := []string{"session:start", "chat:send", "session:resize", "control:takeover", "session:resume", "session:cancel"}
 	if strings.Join(sends, ",") != strings.Join(want, ",") {
 		t.Fatalf("send sequence %v, want %v", sends, want)
 	}
-	// The two receivables: session:started and chat:response (with the
-	// output-batch alias). session:cancelled must NOT be awaited — the DO
-	// whitelist drops it (send-side credit only).
+	// Four receivables: session:started, chat:response (with the output-batch
+	// alias), then the resume/cancel acks — both DO-whitelisted since the
+	// known-issue #1 alignment.
 	var recvs []string
 	for _, s := range tc.Steps {
 		if s.Action == "ws_receive" {
 			recvs = append(recvs, s.Type)
-			if s.Type == "session:cancelled" {
-				t.Fatal("session:cancelled is DO-dropped; must not be a receive expectation")
-			}
 		}
 	}
-	if strings.Join(recvs, ",") != "session:started,chat:response" {
-		t.Fatalf("receive sequence %v, want [session:started chat:response]", recvs)
+	if strings.Join(recvs, ",") != "session:started,chat:response,session:resumed,session:cancelled" {
+		t.Fatalf("receive sequence %v, want [session:started chat:response session:resumed session:cancelled]", recvs)
 	}
 }
 

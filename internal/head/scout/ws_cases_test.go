@@ -1378,11 +1378,55 @@ func findVocabEdgeByType(t *testing.T, v *project.Vocabulary, from, to, typ stri
 // requiredEdges drops them from the denominator.
 func TestWorkflowDeadTypesMarked(t *testing.T) {
 	vocab := loadDogfoodVocab(t)
+	// Both dead types were deleted from the room.ts whitelist outright
+	// (2026-08-21, known-issue #5 drop decision): the vocab must not carry
+	// them at all — no emitter ever existed and completion is signalled by
+	// workflow:job_status / workflow:state_updated broadcast DO-side.
 	for _, typ := range []string{"workflow:job_completed", "workflow:task_status_update"} {
-		e := findVocabEdgeByType(t, vocab, "bridge", "web", typ)
-		if !e.Unsupported {
-			t.Errorf("%s must be marked unsupported (dead type, DO-drop family)", typ)
+		for _, e := range vocab.Edges {
+			if e.Type == typ {
+				t.Errorf("%s must be absent from the vocabulary (dead type deleted from the DO whitelist)", typ)
+			}
 		}
+	}
+}
+
+// TestWhitelistAlignmentEdgesRequired: the known-issue #1/#5 alignment run
+// (2026-08-21) re-opened the resume/scanner/listDir families — every edge it
+// added must stay in the required denominator (no partial/unsupported mark
+// creeping back) so the corresponding cases keep them covered.
+func TestWhitelistAlignmentEdgesRequired(t *testing.T) {
+	vocab := loadDogfoodVocab(t)
+	b2w := []string{
+		"session:cancelled",
+		"session:resumed",
+		"session:resume:failed",
+		"session:resumed-with-context",
+		"scanner:status",
+		"scanner:rules:synced",
+		"device:listDirResult",
+	}
+	for _, typ := range b2w {
+		if e := findVocabEdgeByType(t, vocab, "bridge", "web", typ); e.Unsupported || e.Partial {
+			t.Errorf("bridge→web %s must be required (got unsupported=%v partial=%v)", typ, e.Unsupported, e.Partial)
+		}
+	}
+	w2b := []string{
+		"session:resume",
+		"session:resume-with-context",
+		"scanner:toggle",
+		"scanner:rules:sync",
+		"device:listDir",
+	}
+	for _, typ := range w2b {
+		if e := findVocabEdgeByType(t, vocab, "web", "bridge", typ); e.Unsupported || e.Partial {
+			t.Errorf("web→bridge %s must be required (got unsupported=%v partial=%v)", typ, e.Unsupported, e.Partial)
+		}
+	}
+	// The negative resume ack only fires when session creation fails — the
+	// dogfood env takes the success path, so it stays partial by design.
+	if e := findVocabEdgeByType(t, vocab, "bridge", "web", "session:resume-with-context:failed"); !e.Partial {
+		t.Error("bridge→web session:resume-with-context:failed must stay partial (env-dependent ack)")
 	}
 }
 

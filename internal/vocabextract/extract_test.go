@@ -354,6 +354,69 @@ func TestExtract_DynamicType(t *testing.T) {
 	}
 }
 
+func TestExtract_SetMembership(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "set-membership.ts"))
+	if err != nil {
+		t.Skipf("node: %v", err)
+	}
+	var got struct {
+		Edges []struct {
+			Type       string `json:"type"`
+			FromRole   string `json:"from_role"`
+			ToRole     string `json:"to_role"`
+			RouteField string `json:"route_field"`
+			BestEffort bool   `json:"best_effort"`
+			Partial    bool   `json:"partial"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	byType := map[string][]struct {
+		Type       string `json:"type"`
+		FromRole   string `json:"from_role"`
+		ToRole     string `json:"to_role"`
+		RouteField string `json:"route_field"`
+		BestEffort bool   `json:"best_effort"`
+		Partial    bool   `json:"partial"`
+	}{}
+	for _, e := range got.Edges {
+		byType[e.Type] = append(byType[e.Type], e)
+	}
+	// Set members resolve like case labels: one concrete edge each, no
+	// best_effort flag (the batch sink keeps its unconditional best_effort).
+	for _, w := range []string{"stub:b2w-one", "stub:b2w-two", "stub:w2b-one", "stub:special"} {
+		if len(byType[w]) == 0 {
+			t.Errorf("missing edge %q in %+v", w, got.Edges)
+			continue
+		}
+		if byType[w][0].BestEffort {
+			t.Errorf("edge %q should not be best_effort", w)
+		}
+	}
+	if e := byType["stub:b2w-one"]; len(e) > 0 && (e[0].FromRole != "bridge" || e[0].ToRole != "web") {
+		t.Errorf("stub:b2w-one roles = %s->%s", e[0].FromRole, e[0].ToRole)
+	}
+	if e := byType["stub:w2b-one"]; len(e) > 0 && (e[0].FromRole != "web" || e[0].ToRole != "bridge") {
+		t.Errorf("stub:w2b-one roles = %s->%s", e[0].FromRole, e[0].ToRole)
+	}
+	// The Set-gated w2b edge keeps its route enrichment.
+	if e := byType["stub:w2b-one"]; len(e) > 0 && e[0].RouteField != "payload.deviceId" {
+		t.Errorf("stub:w2b-one route_field = %q", e[0].RouteField)
+	}
+	// The if (msg.type === ...) batch sink stays partial with a concrete type.
+	if e := byType["stub:batched"]; len(e) > 0 && !e[0].Partial {
+		t.Errorf("stub:batched should be partial")
+	}
+	// Nothing collapsed to (dynamic).
+	if len(byType["(dynamic)"]) != 0 {
+		t.Errorf("unexpected (dynamic) edges: %+v", byType["(dynamic)"])
+	}
+}
+
 func TestExtract_HonoRoutes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("spawns node")

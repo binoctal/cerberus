@@ -142,6 +142,42 @@ function msgTypeLiterals(node) {
   return out;
 }
 
+// Module-level `const NAME = new Set(['a', 'b'])` whitelist constants. The
+// no-switch relay style gates calls on NAME.has(msg.type) instead of a case
+// fall-through chain; members resolve statically just like case labels.
+const setMembers = new Map();
+for (const stmt of sf.getStatements()) {
+  if (stmt.getKind() !== SyntaxKind.VariableStatement) continue;
+  for (const d of stmt.getDeclarations()) {
+    const init = d.getInitializer();
+    if (!init || init.getKind() !== SyntaxKind.NewExpression) continue;
+    if (init.getExpression().getText() !== 'Set') continue;
+    const arr = init.getArguments()[0];
+    if (!arr || arr.getKind() !== SyntaxKind.ArrayLiteralExpression) continue;
+    const strs = arr.getElements()
+      .filter(e => e.getKind() === SyntaxKind.StringLiteral)
+      .map(e => lit(e));
+    if (strs.length > 0) setMembers.set(d.getName(), strs);
+  }
+}
+
+// Types gating a relay call when there is no enclosing CaseClause, walking
+// the ancestor ifs: a NAME.has(msg.type) whitelist membership resolves to
+// the Set's members; an if (msg.type === 'X') literal resolves to X.
+// Returns null when the type is genuinely dynamic.
+function guardTypesOf(node) {
+  for (let n = node; n; n = n.getParent()) {
+    if (n.getKind() === SyntaxKind.MethodDeclaration) break;
+    if (n.getKind() !== SyntaxKind.IfStatement) continue;
+    const cond = n.getExpression();
+    const sm = cond.getText().match(/([A-Za-z_$][\w$]*)\s*\.\s*has\s*\(\s*msg\.type\s*\)/);
+    if (sm && setMembers.has(sm[1])) return setMembers.get(sm[1]);
+    const lits = msgTypeLiterals(cond);
+    if (lits.length > 0) return lits;
+  }
+  return null;
+}
+
 const edges = [];
 const cls = sf.getClasses()[0];
 // The WS pass assumes a DO room class; a classless entry (e.g. a Hono
@@ -179,11 +215,20 @@ if (cls) for (const method of cls.getMethods()) {
         edges.push(e);
       }
     } else {
-      const arg = call.getArguments().find(a => a.getKind() === SyntaxKind.ObjectLiteralExpression);
-      const tp = arg?.getProperties().find(p => p.getKind() === SyntaxKind.PropertyAssignment && p.getName?.() === 'type');
-      const edge = { ...make(tp ? lit(tp.getInitializer()) : '(dynamic)'), best_effort: true };
-      enrichRoute(edge, call, isW2B);
-      edges.push(edge);
+      const guarded = guardTypesOf(call);
+      if (guarded) {
+        for (const t of guarded) {
+          const e = make(t);
+          enrichRoute(e, call, isW2B);
+          edges.push(e);
+        }
+      } else {
+        const arg = call.getArguments().find(a => a.getKind() === SyntaxKind.ObjectLiteralExpression);
+        const tp = arg?.getProperties().find(p => p.getKind() === SyntaxKind.PropertyAssignment && p.getName?.() === 'type');
+        const edge = { ...make(tp ? lit(tp.getInitializer()) : '(dynamic)'), best_effort: true };
+        enrichRoute(edge, call, isW2B);
+        edges.push(edge);
+      }
     }
   }
 }
@@ -246,7 +291,7 @@ if (cls) for (const method of cls.getMethods()) {
     const mname = method.getName();
     const trigger = mname === 'handleMessage' ? 'message_handled' : mname;
     const line = call.getStartLineNumber();
-    const sinkTypes = cc ? fallThroughTypes(cc) : ['(dynamic)'];
+    const sinkTypes = cc ? fallThroughTypes(cc) : (guardTypesOf(call) ?? ['(dynamic)']);
     for (const t of sinkTypes) {
       edges.push({
         from_role: from_role ?? null,
