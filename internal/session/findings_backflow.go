@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/head/examiner"
 	"github.com/binoctal/cerberus/internal/project"
 )
 
@@ -20,12 +21,31 @@ const findingsSummaryCap = 160
 // Identity is case+error-signature, so the same failure across sessions
 // bumps count instead of piling up. Independent of the claims ledger: a
 // ledger-less project still gets findings.
-func backflowFindings(projectDir string, cfg *project.Config, results []agent.StepResult, sessionRef string, log *zap.Logger) {
+// A step failure is NOT recorded when the examiner's final verdict for the
+// case passes (negative cases: the executor's own gate is false for the
+// expected 4xx while the judge confirms the expectation was met) or when a
+// fallback/replacement rescued the primary — neither leaves an observed
+// defect. verdicts may be nil (PullFindings pre-filters via DB verdicts).
+func backflowFindings(projectDir string, cfg *project.Config, results []agent.StepResult, verdicts []examiner.FinalVerdict, sessionRef string, log *zap.Logger) {
+	passedByCase := make(map[string]bool, len(verdicts))
+	for _, v := range verdicts {
+		if tc := v.StepResult.TestCase; tc != nil && v.Status == examiner.StatusPass {
+			passedByCase[tc.ID] = true
+		}
+	}
+	// Same reclassification the summary applies: a rescued primary is not a
+	// failed unit (computeRecoveredPrimaries is Agent-side evidence only).
+	recoveredPrimary, _ := computeRecoveredPrimaries(results)
+
 	var failed []agent.StepResult
 	for _, r := range results {
-		if r.Status == agent.StepFailed && r.TestCase != nil {
-			failed = append(failed, r)
+		if r.Status != agent.StepFailed || r.TestCase == nil {
+			continue
 		}
+		if passedByCase[r.TestCase.ID] || recoveredPrimary[r.TestCase.ID] {
+			continue
+		}
+		failed = append(failed, r)
 	}
 	if len(failed) == 0 {
 		return

@@ -64,7 +64,7 @@ func (rp *resumePhase) filterRemainingCases() error {
 		// full pre-interruption evidence so an unproven critical claim marks
 		// the session incomplete (exit 3), never a silent completed.
 		reconcileClaimsInto(rp.summary, rp.session.Config, rp.prior)
-		backflowFindings(rp.session.ProjectDir, rp.session.Config, rp.prior, rp.session.ID, rp.session.Logger)
+		backflowFindings(rp.session.ProjectDir, rp.session.Config, rp.prior, nil, rp.session.ID, rp.session.Logger)
 		return fmt.Errorf("all cases already completed")
 	}
 
@@ -145,5 +145,5 @@ func (rp *resumePhase) buildSummary() {
 	reconcileClaimsInto(rp.summary, rp.session.Config, slices.Concat(rp.prior, rp.results))
 
 	// Findings backflow over the same complete evidence.
-	backflowFindings(rp.session.ProjectDir, rp.session.Config, slices.Concat(rp.prior, rp.results), rp.session.ID, rp.session.Logger)
+	backflowFindings(rp.session.ProjectDir, rp.session.Config, slices.Concat(rp.prior, rp.results), rp.verdicts, rp.session.ID, rp.session.Logger)
 }

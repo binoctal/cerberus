@@ -47,7 +47,9 @@ func PullFindings(projectDir string, cfg *project.Config, plan *agent.TestPlan, 
 	if len(failed) == 0 {
 		return nil
 	}
-	backflowFindings(projectDir, cfg, failed, sessionID, log)
+	// verdicts=nil is fine here: the failed list is already filtered against
+	// passing DB verdicts above, so no case needs a second verdict check.
+	backflowFindings(projectDir, cfg, failed, nil, sessionID, log)
 	return nil
 }
 

@@ -53,6 +53,10 @@ func ClassifyFailureReason(status string, stepResult agent.StepResult, reasoning
 // PersistFinalVerdicts converts and stores FinalVerdict results to persistent Verdict records.
 // Returns count of verdicts stored and any error.
 func PersistFinalVerdicts(ctx context.Context, s *store.Store, logger *zap.Logger, sessionID string, verdicts []FinalVerdict) (int, error) {
+	// Detach from the run context: an interrupt (SIGINT) during examination
+	// must not cancel the verdict writes — the session's whole outcome would
+	// be lost while the data sits complete in memory.
+	ctx = context.WithoutCancel(ctx)
 	count := 0
 	for _, v := range verdicts {
 		// Classify failure reason based on the step result and reasoning
