@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"time"
 
 	"go.uber.org/zap"
@@ -21,6 +22,10 @@ func (rp *resumePhase) initialize() error {
 
 // finalize updates session stats and status after completion
 func (rp *resumePhase) finalize() {
+	// Terminal session state must survive run-context cancellation (SIGINT
+	// mid-examiner): persist under a detached context, not rp.ctx.
+	pctx := context.WithoutCancel(rp.ctx)
+
 	// Tear down real-process actors first so children never outlive the run.
 	rp.session.harnessStopAll()
 
@@ -42,7 +47,7 @@ func (rp *resumePhase) finalize() {
 	}
 
 	// Write stats to store.
-	if statsErr := rp.session.Store.UpdateSessionStats(rp.ctx, rp.session.ID, rp.summary.CoveragePct, rp.summary); statsErr != nil {
+	if statsErr := rp.session.Store.UpdateSessionStats(pctx, rp.session.ID, rp.summary.CoveragePct, rp.summary); statsErr != nil {
 		rp.session.Logger.Error("update session stats", zap.Error(statsErr))
 	}
 
@@ -58,7 +63,7 @@ func (rp *resumePhase) finalize() {
 	if rp.summary != nil && rp.summary.ClaimsGateTriggered {
 		status = "incomplete"
 	}
-	if statsErr := rp.session.Store.UpdateSessionStatus(rp.ctx, rp.session.ID, status); statsErr != nil {
+	if statsErr := rp.session.Store.UpdateSessionStatus(pctx, rp.session.ID, status); statsErr != nil {
 		rp.session.Logger.Error("update session status", zap.Error(statsErr))
 	}
 }

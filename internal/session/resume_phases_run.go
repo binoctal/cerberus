@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -94,13 +95,17 @@ func (rp *resumePhase) examineResults() error {
 // This mirrors the runPhase consolidate logic exactly, ensuring resumed sessions
 // get full effectiveness tracking and governance.
 func (rp *resumePhase) executeConsolidatePhase() error {
-	if err := writeEpisodicMemory(rp.ctx, rp.session, rp.verdicts); err != nil {
+	// Detach from the run context: an interrupt mid-consolidation would skip
+	// every memory write (episodic/effectiveness/archive) even though the
+	// data sits complete in memory. All writes are idempotent local SQLite.
+	ctx := context.WithoutCancel(rp.ctx)
+	if err := writeEpisodicMemory(ctx, rp.session, rp.verdicts); err != nil {
 		rp.session.Logger.Warn("episodic consolidate failed (resume)", zap.Error(err))
 	}
-	if err := applyEffectiveness(rp.ctx, rp.session, rp.verdicts); err != nil {
+	if err := applyEffectiveness(ctx, rp.session, rp.verdicts); err != nil {
 		rp.session.Logger.Warn("effectiveness consolidate failed (resume)", zap.Error(err))
 	}
-	if err := archiveStale(rp.ctx, rp.session); err != nil {
+	if err := archiveStale(ctx, rp.session); err != nil {
 		rp.session.Logger.Warn("archive stale failed (resume)", zap.Error(err))
 	}
 	return nil

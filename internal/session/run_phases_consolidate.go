@@ -14,13 +14,17 @@ import (
 // (safe on resume): episodic writes key on session+target+verdict, effectiveness
 // EMA is guarded by memory_usage.consolidated_at, and Learn dedups via upsert.
 func (rp *runPhase) executeConsolidatePhase() error {
-	if err := writeEpisodicMemory(rp.ctx, rp.session, rp.verdicts); err != nil {
+	// Detach from the run context: an interrupt mid-consolidation would skip
+	// every memory write (episodic/effectiveness/archive) even though the
+	// data sits complete in memory. All writes are idempotent local SQLite.
+	ctx := context.WithoutCancel(rp.ctx)
+	if err := writeEpisodicMemory(ctx, rp.session, rp.verdicts); err != nil {
 		rp.session.Logger.Warn("episodic consolidate failed", zap.Error(err))
 	}
-	if err := applyEffectiveness(rp.ctx, rp.session, rp.verdicts); err != nil {
+	if err := applyEffectiveness(ctx, rp.session, rp.verdicts); err != nil {
 		rp.session.Logger.Warn("effectiveness consolidate failed", zap.Error(err))
 	}
-	if err := archiveStale(rp.ctx, rp.session); err != nil {
+	if err := archiveStale(ctx, rp.session); err != nil {
 		rp.session.Logger.Warn("archive stale failed", zap.Error(err))
 	}
 	return nil

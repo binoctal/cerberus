@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -27,6 +28,10 @@ func (rp *runPhase) initialize() error {
 
 // finalize updates session stats and status after completion
 func (rp *runPhase) finalize() {
+	// Terminal session state must survive run-context cancellation (SIGINT
+	// mid-examiner): persist under a detached context, not rp.ctx.
+	pctx := context.WithoutCancel(rp.ctx)
+
 	// Tear down real-process actors first so children never outlive the run.
 	rp.session.harnessStopAll()
 
@@ -51,7 +56,7 @@ func (rp *runPhase) finalize() {
 	}
 
 	// Write stats to store.
-	if statsErr := rp.session.Store.UpdateSessionStats(rp.ctx, rp.session.ID, rp.summary.CoveragePct, rp.summary); statsErr != nil {
+	if statsErr := rp.session.Store.UpdateSessionStats(pctx, rp.session.ID, rp.summary.CoveragePct, rp.summary); statsErr != nil {
 		rp.session.Logger.Error("update session stats", zap.Error(statsErr))
 	}
 
@@ -69,7 +74,7 @@ func (rp *runPhase) finalize() {
 	if rp.summary != nil && rp.summary.ClaimsGateTriggered {
 		status = "incomplete"
 	}
-	if updateErr := rp.session.Store.UpdateSessionStatus(rp.ctx, rp.session.ID, status); updateErr != nil {
+	if updateErr := rp.session.Store.UpdateSessionStatus(pctx, rp.session.ID, status); updateErr != nil {
 		rp.session.Logger.Error("update session status", zap.Error(updateErr))
 	}
 }
@@ -113,5 +118,5 @@ func (rp *runPhase) buildSummary(model *project.ProjectModel) {
 
 	// Findings backflow: record every failed case as an observed defect in
 	// .cerberus/findings.yaml (no gate interaction).
-	backflowFindings(rp.session.ProjectDir, rp.session.Config, rp.results, rp.session.ID, rp.session.Logger)
+	backflowFindings(rp.session.ProjectDir, rp.session.Config, rp.results, rp.verdicts, rp.session.ID, rp.session.Logger)
 }
