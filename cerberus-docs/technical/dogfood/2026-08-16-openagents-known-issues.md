@@ -54,7 +54,7 @@ as an OBJECT keyed by server name — a missing field or wrong shape returns
 without any error frame. Sync cases must send `"rules": []` /
 `"servers": {}`.
 
-## 2. Three divergent dev-setup endpoints
+## 2. Three divergent dev-setup endpoints — RESOLVED 2026-08-21 (dead worker.ts dup removed; the three-endpoint table above is historical)
 
 Three implementations of "create dev user + device", all live in dev mode:
 
@@ -73,7 +73,7 @@ protected HTTP routes still need `POST /api/dev/login` (dev.ts:112), matching
 the live-port/auth gotchas memory. Tests must not assert on the worker.ts
 variant's response shape.
 
-## 3. auth/sessions + auth/tokens routes defined but unmounted
+## 3. auth/sessions + auth/tokens routes defined but unmounted — FIXED 2026-08-21 (worker.ts imports routes/auth/index; /api/auth/sessions now 401-not-404 live)
 
 `routes/auth/index.ts` combines `authRoutes` + `sessionsRoutes` +
 `tokenRoutes` (auth/sessions.ts, auth/tokens.ts). But `worker.ts:4` imports
@@ -141,7 +141,7 @@ completion-family bridge→web edges `partial` with this live-verified reason
 (task_progress / task_question) instead of completion frames. Reopens when
 open-agents derives the http(s) callback base from the ws:// URL.
 
-## 7. Orchestration dispatch never emits `workflow:task_started`
+## 7. Orchestration dispatch never emits `workflow:task_started` — FIXED 2026-08-21 (bridge startTaskSession emits taskStartedMessage before the progress-0 report)
 
 On the orchestrator→bridge dispatch path the bridge's `startTaskSession`
 reports start as `workflow:task_progress {progress: 0, step: "started"}`
@@ -156,7 +156,7 @@ internal orchestrator event endpoint, i.e. the callback broken in item 6.
 timeout in every live dispatch scenario; await `task_progress` with
 `step: "started"` instead.
 
-## 8. Planner agent-list injection is copy-prone
+## 8. Planner agent-list injection is copy-prone — FIXED 2026-08-19 upstream (sanitizeRecommendedAgent, de920a5)
 
 `apps/api/src/services/planner.ts:177` renders the available-agent list as
 `- ${a.baseCli}: ${a.name}` into the planner prompt. glm-4.5 (and likely
@@ -184,7 +184,7 @@ deterministically on harness-generated text, not agent intent (spurious
 evidence the agent asked; treat it as expected noise of the fallback path.
 (Usually combined with item 10 — see below.)
 
-## 10. Worktree dispatch passes a relative cwd → ACP rejection → PTY fallback
+## 10. Worktree dispatch passes a relative cwd → ACP rejection → PTY fallback — FIXED 2026-08-21 (WorktreeManager absolutizes its base; live-verified: session workDir absolute)
 
 The bridge constructs its worktree manager with a literal relative base
 (`bridge/internal/bridge/bridge.go:206`,
@@ -201,7 +201,7 @@ path reaches `session/new` as a relative `cwd` →
 on PTY in this environment; ACP-path-only assertions cannot pass until
 upstream absolutizes the worktree path.
 
-## 11. Plan updates don't invalidate the 5-min `getPlanLimits` cache
+## 11. Plan updates don't invalidate the 5-min `getPlanLimits` cache — FIXED 2026-08-21 (admin plans PUT/DELETE call invalidatePlanCache)
 
 `getPlanLimits` caches per plan for 5 minutes
 (`apps/api/src/lib/plan-limits.ts:55,68-71,138`); an invalidator exists
