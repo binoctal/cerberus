@@ -72,7 +72,14 @@ func reconcileClaimsInto(summary *SessionSummary, cfg *project.Config, results [
 		case ClaimEmulatedOnly:
 			summary.ClaimsEmulatedOnly++
 		case ClaimUnevidenced:
-			summary.ClaimsUnevidenced++
+			// A wont-test exemption is a deliberate opt-out (evidence lives in
+			// another suite), not an open coverage gap — count it separately so
+			// "N unevidenced" stays actionable.
+			if v.Claim.WontTest() {
+				summary.ClaimsWontTest++
+			} else {
+				summary.ClaimsUnevidenced++
+			}
 		}
 	}
 	summary.ClaimsVerdicts = verdicts
