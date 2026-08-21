@@ -3,6 +3,8 @@ package scout
 import (
 	"context"
 	"net/url"
+	"regexp"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -123,26 +125,47 @@ func (s *Scout) appendExecutorCases(plan *agent.TestPlan, goal string, covered m
 // action), and LLM ws_* attempts on a WS endpoint are all kept. No-op when no
 // service declares a protocol (byte-identical for non-WS projects).
 func filterWSEndpointDrift(plan *agent.TestPlan, cfg *project.Config) {
-	wsPaths := map[string]bool{}
+	wsMatchers := []*regexp.Regexp{}
 	for _, svc := range cfg.Services {
 		if svc.Protocol == nil {
 			continue
 		}
 		if u, err := url.Parse(svc.URL); err == nil && u.Path != "" {
-			wsPaths[u.Path] = true
+			wsMatchers = append(wsMatchers, wsPathMatcher(u.Path))
 		}
 	}
-	if len(wsPaths) == 0 {
+	if len(wsMatchers) == 0 {
 		return
 	}
 	kept := make([]agent.TestCase, 0, len(plan.Cases))
 	for _, c := range plan.Cases {
-		if wsPaths[urlPathOf(c.Target)] && !isWSAction(c.Action) {
-			continue
+		if !isWSAction(c.Action) {
+			for _, m := range wsMatchers {
+				if m.MatchString(urlPathOf(c.Target)) {
+					goto drift
+				}
+			}
 		}
 		kept = append(kept, c)
+	drift:
 	}
 	plan.Cases = kept
+}
+
+// wsPathMatcher builds a matcher for a declared WS path where each {param}
+// segment is a single wildcard segment, and the path also matches its own
+// sub-paths (/ws/{userId} covers /ws/u1 and /ws/u1/health — the whole
+// template subtree is served by the WS handler that 426s non-upgrades).
+func wsPathMatcher(wsPath string) *regexp.Regexp {
+	segs := strings.Split(strings.Trim(wsPath, "/"), "/")
+	for i, s := range segs {
+		if strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}") {
+			segs[i] = "[^/]+"
+		} else {
+			segs[i] = regexp.QuoteMeta(s)
+		}
+	}
+	return regexp.MustCompile("^/" + strings.Join(segs, "/") + "(/.*)?$")
 }
 
 // filterProcessBoundConnects drops LLM ws_flow cases that ws_connect as a

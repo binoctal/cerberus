@@ -64,3 +64,20 @@ func TestFilterProcessBoundConnects_NoProtocolIsNoop(t *testing.T) {
 	filterProcessBoundConnects(plan, cfg)
 	assert.Equal(t, []string{"a"}, caseIDs(plan.Cases))
 }
+
+// The 2026-08-21 second run's tc-001: the scout authored GET /ws/user-1/health
+// expecting 200; the SUT 426s it (the whole /ws/{userId} template subtree is
+// WebSocket-only). Exact-path matching in filterWSEndpointDrift let template
+// sub-paths through — they must count as WS-endpoint HTTP drift too.
+func TestFilterWSEndpointDrift_TemplateSubpathIsDrift(t *testing.T) {
+	cfg := &project.Config{Services: []project.Service{wsSvc("http://localhost:8989/ws/{userId}")}}
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "subpath", Target: "/ws/user-1/health", Action: "api_request"},            // template sub-path → drop
+		{ID: "subpath2", Target: "/ws/unknown-user-999/health", Action: "api_request"}, // sibling substitution → drop
+		{ID: "exact", Target: "/ws/{userId}", Action: "ws_connect"},                    // ws_* → keep
+		{ID: "rest", Target: "/health", Action: "api_request"},                         // different tree → keep
+	}}
+	filterWSEndpointDrift(plan, cfg)
+	assert.Equal(t, []string{"exact", "rest"}, caseIDs(plan.Cases),
+		"HTTP cases on any /ws/{userId} substitution or sub-path are drift")
+}
