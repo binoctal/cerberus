@@ -14,13 +14,13 @@ between the open-agents API worker, the Durable Object room, and the Go bridge.
 
 ---
 
-## 1. DO message whitelist vs bridge handleMessage diff
+## 1. DO message whitelist vs bridge handleMessage diff — RESOLVED 2026-08-21 (open-agents `fix/ws-whitelist-alignment`: whitelist extracted to exported Sets, membership checks replace the case chains; contract test `room-whitelist.test.ts`)
 
-The DO (`apps/api/src/realtime/room.ts:340+`) only forwards whitelisted
-`msg.type` values on the web→bridge path; the Go bridge
-(`bridge/internal/bridge/bridge.go` handleMessage) accepts a wider set. Types
-the **bridge can handle but the DO silently drops** (web origin can never
-reach them):
+The DO (`apps/api/src/realtime/room.ts:340+`) only forwarded whitelisted
+`msg.type` values on the web→bridge path while the Go bridge
+(`bridge/internal/bridge/bridge.go` handleMessage) accepted a wider set.
+Types the bridge could handle but the DO silently dropped (web origin could
+never reach them) — all forwarded since the 2026-08-21 alignment:
 
 - `session:resume`
 - `scanner:toggle`
@@ -31,11 +31,10 @@ reach them):
 - `workflow:get_state`, `workflow:set_state`, `workflow:merge_all`,
   `workflow:task_cleanup`, `workflow:task_merge`
 
-Reverse direction: the DO forwards `device:listDir` (room.ts web→bridge
-section) but the Go bridge has **no handler** for it — only the internal
-`listDirectories` helper and its test exist. Web-origin directory browsing is
-dead end-to-end: DO routes it, bridge ignores it, yet bridge *emits*
-`device:listDirResult` (DO bridge→web whitelist).
+Reverse direction: `device:listDir` was documented here as handler-less —
+STALE: bridge commit 7ab073e added `handleListDir` (merged; both DO whitelist
+directions carry the pair), so directory browsing is live end-to-end and a
+declarative realResponder pair covers it since 2026-08-21.
 
 **Cerberus consequence:** do not generate coverage cases that require
 web→bridge `session:resume` or the merge/cleanup workflow commands over WS;
@@ -101,13 +100,12 @@ The same subsystem carries three names depending on layer:
 (HTTP) as one concept. Coverage attribution keyed on literal prefixes will
 under-count. The legacy redirect means both prefixes appear in logs.
 
-## 5. `workflow:job_completed` / `workflow:task_status_update` have no emitter
+## 5. `workflow:job_completed` / `workflow:task_status_update` have no emitter — RESOLVED 2026-08-21 (drop: dead whitelist entries deleted from room.ts; web's three no-op job_completed listeners removed — job_status is the live completion signal)
 
-Both types exist **only in the room.ts bridge→web whitelist**
-(`apps/api/src/realtime/room.ts:375` and `room.ts:381`) — no code path in
-apps/api or the Go bridge ever emits them. Completion and per-task status
-are signalled by different types, broadcast DO-side and outside the
-room.ts case handler:
+Both types existed **only in the room.ts bridge→web whitelist** — no code
+path in apps/api or the Go bridge ever emitted them (deleted from the
+whitelist 2026-08-21). Completion and per-task status are signalled by
+different types, broadcast DO-side and outside the room.ts case handler:
 
 - `workflow:job_status` with `status: completed|failed`
   (`apps/api/src/services/orchestrator.ts:949`, finalizeMissionIfDone)

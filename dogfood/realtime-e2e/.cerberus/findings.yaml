@@ -4,7 +4,7 @@ findings:
       case_ref: tc-003
       session_ref: 5d0df93b-535f-433b-9edb-bc041ea8e03e
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-18T12:31:28Z"
       last_seen: "2026-08-18T12:31:28Z"
       count: 1
@@ -13,7 +13,7 @@ findings:
       case_ref: tc-004
       session_ref: 5d0df93b-535f-433b-9edb-bc041ea8e03e
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-18T12:31:28Z"
       last_seen: "2026-08-18T12:31:28Z"
       count: 1
@@ -40,7 +40,7 @@ findings:
       case_ref: tc-004
       session_ref: 2d580c55-ba0d-4341-bb28-aaa303bb1f73
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-18T17:34:37Z"
       last_seen: "2026-08-18T17:34:37Z"
       count: 1
@@ -112,7 +112,7 @@ findings:
       case_ref: tc-004
       session_ref: cd20077b-5a3f-4b9a-9a87-22c66d3a30ee
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:10:58Z"
       last_seen: "2026-08-19T01:10:58Z"
       count: 1
@@ -139,7 +139,7 @@ findings:
       case_ref: tc-003
       session_ref: cec64d89-4ef7-43a7-be3a-bede64fa9995
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:29:16Z"
       last_seen: "2026-08-19T01:29:16Z"
       count: 1
@@ -184,7 +184,7 @@ findings:
       case_ref: tc-003
       session_ref: 2dd3bedd-d558-4863-875b-4f663474d3c7
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T03:11:02Z"
       last_seen: "2026-08-19T03:11:02Z"
       count: 1
@@ -202,7 +202,7 @@ findings:
       case_ref: tc-003
       session_ref: 90850721-21fa-4836-8a21-10eab5739763
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T03:45:12Z"
       last_seen: "2026-08-19T03:45:12Z"
       count: 1
@@ -211,7 +211,7 @@ findings:
       case_ref: tc-004
       session_ref: 90850721-21fa-4836-8a21-10eab5739763
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T03:45:12Z"
       last_seen: "2026-08-19T03:45:12Z"
       count: 1
@@ -247,7 +247,7 @@ findings:
       case_ref: tc-004
       session_ref: 182bd8a1-5196-4808-95ee-b10030ebfdaa
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T05:57:00Z"
       last_seen: "2026-08-19T05:57:00Z"
       count: 1
@@ -259,4 +259,22 @@ findings:
       status: open
       first_seen: "2026-08-19T05:57:00Z"
       last_seen: "2026-08-19T05:57:00Z"
+      count: 1
+    - id: tc-003-df2ff14e
+      summary: HTTP 400 http://localhost:8989/ws/ (1.70845ms)
+      case_ref: tc-003
+      session_ref: 46e1e918-86dc-4549-87af-dfa5e39ecbc1
+      tier: emulated
+      status: resolved
+      first_seen: "2026-08-21T12:07:42Z"
+      last_seen: "2026-08-21T12:07:42Z"
+      count: 1
+    - id: tc-004-77178ef6
+      summary: HTTP 404 http://localhost:8989/health/extra (1.930134ms)
+      case_ref: tc-004
+      session_ref: 46e1e918-86dc-4549-87af-dfa5e39ecbc1
+      tier: emulated
+      status: resolved
+      first_seen: "2026-08-21T12:07:42Z"
+      last_seen: "2026-08-21T12:07:42Z"
       count: 1
