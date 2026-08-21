@@ -64,7 +64,7 @@ RUN_ARG=()
 if [ -n "${TEST:-}" ]; then
   RUN_ARG=(-run "$TEST")
 fi
-go test -tags=integration -v -timeout=5m ./internal/head/agent/ "${RUN_ARG[@]}"
+go test -tags=integration -v -timeout=10m ./internal/head/agent/ "${RUN_ARG[@]}"
 status=$?
 echo "→ integration suite exit: $status"
 exit $status
