@@ -168,7 +168,7 @@ to the literal as the required CLI, and `selectDevice` skips the task forever
 row is named identically to its baseCli so either copy shape resolves. Any
 case-seeding that diversifies agent names must re-check this.
 
-## 9. `[QUESTION]` false positive on PTY prompt echo
+## 9. `[QUESTION]` false positive on PTY prompt echo — FIXED 2026-08-21 (bridge 74734d7: extractQuestion requires the marker to OPEN the line, matching the prompt's own contract; PTY echo of the instruction text no longer matches)
 
 The task prompt itself instructs the marker
 (`bridge/internal/bridge/bridge.go:2785`, buildTaskPrompt: "output a line
