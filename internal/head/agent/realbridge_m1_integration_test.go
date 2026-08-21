@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -95,8 +94,12 @@ func TestRealBridge_M1_Orchestration(t *testing.T) {
 	})
 
 	// Seed the deterministic task graph: two independent pending tasks across
-	// the two real devices. assigned_agent 'claude' resolves to required CLI
-	// 'claude', which both real bridges report enabled (shim on PATH).
+	// the two real devices. assigned_agent 'claude-pty' forces the PTY
+	// protocol on the 'claude' binary — the deterministic PATH shim — so the
+	// whole run is zero-LLM (a literal 'claude' resolves to the npx ACP
+	// adapter, whose real-LLM latency blew the 90s receive window and the
+	// suite's 5m budget under load). Detection maps claude-pty to the claude
+	// binary, which both real bridges report enabled (shim on PATH).
 	// Pre-delete keeps the seed idempotent across failed runs.
 	_, _ = d1.Exec(`DELETE FROM multiagent_tasks WHERE mission_id = 'e2e-m1-mission'`)
 	_, _ = d1.Exec(`DELETE FROM multiagent_missions WHERE id = 'e2e-m1-mission'`)
@@ -108,44 +111,41 @@ func TestRealBridge_M1_Orchestration(t *testing.T) {
 	for i, task := range []string{"e2e-m1-task-1", "e2e-m1-task-2"} {
 		_, err = d1.Exec(`INSERT INTO multiagent_tasks
 			(id, mission_id, type, title, status, assigned_agent, dependencies, sort_order, created_at, updated_at)
-			VALUES (?, ?, 'code', ?, 'pending', 'claude', '[]', ?, datetime('now'), datetime('now'))`,
+			VALUES (?, ?, 'code', ?, 'pending', 'claude-pty', '[]', ?, datetime('now'), datetime('now'))`,
 			task, "e2e-m1-mission", task, i)
 		require.NoError(t, err)
 	}
 
-	// The web side connects BEFORE the alarm so the broadcast task_assign
-	// frames cannot race the receive window.
+	// The web side connects BEFORE the trigger so the broadcast task frames
+	// cannot race the receive window — the trigger POST is a STEP between the
+	// connect and the receive. (With the trigger before the case, the
+	// deterministic claude-pty shim fires the task events ~5s after the
+	// POST — the alarm dispatch delay — which lands INSIDE the connect's
+	// optional 5s device:online auto-await, and the await consumes every
+	// frame it sees, leaving the receive nothing. As a case-internal step
+	// the trigger runs after the await has ended; the bridges are online and
+	// idle by then, so the await has nothing to eat either.)
 	wsURL := "ws://localhost:8989/ws/" + userId
-	// Trigger scheduling through the PRODUCT path: POST /api/missions/:id/resume
-	// with the web actor's JWT. (The internal orchestrator alarm endpoints are
-	// unusable as-is: they are JWT-exempt — the DO's production callback has no
-	// JWT — yet getOrchestrator binds c.get('userId') which is then undefined
-	// and every alarm 500s with D1_TYPE_ERROR. Recorded as an open-agents
-	// finding.)
-	trigger := func() {
-		req, err := http.NewRequest(http.MethodPost, oaBase+"/api/missions/e2e-m1-mission/resume", nil)
-		require.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+jwtForDev(t))
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		require.Equal(t, http.StatusOK, resp.StatusCode, "mission resume: %s", strings.TrimSpace(string(body)))
-	}
-
-	trigger()
-
 	// The assigns must have reached the REAL bridges: each bridge reacts to
 	// its workflow:task_assign with a lifecycle/progress/question event (which
 	// exact type depends on how far the real CLI spawn gets — any of them
 	// proves the assign reached a real process and its result flowed back
-	// DO→web).
+	// DO→web). The trigger POST runs as a step between connect and receive:
+	// scheduling goes through the PRODUCT path (POST /api/missions/:id/resume
+	// with the web actor's JWT — the internal orchestrator alarm endpoints are
+	// unusable as-is: they are JWT-exempt yet getOrchestrator binds
+	// c.get('userId') which is undefined there, and every alarm 500s with
+	// D1_TYPE_ERROR; recorded as an open-agents finding).
 	lifecycleCase := &TestCase{
 		ID:     "real-bridge-m1-lifecycle",
 		Target: wsURL,
 		Action: "ws_flow",
 		Steps: []TestStep{
 			{Action: "ws_connect", Role: "web", ConnectionID: "c-m1"},
+			{Action: "http_request", Method: "POST",
+				URL:          oaBase + "/api/missions/e2e-m1-mission/resume",
+				Headers:      map[string]string{"Authorization": "Bearer " + jwtForDev(t)},
+				ExpectStatus: http.StatusOK},
 			{Action: "ws_receive", ConnectionID: "c-m1", Type: "workflow:task_started",
 				Aliases: []string{"workflow:task_error", "workflow:task_failed", "workflow:task_progress", "workflow:task_question"},
 				Timeout: 90},

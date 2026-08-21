@@ -109,6 +109,12 @@ func launchOneRealBridge(t *testing.T, bin, bridgeAbs, name, home string, pathDi
 	t.Helper()
 	childEnv := func() []string {
 		env := append(os.Environ(), "HOME="+home)
+		// npx ACP downloads write npm cache entries into $HOME/.npm — inside
+		// the per-bridge t.TempDir. The spawned ACP child can outlive the
+		// test by a beat, and its cache writes race t.TempDir's RemoveAll
+		// ("unlinkat .npm: directory not empty"). Redirect the npm cache
+		// outside the temp HOME so teardown never touches it.
+		env = append(env, "NPM_CONFIG_CACHE="+filepath.Join(os.TempDir(), "cerberus-bridge-npm-cache"))
 		if len(pathDirs) > 0 {
 			env = append(env, "PATH="+strings.Join(pathDirs, ":")+":"+os.Getenv("PATH"))
 		}

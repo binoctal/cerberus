@@ -319,17 +319,6 @@ edges:
               end: 395
     - from_role: bridge
       to_role: web
-      type: workflow:job_completed
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
       type: workflow:task_result
       trigger: message_handled
       guard: meta.type === 'bridge'
@@ -378,17 +367,6 @@ edges:
             - workflow:task_error
             - workflow:task_progress
             - workflow:task_question
-      source:
-        spans:
-            - start: 395
-              end: 395
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_status_update
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
       source:
         spans:
             - start: 395
