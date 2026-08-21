@@ -81,6 +81,7 @@ type SessionSummary struct {
 	ClaimsProven        int            `json:"claims_proven,omitempty"`
 	ClaimsEmulatedOnly  int            `json:"claims_emulated_only,omitempty"`
 	ClaimsUnevidenced   int            `json:"claims_unevidenced,omitempty"`
+	ClaimsWontTest      int            `json:"claims_wont_test,omitempty"`
 	ClaimsRedLines      []string       `json:"claims_red_lines,omitempty"`
 	ClaimsVerdicts      []ClaimVerdict `json:"claims_verdicts,omitempty"`
 	ClaimsGateTriggered bool           `json:"claims_gate_triggered,omitempty"`
@@ -315,16 +316,20 @@ func (s *SessionSummary) fidelityLine() string {
 	return ""
 }
 
-// claimsLine renders the claims ledger reconciliation: the three status
-// counts plus one UNRECONCILED line per red line (a critical claim failing
-// the gate). Empty when no claims were reconciled.
+// claimsLine renders the claims ledger reconciliation: the status counts
+// (wont-test exemptions listed separately — they are deliberate opt-outs,
+// not coverage gaps) plus one UNRECONCILED line per red line (a critical
+// claim failing the gate). Empty when no claims were reconciled.
 func (s *SessionSummary) claimsLine() string {
-	if s.ClaimsProven+s.ClaimsEmulatedOnly+s.ClaimsUnevidenced == 0 && len(s.ClaimsRedLines) == 0 {
+	if s.ClaimsProven+s.ClaimsEmulatedOnly+s.ClaimsUnevidenced+s.ClaimsWontTest == 0 && len(s.ClaimsRedLines) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  Claims: %d proven / %d emulated-only / %d unevidenced",
 		s.ClaimsProven, s.ClaimsEmulatedOnly, s.ClaimsUnevidenced)
+	if s.ClaimsWontTest > 0 {
+		fmt.Fprintf(&b, " / %d wont-test", s.ClaimsWontTest)
+	}
 	for _, rl := range s.ClaimsRedLines {
 		b.WriteString("\n  UNRECONCILED: " + rl)
 	}

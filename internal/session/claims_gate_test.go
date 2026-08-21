@@ -105,6 +105,11 @@ func TestReconcileClaimsInto(t *testing.T) {
 		reconcileClaimsInto(s, cfg, nil)
 		assert.False(t, s.ClaimsGateTriggered)
 		assert.Empty(t, s.ClaimsRedLines)
+		// The exemption is counted as wont-test, not unevidenced — it is a
+		// deliberate opt-out, and "N unevidenced" must stay actionable.
+		assert.Equal(t, 1, s.ClaimsWontTest)
+		assert.Zero(t, s.ClaimsUnevidenced)
+		assert.Contains(t, s.claimsLine(), "/ 1 wont-test")
 	})
 
 	t.Run("no ledger is a no-op", func(t *testing.T) {
