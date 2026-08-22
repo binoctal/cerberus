@@ -58,3 +58,14 @@ if [ -n "${_BRIDGE_SECRET}" ]; then
 else
   echo "WARNING: INTERNAL_SECRET not found in ${_DEVVARS} — bridge completion callbacks will be 403"
 fi
+
+# Rebuild the sibling bridge binary the actors exec: project.yaml starts
+# ./build/open-agents-bridge verbatim, so a stale binary silently runs
+# pre-fix code (2026-08-22: three dogfood runs "verified" fixes that were
+# never in the binary). Cheap no-op when already current.
+_BRIDGE_DIR="${REPO_ROOT}/../open-agents/bridge"
+if [ -d "${_BRIDGE_DIR}" ]; then
+  echo "building sibling bridge binary (${_BRIDGE_DIR})"
+  (cd "${_BRIDGE_DIR}" && go build -o build/open-agents-bridge ./cmd/open-agents-bridge) \
+    || echo "WARNING: bridge build failed - dogfood will run the existing binary"
+fi
