@@ -2575,3 +2575,70 @@ func TestResolvePlaceholders_UnresolvedFails(t *testing.T) {
 		t.Fatal("expected unresolved placeholder error")
 	}
 }
+
+// TestWSReceiveExpectAbsentDoesNotConsumeOtherFrames: an absence probe is an
+// observation, not a consumption. Frames of OTHER types flowing during the
+// probe's window must stay visible to subsequent receives on the connection —
+// found live 2026-08-22 when mission-seed's task_question probe ate the
+// completion frames and the following task_completed await saw 600s of
+// silence despite the frames having arrived.
+func TestWSReceiveExpectAbsentDoesNotConsumeOtherFrames(t *testing.T) {
+	url := newWSTestServer(t, func(conn *websocket.Conn) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		write := func(m map[string]any) {
+			b, _ := json.Marshal(m)
+			_ = conn.Write(ctx, websocket.MessageText, b)
+		}
+		// The frames the case actually cares about, arriving DURING the
+		// probe's window.
+		write(map[string]any{"type": "workflow:task_progress", "payload": map[string]any{"step": "started"}})
+		write(map[string]any{"type": "workflow:task_completed", "payload": map[string]any{"ok": true}})
+		write(map[string]any{"type": "workflow:job_status", "payload": map[string]any{"status": "completed"}})
+		_, _, _ = conn.Read(ctx)
+	})
+	ex := newWSExecutor()
+	ctx := context.Background()
+	ex.Execute(ctx, types.WSConnectAction{URL: url, ConnectionID: "c1"})
+
+	// Passive probe over a window that contains the other frames.
+	res := ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "workflow:task_question", Timeout: 1, ExpectAbsent: true,
+	})
+	ws, ok := res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("absent probe should pass (no question frame), got %+v", res)
+	}
+	if len(ws.SeenMessages) < 3 {
+		t.Fatalf("probe should have observed the 3 flowing frames: %+v", ws.SeenMessages)
+	}
+
+	// The consumed-looking frames must still be receivable afterwards.
+	res = ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "workflow:task_completed", Timeout: 2,
+	})
+	ws, ok = res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("task_completed should still be receivable after the probe, got %+v", res)
+	}
+	if !strings.Contains(ws.MatchedMessage, "workflow:task_completed") {
+		t.Fatalf("matched frame = %s, want task_completed", ws.MatchedMessage)
+	}
+
+	// Requeue order: progress was requeued FIRST, so the task_completed
+	// receive saw it as a non-matching frame before its match — visible in
+	// its SeenMessages (normal loss semantics then consume it).
+	seenJoin := strings.Join(ws.SeenMessages, "\n")
+	if !strings.Contains(seenJoin, "workflow:task_progress") {
+		t.Fatalf("task_progress should have been requeued ahead of the match: %+v", ws.SeenMessages)
+	}
+
+	// ...and job_status (sent after completed) is still behind it.
+	res = ex.Execute(ctx, types.WSReceiveAction{
+		ConnectionID: "c1", Type: "workflow:job_status", Timeout: 2,
+	})
+	ws, ok = res.(types.WSResult)
+	if !ok || !ws.OK {
+		t.Fatalf("job_status should still be receivable in order, got %+v", res)
+	}
+}
