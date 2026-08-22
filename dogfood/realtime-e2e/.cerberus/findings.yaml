@@ -49,7 +49,7 @@ findings:
       case_ref: tc-005
       session_ref: 2d580c55-ba0d-4341-bb28-aaa303bb1f73
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-18T17:34:37Z"
       last_seen: "2026-08-18T17:34:37Z"
       count: 1
@@ -58,7 +58,7 @@ findings:
       case_ref: tc-006
       session_ref: 2d580c55-ba0d-4341-bb28-aaa303bb1f73
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-18T17:34:37Z"
       last_seen: "2026-08-18T17:34:37Z"
       count: 1
@@ -67,7 +67,7 @@ findings:
       case_ref: tc-007
       session_ref: 2d580c55-ba0d-4341-bb28-aaa303bb1f73
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-18T17:34:37Z"
       last_seen: "2026-08-18T17:34:37Z"
       count: 1
@@ -76,7 +76,7 @@ findings:
       case_ref: tc-008
       session_ref: 2d580c55-ba0d-4341-bb28-aaa303bb1f73
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-18T17:34:37Z"
       last_seen: "2026-08-18T17:34:37Z"
       count: 1
@@ -94,7 +94,7 @@ findings:
       case_ref: tc-001
       session_ref: cd20077b-5a3f-4b9a-9a87-22c66d3a30ee
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:10:58Z"
       last_seen: "2026-08-19T01:10:58Z"
       count: 1
@@ -103,7 +103,7 @@ findings:
       case_ref: tc-002
       session_ref: cd20077b-5a3f-4b9a-9a87-22c66d3a30ee
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:10:58Z"
       last_seen: "2026-08-19T01:10:58Z"
       count: 1
@@ -130,7 +130,7 @@ findings:
       case_ref: tc-002
       session_ref: cec64d89-4ef7-43a7-be3a-bede64fa9995
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:29:16Z"
       last_seen: "2026-08-19T01:29:16Z"
       count: 1
@@ -157,7 +157,7 @@ findings:
       case_ref: tc-001
       session_ref: 8594e9c4-73aa-43a9-a265-7c4dcf04f4cb
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:39:36Z"
       last_seen: "2026-08-19T01:39:36Z"
       count: 1
@@ -166,7 +166,7 @@ findings:
       case_ref: tc-001
       session_ref: 0f0b8b5b-71f5-4bfe-9e65-159372273b14
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T02:37:58Z"
       last_seen: "2026-08-19T02:37:58Z"
       count: 1
@@ -229,7 +229,7 @@ findings:
       case_ref: tc-002
       session_ref: 08bbaccf-99ab-4cdf-81f1-94f60ba4974e
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T05:31:01Z"
       last_seen: "2026-08-19T05:31:01Z"
       count: 1
@@ -238,7 +238,7 @@ findings:
       case_ref: tc-001
       session_ref: 182bd8a1-5196-4808-95ee-b10030ebfdaa
       tier: emulated
-      status: open
+      status: resolved
       first_seen: "2026-08-19T05:57:00Z"
       last_seen: "2026-08-19T05:57:00Z"
       count: 1
@@ -256,7 +256,7 @@ findings:
       case_ref: repair-tc-004
       session_ref: 182bd8a1-5196-4808-95ee-b10030ebfdaa
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T05:57:00Z"
       last_seen: "2026-08-19T05:57:00Z"
       count: 1
@@ -277,4 +277,58 @@ findings:
       status: resolved
       first_seen: "2026-08-21T12:07:42Z"
       last_seen: "2026-08-21T12:07:42Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-dc7ed33c
+      summary: ws error  (matched=0 seen=8, 5m0.005423316s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 0b31fbbd-fbd4-465c-9598-00283b255e99
+      tier: real
+      status: open
+      first_seen: "2026-08-22T03:19:00Z"
+      last_seen: "2026-08-22T03:19:00Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-79cbf10a
+      summary: ws error  (matched=1 seen=0, 16.741µs)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 2d7993e4-f7bd-48ec-a4a7-aa67587530cb
+      tier: real
+      status: open
+      first_seen: "2026-08-22T04:04:11Z"
+      last_seen: "2026-08-22T04:04:11Z"
+      count: 1
+    - id: repair-ws-realtime-wf-mission-seed-7301b05c
+      summary: ws error  (matched=0 seen=0, 5.911µs)
+      case_ref: repair-ws-realtime-wf-mission-seed
+      session_ref: 2d7993e4-f7bd-48ec-a4a7-aa67587530cb
+      tier: real
+      status: resolved
+      first_seen: "2026-08-22T04:04:11Z"
+      last_seen: "2026-08-22T04:04:11Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-3d5b6139
+      summary: ws error  (matched=1 seen=2, 24.970361ms)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 1a8eb805-70e2-46a3-9a96-1511f986cf4c
+      tier: real
+      status: open
+      first_seen: "2026-08-22T04:24:31Z"
+      last_seen: "2026-08-22T04:24:31Z"
+      count: 1
+    - id: repair-ws-realtime-wf-mission-seed-a0a7762d
+      summary: ws error  (matched=0 seen=0, 29.485µs)
+      case_ref: repair-ws-realtime-wf-mission-seed
+      session_ref: 1a8eb805-70e2-46a3-9a96-1511f986cf4c
+      tier: real
+      status: resolved
+      first_seen: "2026-08-22T04:24:31Z"
+      last_seen: "2026-08-22T04:24:31Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-d4d0583e
+      summary: ws error  (matched=0 seen=0, 10m0.083293047s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: e32c9d59-39e8-40ba-b76e-107646ed5664
+      tier: real
+      status: open
+      first_seen: "2026-08-22T15:37:11Z"
+      last_seen: "2026-08-22T15:37:11Z"
       count: 1

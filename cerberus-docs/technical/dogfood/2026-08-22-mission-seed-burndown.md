@@ -1,0 +1,81 @@
+# Mission-seed burndown — four live runs, five defects (2026-08-22)
+
+Follow-up to the 2026-08-21 whitelist-alignment run. Verification of the
+day's cerberus fixes via fresh dogfood runs instead surfaced a stack of
+mission-orchestration and harness defects. All are fixed and unit/integration
+verified; the remaining mission-seed dogfood failure is an environment-state
+issue (see Open).
+
+## Runs
+
+| # | session | verdicts | fail |
+|---|---------|----------|------|
+| 1 | 0b31fbbd | 695 pass / 1 fail / 1 uncertain / 1 recovered | mission-seed (task_progress await) |
+| 2 | 2d7993e4 | 694 pass / 1 fail / 2 uncertain | mission-seed (task_question arrived) |
+| 3 | 1a8eb805 | 696 pass / 1 fail / 1 recovered | mission-seed (task_question arrived) |
+| 4 | e32c9d59 | 696 pass / 1 fail / 1 recovered | mission-seed (task_completed await) |
+
+Runs 1–3 ran a **stale bridge binary** (mtime Aug 21 08:56, predating every
+bridge fix — project.yaml execs `./build/open-agents-bridge` verbatim and
+nothing rebuilt it). The env script now rebuilds it (`fix(dogfood)` commit;
+the discovery itself is the meta-lesson below).
+
+## Defects found and fixed
+
+**open-agents bridge** (all merged to bridge main, submodule bumped):
+
+1. `90febc3` — task queue was a black hole: pool-full `Enqueue` never
+   drained (`DequeueNext` had no caller), and `QueueItem` lacked `JobID` so a
+   drained task would also have lost its completion callback. Manager now
+   fires a capacity callback after every session close; `drainTaskQueue`
+   starts queued tasks FIFO through the shared `launchTaskSession` lifecycle.
+2. `4bc5e1e` — `[QUESTION]` detection (74734d7's line-prefix fix) had a
+   chunk-boundary hole: a PTY read splitting the echoed instruction exactly
+   before `Example: [QUESTION]` hands the detector a chunk that *starts*
+   with the marker without being at a line start (caught live by the
+   mission-seed ExpectAbsent probe — the probe design paid off on day one).
+   Detection now tracks per-session line-boundary state across chunks.
+
+**cerberus** (merged to main):
+
+3. `bf7b56a` — mission-seed observer connected *after* mission create; a
+   fast planner can dispatch before the connect lands. Connect now precedes
+   the create. (This is what actually fixed the task_progress await in
+   runs 3–4.)
+4. `bf7b56a` — the case awaited `workflow:task_question` authored against
+   known-issue #9's spurious PTY-echo emission; it is now an `ExpectAbsent`
+   probe (absence confirmed on timeout), a live regression guard for the
+   bridge fix.
+5. repair-loop cases inherited nothing: an emission omitting `service`
+   detached the replacement from its protocol roles (`ws connect: unknown
+   role "web"`, empty target — runs 2–3). Repair cases now inherit
+   Service/Target/Method from the replaced case.
+
+## Verified live (run 4, all fixes actually in the binary)
+
+- task_started + task_progress arrive (connect-ordering + queue drain);
+- ExpectAbsent task_question probe passes (marker fixes);
+- claims line `1 proven / 0 emulated-only / 0 unevidenced / 1 wont-test`;
+- 699 verdicts persisted, session `completed`, no tc-003/tc-004 findings.
+
+## Open
+
+- **mission-seed completion await (600s) still fails in full dogfood runs**
+  while `TestRealBridge_M1_Orchestration` (10.8s, deterministic shim) passes
+  on the same code — the completion path itself is proven. Prime suspect is
+  environment state: the HTTP route sweep POSTs `/api/agents` (bare
+  reachability probes), polluting the agent list the planner picks from;
+  a non-claude-pty pick takes the ACP slow path and the mission can't
+  finish inside the window (cf. known-issues #10 note about legacy rows).
+  Next: mission-seed should list + DELETE non-claude-pty agent rows before
+  seeding its own, or the sweep should skip mutating routes it can't undo.
+- 12 open findings remain: 8 mission-seed signatures (same env-flake
+  family, genuine observations) + 2 OAuth-callback transport errors
+  (outbound network) + 2 others. tc-00x legacy-probe and repair-* entries
+  resolved as case-authoring noise / fixed-defect observations.
+
+## Meta-lesson
+
+Three runs "verified" fixes that were never in the executed binary. When a
+harness execs a prebuilt artifact, either rebuild it at launch or assert its
+freshness — silence is indistinguishable from success.
