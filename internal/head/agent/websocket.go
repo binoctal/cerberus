@@ -67,6 +67,13 @@ type wsEntry struct {
 	readMu        sync.Mutex    // serializes channel consumption (one consumer at a time)
 	pending       wsMsg         // a frame peeked then put back by readMatchingAll
 	hasPending    bool          // pending holds a frame when true
+	// requeue holds frames a passive (expect-absent) receive observed but must
+	// not consume: they are replayed, in order, to the next consumer. An
+	// absence probe is an observation, not a consumption — dropping the
+	// frames it happens to see would silently starve later receives (found
+	// live 2026-08-22: mission-seed's completion frames were eaten by the
+	// task_question probe's window).
+	requeue []wsMsg
 }
 
 // matchAllGrace is the idle gap that ends a MatchAll burst. It covers the pump's
@@ -77,13 +84,19 @@ const matchAllGrace = 10 * time.Millisecond
 
 // popBuffered returns the next already-buffered frame WITHOUT blocking: the
 // pushback slot first (set by readMatchingAll when it ended a burst on a
-// non-match), then one non-blocking channel read. Returns (zero, false) when
-// nothing is buffered. Preserves frame order across pushback.
+// non-match), then the passive-probe requeue (oldest first), then one
+// non-blocking channel read. Returns (zero, false) when nothing is buffered.
+// Preserves frame order across pushback.
 func (entry *wsEntry) popBuffered() (wsMsg, bool) {
 	if entry.hasPending {
 		m := entry.pending
 		entry.hasPending = false
 		entry.pending = wsMsg{}
+		return m, true
+	}
+	if len(entry.requeue) > 0 {
+		m := entry.requeue[0]
+		entry.requeue = entry.requeue[1:]
 		return m, true
 	}
 	select {
@@ -305,6 +318,48 @@ func readMatching(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration)
 		case <-timer.C:
 			return matched, seen, "timeout"
 		case <-entry.done:
+			return matched, seen, "closed"
+		}
+	}
+}
+
+// readMatchingPassive is the expect-absent variant of readMatching: it waits
+// for a frame matching `match` (a probe failure) but CONSUMES NOTHING — every
+// non-matching frame it observes is recorded in seen and requeued, in arrival
+// order, for the next consumer. Returns the same status vocabulary as
+// readMatching ("matched" / "timeout" / "closed"); on timeout the requeue is
+// installed (on matched the case fails anyway, so the frames stay consumed).
+func readMatchingPassive(entry *wsEntry, match func(wsMsg) bool, timeout time.Duration) (matched wsMsg, seen []string, status string) {
+	entry.readMu.Lock()
+	defer entry.readMu.Unlock()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	var observed []wsMsg
+	// The probe inherits any prior passive probe's requeue: those frames are
+	// still live observations for this window too.
+	installRequeue := func() { entry.requeue = append(observed, entry.requeue...) }
+	for {
+		m, ok := entry.popBuffered()
+		if ok {
+			if match(m) {
+				return m, seen, "matched"
+			}
+			observed = append(observed, m)
+			seen = append(seen, frameForResult(framingOf(entry), m.data))
+			continue
+		}
+		select {
+		case m := <-entry.msgs:
+			if match(m) {
+				return m, seen, "matched"
+			}
+			observed = append(observed, m)
+			seen = append(seen, frameForResult(framingOf(entry), m.data))
+		case <-timer.C:
+			installRequeue()
+			return matched, seen, "timeout"
+		case <-entry.done:
+			installRequeue()
 			return matched, seen, "closed"
 		}
 	}
@@ -1106,7 +1161,13 @@ func (e *WebSocketExecutor) doReceive(ctx context.Context, a types.WSReceiveActi
 	if a.MatchAll {
 		return e.doReceiveMatchAll(entry, framing, path, want, a, start)
 	}
-	matched, seen, status := readMatching(entry, func(m wsMsg) bool {
+	read := readMatching
+	if a.ExpectAbsent {
+		// Passive observation: the probe must not consume the frames that
+		// happen to flow during its window (see readMatchingPassive).
+		read = readMatchingPassive
+	}
+	matched, seen, status := read(entry, func(m wsMsg) bool {
 		return matchAnyType(framing, m.data, want, path)
 	}, timeout)
 	switch status {
