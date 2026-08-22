@@ -99,23 +99,31 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			AuthRole: "web", ExpectStatusClass: "2xx",
 			Body:    `{"name":"claude-pty","baseCli":"claude-pty"}`,
 			Capture: map[string]string{"id": "agentId"}},
-		// 5. The mission itself (create returns {mission:{id}} → dot-path
+		// 5. Connect the web observer BEFORE creating the mission: the
+		// planner can decompose fast enough that dispatch frames pre-date a
+		// post-creation connect (live-observed 2026-08-22 — matched=0 while
+		// completed/job_status flowed around the late connection).
+		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: "web"},
+		// 6. The mission itself (create returns {mission:{id}} → dot-path
 		// capture). Web role: the mission user must be the device owner.
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
 			AuthRole: "web", ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"Reply with the single word done. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "missionId"}},
-		// 6. Observe on a web connection: the pushes the orchestration path
-		// REALLY emits (live-verified 2026-08-18). startTaskSession pushes
+		// 7. Observe what the orchestration path REALLY emits
+		// (live-verified 2026-08-18). launchTaskSession pushes
 		// workflow:task_progress (step:"started") when the task session comes
 		// up — NOT task_started (that type only exists as the echo of
-		// web-origin start/start_task, covered by the send cases) — and the
-		// PTY echo of the task prompt (which carries the [QUESTION]
-		// instruction) deterministically yields workflow:task_question.
-		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: "web"},
+		// web-origin start/start_task, covered by the send cases).
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 300},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 120},
-		// 7. Completion frames (reopened 2026-08-19 after the open-agents
+		// workflow:task_question is now an ExpectAbsent probe: until open-agents
+		// bridge 74734d7 (known issue #9, 2026-08-21) the PTY echo of the task
+		// prompt — which carries the [QUESTION] instruction mid-sentence —
+		// fired a spurious task_question on harness text. With line-prefix
+		// marker detection the shim's echo (FAKE_CLAUDE_ECHO: …) must NOT
+		// elicit one; a genuine agent question is out of scope for this shim.
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 60, ExpectAbsent: true},
+		// 8. Completion frames (reopened 2026-08-19 after the open-agents
 		// callback fix, fix/workflow-callback-url): the bridge now reports
 		// completion via its HTTP callback (POST /api/missions/internal/
 		// orchestrator/event with X-Internal-Secret), so the orchestrator's
@@ -126,7 +134,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// only ever leave via stuckRecovery.
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 120},
-		// 8. Merge the task branch: web-origin workflow:task_merge (room-
+		// 9. Merge the task branch: web-origin workflow:task_merge (room-
 		// routed to the bridge via payload.deviceId since the same open-agents
 		// fix added task_merge to the web→bridge whitelist and the DO
 		// /broadcast routing) makes the bridge merge the task worktree branch
@@ -142,7 +150,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 				"taskId":   "{{case.missionId}}_t0",
 			})},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_result", Timeout: 60},
-		// 9. Failure path (reopened 2026-08-19): a second mission whose tasks
+		// 10. Failure path (reopened 2026-08-19): a second mission whose tasks
 		// must fail. The planner folds the inputText into the task
 		// title/description; the dogfood shim exits 1 on a CERBERUS_FAIL line,
 		// so the bridge reports task_error via its (now working) callback and
@@ -158,7 +166,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			Body:    `{"inputText":"CERBERUS_FAIL: this mission must fail. Every task prints the marker CERBERUS_FAIL in its description and then exits with an error. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "failMissionId"}},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_failed", Timeout: 600},
-		// 10. Merge-failure task_error: the ONLY emitter of the bridge→web
+		// 11. Merge-failure task_error: the ONLY emitter of the bridge→web
 		// workflow:task_error frame is a failed branch merge
 		// (handleWorkflowTaskMerge). A taskId with no worktree branch makes
 		// `git merge task-...` fail ("not something we can merge"), which
