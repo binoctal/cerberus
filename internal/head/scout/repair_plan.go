@@ -64,7 +64,7 @@ func assembleRepair(calls []llm.ToolCall, failures []RepairInput) []agent.TestCa
 			continue
 		}
 		used[idx] = true
-		out = append(out, repairCaseFromCall(call, id, steps))
+		out = append(out, repairCaseFromCall(call, failures[idx].Case, steps))
 	}
 	return out
 }
@@ -87,25 +87,44 @@ func validWSSteps(steps []agent.TestStep) bool {
 // ws_flow, Steps) mirroring Scout's plan assembly; otherwise it builds the HTTP
 // shape (Target/Method/Body). Replaces binds it to the failed case. Steps are
 // pre-parsed and validated by the caller (assembleRepair).
-func repairCaseFromCall(call llm.ToolCall, replaces string, steps []agent.TestStep) agent.TestCase {
+//
+// Fields the LLM emission omits are inherited from the ORIGINAL case — a
+// repair targets the same service by definition, and a missing Service
+// detaches the case from its protocol roles (live-observed 2026-08-22:
+// repair-ws-realtime-wf-mission-seed died on 'ws connect: unknown role
+// "web"' with an empty target because the emission carried no service).
+func repairCaseFromCall(call llm.ToolCall, original agent.TestCase, steps []agent.TestStep) agent.TestCase {
+	replaces := original.ID
+	svc := llm.StrField(call, "service")
+	if svc == "" {
+		svc = original.Service
+	}
 	if len(steps) > 0 {
 		return agent.TestCase{
 			ID:          fmt.Sprintf("repair-%s", replaces),
 			Name:        fmt.Sprintf("repair %s", replaces),
 			Action:      "ws_flow",
 			Target:      wsFlowTarget(steps),
-			Service:     llm.StrField(call, "service"),
+			Service:     svc,
 			Steps:       steps,
 			Expectation: llm.StrField(call, "expectation"),
 			Replaces:    replaces,
 		}
 	}
+	target := llm.StrField(call, "path")
+	if target == "" {
+		target = original.Target
+	}
+	method := llm.StrField(call, "method")
+	if method == "" {
+		method = original.Method
+	}
 	return agent.TestCase{
 		ID:          fmt.Sprintf("repair-%s", replaces),
-		Name:        fmt.Sprintf("repair %s", llm.StrField(call, "path")),
-		Target:      llm.StrField(call, "path"),
-		Method:      llm.StrField(call, "method"),
-		Service:     llm.StrField(call, "service"),
+		Name:        fmt.Sprintf("repair %s", target),
+		Target:      target,
+		Method:      method,
+		Service:     svc,
 		Body:        llm.StrField(call, "body"),
 		Expectation: llm.StrField(call, "expectation"),
 		Replaces:    replaces,

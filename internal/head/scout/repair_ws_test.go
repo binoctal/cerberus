@@ -210,3 +210,44 @@ func TestAssembleRepair_DropsMalformedWSSteps(t *testing.T) {
 	out2 := assembleRepair(malformed, failures)
 	assert.Empty(t, out2, "malformed WS step action → emission dropped, not a broken flow")
 }
+
+// TestAssembleRepair_InheritsOmittedFields: a repair_case emission that omits
+// `service` (and path/method on the HTTP shape) must inherit them from the
+// ORIGINAL case — a missing Service detaches the replacement from its protocol
+// roles and the executor dies on 'unknown role' (live-observed 2026-08-22 on
+// repair-ws-realtime-wf-mission-seed).
+func TestAssembleRepair_InheritsOmittedFields(t *testing.T) {
+	failures := []RepairInput{
+		{Case: agent.TestCase{ID: "ws-mission", Action: "ws_flow",
+			Target: "http://localhost:8989/ws/{userId}", Service: "realtime",
+			Steps: []agent.TestStep{{Action: "ws_connect", ConnectionID: "web", Role: "web"}}},
+			Hint: agent.HintWsMatch, Reasoning: "no progress frame"},
+	}
+	calls := []llm.ToolCall{
+		{Name: "repair_case", Input: map[string]any{
+			"replaces":    "ws-mission",
+			"expectation": "progress arrives",
+			"steps": []any{
+				map[string]any{"action": "ws_connect", "connection_id": "web", "role": "web"},
+				map[string]any{"action": "ws_receive", "connection_id": "web", "type": "workflow:task_progress"},
+			},
+		}},
+	}
+	out := assembleRepair(calls, failures)
+	require.Len(t, out, 1)
+	assert.Equal(t, "realtime", out[0].Service, "service inherited from the replaced case")
+
+	// HTTP shape: path/method omitted inherit too.
+	httpFailures := []RepairInput{
+		{Case: agent.TestCase{ID: "http-1", Target: "/api/things", Method: "POST", Service: "api"},
+			Hint: agent.HintShape, Reasoning: "404"},
+	}
+	httpCalls := []llm.ToolCall{
+		{Name: "repair_case", Input: map[string]any{"replaces": "http-1", "expectation": "201"}},
+	}
+	out = assembleRepair(httpCalls, httpFailures)
+	require.Len(t, out, 1)
+	assert.Equal(t, "api", out[0].Service)
+	assert.Equal(t, "/api/things", out[0].Target)
+	assert.Equal(t, "POST", out[0].Method)
+}
