@@ -85,7 +85,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 2d580c55-ba0d-4341-bb28-aaa303bb1f73
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-18T17:34:37Z"
       last_seen: "2026-08-18T17:34:37Z"
       count: 1
@@ -121,7 +121,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: cd20077b-5a3f-4b9a-9a87-22c66d3a30ee
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:10:58Z"
       last_seen: "2026-08-19T01:10:58Z"
       count: 1
@@ -148,7 +148,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: cec64d89-4ef7-43a7-be3a-bede64fa9995
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T01:29:16Z"
       last_seen: "2026-08-19T01:29:16Z"
       count: 1
@@ -175,7 +175,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 0f0b8b5b-71f5-4bfe-9e65-159372273b14
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T02:37:58Z"
       last_seen: "2026-08-19T02:37:58Z"
       count: 1
@@ -193,7 +193,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 2dd3bedd-d558-4863-875b-4f663474d3c7
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T03:11:02Z"
       last_seen: "2026-08-19T03:11:02Z"
       count: 1
@@ -220,7 +220,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 90850721-21fa-4836-8a21-10eab5739763
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-19T03:45:12Z"
       last_seen: "2026-08-19T03:45:12Z"
       count: 1
@@ -283,7 +283,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 0b31fbbd-fbd4-465c-9598-00283b255e99
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-22T03:19:00Z"
       last_seen: "2026-08-22T03:19:00Z"
       count: 1
@@ -292,7 +292,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 2d7993e4-f7bd-48ec-a4a7-aa67587530cb
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-22T04:04:11Z"
       last_seen: "2026-08-22T04:04:11Z"
       count: 1
@@ -310,7 +310,7 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: 1a8eb805-70e2-46a3-9a96-1511f986cf4c
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-22T04:24:31Z"
       last_seen: "2026-08-22T04:24:31Z"
       count: 1
@@ -328,7 +328,16 @@ findings:
       case_ref: ws-realtime-wf-mission-seed
       session_ref: e32c9d59-39e8-40ba-b76e-107646ed5664
       tier: real
-      status: open
+      status: resolved
       first_seen: "2026-08-22T15:37:11Z"
       last_seen: "2026-08-22T15:37:11Z"
+      count: 1
+    - id: tc-005-8c401f08
+      summary: HTTP 404 http://localhost:8989/ (2.152693ms)
+      case_ref: tc-005
+      session_ref: 9346fb3a-110e-4dfa-9b44-8fbce50a5427
+      tier: emulated
+      status: resolved
+      first_seen: "2026-08-22T16:19:08Z"
+      last_seen: "2026-08-22T16:19:08Z"
       count: 1

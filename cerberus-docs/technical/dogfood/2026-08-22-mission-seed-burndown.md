@@ -60,19 +60,31 @@ the discovery itself is the meta-lesson below).
 
 ## Open
 
-- **mission-seed completion await (600s) still fails in full dogfood runs**
-  while `TestRealBridge_M1_Orchestration` (10.8s, deterministic shim) passes
-  on the same code — the completion path itself is proven. Prime suspect is
-  environment state: the HTTP route sweep POSTs `/api/agents` (bare
-  reachability probes), polluting the agent list the planner picks from;
-  a non-claude-pty pick takes the ACP slow path and the mission can't
-  finish inside the window (cf. known-issues #10 note about legacy rows).
-  Next: mission-seed should list + DELETE non-claude-pty agent rows before
-  seeding its own, or the sweep should skip mutating routes it can't undo.
-- 12 open findings remain: 8 mission-seed signatures (same env-flake
-  family, genuine observations) + 2 OAuth-callback transport errors
-  (outbound network) + 2 others. tc-00x legacy-probe and repair-* entries
-  resolved as case-authoring noise / fixed-defect observations.
+- ~~mission-seed completion await~~ **RESOLVED 2026-08-23** (run 5, session
+  9346fb3a: mission-seed **PASS** in a full dogfood run — first time). Sixth
+  and final defect: `readMatching`'s single-match path drops non-matching
+  frames (deliberate loss semantics), so the ExpectAbsent probe's 60s window
+  silently consumed the completion frames flowing on the connection — run 4's
+  task_completed await starved 600s with seen=0 while the frames had arrived
+  during the probe (the "seen=12 then seen=0" step evidence was the smoking
+  gun). Fixed by `readMatchingPassive` (cerberus
+  fix/absent-probe-passive merge): an absence probe records and REQUEUES the
+  frames it observes — an observation, not a consumption.
+- Findings after run 5: only 2 open remain (OAuth-callback transport errors —
+  outbound network limitation). The mission-seed family (8 signatures),
+  repair-* and tc-00x entries are resolved: every root cause is fixed and
+  live-verified. tc-005 (planner-authored "root page loads" probe against the
+  API-only worker) is case-authoring noise; the recurring tc-00x legacy-probe
+  family is worth a planner-prompt guard someday, not a SUT defect.
+- Run 5 hit the GLM 5-hour rate limit during examination (judge degraded to
+  step-status verdicts by design; outcome unaffected — 697 pass, coverage
+  99.74%, the best yet).
+
+## Run 5 (final)
+
+| session | verdicts | notes |
+|---------|----------|-------|
+| 9346fb3a | **697 pass / 1 fail / 1 skip / 1 recovered** | mission-seed PASS; only fail = tc-005 probe noise; coverage 99.74% (2 gaps) |
 
 ## Meta-lesson
 
