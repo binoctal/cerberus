@@ -69,3 +69,10 @@ if [ -d "${_BRIDGE_DIR}" ]; then
   (cd "${_BRIDGE_DIR}" && go build -o build/open-agents-bridge ./cmd/open-agents-bridge) \
     || echo "WARNING: bridge build failed - dogfood will run the existing binary"
 fi
+
+# Same freshness rule for cerberus itself: the run execs ../../build/cerberus.
+# (2026-08-23: a verification run "tested" a planner-prompt guard that was
+# merged but never rebuilt into the binary.)
+echo "building cerberus binary (${REPO_ROOT})"
+(cd "${REPO_ROOT}" && go build -o build/cerberus ./cmd/cerberus) \
+  || echo "WARNING: cerberus build failed - dogfood will run the existing binary"
