@@ -282,3 +282,35 @@ live-run evidence) against
 `/home/mason/Documents/code_projects/private/open-agents` working tree.
 If open-agents refactors, re-run the greps in this doc's history before
 trusting the consequences.
+
+## 14. Retry-3 task dispatch silently lost (planner picks a slow CLI) — found 2026-08-23 via the actor tee logs
+
+Dogfood run 8 (cerberus session d161c714): the fail-mission's task never
+reached `workflow:task_failed` because its THIRD retry never dispatched.
+Full evidence chain (now visible thanks to `<runtime>/logs/<actor>.log`):
+
+- bridge-pty-1 tee log: attempts 1-2 assigned `codex` (the PLANNER picked
+  codex this run — bypassing the seeded claude-pty row); each cost a 30s
+  ACP initialize timeout before the PTY stub exit-1 → 2 error callbacks
+  (23:02:23, 23:02:58).
+- Orchestrator log: "retrying … 15000ms (attempt 2/3)"; the retry alarm
+  fired at 23:03:13 and POST /orchestrator/alarm returned 200 — then
+  SILENCE: no "switching/max-concurrent/no-device/skipping" line follows.
+- D1: t0 stuck at `status=running, retry_count=2, assigned_agent=claude`
+  (the fallback ladder's 2nd rung); neither bridge logged a task_assign.
+- So `scheduleNextTasks` ran, mutated the task (agent→claude, status→running)
+  yet no dispatch reached any device.
+
+The flakiness driver: which agent the planner assigns (claude-pty fails
+fast → 3 retries exhaust inside the 600s await; codex/claude burn 30s ACP
+timeouts per attempt and expose the lost-dispatch bug). The mission-seed
+`task_failed` leg therefore passes or fails per planner whim until #14 is
+fixed upstream. Suspects for the silent path: the in-memory
+`runningTasksByMission` slot accounting across the fallback-agent switch
+(release keyed by the pre-switch agent), or `getReadyTasks` filtering.
+
+Side observation: periodic `stuckRecovery` alarms carry an empty payload
+and the alarm route resolves the orchestrator BEFORE its stuckRecovery
+special case — every periodic alarm 400s with "userId or a known
+missionId is required" (harmless-looking, but stuck recovery on Worker
+restart is effectively dead).

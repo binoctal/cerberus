@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/binoctal/cerberus/internal/ai"
@@ -422,4 +423,22 @@ func TestDowngradeUnmodeledHTTPProbes(t *testing.T) {
 
 	downgradeUnmodeledHTTPProbes(nil, model, "x")   // nil-safe
 	downgradeUnmodeledHTTPProbes(plan, nil, "x")    // nil model safe
+}
+
+// Placeholder-bearing invented paths are dropped, not downgraded (dogfood
+// 2026-08-23 run 8: tc-002/tc-003 died on unresolved {{bridge.userId}}).
+func TestDowngradeUnmodeledHTTPProbes_DropsPlaceholderPaths(t *testing.T) {
+	model := &project.ProjectModel{API: project.APIModel{Endpoints: []project.EndpointDef{
+		{Path: "/api/x", Method: "GET"},
+	}}}
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "tc-keep", Target: "/invented", Method: "GET", Expectation: "status 200"},
+		{ID: "tc-drop", Target: "/ws/{{bridge.userId}}", Method: "GET", Expectation: "status 200"},
+	}}
+	dropped := downgradeUnmodeledHTTPProbes(plan, model, "http://h")
+	require.Len(t, dropped, 1)
+	assert.Equal(t, "tc-drop", dropped[0].ID)
+	require.Len(t, plan.Cases, 1)
+	assert.Equal(t, "tc-keep", plan.Cases[0].ID)
+	assert.Len(t, plan.Cases[0].Steps, 1, "plain invented path still downgraded")
 }

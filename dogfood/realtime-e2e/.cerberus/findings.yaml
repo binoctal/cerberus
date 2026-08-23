@@ -359,3 +359,30 @@ findings:
       first_seen: "2026-08-23T14:06:21Z"
       last_seen: "2026-08-23T14:06:21Z"
       count: 1
+    - id: tc-002-ae59506c
+      summary: 'http_request: unresolved placeholder {{bridge.userId}}'
+      case_ref: tc-002
+      session_ref: d161c714-c3ba-4713-8b73-a99e823c5a6b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-23T15:25:03Z"
+      last_seen: "2026-08-23T15:25:03Z"
+      count: 1
+    - id: tc-003-ae59506c
+      summary: 'http_request: unresolved placeholder {{bridge.userId}}'
+      case_ref: tc-003
+      session_ref: d161c714-c3ba-4713-8b73-a99e823c5a6b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-23T15:25:03Z"
+      last_seen: "2026-08-23T15:25:03Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-0abed75f
+      summary: ws error  (matched=0 seen=17, 10m0.002524063s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: d161c714-c3ba-4713-8b73-a99e823c5a6b
+      tier: real
+      status: open
+      first_seen: "2026-08-23T15:25:03Z"
+      last_seen: "2026-08-23T15:25:03Z"
+      count: 1

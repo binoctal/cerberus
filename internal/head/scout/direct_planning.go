@@ -104,7 +104,14 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 		zap.Int("cases", len(plan.Cases)),
 	)
 
-	downgradeUnmodeledHTTPProbes(plan, model, s.resolveBaseURL())
+	if dropped := downgradeUnmodeledHTTPProbes(plan, model, s.resolveBaseURL()); len(dropped) > 0 {
+		ids := make([]string, len(dropped))
+		for i, tc := range dropped {
+			ids[i] = tc.ID
+		}
+		s.logger.Info("dropped planner probes with unresolvable placeholders on unmodeled paths",
+			zap.Strings("cases", ids))
+	}
 
 	return plan, covered, coveringCase, httpCovering, nil
 }
@@ -119,9 +126,9 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 // http_request step with expect_status_class "any" (the route-sweep
 // semantics): any response proves contact, transport errors fail, invented
 // status/body expectations are dropped.
-func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectModel, baseURL string) {
+func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectModel, baseURL string) []agent.TestCase {
 	if plan == nil || model == nil {
-		return
+		return nil
 	}
 	modeled := make(map[string]bool, len(model.API.Endpoints)+len(model.Navigation.Pages))
 	for _, ep := range model.API.Endpoints {
@@ -130,11 +137,21 @@ func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectMo
 	for _, pg := range model.Navigation.Pages {
 		modeled[pg.Path] = true
 	}
+	var dropped []agent.TestCase
+	kept := plan.Cases[:0]
 	for i := range plan.Cases {
 		tc := &plan.Cases[i]
 		// navigate cases target declared pages (browser surface), and
 		// ws_flow/stepped cases are not legacy HTTP probes.
 		if tc.Action == "navigate" || tc.Action == "ws_flow" || len(tc.Steps) > 0 || !strings.HasPrefix(tc.Target, "/") || modeled[tc.Target] {
+			kept = append(kept, *tc)
+			continue
+		}
+		// A placeholder in an invented path ({{bridge.userId}}) can never be
+		// resolved by the deterministic step executor — the probe would die
+		// on a framework error. Drop it (dogfood 2026-08-23 run 8: tc-002/003).
+		if strings.Contains(tc.Target, "{{") {
+			dropped = append(dropped, *tc)
 			continue
 		}
 		tc.Action = "ws_flow"
@@ -147,7 +164,10 @@ func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectMo
 			ExpectStatusClass: "any",
 		}}
 		tc.Body = ""
+		kept = append(kept, *tc)
 	}
+	plan.Cases = kept
+	return dropped
 }
 
 // directPlan generates a test plan via a single AI tool-calling round with
