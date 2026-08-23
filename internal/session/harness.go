@@ -41,6 +41,30 @@ type harnessProc struct {
 	name   string
 	cmd    *exec.Cmd
 	cancel context.CancelFunc
+	tee    io.Closer // actor output log; closed on stop
+}
+
+// actorTee opens <runtime>/logs/<actor>.log (append) for the readyScanner to
+// tee child output into. Best-effort: a failure degrades to no tee (the
+// debug-level log lines still exist).
+func (h *harness) actorTee(name string) (io.Writer, io.Closer) {
+	logsDir := filepath.Join(h.runtime, "logs")
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		return nil, nil
+	}
+	f, err := os.OpenFile(filepath.Join(logsDir, sanitizeActorName(name)+".log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		h.log.Warn("actor output tee unavailable", zap.String("actor", name), zap.Error(err))
+		return nil, nil
+	}
+	return f, f
+}
+
+// sanitizeActorName keeps the tee filename flat even if an actor name ever
+// carries a path separator.
+func sanitizeActorName(name string) string {
+	return strings.ReplaceAll(name, string(filepath.Separator), "_")
 }
 
 func newHarness(log *zap.Logger, runtimeDir string) *harness {
@@ -106,11 +130,19 @@ type readyScanner struct {
 	hit     chan struct{}
 	once    sync.Once
 	log     *zap.Logger
+	// tee receives every output chunk raw. The harness points it at
+	// <runtime>/logs/<actor>.log: child (e.g. bridge) stdout is otherwise
+	// swallowed at debug level, and SUT-side debugging without those logs
+	// cost a full afternoon on 2026-08-22.
+	tee io.Writer
 }
 
 func (s *readyScanner) Write(p []byte) (int, error) {
 	if len(p) > 0 {
 		s.log.Debug("process output", zap.String("actor", s.name), zap.ByteString("line", bytes.TrimRight(p, "\n")))
+		if s.tee != nil {
+			_, _ = s.tee.Write(p)
+		}
 	}
 	if s.pattern != nil && s.pattern.Match(p) {
 		s.once.Do(func() { close(s.hit) })
@@ -163,16 +195,20 @@ func (h *harness) LaunchActor(ctx context.Context, actor *project.Actor) error {
 	cmd.Env = h.childEnv(spec, actor)
 	cmd.Dir = h.tmpl(spec.Workdir, actor)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} // own group for group teardown
-	scanner := &readyScanner{name: actor.Name, pattern: readyRe, hit: make(chan struct{}), log: h.log}
+	teeW, teeC := h.actorTee(actor.Name)
+	scanner := &readyScanner{name: actor.Name, pattern: readyRe, hit: make(chan struct{}), log: h.log, tee: teeW}
 	cmd.Stdout = scanner
 	cmd.Stderr = scanner
 	if err := cmd.Start(); err != nil {
+		if teeC != nil {
+			_ = teeC.Close()
+		}
 		cancel()
 		return fmt.Errorf("harness %s: start: %w", actor.Name, err)
 	}
 
 	h.mu.Lock()
-	h.procs[actor.Name] = &harnessProc{name: actor.Name, cmd: cmd, cancel: cancel}
+	h.procs[actor.Name] = &harnessProc{name: actor.Name, cmd: cmd, cancel: cancel, tee: teeC}
 	h.mu.Unlock()
 
 	// 4. Ready: wait for the pattern (no pattern = no wait).
@@ -233,15 +269,19 @@ func (h *harness) startAndWait(ctx context.Context, actor *project.Actor) error 
 	cmd.Env = h.childEnv(spec, actor)
 	cmd.Dir = h.tmpl(spec.Workdir, actor)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	scanner := &readyScanner{name: actor.Name, pattern: readyRe, hit: make(chan struct{}), log: h.log}
+	teeW, teeC := h.actorTee(actor.Name)
+	scanner := &readyScanner{name: actor.Name, pattern: readyRe, hit: make(chan struct{}), log: h.log, tee: teeW}
 	cmd.Stdout = scanner
 	cmd.Stderr = scanner
 	if err := cmd.Start(); err != nil {
+		if teeC != nil {
+			_ = teeC.Close()
+		}
 		cancel()
 		return fmt.Errorf("harness %s: start: %w", actor.Name, err)
 	}
 	h.mu.Lock()
-	h.procs[actor.Name] = &harnessProc{name: actor.Name, cmd: cmd, cancel: cancel}
+	h.procs[actor.Name] = &harnessProc{name: actor.Name, cmd: cmd, cancel: cancel, tee: teeC}
 	h.mu.Unlock()
 	if readyRe != nil {
 		select {
@@ -337,6 +377,9 @@ func (h *harness) stopOne(name string) {
 		_ = syscall.Kill(-pgid, syscall.SIGKILL)
 	}
 	p.cancel()
+	if p.tee != nil {
+		_ = p.tee.Close()
+	}
 	h.log.Info("real-process actor stopped", zap.String("actor", name))
 }
 

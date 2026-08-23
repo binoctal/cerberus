@@ -104,7 +104,50 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 		zap.Int("cases", len(plan.Cases)),
 	)
 
+	downgradeUnmodeledHTTPProbes(plan, model, s.resolveBaseURL())
+
 	return plan, covered, coveringCase, httpCovering, nil
+}
+
+// downgradeUnmodeledHTTPProbes rewrites planner-invented HTTP probes whose
+// path is NOT in the project model's endpoint list. The planner keeps
+// inventing plausible-but-absent endpoints (/health/live, /readyz — "Page
+// loads" on /) with success expectations that can never be met, burning
+// verdicts and findings entries every run (dogfood 2026-08-22/23, the
+// tc-00x family; prompt grounding only partially helps). An unmodeled path
+// keeps its discovery value as a deterministic reachability probe — a single
+// http_request step with expect_status_class "any" (the route-sweep
+// semantics): any response proves contact, transport errors fail, invented
+// status/body expectations are dropped.
+func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectModel, baseURL string) {
+	if plan == nil || model == nil {
+		return
+	}
+	modeled := make(map[string]bool, len(model.API.Endpoints)+len(model.Navigation.Pages))
+	for _, ep := range model.API.Endpoints {
+		modeled[ep.Path] = true
+	}
+	for _, pg := range model.Navigation.Pages {
+		modeled[pg.Path] = true
+	}
+	for i := range plan.Cases {
+		tc := &plan.Cases[i]
+		// navigate cases target declared pages (browser surface), and
+		// ws_flow/stepped cases are not legacy HTTP probes.
+		if tc.Action == "navigate" || tc.Action == "ws_flow" || len(tc.Steps) > 0 || !strings.HasPrefix(tc.Target, "/") || modeled[tc.Target] {
+			continue
+		}
+		tc.Action = "ws_flow"
+		tc.Expectation = "reachability probe on a path absent from the project model: any HTTP response passes; a transport error fails"
+		tc.Steps = []agent.TestStep{{
+			Action:            "http_request",
+			URL:               baseURL + tc.Target,
+			Method:            tc.Method,
+			Body:              tc.Body,
+			ExpectStatusClass: "any",
+		}}
+		tc.Body = ""
+	}
 }
 
 // directPlan generates a test plan via a single AI tool-calling round with
