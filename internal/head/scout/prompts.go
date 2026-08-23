@@ -45,6 +45,7 @@ RULES:
 - For POST/PUT/PATCH methods, include a "body".
 - Omit "body" for GET/DELETE requests.
 - If a service defines a body_template, use it as a base and vary the values for different test cases.
+- Expectation grounding: expect success (2xx) ONLY on endpoints the project model lists. These services are APIs, not web pages — a bare host root ("/") is not a page, and a WebSocket endpoint reached over plain HTTP rejects the request by design (404/400/426). If you probe such a path at all, expect the rejection, never "page loads" or 200.
 - WebSocket: if a service declares a protocol with roles, WS connect and receive cases are generated automatically from those roles. Do not duplicate them; focus your cases on HTTP and other surfaces.`
 
 const promptPlanSystemLocal = `You are a test planning agent for a LOCAL CODEBASE. There is NO running HTTP service, so do NOT generate http_request/api_request test cases.
