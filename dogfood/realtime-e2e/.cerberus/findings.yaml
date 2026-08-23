@@ -341,3 +341,21 @@ findings:
       first_seen: "2026-08-22T16:19:08Z"
       last_seen: "2026-08-22T16:19:08Z"
       count: 1
+    - id: ws-realtime-wf-mission-seed-0f9b1780
+      summary: ws error  (matched=0 seen=48, 1m0.001023017s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: f899a29c-5ece-4c44-b9b4-40dd9bcfc0dc
+      tier: real
+      status: resolved
+      first_seen: "2026-08-23T13:27:39Z"
+      last_seen: "2026-08-23T13:27:39Z"
+      count: 1
+    - id: repair-tc-005-8b01cb8d
+      summary: HTTP 404 http://localhost:8989/livez (3.393563ms)
+      case_ref: repair-tc-005
+      session_ref: b69d4b03-e154-4ff9-af52-86eb4f18fa74
+      tier: emulated
+      status: resolved
+      first_seen: "2026-08-23T14:06:21Z"
+      last_seen: "2026-08-23T14:06:21Z"
+      count: 1

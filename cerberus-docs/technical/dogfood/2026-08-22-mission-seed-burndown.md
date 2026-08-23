@@ -91,3 +91,33 @@ the discovery itself is the meta-lesson below).
 Three runs "verified" fixes that were never in the executed binary. When a
 harness execs a prebuilt artifact, either rebuild it at launch or assert its
 freshness — silence is indistinguishable from success.
+
+## Epilogue — runs 6–7 (2026-08-23)
+
+| # | session | verdicts | mission-seed | dominant fail |
+|---|---------|----------|--------------|----------------|
+| 6 | f899a29c | 693 pass / 1 fail / 3 skip / 3 unc | fail (last leg only) | tc-002 planner probe |
+| 7 | b69d4b03 | 696 pass / 1 fail / 1 unc / 3 rec | **pass** | tc planner probes |
+
+Run 6 isolated the final nondeterminism: the no-branch merge probe targeted
+the FAILING mission's jobId, but the first `task_failed` frame only proves
+one task exhausted retries — sibling tasks were still running worktree git
+ops, and the concurrent merge blocked past the 60s window (48 sibling frames
+seen, no task_error; a manual live probe showed task_error arrives in ~1s
+when nothing else runs). Fix `036a04d`: the probe targets the COMPLETED
+mission — no concurrent activity. Run 7: mission-seed passes, second
+consecutive full-run pass.
+
+The planner-prompt guard (246fda6) shipped but was NOT in run 6's binary —
+the stale-artifact trap recurred for cerberus's own binary. The env script
+now rebuilds both `build/cerberus` and the sibling bridge before every run.
+With the guard actually compiled in (run 7), it only partially helps:
+expectations shifted from "200/page loads" toward "expect the rejection"
+(tc-001), but the planner still invents endpoints (/health/live, /readyz).
+Soft prompt guidance has a ceiling; the repair loop now routinely fixes
+these (repair-tc-001 pass), so the family costs a few verdicts per run, not
+correctness. A structural fix (dropping planner cases whose path is absent
+from the project model) is the eventual answer — recorded, not urgent.
+
+Findings after run 7: only the 2 OAuth outbound-transport observations
+remain open (environmental).
