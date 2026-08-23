@@ -287,3 +287,29 @@ func TestHarness_Restart(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "sentinel", string(data), "restart must not re-run setup")
 }
+
+// TestHarness_ActorOutputTee: a launched actor's stdout/stderr lands in
+// <runtime>/logs/<actor>.log — child (e.g. bridge) output must survive past
+// the run for SUT-side debugging (2026-08-22: bridge stdout was swallowed at
+// debug level and cost an afternoon of blind debugging).
+func TestHarness_ActorOutputTee(t *testing.T) {
+	dir := t.TempDir()
+	spec := &project.ProcessSpec{
+		Start:        []string{"sh", "-c", "echo HELLO_FROM_CHILD; echo ERR_FROM_CHILD >&2; exec sleep 60"},
+		ReadyPattern: `HELLO_FROM_CHILD`,
+		ReadyTimeout: "5s",
+	}
+	h := newHarness(zap.NewNop(), dir)
+	actor := &project.Actor{Name: "b1", Fidelity: project.FidelityRealProcess, Process: spec}
+	require.NoError(t, h.LaunchActor(t.Context(), actor))
+	defer h.StopAll()
+
+	// Give the tee a moment to flush, then stop (which closes the file).
+	time.Sleep(300 * time.Millisecond)
+	h.StopAll()
+
+	data, err := os.ReadFile(filepath.Join(dir, "logs", "b1.log"))
+	require.NoError(t, err, "actor tee log must exist")
+	assert.Contains(t, string(data), "HELLO_FROM_CHILD", "stdout teed")
+	assert.Contains(t, string(data), "ERR_FROM_CHILD", "stderr teed")
+}

@@ -365,3 +365,61 @@ func caseIDStrings(cases []agent.TestCase) []string {
 	}
 	return ids
 }
+
+// TestDowngradeUnmodeledHTTPProbes: planner-invented paths (absent from the
+// project model) become deterministic any-class reachability probes — the
+// tc-00x noise family cannot fail on invented expectations anymore — while
+// modeled paths and ws choreography pass through untouched.
+func TestDowngradeUnmodeledHTTPProbes(t *testing.T) {
+	model := &project.ProjectModel{API: project.APIModel{Endpoints: []project.EndpointDef{
+		{Path: "/api/missions", Method: "POST"},
+		{Path: "/health", Method: "GET"},
+	}}}
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "tc-1", Target: "/health/live", Method: "GET", Expectation: "status 200"},      // invented
+		{ID: "tc-2", Target: "/readyz", Method: "GET", Expectation: "Returns 2xx"},          // invented
+		{ID: "tc-3", Target: "/api/missions", Method: "POST", Expectation: "status 201"},    // modeled
+		{ID: "tc-4", Action: "ws_flow", Target: "ws://x", Expectation: "relay"},             // ws untouched
+		{ID: "tc-5", Target: "http://elsewhere/x", Method: "GET", Expectation: "status 200"}, // absolute URL untouched
+		{ID: "tc-6", Target: "/api/missions", Method: "GET", Steps: []agent.TestStep{{Action: "http_request"}}, Expectation: "already stepped"}, // stepped untouched
+	}}
+
+	downgradeUnmodeledHTTPProbes(plan, model, "http://localhost:8989")
+
+	byID := map[string]agent.TestCase{}
+	for _, c := range plan.Cases {
+		byID[c.ID] = c
+	}
+
+	for _, id := range []string{"tc-1", "tc-2"} {
+		c := byID[id]
+		if c.Action != "ws_flow" || len(c.Steps) != 1 {
+			t.Fatalf("%s not downgraded: %+v", id, c)
+		}
+		st := c.Steps[0]
+		if st.Action != "http_request" || st.ExpectStatusClass != "any" {
+			t.Fatalf("%s step = %+v, want http_request any-class", id, st)
+		}
+		if st.URL != "http://localhost:8989"+c.Target || st.Method != "GET" {
+			t.Fatalf("%s step url/method wrong: %+v", id, st)
+		}
+		if c.Body != "" || c.Expectation == "status 200" || c.Expectation == "Returns 2xx" {
+			t.Fatalf("%s expectation/body not rewritten: %+v", id, c)
+		}
+	}
+	if c := byID["tc-3"]; len(c.Steps) != 0 || c.Expectation != "status 201" {
+		t.Fatalf("modeled path must pass through untouched: %+v", c)
+	}
+	if c := byID["tc-4"]; c.Action != "ws_flow" || len(c.Steps) != 0 || c.Expectation != "relay" {
+		t.Fatalf("ws choreography must pass through untouched: %+v", c)
+	}
+	if c := byID["tc-5"]; len(c.Steps) != 0 {
+		t.Fatalf("absolute-URL case must pass through untouched: %+v", c)
+	}
+	if c := byID["tc-6"]; len(c.Steps) != 1 || c.Expectation != "already stepped" {
+		t.Fatalf("already-stepped case must pass through untouched: %+v", c)
+	}
+
+	downgradeUnmodeledHTTPProbes(nil, model, "x")   // nil-safe
+	downgradeUnmodeledHTTPProbes(plan, nil, "x")    // nil model safe
+}
