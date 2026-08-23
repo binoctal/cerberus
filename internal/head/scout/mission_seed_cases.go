@@ -170,12 +170,20 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// workflow:task_error frame is a failed branch merge
 		// (handleWorkflowTaskMerge). A taskId with no worktree branch makes
 		// `git merge task-...` fail ("not something we can merge"), which
-		// reports errorType merge_failed — deterministic, no bridge breakage.
+		// reports errorType merge_failed — deterministic, no bridge breakage
+		// (live-probed 2026-08-23: task_error arrives ~1s after the send).
+		// The merge targets the COMPLETED mission's jobId, NOT the failing
+		// one: the planner may decompose the failing mission into several
+		// tasks, and the first task_failed frame only proves ONE task
+		// exhausted its retries — siblings can still be running, and a
+		// merge concurrent with their worktree git ops blocks past this
+		// receive's window (live-observed 2026-08-23: 60s, 48 sibling frames,
+		// no task_error).
 		agent.TestStep{Action: "ws_send", ConnectionID: "web",
 			Message: wsSendBodyAny("workflow:task_merge", map[string]any{
 				"deviceId": "{{bridge.deviceId}}",
-				"jobId":    "{{case.failMissionId}}",
-				"taskId":   "{{case.failMissionId}}_no-branch",
+				"jobId":    "{{case.missionId}}",
+				"taskId":   "{{case.missionId}}_no-branch",
 			})},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_error", Timeout: 60},
 	)
