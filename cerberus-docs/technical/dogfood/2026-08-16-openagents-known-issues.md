@@ -165,7 +165,7 @@ to the literal as the required CLI, and `selectDevice` skips the task forever
 row is named identically to its baseCli so either copy shape resolves. Any
 case-seeding that diversifies agent names must re-check this.
 
-## 9. `[QUESTION]` false positive on PTY prompt echo — FIXED 2026-08-21 (bridge 74734d7: extractQuestion requires the marker to OPEN the line, matching the prompt's own contract; PTY echo of the instruction text no longer matches)
+## 9. `[QUESTION]` false positive on PTY prompt echo — FIXED 2026-08-21 (bridge 74734d7), residual hard-wrap variant FIXED 2026-08-24 (bridge 9839ad1: buildTaskPrompt no longer contains the literal marker at all)
 
 The task prompt itself instructs the marker
 (`bridge/internal/bridge/bridge.go:2785`, buildTaskPrompt: "output a line
@@ -178,6 +178,19 @@ deterministically on harness-generated text, not agent intent (spurious
 **Cerberus consequence:** a `task_question` frame on the PTY path is NOT
 evidence the agent asked; treat it as expected noise of the fallback path.
 (Usually combined with item 10 — see below.)
+
+**2026-08-24 residual closed:** the line-prefix guard still fired when the
+terminal HARD-WRAPPED the echoed prompt at the column width — a wrap landing
+right before any literal marker occurrence puts it at a genuine `\n` line
+start (live logs 2026-08-18..24 show the example sentence split mid-word
+"Should I use JW", other widths "or ses"/"or authent", and the instruction
+sentence's own marker landing at a line start). Root fix: buildTaskPrompt
+(bridge 9839ad1) describes the marker format without spelling the literal
+out, so no echoed line can ever open with it; regression tests lock both the
+no-literal invariant and width-10–160 wrapped echoes. Cerberus dogfood shims
+switched their completion trigger to the `--- Instruction ---` header
+(cerberus 1e20463). Run 15 (2026-08-24, session 5e624718): zero spurious
+question firings.
 
 ## 10. Worktree dispatch passes a relative cwd → ACP rejection → PTY fallback — FIXED 2026-08-21 (WorktreeManager absolutizes its base; live-verified: session workDir absolute)
 
