@@ -55,7 +55,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// must be positive (spec §2 0-trap: 0 bricks dispatch).
 		{Action: "http_request", URL: host + "/api/admin/billing/plans", Method: "POST",
 			AuthRole: admin, ExpectStatusClass: "2xx",
-			Body: `{"name":"cerberus-dogfood","price_monthly":0,"limits":{"feature_gates":{"workflows":true,"worktree":true,"shared_state":true,"a2a":true,"custom_rules":true,"activity_analytics":true},"rate_limits":{"daily_missions":9999,"api_hourly":9999,"api_daily":9999,"ws_per_min":9999,"max_concurrent_tasks":100,"a2a_daily":9999},"resources":{"max_devices":100,"max_terminals":100,"max_agents":100,"max_prompts":100,"max_skills":100,"max_rules":100,"max_api_keys":100,"max_external_agents":100}}}`,
+			Body:    `{"name":"cerberus-dogfood","price_monthly":0,"limits":{"feature_gates":{"workflows":true,"worktree":true,"shared_state":true,"a2a":true,"custom_rules":true,"activity_analytics":true},"rate_limits":{"daily_missions":9999,"api_hourly":9999,"api_daily":9999,"ws_per_min":9999,"max_concurrent_tasks":100,"a2a_daily":9999},"resources":{"max_devices":100,"max_terminals":100,"max_agents":100,"max_prompts":100,"max_skills":100,"max_rules":100,"max_api_keys":100,"max_external_agents":100}}}`,
 			Capture: map[string]string{"id": "planId"}},
 		// 2. Switch the user to it (both ids read back in steps 0-1).
 		{Action: "http_request", URL: host + "/api/admin/users/{{case.userId}}", Method: "PUT",

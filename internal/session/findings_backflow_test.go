@@ -88,8 +88,8 @@ func TestBackflowFindings_SuppressesJudgePassedAndRecovered(t *testing.T) {
 	}
 	// Examiner overturned the negative case's step failure: expectation met.
 	verdicts := []examiner.FinalVerdict{{
-		Status:      examiner.StatusPass,
-		StepResult:  negative,
+		Status:     examiner.StatusPass,
+		StepResult: negative,
 	}}
 
 	backflowFindings(dir, cfg, []agent.StepResult{negative, rescuedPrimary, fallback, genuinelyFailed},

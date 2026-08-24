@@ -377,11 +377,11 @@ func TestDowngradeUnmodeledHTTPProbes(t *testing.T) {
 		{Path: "/health", Method: "GET"},
 	}}}
 	plan := &agent.TestPlan{Cases: []agent.TestCase{
-		{ID: "tc-1", Target: "/health/live", Method: "GET", Expectation: "status 200"},      // invented
-		{ID: "tc-2", Target: "/readyz", Method: "GET", Expectation: "Returns 2xx"},          // invented
-		{ID: "tc-3", Target: "/api/missions", Method: "POST", Expectation: "status 201"},    // modeled
-		{ID: "tc-4", Action: "ws_flow", Target: "ws://x", Expectation: "relay"},             // ws untouched
-		{ID: "tc-5", Target: "http://elsewhere/x", Method: "GET", Expectation: "status 200"}, // absolute URL untouched
+		{ID: "tc-1", Target: "/health/live", Method: "GET", Expectation: "status 200"},                                                          // invented
+		{ID: "tc-2", Target: "/readyz", Method: "GET", Expectation: "Returns 2xx"},                                                              // invented
+		{ID: "tc-3", Target: "/api/missions", Method: "POST", Expectation: "status 201"},                                                        // modeled
+		{ID: "tc-4", Action: "ws_flow", Target: "ws://x", Expectation: "relay"},                                                                 // ws untouched
+		{ID: "tc-5", Target: "http://elsewhere/x", Method: "GET", Expectation: "status 200"},                                                    // absolute URL untouched
 		{ID: "tc-6", Target: "/api/missions", Method: "GET", Steps: []agent.TestStep{{Action: "http_request"}}, Expectation: "already stepped"}, // stepped untouched
 	}}
 
@@ -421,8 +421,8 @@ func TestDowngradeUnmodeledHTTPProbes(t *testing.T) {
 		t.Fatalf("already-stepped case must pass through untouched: %+v", c)
 	}
 
-	downgradeUnmodeledHTTPProbes(nil, model, "x", nil)   // nil-safe
-	downgradeUnmodeledHTTPProbes(plan, nil, "x", nil)    // nil model safe
+	downgradeUnmodeledHTTPProbes(nil, model, "x", nil) // nil-safe
+	downgradeUnmodeledHTTPProbes(plan, nil, "x", nil)  // nil model safe
 }
 
 // Placeholder-bearing invented paths are dropped, not downgraded (dogfood
