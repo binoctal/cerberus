@@ -20,11 +20,14 @@
 #   ("User answered your question:") — the completion exit. This drives
 #   the bridge→web task_question edge + the web→bridge task_answer round
 #   trip, the only honest way to exercise the human-in-the-loop loop.
-# - Otherwise a line carrying [QUESTION] (the buildTaskPrompt instruction
-#   every task prompt ends with) means the task is done: echo it, then
-#   exit 0 two seconds later — that closes the PTY session, fires the exit
-#   callback and with it the completion HTTP callback (task_result ->
-#   task_completed/job_status broadcasts).
+# - Otherwise a line carrying the --- Instruction --- header (every
+#   buildTaskPrompt output ends with it) means the task is done: echo it,
+#   then exit 0 two seconds later — that closes the PTY session, fires the
+#   exit callback and with it the completion HTTP callback (task_result ->
+#   task_completed/job_status broadcasts). The trigger is the header, not
+#   the instruction text: buildTaskPrompt no longer spells out the literal
+#   [QUESTION] marker (PTY echo hard-wrap once placed it at a true line
+#   start and the bridge fired a spurious task_question — dogfood run 13).
 # Interactive session cases never type any marker, so they keep the
 # long-lived echo loop.
 asked=0
@@ -39,6 +42,6 @@ while IFS= read -r line; do
   case "$line" in
     *"CERBERUS_FAIL"*) sleep 5; exit 1 ;;
     *"CERBERUS_ASK"*) printf '[QUESTION] what is the magic word?\n'; asked=1 ;;
-    *"[QUESTION]"*) sleep 5; exit 0 ;;
+    *"--- Instruction ---"*) sleep 5; exit 0 ;;
   esac
 done

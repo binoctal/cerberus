@@ -8,7 +8,8 @@
 # - CERBERUS_FAIL in the echoed task prompt → exit 1 (retry-exhaustion leg)
 # - CERBERUS_ASK → print a line OPENING with [QUESTION], wait for the
 #   bridge's injected answer, then exit 0 (human-in-the-loop leg)
-# - otherwise a [QUESTION] mention → exit 0 (completion leg)
+# - otherwise the --- Instruction --- header → exit 0 (completion leg;
+#   the prompt no longer spells out the literal marker — see shim/claude)
 asked=0
 while IFS= read -r line; do
   printf 'FAKE_kiro_ECHO: %s\n' "$line"
@@ -21,6 +22,6 @@ while IFS= read -r line; do
   case "$line" in
     *"CERBERUS_FAIL"*) sleep 5; exit 1 ;;
     *"CERBERUS_ASK"*) printf '[QUESTION] what is the magic word?\n'; asked=1 ;;
-    *"[QUESTION]"*) sleep 5; exit 0 ;;
+    *"--- Instruction ---"*) sleep 5; exit 0 ;;
   esac
 done

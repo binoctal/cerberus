@@ -92,8 +92,8 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// timeout, then a JSON-protocol process fed raw prompt text that
 		// errors on every line — live-verified 2026-08-19), while
 		// "claude-pty" runs the claude binary on PATH (the dogfood shim):
-		// it echoes the prompt and, on a task prompt, exits after the
-		// [QUESTION] line — the session exit that fires the completion
+		// it echoes the prompt and, on a task prompt, exits at the
+		// --- Instruction --- header — the session exit that fires the completion
 		// callback. Legacy rows with base_cli "claude" from pre-2026-08-19
 		// runs must be cleaned from the dev D1 once (see the env doc), or
 		// glm may pick them instead.
