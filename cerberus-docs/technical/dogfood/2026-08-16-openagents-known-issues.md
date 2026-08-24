@@ -120,24 +120,21 @@ frame.
 
 ---
 
-## 6. Bridge workflow callbacks POST to a ws:// URL (completion unreachable)
+## 6. Bridge workflow callbacks POST to a ws:// URL (completion unreachable) — RESOLVED (subsumed by the #13 fix family, closed 2026-08-24)
 
-The bridge's callback manager builds its HTTP URL from the WS server URL:
-`bridge/internal/bridge/bridge.go:208` passes `APIURL: cfg.ServerURL` (the
-same `ws://…` URL the bridge connects on), and
-`bridge/internal/workflows/callback.go:184` does
-`url := m.config.APIURL + "/api/workflows/internal/orchestrator/event"`.
-Every task result / error callback therefore fails with
-`Post "ws://localhost:8989/api/workflows/internal/orchestrator/event":
-unsupported protocol scheme`.
+The bridge's callback manager built its HTTP URL from the WS server URL:
+`bridge/internal/bridge/bridge.go` passed `APIURL: cfg.ServerURL` (the
+same `ws://…` URL the bridge connects on), so every task result / error
+callback failed with `Post "ws://…": unsupported protocol scheme`.
 
-**Cerberus consequence:** `workflow:task_result` / `task_completed` /
-`task_failed` never reach the API on the dispatch path; missions never
-complete and stuckRecovery is the only exit. The dogfood vocab marks the four
-completion-family bridge→web edges `partial` with this live-verified reason
-(2026-08-18). Success criteria must assert the observable chain
-(task_progress / task_question) instead of completion frames. Reopens when
-open-agents derives the http(s) callback base from the ws:// URL.
+**RESOLUTION:** `bridge/internal/workflows/callback.go` now normalizes the
+base at construction (`httpURLFromWS`: ws://→http://, wss://→https://) —
+part of the #13 completion-callback family fix (open-agents 146164c,
+2026-08-19). Live-verified since: dogfood runs 9-11 completion missions
+complete on the dispatch path over real HTTP callbacks (run 10
+`job_1787544529518` t0 completed via claude-pty; run 11 mission-seed
+completion leg pass/0.95), and the vocab completion-family edges were
+re-marked live at 100% (2026-08-19, bridge 5f866ac era).
 
 ## 7. Orchestration dispatch never emits `workflow:task_started` — FIXED 2026-08-21 (bridge startTaskSession emits taskStartedMessage before the progress-0 report)
 
@@ -213,7 +210,7 @@ for up to 5 minutes.
 or restart the worker before re-running; a harness that PUTs a plan and
 immediately asserts new limits will read cached old values.
 
-## 12. Plan-limits deep-merge trap for harness setup
+## 12. Plan-limits deep-merge trap for harness setup — FIXED 2026-08-24 (write path rejects partial sections; read path logs fallback keys)
 
 Stored plan limits are deep-merged with `FALLBACK_LIMITS`
 (plan-limits.ts:82-89): `{...FALLBACK_LIMITS.rate_limits, ...parsed.rate_limits}`
@@ -226,6 +223,18 @@ exhausts api_hourly and every mission-setup POST 429s
 **Cerberus consequence:** the seeded plan must explicitly lift
 `api_hourly` / `api_daily` / `max_agents` (shipped in
 `internal/head/scout/mission_seed_cases.go`).
+
+**FIX (2026-08-24):** the read-side deep merge stays (legacy rows are
+partial), but the trap is no longer silent or reachable from the write
+path: `plan-limits.ts` exports `findMissingLimitKeys` (shared key lists)
+and `getPlanLimits` logs a warning naming exactly which keys fell back to
+code defaults; the admin plans POST/PUT (`routes/admin/billing/plans.ts`)
+reject a PROVIDED limits section that omits keys with 400
+`limits_incomplete` + the missing dotted key paths (sections may still be
+omitted wholesale). Cerberus's mission-seed payload now sends complete
+sections (and an explicit positive `max_concurrent_tasks: 100` — the
+0-trap guard updated from "omit" to "positive"). Tests:
+`plan-limits.test.ts`, `plans-limits-validation.test.ts` (4 route cases).
 
 ---
 

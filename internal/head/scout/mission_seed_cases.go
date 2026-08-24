@@ -45,15 +45,17 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		{Action: "http_request", URL: host + "/api/auth/me", Method: "GET",
 			AuthRole: "web", ExpectStatusClass: "2xx",
 			Capture: map[string]string{"id": "userId"}},
-		// 1. Seed the plan. NEVER max_concurrent_tasks (spec §2 0-trap).
-		// api_hourly/api_daily must be lifted too: plan-limits.ts deep-merges
-		// unset keys with the free-plan fallback (api_hourly 100, api_daily
-		// 500), and the route sweep's ~130 admin writes under the same JWT
-		// exhaust api_hourly within the hour — the mission-setup POSTs then
-		// 429 (HOURLY_RATE_LIMIT_EXCEEDED) before any orchestration starts.
+		// 1. Seed the plan. Every limits section is COMPLETE on purpose:
+		// the admin write path rejects partial sections (open-agents
+		// known-issue #12 fix, 2026-08-24) because plan-limits.ts deep-merges
+		// omitted keys with the free-plan fallback (api_hourly 100,
+		// api_daily 500) — the route sweep's ~130 admin writes under the
+		// same JWT exhaust api_hourly within the hour and the mission-setup
+		// POSTs then 429 before any orchestration starts. max_concurrent_tasks
+		// must be positive (spec §2 0-trap: 0 bricks dispatch).
 		{Action: "http_request", URL: host + "/api/admin/billing/plans", Method: "POST",
 			AuthRole: admin, ExpectStatusClass: "2xx",
-			Body:    `{"name":"cerberus-dogfood","price_monthly":0,"limits":{"feature_gates":{"workflows":true},"rate_limits":{"daily_missions":9999,"api_hourly":9999,"api_daily":9999},"resources":{"max_agents":100}}}`,
+			Body: `{"name":"cerberus-dogfood","price_monthly":0,"limits":{"feature_gates":{"workflows":true,"worktree":true,"shared_state":true,"a2a":true,"custom_rules":true,"activity_analytics":true},"rate_limits":{"daily_missions":9999,"api_hourly":9999,"api_daily":9999,"ws_per_min":9999,"max_concurrent_tasks":100,"a2a_daily":9999},"resources":{"max_devices":100,"max_terminals":100,"max_agents":100,"max_prompts":100,"max_skills":100,"max_rules":100,"max_api_keys":100,"max_external_agents":100}}}`,
 			Capture: map[string]string{"id": "planId"}},
 		// 2. Switch the user to it (both ids read back in steps 0-1).
 		{Action: "http_request", URL: host + "/api/admin/users/{{case.userId}}", Method: "PUT",

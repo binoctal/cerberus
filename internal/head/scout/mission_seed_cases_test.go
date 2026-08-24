@@ -51,10 +51,12 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 	if idx != len(wantURLs) {
 		t.Fatalf("want %d http steps, got %d", len(wantURLs), idx)
 	}
-	// Plan payload must NOT set max_concurrent_tasks (spec §2: the 0-trap).
+	// Plan payload must set max_concurrent_tasks POSITIVE (spec §2 0-trap:
+	// 0 bricks dispatch). It cannot be omitted anymore — the admin write
+	// path rejects partial limits sections (open-agents known-issue #12).
 	planStep := firstStepWithURL(steps, "/api/admin/billing/plans")
-	if strings.Contains(planStep.Body, "max_concurrent_tasks") {
-		t.Fatal("plan payload must omit max_concurrent_tasks")
+	if !strings.Contains(planStep.Body, `"max_concurrent_tasks":100`) {
+		t.Fatal("plan payload must set max_concurrent_tasks to a positive value")
 	}
 	if !strings.Contains(planStep.Body, `"workflows":true`) || !strings.Contains(planStep.Body, "daily_missions") {
 		t.Fatal("plan payload must gate workflows + raise daily_missions")
