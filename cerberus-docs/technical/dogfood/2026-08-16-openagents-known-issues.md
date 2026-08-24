@@ -283,7 +283,11 @@ live-run evidence) against
 If open-agents refactors, re-run the greps in this doc's history before
 trusting the consequences.
 
-## 14. Retry-3 task dispatch silently lost (planner picks a slow CLI) — found 2026-08-23 via the actor tee logs
+## 14. Retry-3 task dispatch silently lost (planner picks a slow CLI) — found 2026-08-23, root-caused + fixed 2026-08-24
+
+**STATUS: FIXED** — open-agents 7fcf9cd (branch
+`fix/known-issue-14-stale-progress-resurrection`), stale-start guard in
+`handleTaskProgress`.
 
 Dogfood run 8 (cerberus session d161c714): the fail-mission's task never
 reached `workflow:task_failed` because its THIRD retry never dispatched.
@@ -301,16 +305,49 @@ Full evidence chain (now visible thanks to `<runtime>/logs/<actor>.log`):
 - So `scheduleNextTasks` ran, mutated the task (agent→claude, status→running)
   yet no dispatch reached any device.
 
+**Root cause (confirmed against D1 + code, 2026-08-24):** the original
+suspects (slot leak keyed by pre-switch agent, getReadyTasks filtering)
+were wrong. The bridge emits `task_started` + `task_progress{progress:0}`
+immediately after `CreateWithIDAndSize` returns — including when the
+session dies in the same millisecond (ACP fail → PTY stub exit-1). Those
+start frames travel bridge→WS→DO→fire-and-forget-fetch, while the
+`task_error` callback travels bridge→direct HTTP **with 1s/2s/4s retry
+backoff** — two unordered paths. In run 8 the error handler completed
+first (23:02:58.415: wrote `pending`, switched agent, scheduled the 15s
+retryTask alarm), then the stale progress-0 landed and
+`handleTaskProgress(progress=0)` unconditionally set status back to
+`running`. `getReadyTasks` selects only `status='pending'`, so the alarm
+at 23:03:13 found zero ready tasks, executed nothing (hence total log
+silence), and the task was stuck forever. D1 sealed it: `progress=0`,
+`updated_at` in the same second as the error callback, and `timeout_at`
+still reflecting attempt 2's dispatch (23:02:28+30min — no attempt-3
+dispatch ever reset it).
+
+**Fix:** `handleTaskProgress(progress=0)` now reads the task and only
+advances it to `running` when its status is `assigned` or `running`;
+stale frames are dropped with a log line (raw progress frame still
+forwarded for UI). Unit tests: `apps/api/src/test/services/orchestrator.test.ts`
+(pending/completed dropped, assigned/running advance). Full apps/api suite
+1765/1765 green; `TestRealBridge_M1_Orchestration` PASS; mission-seed
+`task_failed` leg verdict in the run record.
+
 The flakiness driver: which agent the planner assigns (claude-pty fails
 fast → 3 retries exhaust inside the 600s await; codex/claude burn 30s ACP
-timeouts per attempt and expose the lost-dispatch bug). The mission-seed
-`task_failed` leg therefore passes or fails per planner whim until #14 is
-fixed upstream. Suspects for the silent path: the in-memory
-`runningTasksByMission` slot accounting across the fallback-agent switch
-(release keyed by the pre-switch agent), or `getReadyTasks` filtering.
+timeouts per attempt and expose the lost-dispatch bug). With the guard,
+either planner pick should now converge on retry exhaustion.
 
-Side observation: periodic `stuckRecovery` alarms carry an empty payload
-and the alarm route resolves the orchestrator BEFORE its stuckRecovery
-special case — every periodic alarm 400s with "userId or a known
-missionId is required" (harmless-looking, but stuck recovery on Worker
-restart is effectively dead).
+**Adjacent defect noticed while reading (unfixed, lower severity):** the
+user-room DO keeps ONE alarm slot (`__alarm_type`/`__alarm_payload` +
+single `setAlarm`), so every `orchestrator:schedule_alarm` from the same
+user's orchestrator OVERWRITES any pending alarm — last writer wins. In
+run 8 the sequence happened to be serial so nothing was lost, but a
+retryTask scheduled while a stuckRecovery (or vice versa) is pending
+would silently cancel it.
+
+Side observation (RESOLVED — stale note): the "periodic stuckRecovery
+alarms carry an empty payload → alarm route 400s" gap was closed by
+open-agents 0c62e11 (2026-08-19): `Orchestrator.scheduleAlarm` stamps
+`userId` into every alarm's data, the DO posts it back as the alarm
+payload, and `getOrchestratorForInternalEvent` resolves on it — the
+stuckRecovery success case is covered by a route test in
+`missions.test.ts`.
