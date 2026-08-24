@@ -57,35 +57,23 @@ actors:
   # Real bridge devices. Each pairs via the dev backdoor (new device under the
   # SAME dev user, so the web actor shares their DO room), runs in an isolated
   # HOME (bridge config lives at $HOME/.open-agents-bridge), and its deviceId
-  # is captured for {{bridge.role}} send-body routing.
-  - name: bridge-pty-1
+  # is captured for {{bridge.role}} send-body routing. Expanded via replicas
+  # (index from 1): bridge-pty-1..3 — per-instance variance rides the
+  # {{actor.name}} template, so paired-device rows keyed by name stay valid.
+  - name: bridge-pty
     credentials: {}
     fidelity: real-process
+    replicas: 3
     process:
       workdir: "../../../open-agents/bridge"
-      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-n", "bridge-pty-1"]
-      start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-1"]
+      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-n", "{{actor.name}}"]
+      start: ["./build/open-agents-bridge", "start", "-d", "{{actor.name}}"]
       env:
-        HOME: "{{runtime.dir}}/bridge-pty-1-home"   # isolate .open-agents-bridge/config.json per instance
+        HOME: "{{runtime.dir}}/{{actor.name}}-home"   # isolate .open-agents-bridge/config.json per instance
         PATH: "{{runtime.dir}}/../../shim:{{env.PATH}}"   # deterministic claude shim first: zero-LLM claude-pty sessions
-      capture_file: "{{runtime.dir}}/bridge-pty-1-home/.open-agents-bridge/config.json"
+      capture_file: "{{runtime.dir}}/{{actor.name}}-home/.open-agents-bridge/config.json"
       capture_json:
-        deviceId: "devices.bridge-pty-1.deviceId"
-      ready_pattern: "Connected to server successfully"
-      ready_timeout: 30s
-  - name: bridge-pty-2
-    credentials: {}
-    fidelity: real-process
-    process:
-      workdir: "../../../open-agents/bridge"
-      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-n", "bridge-pty-2"]
-      start: ["./build/open-agents-bridge", "start", "-d", "bridge-pty-2"]
-      env:
-        HOME: "{{runtime.dir}}/bridge-pty-2-home"
-        PATH: "{{runtime.dir}}/../../shim:{{env.PATH}}"
-      capture_file: "{{runtime.dir}}/bridge-pty-2-home/.open-agents-bridge/config.json"
-      capture_json:
-        deviceId: "devices.bridge-pty-2.deviceId"
+        deviceId: "devices.{{actor.name}}.deviceId"
       ready_pattern: "Connected to server successfully"
       ready_timeout: 30s
 settings:
@@ -94,6 +82,7 @@ settings:
   ai_budget:
     # 200K still starved the Examiner (2026-08-19: scout+agent left ~9K,
     # below the 10K per-call cap, degrading 458/691 judge verdicts to step
-    # status — no drift aggregate). 700K lets all ~700 verdicts judge.
-    session_total_tokens: 700000
+    # status — no drift aggregate). 800K lets all ~700 verdicts judge plus the
+    # bridge3 replica's cases (run 15 spent ~711K at 2 bridges).
+    session_total_tokens: 800000
     per_call_limit: 10000

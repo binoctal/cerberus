@@ -7,9 +7,10 @@ import (
 )
 
 // TestProjectConfig_Loads pins the realtime-e2e dogfood surface: the shared
-// open-agents protocol resolves, the web actor stays emulated, and BOTH
-// bridges are real-process actors whose roles point at them (so deterministic
-// generators never self-play a role a real process occupies).
+// open-agents protocol resolves, the web actor stays emulated, and ALL THREE
+// bridges (replicas: 3 expansion) are real-process actors whose roles point
+// at them (so deterministic generators never self-play a role a real process
+// occupies).
 func TestProjectConfig_Loads(t *testing.T) {
 	cfg, err := project.LoadFromFile(".cerberus/project.yaml")
 	if err != nil {
@@ -26,8 +27,8 @@ func TestProjectConfig_Loads(t *testing.T) {
 		t.Fatalf("framing=%q want json", svc.Protocol.Framing)
 	}
 
-	if len(cfg.Actors) != 4 {
-		t.Fatalf("actors=%d want 4 (web + admin + 2 real bridges)", len(cfg.Actors))
+	if len(cfg.Actors) != 5 {
+		t.Fatalf("actors=%d want 5 (web + admin + 3 real bridges)", len(cfg.Actors))
 	}
 	if cfg.Actors[0].Name != "web-actor" || (cfg.Actors[0].Fidelity != project.FidelityEmulated && cfg.Actors[0].Fidelity != "") {
 		t.Fatalf("web actor=%+v", cfg.Actors[0])
@@ -36,7 +37,7 @@ func TestProjectConfig_Loads(t *testing.T) {
 	if cfg.Actors[1].Name != "admin-actor" {
 		t.Fatalf("actor[1]=%+v want admin-actor", cfg.Actors[1])
 	}
-	for i, want := range []string{"bridge-pty-1", "bridge-pty-2"} {
+	for i, want := range []string{"bridge-pty-1", "bridge-pty-2", "bridge-pty-3"} {
 		a := cfg.Actors[i+2]
 		if a.Name != want || a.Fidelity != project.FidelityRealProcess || a.Process == nil {
 			t.Fatalf("actor[%d]=%+v", i+1, a)
@@ -51,7 +52,7 @@ func TestProjectConfig_Loads(t *testing.T) {
 
 	// Roles bind to the real actors so the generator suppression and
 	// {{bridge.deviceId}} templating have their anchors.
-	for role, wantActor := range map[string]string{"bridge": "bridge-pty-1", "bridge2": "bridge-pty-2"} {
+	for role, wantActor := range map[string]string{"bridge": "bridge-pty-1", "bridge2": "bridge-pty-2", "bridge3": "bridge-pty-3"} {
 		r := svc.Protocol.Roles[role]
 		if r == nil || r.CredentialRef != wantActor {
 			t.Fatalf("role %s=%+v want credential_ref %s", role, r, wantActor)

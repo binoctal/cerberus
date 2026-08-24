@@ -23,6 +23,7 @@ roles:
   bridge:
     credential_ref: bridge-pty-1
     process_bound: true
+    claims: [ws-relay-messaging, multi-device-orchestration]
     params:
       type: bridge
       deviceId: "{deviceId}"
@@ -72,9 +73,23 @@ roles:
   bridge2:
     credential_ref: bridge-pty-2
     process_bound: true
+    claims: [ws-relay-messaging, multi-device-orchestration]
     params:
       type: bridge
       deviceId: "{deviceId}"
     request_payload:
       session:start:
         deviceId: "{{bridge2.deviceId}}"
+  # Third replica (replicas: 3 expansion): same shape as bridge2 — its
+  # reale2e/realresp cases supply the third distinct device identity the
+  # multi-device-orchestration cardinality bar (3) counts.
+  bridge3:
+    credential_ref: bridge-pty-3
+    process_bound: true
+    claims: [ws-relay-messaging, multi-device-orchestration]
+    params:
+      type: bridge
+      deviceId: "{deviceId}"
+    request_payload:
+      session:start:
+        deviceId: "{{bridge3.deviceId}}"
