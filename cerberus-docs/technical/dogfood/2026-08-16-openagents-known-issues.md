@@ -336,13 +336,20 @@ fast → 3 retries exhaust inside the 600s await; codex/claude burn 30s ACP
 timeouts per attempt and expose the lost-dispatch bug). With the guard,
 either planner pick should now converge on retry exhaustion.
 
-**Adjacent defect noticed while reading (unfixed, lower severity):** the
-user-room DO keeps ONE alarm slot (`__alarm_type`/`__alarm_payload` +
+**Adjacent defect noticed while reading — STATUS: FIXED 2026-08-24
+(open-agents c038f39, branch `fix/do-alarm-single-slot-overwrite`):** the
+user-room DO kept ONE alarm slot (`__alarm_type`/`__alarm_payload` +
 single `setAlarm`), so every `orchestrator:schedule_alarm` from the same
-user's orchestrator OVERWRITES any pending alarm — last writer wins. In
-run 8 the sequence happened to be serial so nothing was lost, but a
-retryTask scheduled while a stuckRecovery (or vice versa) is pending
-would silently cancel it.
+user's orchestrator OVERWRITES any pending alarm — last writer wins. It
+bit for real during run 10 (`job_1787538326005` t3: two retryTask alarms
+35ms apart, the later replaced the first, task stuck pending with frozen
+retry_count). Fix: persistent dueAt-sorted queue
+(`apps/api/src/realtime/alarm-queue.ts` pure functions + `room.ts`
+wiring) — scheduleAlarm appends and arms the hardware alarm at the
+earliest dueAt; alarm() drains everything due, persists the remainder,
+re-arms; legacy single-slot keys migrate on first wake. Unit tests in
+`src/test/realtime/alarm-queue.test.ts` (6 cases incl. the 35ms-apart
+repro and legacy migration); full apps/api suite 1771/1771.
 
 Side observation (RESOLVED — stale note): the "periodic stuckRecovery
 alarms carry an empty payload → alarm route 400s" gap was closed by
