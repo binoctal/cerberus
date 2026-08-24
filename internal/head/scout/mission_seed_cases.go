@@ -203,7 +203,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			AuthRole: "web", ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"CERBERUS_ASK: before finishing, the agent must ask the user for the magic word. Every task description carries CERBERUS_ASK. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "questionMissionId"}},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 300},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 600},
 		agent.TestStep{Action: "ws_send", ConnectionID: "web",
 			Message: wsSendBodyAny("workflow:task_answer", map[string]any{
 				"deviceId": "{{bridge.deviceId}}",

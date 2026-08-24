@@ -1,7 +1,26 @@
 #!/bin/sh
-# Fail-fast kiro stub (offline dogfood env): the orchestrator's retry fallback
-# ladder can switch a failing task to any detected CLI; a real kiro would
-# stay alive and the failure would never report, stalling retry exhaustion
-# (live-verified 2026-08-19: tasks stuck at retry_count=3 on codex). Every
-# non-claude-pty CLI is modelled as unusable offline: exit 1 immediately.
-exit 1
+# Deterministic kiro stub for the offline dogfood env (PTY fallback path —
+# the ACP/npx attempt fails first, then the bridge reconnects via PTY).
+# Marker-driven, identical semantics to shim/claude, so the question
+# mission works no matter which CLI the planner assigns (run 13: glm
+# picked codex, whose old exit-1 stub could never ask and the task_question
+# window expired):
+# - CERBERUS_FAIL in the echoed task prompt → exit 1 (retry-exhaustion leg)
+# - CERBERUS_ASK → print a line OPENING with [QUESTION], wait for the
+#   bridge's injected answer, then exit 0 (human-in-the-loop leg)
+# - otherwise a [QUESTION] mention → exit 0 (completion leg)
+asked=0
+while IFS= read -r line; do
+  printf 'FAKE_kiro_ECHO: %s\n' "$line"
+  if [ "$asked" -eq 1 ]; then
+    case "$line" in
+      *"User answered your question"*) sleep 5; exit 0 ;;
+    esac
+    continue
+  fi
+  case "$line" in
+    *"CERBERUS_FAIL"*) sleep 5; exit 1 ;;
+    *"CERBERUS_ASK"*) printf '[QUESTION] what is the magic word?\n'; asked=1 ;;
+    *"[QUESTION]"*) sleep 5; exit 0 ;;
+  esac
+done
