@@ -58,7 +58,7 @@ func backflowFindings(projectDir string, cfg *project.Config, results []agent.St
 	if ff == nil {
 		ff = &project.FindingsFile{}
 	}
-	realRoleActors, realActorIds := collectRealIdentities(cfg)
+	realRoleActors := collectRealIdentities(cfg)
 	now := time.Now().UTC().Format(time.RFC3339)
 	created := 0
 	for _, r := range failed {
@@ -67,7 +67,7 @@ func backflowFindings(projectDir string, cfg *project.Config, results []agent.St
 			ErrorSummary: findingSummary(r),
 			SessionRef:   sessionRef,
 			ClaimRefs:    r.TestCase.Claims,
-			Tier:         caseEvidenceTier(*r.TestCase, realRoleActors, realActorIds),
+			Tier:         caseEvidenceTier(*r.TestCase, realRoleActors.Roles, realRoleActors.flatIDs()),
 			Now:          now,
 		}))
 	}

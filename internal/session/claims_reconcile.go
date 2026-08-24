@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -30,6 +31,10 @@ const (
 type ClaimVerdict struct {
 	Claim  project.Claim
 	Status ClaimStatus
+	// Reason explains a non-proven status when the evidence shape (not the
+	// case outcomes) is the cause — today: implies_cardinality shortfall
+	// ("cardinality 2/3"). Empty for plain verdicts.
+	Reason string
 	// Cases lists the bound case ids, passing first (failures still name
 	// their binding so a report can show what was attempted).
 	Cases []string
@@ -104,14 +109,45 @@ func rawSendBodies(tc agent.TestCase) []string {
 	return bodies
 }
 
+// caseRealActors attributes a PASSED case's evidence to the real actors it
+// touched: role-bound steps and {{role.param}} placeholder bodies credit the
+// role's backing actor; raw-id body matches credit the actor owning the
+// captured value. Distinct actors (not roles, not raw values) are the
+// cardinality basis — same actor behind two roles counts once.
+func caseRealActors(tc agent.TestCase, idx realActorIndex) map[string]bool {
+	actors := map[string]bool{}
+	for _, s := range tc.Steps {
+		for _, role := range []string{s.Role, s.AuthRole} {
+			if role != "" {
+				if a, ok := idx.RoleActor[role]; ok {
+					actors[a] = true
+				}
+			}
+		}
+	}
+	for _, body := range rawSendBodies(tc) {
+		for role, a := range idx.RoleActor {
+			if role != "" && strings.Contains(body, "{{"+role+".") {
+				actors[a] = true
+			}
+		}
+		for id, a := range idx.ActorByValue {
+			if id != "" && strings.Contains(body, id) {
+				actors[a] = true
+			}
+		}
+	}
+	return actors
+}
+
 // ReconcileClaims computes every claim's verdict. claims: the ledger;
-// results: final step results (Status + TestCase); realRoleActors: role
-// names bound to fidelity real-process actors (keyed by ROLE NAME — same
-// namespace as scout.realProcessRoles; actor names must NOT be used as
-// keys, see caseEvidenceTier); realActorIds: their captured identity values
-// present in the session. Repair-inherited bindings (Claims copied onto a
-// Replaces/FallbackFor case) prove like any other binding.
-func ReconcileClaims(claims []project.Claim, results []agent.StepResult, realRoleActors map[string]bool, realActorIds []string) []ClaimVerdict {
+// results: final step results (Status + TestCase); idx: the session's real
+// identity index (see collectRealIdentities). Repair-inherited bindings
+// (Claims copied onto a Replaces/FallbackFor case) prove like any other
+// binding. A claim with implies_cardinality: N > 0 is proven only when its
+// passing real-tier cases collectively exercise N distinct real actors.
+func ReconcileClaims(claims []project.Claim, results []agent.StepResult, idx realActorIndex) []ClaimVerdict {
+	flat := idx.flatIDs()
 	verdicts := make([]ClaimVerdict, 0, len(claims))
 	for _, c := range claims {
 		v := ClaimVerdict{Claim: c, Status: ClaimUnevidenced}
@@ -122,14 +158,33 @@ func ReconcileClaims(claims []project.Claim, results []agent.StepResult, realRol
 			}
 			if r.Status == agent.StepPassed {
 				passing = append(passing, r.TestCase.ID)
-				if caseEvidenceTier(*r.TestCase, realRoleActors, realActorIds) == evidenceReal {
+				if caseEvidenceTier(*r.TestCase, idx.Roles, flat) == evidenceReal {
 					v.Status = ClaimProven
 				}
 			} else {
 				failing = append(failing, r.TestCase.ID)
 			}
 		}
-		// Passing cases exist but none reached the real tier.
+		// Cardinality bar: distinct real actors across the claim's passing
+		// real-tier cases (evidence-shape check, so it runs on a would-be
+		// proven verdict only).
+		if c.ImpliesCardinality > 0 && v.Status == ClaimProven {
+			distinct := map[string]bool{}
+			for _, r := range results {
+				if r.TestCase == nil || !claimsBound(r.TestCase.Claims, c.ID) || r.Status != agent.StepPassed {
+					continue
+				}
+				for a := range caseRealActors(*r.TestCase, idx) {
+					distinct[a] = true
+				}
+			}
+			if len(distinct) < c.ImpliesCardinality {
+				v.Status = ClaimEmulatedOnly
+				v.Reason = fmt.Sprintf("cardinality %d/%d", len(distinct), c.ImpliesCardinality)
+			}
+		}
+		// Passing cases exist but none reached the real tier (or the
+		// cardinality bar demoted the verdict).
 		if v.Status == ClaimUnevidenced && len(passing) > 0 {
 			v.Status = ClaimEmulatedOnly
 		}

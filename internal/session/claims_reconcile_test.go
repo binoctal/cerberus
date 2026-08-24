@@ -16,6 +16,17 @@ func realRoleFixture() (map[string]bool, []string) {
 	return map[string]bool{"device": true}, []string{"device_x"}
 }
 
+// realRoleIndexFixture is the same one-role world as realRoleFixture, in the
+// index shape ReconcileClaims consumes.
+func realRoleIndexFixture() realActorIndex {
+	return realActorIndex{
+		Roles:        map[string]bool{"device": true},
+		RoleActor:    map[string]string{"device": "device-actor"},
+		ActorIDs:     map[string][]string{"device-actor": {"device_x"}},
+		ActorByValue: map[string]string{"device_x": "device-actor"},
+	}
+}
+
 func passingResult(tc agent.TestCase) agent.StepResult {
 	return agent.StepResult{TestCase: &tc, Status: agent.StepPassed}
 }
@@ -108,7 +119,7 @@ func TestCaseEvidenceTier(t *testing.T) {
 // ordering (passing first), and repair-inherited bindings counting as
 // evidence.
 func TestReconcileClaims(t *testing.T) {
-	realRoles, realIds := realRoleFixture()
+	idx := realRoleIndexFixture()
 
 	t.Run("passing case connecting as real role is proven", func(t *testing.T) {
 		claims := []project.Claim{{ID: "schedule-real-cli", Text: "调度真实 AI CLI 执行任务"}}
@@ -116,7 +127,7 @@ func TestReconcileClaims(t *testing.T) {
 			ID: "tc-001", Claims: []string{"schedule-real-cli"},
 			Steps: []agent.TestStep{{Action: "ws_connect", Role: "device"}},
 		})}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Len(t, v, 1)
 		assert.Equal(t, ClaimProven, v[0].Status)
 		assert.Equal(t, []string{"tc-001"}, v[0].Cases)
@@ -131,7 +142,7 @@ func TestReconcileClaims(t *testing.T) {
 				{Action: "ws_send", Message: `{"deviceId":"device_x","type":"cmd"}`},
 			},
 		})}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Equal(t, ClaimProven, v[0].Status)
 	})
 
@@ -141,7 +152,7 @@ func TestReconcileClaims(t *testing.T) {
 			ID: "tc-003", Claims: []string{"ws-relay"},
 			Steps: []agent.TestStep{{Action: "ws_connect", Role: "web"}},
 		})}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Equal(t, ClaimEmulatedOnly, v[0].Status)
 	})
 
@@ -150,7 +161,7 @@ func TestReconcileClaims(t *testing.T) {
 		results := []agent.StepResult{passingResult(agent.TestCase{
 			ID: "tc-004", Steps: []agent.TestStep{{Action: "ws_connect", Role: "device"}},
 		})}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Equal(t, ClaimUnevidenced, v[0].Status)
 		assert.Empty(t, v[0].Cases)
 	})
@@ -160,7 +171,7 @@ func TestReconcileClaims(t *testing.T) {
 		results := []agent.StepResult{{TestCase: &agent.TestCase{
 			ID: "tc-005", Claims: []string{"mission-planning"},
 		}, Status: agent.StepFailed}}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Equal(t, ClaimUnevidenced, v[0].Status)
 		assert.Equal(t, []string{"tc-005"}, v[0].Cases)
 	})
@@ -171,7 +182,7 @@ func TestReconcileClaims(t *testing.T) {
 			{TestCase: &agent.TestCase{ID: "tc-fail", Claims: []string{"mixed"}}, Status: agent.StepFailed},
 			passingResult(agent.TestCase{ID: "tc-pass", Claims: []string{"mixed"}}),
 		}
-		v := ReconcileClaims(claims, results, nil, nil)
+		v := ReconcileClaims(claims, results, realActorIndex{})
 		assert.Equal(t, ClaimEmulatedOnly, v[0].Status)
 		assert.Equal(t, []string{"tc-pass", "tc-fail"}, v[0].Cases)
 	})
@@ -185,7 +196,7 @@ func TestReconcileClaims(t *testing.T) {
 			ID: "tc-006-r", Replaces: "tc-006", Claims: []string{"schedule-real-cli"},
 			Steps: []agent.TestStep{{Action: "ws_connect", Role: "device"}},
 		})}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Equal(t, ClaimProven, v[0].Status)
 		assert.False(t, ClaimsGateFailed(v))
 	})
@@ -198,7 +209,7 @@ func TestReconcileClaims(t *testing.T) {
 			passingResult(agent.TestCase{ID: "tc-real", Claims: []string{"mixed-tier"},
 				Steps: []agent.TestStep{{Action: "ws_connect", Role: "device"}}}),
 		}
-		v := ReconcileClaims(claims, results, realRoles, realIds)
+		v := ReconcileClaims(claims, results, idx)
 		assert.Equal(t, ClaimProven, v[0].Status)
 		assert.Equal(t, []string{"tc-emu", "tc-real"}, v[0].Cases)
 	})

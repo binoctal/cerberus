@@ -37,23 +37,25 @@ func claimsGateFixture() *project.Config {
 // and every captured path-param value of a real-process actor lands in
 // realActorIds.
 func TestCollectRealIdentities(t *testing.T) {
-	roles, ids := collectRealIdentities(claimsGateFixture())
-	assert.Equal(t, map[string]bool{"device": true}, roles,
+	idx := collectRealIdentities(claimsGateFixture())
+	assert.Equal(t, map[string]bool{"device": true}, idx.Roles,
 		"role-name keys only; actor-name keys would silently degrade tiers")
-	assert.ElementsMatch(t, []string{"device_x", "c-42"}, ids)
+	assert.ElementsMatch(t, []string{"device_x", "c-42"}, idx.flatIDs())
+	assert.Equal(t, "cli", idx.RoleActor["device"])
+	assert.Equal(t, "cli", idx.ActorByValue["device_x"])
 
 	t.Run("no real-process actors", func(t *testing.T) {
 		cfg := claimsGateFixture()
 		cfg.Actors[1].Fidelity = project.FidelityEmulated
-		roles, ids := collectRealIdentities(cfg)
-		assert.Empty(t, roles)
-		assert.Empty(t, ids)
+		idx := collectRealIdentities(cfg)
+		assert.Empty(t, idx.Roles)
+		assert.Empty(t, idx.ActorIDs)
 	})
 
 	t.Run("nil config", func(t *testing.T) {
-		roles, ids := collectRealIdentities(nil)
-		assert.Nil(t, roles)
-		assert.Nil(t, ids)
+		idx := collectRealIdentities(nil)
+		assert.Empty(t, idx.Roles)
+		assert.Empty(t, idx.ActorIDs)
 	})
 }
 
