@@ -51,6 +51,23 @@ func TestHarness_SetupCaptureStartReady(t *testing.T) {
 	assert.NoError(t, h.procs["b1"].cmd.Process.Signal(syscall.Signal(0)))
 }
 
+// TestHarness_CaptureDotPathTemplate verifies capture_json dot-paths support
+// the same {{actor.name}} template as capture_file — replicas expansion
+// authors per-instance dot-paths like devices.{{actor.name}}.deviceId.
+func TestHarness_CaptureDotPathTemplate(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "cfg.json")
+	writeScript(t, cfgPath, `{"devices":{"d-1":{"deviceId":"dev-1"}}}`)
+	h := newHarness(zap.NewNop(), dir)
+	actor := &project.Actor{Name: "d-1", Fidelity: project.FidelityRealProcess,
+		Process: &project.ProcessSpec{
+			CaptureFile: cfgPath,
+			CaptureJSON: map[string]string{"deviceId": "devices.{{actor.name}}.deviceId"},
+		}}
+	require.NoError(t, h.capture(actor))
+	assert.Equal(t, "dev-1", actor.Credentials.PathParams["deviceId"])
+}
+
 // TestHarness_EnvTemplates verifies {{runtime.dir}} / {{actor.name}} templates
 // in argv and env, and that the child actually sees the overridden env.
 func TestHarness_EnvTemplates(t *testing.T) {

@@ -309,6 +309,9 @@ func (h *harness) capture(actor *project.Actor) error {
 		actor.Credentials.PathParams = map[string]string{}
 	}
 	for param, path := range spec.CaptureJSON {
+		// Dot-paths carry the same {{actor.name}} templates as capture_file
+		// (replicas expansion authors per-instance paths).
+		path = h.tmpl(path, actor)
 		v, err := dotPathValue(doc, path)
 		if err != nil {
 			return fmt.Errorf("harness %s: capture %s: %w", actor.Name, path, err)
