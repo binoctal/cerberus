@@ -188,7 +188,7 @@ func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCa
 			Expectation: fmt.Sprintf("%s: %s starts a session on the REAL %s process via deviceId routing, relays real PTY output back, and stops it",
 				svc.Name, client, roleName),
 			Priority: 0.8,
-			Claims:   []string{wsRelayClaimID},
+			Claims:   roleClaimBindings(svc.Protocol.Roles[roleName]),
 			Steps: []agent.TestStep{
 				{Action: "ws_connect", ConnectionID: client, Role: client},
 				{Action: "ws_send", ConnectionID: client, Message: wsSendBody("session:start", startPayload)},
@@ -294,6 +294,21 @@ func violationCases(svc project.Service) []agent.TestCase {
 // Ledger-driven reconciliation ignores bindings to ids a project's claims.yaml
 // does not declare, so the binding is harmless for ledger-less projects.
 const wsRelayClaimID = "ws-relay-messaging"
+
+// roleClaimBindings returns the claims a per-role generated case binds: the
+// relay claim first, then the role's declared claims, order-stable, deduped.
+func roleClaimBindings(role *project.ProtocolRole) []string {
+	out := []string{wsRelayClaimID}
+	if role == nil {
+		return out
+	}
+	for _, c := range role.Claims {
+		if c != wsRelayClaimID {
+			out = append(out, c)
+		}
+	}
+	return out
+}
 
 // wsCasesForService emits the deterministic WS cases for one service: the
 // peer-join relay coexistence cases (shared with LLM ws_relay), then a per-role

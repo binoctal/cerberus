@@ -66,7 +66,7 @@ func realResponderCases(svc project.Service, realRoles map[string]bool) []agent.
 				Expectation: fmt.Sprintf("%s: the REAL %s process receives %s and replies %s over the relay",
 					svc.Name, roleName, recvType, replyType),
 				Priority: 0.7,
-				Claims:   []string{wsRelayClaimID},
+				Claims:   roleClaimBindings(role),
 				Steps: []agent.TestStep{
 					{Action: "ws_connect", ConnectionID: client, Role: client},
 					{Action: "ws_send", ConnectionID: client, Message: wsSendBodyAny(recvType, payload)},

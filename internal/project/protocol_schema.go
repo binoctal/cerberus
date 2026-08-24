@@ -120,6 +120,10 @@ type ProtocolRole struct {
 	// from provisioned actor state. Drives the deterministic two-role
 	// request-response generator. Empty ⇒ the requester sends a bare type envelope.
 	RequestPayload map[string]map[string]string `yaml:"request_payload,omitempty" json:"request_payload,omitempty"`
+	// Claims lists ledger claim ids that cases derived for this role bind in
+	// addition to the default relay claim. SUT fact: which promise a role's
+	// per-role cases evidence lives here, not in scout code.
+	Claims []string `yaml:"claims,omitempty"`
 }
 
 // RoleHandshake declares the message the executor auto-awaits after connect.
