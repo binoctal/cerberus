@@ -4,23 +4,41 @@
 # process via the claude-pty path and streams its output back through both
 # batching layers.
 #
-# Two exit semantics model a real CLI:
+# Three exit semantics model a real CLI:
 # - A line carrying CERBERUS_FAIL (task prompts put mission text in the
 #   title/description, which precede the instruction line) means the task
 #   must fail: echo it, then exit 1 two seconds later. The nonzero exit
 #   rides the bridge's exit callback as a task_error report, and retry
 #   exhaustion broadcasts workflow:task_failed.
-# - A line carrying [QUESTION] (the buildTaskPrompt instruction every task
-#   prompt ends with) means the task is done: echo it, then exit 0 two
-#   seconds later — that closes the PTY session, fires the exit callback and
-#   with it the completion HTTP callback (task_result ->
+# - A line carrying CERBERUS_ASK (question-mission marker, same
+#   title/description placement) puts the shim into ask mode: it prints a
+#   line OPENING with [QUESTION] (the exact contract extractQuestion
+#   enforces — the marker must open the line), which the bridge relays as
+#   workflow:task_question while it parks on its 5-min answer channel. Ask
+#   mode then IGNORES the prompt's own [QUESTION] mention (the completion
+#   trigger) and waits for the bridge to inject the web user's answer
+#   ("User answered your question:") — the completion exit. This drives
+#   the bridge→web task_question edge + the web→bridge task_answer round
+#   trip, the only honest way to exercise the human-in-the-loop loop.
+# - Otherwise a line carrying [QUESTION] (the buildTaskPrompt instruction
+#   every task prompt ends with) means the task is done: echo it, then
+#   exit 0 two seconds later — that closes the PTY session, fires the exit
+#   callback and with it the completion HTTP callback (task_result ->
 #   task_completed/job_status broadcasts).
-# Interactive session cases never type either marker, so they keep the
+# Interactive session cases never type any marker, so they keep the
 # long-lived echo loop.
+asked=0
 while IFS= read -r line; do
   printf 'FAKE_CLAUDE_ECHO: %s\n' "$line"
+  if [ "$asked" -eq 1 ]; then
+    case "$line" in
+      *"User answered your question"*) sleep 5; exit 0 ;;
+    esac
+    continue
+  fi
   case "$line" in
     *"CERBERUS_FAIL"*) sleep 5; exit 1 ;;
+    *"CERBERUS_ASK"*) printf '[QUESTION] what is the magic word?\n'; asked=1 ;;
     *"[QUESTION]"*) sleep 5; exit 0 ;;
   esac
 done

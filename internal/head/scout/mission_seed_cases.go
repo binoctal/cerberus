@@ -188,12 +188,36 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 				"taskId":   "{{case.missionId}}_no-branch",
 			})},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_error", Timeout: 60},
+		// 12. Human-in-the-loop question mission: the last uncovered
+		// bridge→web edge (workflow:task_question) and the web→bridge
+		// task_answer round trip. The CERBERUS_ASK marker rides the
+		// mission text into the task title/description (same placement
+		// trick as CERBERUS_FAIL); the dogfood shim's ask mode prints a
+		// line OPENING with [QUESTION] — extractQuestion's contract —
+		// so the bridge relays workflow:task_question and parks on its
+		// 5-min answer channel. The web answers with the deterministic
+		// taskId ({missionId}_t0, same as the merge step), the bridge
+		// injects "User answered your question:" into the PTY, and the
+		// shim's completion exit fires the normal callback chain.
+		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
+			AuthRole: "web", ExpectStatusClass: "2xx",
+			Body:    `{"inputText":"CERBERUS_ASK: before finishing, the agent must ask the user for the magic word. Every task description carries CERBERUS_ASK. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
+			Capture: map[string]string{"mission.id": "questionMissionId"}},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 300},
+		agent.TestStep{Action: "ws_send", ConnectionID: "web",
+			Message: wsSendBodyAny("workflow:task_answer", map[string]any{
+				"deviceId": "{{bridge.deviceId}}",
+				"jobId":    "{{case.questionMissionId}}",
+				"taskId":   "{{case.questionMissionId}}_t0",
+				"answer":   "the magic word is cerberus",
+			})},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
 	)
 	return []agent.TestCase{{
 		ID: wsCaseID(svc.Name, "wf", "mission-seed"), Service: svc.Name, Target: svc.URL,
 		Name:   "seeded mission drives real orchestration end to end",
 		Action: "ws_flow", Priority: 0.8,
-		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, the task session pushes workflow:task_progress + workflow:task_question, completion flows back through the bridge HTTP callback (workflow:task_completed + workflow:job_status), a web-initiated task_merge elicits workflow:task_result, a failing mission exhausts its retries into workflow:task_failed, and a branchless merge elicits workflow:task_error",
+		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, the task session pushes workflow:task_progress, completion flows back through the bridge HTTP callback (workflow:task_completed + workflow:job_status), a web-initiated task_merge elicits workflow:task_result, a failing mission exhausts its retries into workflow:task_failed, a branchless merge elicits workflow:task_error, and a question mission drives the human-in-the-loop loop (bridge asks workflow:task_question, web answers workflow:task_answer, completion follows)",
 		Steps:       steps,
 	}}
 }
