@@ -29,9 +29,14 @@ independent addressability of N real devices — cross-device mission fan-out
 (one mission dispatched to all N devices) is deliberately a follow-up, and
 the claim text must say so.
 
-Counting basis: distinct deviceId values, NOT role count — two roles whose
-credential_ref names the same actor must not double-count (a passing case
-referencing either credits the same identity once).
+Counting basis: distinct ACTORS, not raw identity values and not role
+count. An actor may capture several params (deviceId + userId would count
+as 2 under value-counting — inflated). Attribution: a role-bound step and a
+`{{role.param}}` placeholder body both credit that role's backing actor; a
+raw-id body match credits the actor owning that captured value. Two roles
+whose credential_ref names the same actor therefore credit ONE identity
+(the misconfiguration double-count guard). In dogfood terms this still
+reads "3 distinct deviceIds" — each bridge actor captures exactly one.
 
 ## Components
 
@@ -39,8 +44,9 @@ referencing either credits the same identity once).
 
 - `Actor.Replicas int` (`yaml:"replicas,omitempty"`); 0/absent = exactly one
   actor (today's behavior, back-compat).
-- Expansion happens at ONE choke point: `project.Load` (both server and
-  session load paths go through it). An actor with `replicas: N` becomes N
+- Expansion happens at ONE choke point: `project.LoadFromYAML` (LoadFromFile
+  funnels there; every load path — server, cmd/*, session — goes through
+  it). An actor with `replicas: N` becomes N
   actors named `<name>-1` … `<name>-N` (index from 1, so
   `bridge-pty` + `replicas: 3` reproduces the existing `bridge-pty-1/2`
   names bit-for-bit — wrangler D1 pairing rows stay valid, no re-pairing).
@@ -59,10 +65,13 @@ referencing either credits the same identity once).
 - `Role` gains `Claims []string` (`yaml:"claims,omitempty"`). SUT fact stays
   in YAML; scout stays generic.
 - `realE2ECases` and `realResponderCases` union the role's claims into each
-  generated case's `Claims`. HAZARD: `ws_cases.go:354` currently OVERWRITES
-  `Claims` with `[]string{wsRelayClaimID}` — the union must happen at that
-  assignment (dedup, order-stable), not before it, or role claims are
-  silently erased.
+  generated case's `Claims` at their struct-literal sites (`ws_cases.go:191`,
+  `real_responder_cases.go:69`) — dedup, order-stable. NOTE: the ONLY Claims
+  overwrite in scout is `ws_cases.go:354` (`wsCasesForService`, the
+  relay/connect case family) — a different family whose output does NOT flow
+  from the two generators above, so no erase hazard exists for them; but if
+  role claims are ever extended to that family, :354 must union instead of
+  overwrite.
 - Existing behavior unchanged when a role declares no claims.
 
 ### 3. Cardinality enforcement (claims reconcile)
@@ -71,12 +80,13 @@ referencing either credits the same identity once).
   the actor's captured PathParams, same source as today's flat
   realActorIds).
 - `ReconcileClaims`: for a claim with `ImpliesCardinality: N > 0`, gather
-  the distinct real identity values referenced by its passing bound cases
-  (role-bound steps and `{{role.param}}` placeholder bodies both attribute
-  to the role's captured identity values; raw-id body matches credit the
-  matched id). Proven requires BOTH real-tier AND distinct count >= N;
-  otherwise, if passing cases exist, status is emulated-only with the
-  shortfall recorded in the verdict reason (e.g. "cardinality 2/3").
+  the distinct real ACTORS referenced by its passing bound cases (attribution
+  rules per the counting-basis paragraph above; needs the role→actor and
+  value→actor maps the extended collectRealIdentities returns). Proven
+  requires BOTH real-tier AND distinct count >= N; otherwise, if passing
+  cases exist, status is emulated-only with the shortfall recorded via a NEW
+  `Reason string` field on `ClaimVerdict` (today's struct has none —
+  e.g. Reason: "cardinality 2/3") surfaced in the run summary and report.
 - Gate unchanged: critical + not proven + no wont-test ⇒ exit 3. A flaked
   third-bridge pairing therefore yields exit 3 even at 700/700 case passes
   — the gate biting honestly; this is expected and documented, not a defect.
