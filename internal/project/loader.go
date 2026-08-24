@@ -28,6 +28,9 @@ func LoadFromYAML(data []byte, baseDir string) (*Config, error) {
 	}
 
 	applyDefaults(&cfg)
+	if err := expandReplicas(&cfg); err != nil {
+		return nil, err
+	}
 	if err := resolveProtocolRefs(&cfg, baseDir); err != nil {
 		return nil, err
 	}
@@ -212,6 +215,39 @@ func CheckProtocolRefName(name string) error {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
 		return fmt.Errorf("must be a plain name (no path separators or parent traversal)")
 	}
+	return nil
+}
+
+// expandReplicas turns every actor with replicas: N into N actors named
+// base-1..base-N (index from 1 so existing paired-device rows keyed by name
+// stay valid). Per-instance fields carry {{actor.name}} and need no rewrite.
+// Non-process actors and expanded-name collisions are load errors.
+func expandReplicas(cfg *Config) error {
+	seen := map[string]bool{}
+	var out []Actor
+	for i := range cfg.Actors {
+		a := cfg.Actors[i]
+		n := a.Replicas
+		if n == 0 {
+			n = 1
+		}
+		if a.Replicas > 0 && a.Fidelity != FidelityRealProcess {
+			return fmt.Errorf("actors[%d] %q: replicas requires fidelity real-process", i, a.Name)
+		}
+		for j := 1; j <= n; j++ {
+			clone := a
+			clone.Replicas = 0
+			if a.Replicas > 0 {
+				clone.Name = fmt.Sprintf("%s-%d", a.Name, j)
+			}
+			if seen[clone.Name] {
+				return fmt.Errorf("duplicate actor name after replicas expansion: %q", clone.Name)
+			}
+			seen[clone.Name] = true
+			out = append(out, clone)
+		}
+	}
+	cfg.Actors = out
 	return nil
 }
 

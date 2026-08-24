@@ -67,6 +67,11 @@ type Actor struct {
 	GeneratedPathParams map[string]string `yaml:"generated_path_params,omitempty"`
 	Entry               string            `yaml:"entry,omitempty"`
 	Service             string            `yaml:"service,omitempty"`
+	// Replicas expands this actor into N identical real-process instances at
+	// load time (names base-1..base-N). Per-instance variance is authored via
+	// the {{actor.name}} template; only fidelity real-process actors may use
+	// it. Absent/0 means exactly one actor (the declaration itself).
+	Replicas int `yaml:"replicas,omitempty"`
 }
 
 // ProcessSpec declares an external process actor (fidelity: real-process).
