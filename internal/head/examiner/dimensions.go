@@ -21,7 +21,14 @@ import (
 // sender-exclusion is unmeasured, because the claim says nothing about the
 // sender. Without this scoping the judge over-triggers on "not measured" and
 // drifts on recipient-only claims (measured 2026-08-06, fanout case).
-const dimensionGuidance = "The evidence below is organized by dimension: count, membership, ordering, value, presence. Map each claim in the expectation to its matching dimension and check the typed fact. A dimension is satisfied when its measured facts meet the claim. Some sub-facts are marked \"not measured\" (no active probe ran for them): treat that as a neutral scope note, NOT a gap — only return uncertain when the claim specifically requires a sub-fact that is marked \"not measured\". An unmeasured sub-fact the claim does not reference must not lower your confidence, and you must never infer its outcome from the other fields."
+const dimensionGuidance = "The evidence below is organized by dimension: count, membership, ordering, value, presence. Map each claim in the expectation to its matching dimension and check the typed fact. A dimension is satisfied when its measured facts meet the claim. Some sub-facts are marked \"not measured\" (no active probe ran for them): treat that as a neutral scope note, NOT a gap — only return uncertain when the claim specifically requires a sub-fact that is marked \"not measured\". An unmeasured sub-fact the claim does not reference must not lower your confidence, and you must never infer its outcome from the other fields. Membership recipients only list connections the test itself observed: an empty recipients list on a sent type means no test connection watched for it, NOT that delivery failed — when the claim is delivery to an external actor (e.g. a real bridge), response frames in the raw evidence that reference the sent message (same type family, task/session/device ids) are valid proof of receipt."
+
+// recipientsNotProbedNote marks a membership dimension whose type was sent
+// but never observed back on any test connection. Without it the rendered
+// bare recipients=[] reads as a measured negative and sinks verdicts whose
+// delivery proof lives in the raw evidence (dogfood run 10,
+// ws-realtime-wf-task-assign).
+const recipientsNotProbedNote = "no test connection observed this type; delivery to external actors is not directly probed — response frames referencing the sent message are valid proof of receipt"
 
 // dimensionsFor returns the merged dimension set for a step result: source 1
 // (result-carried, Evidence().Dimensions) and source 2 (flow-derived,
@@ -195,6 +202,9 @@ func (j *Judge) deriveDimensions(r agent.StepResult) []types.Dimension {
 			Label:      t + " recipients",
 			Recipients: rcv,
 			Sender:     senders[t],
+		}
+		if len(rcv) == 0 {
+			dim.Note = recipientsNotProbedNote
 		}
 		if e, ok := excluded[t]; ok {
 			dim.Excluded = e

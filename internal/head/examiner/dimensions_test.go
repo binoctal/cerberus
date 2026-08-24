@@ -87,6 +87,44 @@ func TestDeriveDimensions_EmptyTrace(t *testing.T) {
 	assert.Empty(t, dims)
 }
 
+// TestDeriveDimensions_SendOnlyRecipientsNotProbed verifies that a sent type
+// no test connection observed back is marked as NOT directly probed rather
+// than left as a bare recipients=[] (which the judge misreads as a measured
+// delivery failure — dogfood run 10, ws-realtime-wf-task-assign: the real
+// bridge's task_started/task_progress/task_output round-trip frames were in
+// the raw evidence yet the empty membership list sank the verdict).
+func TestDeriveDimensions_SendOnlyRecipientsNotProbed(t *testing.T) {
+	j := &Judge{}
+	res := agent.StepResult{
+		TestCase: &agent.TestCase{ID: "assign"},
+		Evidence: []agent.Evidence{
+			{Action: "ws_send", ConnectionID: "c-web", MatchedType: "workflow:task_assign"},
+			// Unrelated type observed back; task_assign itself is send-only.
+			{Action: "ws_receive", ConnectionID: "c-web", MatchedType: "workflow:task_progress", Matched: true},
+		},
+	}
+	dims := j.deriveDimensions(res)
+	var m *types.Dimension
+	for i := range dims {
+		if dims[i].Kind == "membership" && dims[i].Label == "workflow:task_assign recipients" {
+			m = &dims[i]
+		}
+	}
+	require.NotNil(t, m, "membership dim missing: %+v", dims)
+	assert.Empty(t, m.Recipients)
+	assert.Equal(t, recipientsNotProbedNote, m.Note)
+
+	rendered := renderDimensions(dims)
+	assert.Contains(t, rendered, recipientsNotProbedNote)
+
+	// A type that WAS observed back carries no such note.
+	for i := range dims {
+		if dims[i].Kind == "membership" && dims[i].Label == "workflow:task_progress recipients" {
+			assert.Empty(t, dims[i].Note)
+		}
+	}
+}
+
 // TestDeriveDimensionsProbeSetsExcluded verifies a sender negative-probe
 // settles Dimension.Excluded: no echo ⇒ *true (sender excluded), echo ⇒ *false
 // (server wrongly echoed to the sender).

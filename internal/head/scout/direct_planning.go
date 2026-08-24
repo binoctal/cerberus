@@ -104,7 +104,7 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 		zap.Int("cases", len(plan.Cases)),
 	)
 
-	if dropped := downgradeUnmodeledHTTPProbes(plan, model, s.resolveBaseURL()); len(dropped) > 0 {
+	if dropped := downgradeUnmodeledHTTPProbes(plan, model, s.resolveBaseURL(), s.config.Services); len(dropped) > 0 {
 		ids := make([]string, len(dropped))
 		for i, tc := range dropped {
 			ids[i] = tc.ID
@@ -126,16 +126,29 @@ func (s *Scout) runAIPlanning(ctx context.Context, prompt string, goal string, m
 // http_request step with expect_status_class "any" (the route-sweep
 // semantics): any response proves contact, transport errors fail, invented
 // status/body expectations are dropped.
-func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectModel, baseURL string) []agent.TestCase {
+//
+// When a service carries a source-extracted vocab route surface, that surface
+// (+ explicit config health paths) is the ONLY trusted path set: the analyze
+// LLM invents endpoints exactly like the planner does (dogfood run 10,
+// tc-001: analyze reported /healthz into the model, immunizing the planner's
+// status-200 probe against this guard), so inferred model entries must not
+// veto the downgrade. Without a vocab, model endpoints remain the reference
+// (nothing better exists).
+func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectModel, baseURL string, services []project.Service) []agent.TestCase {
 	if plan == nil || model == nil {
 		return nil
 	}
+	trusted := trustedHTTPPaths(services)
 	modeled := make(map[string]bool, len(model.API.Endpoints)+len(model.Navigation.Pages))
-	for _, ep := range model.API.Endpoints {
-		modeled[ep.Path] = true
-	}
-	for _, pg := range model.Navigation.Pages {
-		modeled[pg.Path] = true
+	if len(trusted) == 0 {
+		for _, ep := range model.API.Endpoints {
+			modeled[ep.Path] = true
+		}
+		for _, pg := range model.Navigation.Pages {
+			modeled[pg.Path] = true
+		}
+	} else {
+		modeled = trusted
 	}
 	var dropped []agent.TestCase
 	kept := plan.Cases[:0]
@@ -168,6 +181,28 @@ func downgradeUnmodeledHTTPProbes(plan *agent.TestPlan, model *project.ProjectMo
 	}
 	plan.Cases = kept
 	return dropped
+}
+
+// trustedHTTPPaths collects the source-of-truth HTTP paths across services:
+// config-declared health checks plus every vocab-mounted route. Empty when no
+// service carries vocab routes (callers then fall back to the model).
+func trustedHTTPPaths(services []project.Service) map[string]bool {
+	var out map[string]bool
+	for _, svc := range services {
+		if svc.Vocabulary == nil || len(svc.Vocabulary.HTTPRoutes) == 0 {
+			continue
+		}
+		if out == nil {
+			out = make(map[string]bool)
+		}
+		if svc.Health != "" {
+			out[svc.Health] = true
+		}
+		for _, r := range svc.Vocabulary.HTTPRoutes {
+			out[r.Path] = true
+		}
+	}
+	return out
 }
 
 // directPlan generates a test plan via a single AI tool-calling round with

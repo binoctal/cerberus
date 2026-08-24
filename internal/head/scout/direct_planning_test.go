@@ -385,7 +385,7 @@ func TestDowngradeUnmodeledHTTPProbes(t *testing.T) {
 		{ID: "tc-6", Target: "/api/missions", Method: "GET", Steps: []agent.TestStep{{Action: "http_request"}}, Expectation: "already stepped"}, // stepped untouched
 	}}
 
-	downgradeUnmodeledHTTPProbes(plan, model, "http://localhost:8989")
+	downgradeUnmodeledHTTPProbes(plan, model, "http://localhost:8989", nil)
 
 	byID := map[string]agent.TestCase{}
 	for _, c := range plan.Cases {
@@ -421,8 +421,8 @@ func TestDowngradeUnmodeledHTTPProbes(t *testing.T) {
 		t.Fatalf("already-stepped case must pass through untouched: %+v", c)
 	}
 
-	downgradeUnmodeledHTTPProbes(nil, model, "x")   // nil-safe
-	downgradeUnmodeledHTTPProbes(plan, nil, "x")    // nil model safe
+	downgradeUnmodeledHTTPProbes(nil, model, "x", nil)   // nil-safe
+	downgradeUnmodeledHTTPProbes(plan, nil, "x", nil)    // nil model safe
 }
 
 // Placeholder-bearing invented paths are dropped, not downgraded (dogfood
@@ -435,10 +435,61 @@ func TestDowngradeUnmodeledHTTPProbes_DropsPlaceholderPaths(t *testing.T) {
 		{ID: "tc-keep", Target: "/invented", Method: "GET", Expectation: "status 200"},
 		{ID: "tc-drop", Target: "/ws/{{bridge.userId}}", Method: "GET", Expectation: "status 200"},
 	}}
-	dropped := downgradeUnmodeledHTTPProbes(plan, model, "http://h")
+	dropped := downgradeUnmodeledHTTPProbes(plan, model, "http://h", nil)
 	require.Len(t, dropped, 1)
 	assert.Equal(t, "tc-drop", dropped[0].ID)
 	require.Len(t, plan.Cases, 1)
 	assert.Equal(t, "tc-keep", plan.Cases[0].ID)
 	assert.Len(t, plan.Cases[0].Steps, 1, "plain invented path still downgraded")
+}
+
+// A source-extracted vocab route surface is authoritative: when one exists,
+// analyze-inferred model endpoints do NOT immunize invented paths against
+// the downgrade (dogfood run 10, tc-001: the analyze LLM reported /healthz
+// into the model, so the planner's status-200 probe on it sailed past the
+// guard and failed as endpoint drift; the vocab only has /health).
+func TestDowngradeUnmodeledHTTPProbes_VocabVetoesInferredModelEntries(t *testing.T) {
+	model := &project.ProjectModel{API: project.APIModel{Endpoints: []project.EndpointDef{
+		{Path: "/healthz", Method: "GET"}, // analyze-LLM invention
+	}}}
+	services := []project.Service{{
+		Name: "realtime",
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "GET", Path: "/health"},
+		}},
+	}}
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "tc-1", Target: "/healthz", Method: "GET", Expectation: "status 200"},
+		{ID: "tc-2", Target: "/health", Method: "GET", Expectation: "status 200"},
+	}}
+
+	downgradeUnmodeledHTTPProbes(plan, model, "http://h", services)
+
+	c := plan.Cases[0]
+	require.Len(t, c.Steps, 1, "/healthz must be downgraded despite the model entry")
+	assert.Equal(t, "any", c.Steps[0].ExpectStatusClass)
+	assert.NotEqual(t, "status 200", c.Expectation)
+	assert.Len(t, plan.Cases[1].Steps, 0, "/health is a real vocab route — untouched")
+	assert.Equal(t, "status 200", plan.Cases[1].Expectation)
+}
+
+// Config-declared health paths stay trusted even when a vocab exists.
+func TestDowngradeUnmodeledHTTPProbes_ConfigHealthTrustedAlongsideVocab(t *testing.T) {
+	model := &project.ProjectModel{API: project.APIModel{Endpoints: []project.EndpointDef{
+		{Path: "/healthz", Method: "GET"},
+	}}}
+	services := []project.Service{{
+		Name:   "svc",
+		Health: "/ping",
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "GET", Path: "/health"},
+		}},
+	}}
+	plan := &agent.TestPlan{Cases: []agent.TestCase{
+		{ID: "tc-1", Target: "/ping", Method: "GET", Expectation: "status 200"},
+	}}
+
+	downgradeUnmodeledHTTPProbes(plan, model, "http://h", services)
+
+	assert.Len(t, plan.Cases[0].Steps, 0, "config health path is trusted")
 }
