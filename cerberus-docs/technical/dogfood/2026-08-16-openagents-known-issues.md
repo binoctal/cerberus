@@ -418,3 +418,36 @@ callback; the ACP adapter lacks the equivalent teardown wiring.
 **Cerberus consequence:** mission-seed's fail leg cannot pass while any
 fail-mission rung lands on the ACP path; its four edges stay coverage gaps
 until fixed.
+
+## 18. Sidebar "Connecting..." forever — web appStore.isConnected is a dead field (written by nobody) — OPEN 2026-08-26
+
+WebSocketProvider.onConnect calls websocketStore.setConnected, but
+DashboardLayout's sidebar indicator reads appStore.isConnected. No code
+anywhere calls appStore.setConnected (grep: only the store's own unit
+test). The app's WebSocket actually connects fine (page-instrumented
+WebSocket probe 2026-08-25: `ws://localhost:8989/ws/<user>?type=web` fires
+`open`), yet the sidebar shows "Connecting..." with an amber pulsing dot
+forever, which is what made the live demo look broken.
+
+Also seen on the same page: MissionsPage never calls fetchDevices (only
+Dashboard/Terminal/AddDeviceDialog do), so the device selector and the
+"0/0 online" counter stay empty there while `/api/devices` shows the three
+demo bridges online.
+
+**Cerberus consequence:** none — SUT APIs and WS are healthy; this is
+purely a web display defect that misleads demo observers.
+
+## 19. WebSocketProvider gives up permanently when the first ensureValidToken fails — OPEN 2026-08-26
+
+The provider's effect (deps `[isHydrated, userId]`) calls
+`ensureValidToken()` once; if it returns null (e.g. a transient
+`/api/auth/refresh` 500 during page load) the connect flow returns with
+no retry, and websocketStore stays at its 'connecting' default until a
+full page reload. Related: `refreshWithMutex` lacks try/finally, so a
+throwing `refreshAccessToken` leaves the mutex promise set forever,
+freezing every later `ensureValidToken` await in the same page session
+(observed as WS never even attempting to connect during the evening
+gateway flaps; POST /auth/refresh 500 in console, zero ws:// opens).
+
+**Cerberus consequence:** none for dogfood runs (they drive WS directly);
+it degrades the web demo exactly when the API host is flaky.
