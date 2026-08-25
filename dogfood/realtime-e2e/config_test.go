@@ -52,17 +52,17 @@ func TestProjectConfig_Loads(t *testing.T) {
 
 	// Roles bind to the real actors so the generator suppression and
 	// {{bridge.deviceId}} templating have their anchors.
-	for role, wantActor := range map[string]string{"bridge": "bridge-pty-1", "bridge2": "bridge-pty-2", "bridge3": "bridge-pty-3", "bridge-acp": "bridge-acp-real"} {
+	for role, wantActor := range map[string]string{"bridge": "bridge-pty-1", "bridge2": "bridge-pty-2", "bridge3": "bridge-pty-3", "bridgeacp": "bridge-acp-real"} {
 		r := svc.Protocol.Roles[role]
 		if r == nil || r.CredentialRef != wantActor {
 			t.Fatalf("role %s=%+v want credential_ref %s", role, r, wantActor)
 		}
 	}
-	// ACP layer declarations: replicas fake, bridge-acp real.
+	// ACP layer declarations: replicas fake, bridgeacp real.
 	if r := svc.Protocol.Roles["bridge"]; r.ACPCli != "claude" || r.ACPReal {
 		t.Fatalf("bridge acp decl = %+v", svc.Protocol.Roles["bridge"])
 	}
-	if r := svc.Protocol.Roles["bridge-acp"]; r.ACPCli != "claude" || !r.ACPReal {
+	if r := svc.Protocol.Roles["bridgeacp"]; r.ACPCli != "claude" || !r.ACPReal {
 		t.Fatalf("bridge-acp acp decl = %+v", r)
 	}
 }

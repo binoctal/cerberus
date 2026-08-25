@@ -812,12 +812,14 @@ func (e *WebSocketExecutor) pathParamsFor(actor string) map[string]string {
 
 // wsBodyPlaceholderRe matches {{param}} / {{role.param}} send-body placeholders.
 // Double braces avoid collision with JSON object braces in the marshaled body.
-// The inner class is restricted to identifier/dot characters so JSON can never
-// match. (Consistent with the {{uuid}} role-param sentinel convention.) Unlike
-// resolveRoleParamValue, this resolver does NOT generate a UUID for {{uuid}}:
-// it would be treated as an owning-actor param lookup named "uuid" and hard-
-// fail if absent.
-var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.:]+)\}\}`)
+// The inner class is restricted to identifier/dot/colon/hyphen characters so
+// JSON can never match (hyphen: role names like bridge-acp are legal —
+// excluding it once made such placeholders slip through UNRESOLVED and route
+// nowhere, live-observed 2026-08-25). (Consistent with the {{uuid}} role-param
+// sentinel convention.) Unlike resolveRoleParamValue, this resolver does NOT
+// generate a UUID for {{uuid}}: it would be treated as an owning-actor param
+// lookup named "uuid" and hard-fail if absent.
+var wsBodyPlaceholderRe = regexp.MustCompile(`\{\{([A-Za-z0-9_.:\-]+)\}\}`)
 
 // resolveMessageBody substitutes {{param}} / {{role.param}} placeholders in a
 // ws_send body against provisioned actor state: {{param}} reads the connection
@@ -879,7 +881,13 @@ func resolvePlaceholders(idx *WSProtocolIndex, proto *project.Protocol, owningAc
 					return match
 				}
 			}
-			// Undeclared role: not a placeholder, leave it literal.
+			// Undeclared role: a dot placeholder ALWAYS names an intended
+			// role — sending the literal routes nowhere. Hard error
+			// (charset mismatches used to slip through unresolved and cost
+			// a full receive window to find, live-observed 2026-08-25).
+			if unresolved == "" {
+				unresolved = match
+			}
 			return match
 		}
 		// Owning-actor {{param}}.

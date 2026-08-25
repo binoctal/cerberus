@@ -100,7 +100,7 @@ roles:
         deviceId: "{{bridge3.deviceId}}"
   # Real-ACP layer: this device's npx is real — the acpreal case routes a
   # real LLM prompt through the ACP adapter here.
-  bridge-acp:
+  bridgeacp:
     credential_ref: bridge-acp-real
     process_bound: true
     acp_cli: claude
@@ -110,4 +110,4 @@ roles:
       deviceId: "{deviceId}"
     request_payload:
       session:start:
-        deviceId: "{{bridge-acp.deviceId}}"
+        deviceId: "{{bridgeacp.deviceId}}"

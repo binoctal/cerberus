@@ -18,13 +18,13 @@ func acpFixture() project.Service {
 			"web": {CredentialRef: "web"},
 			"bridge": {CredentialRef: "b1", ACPCli: "claude",
 				RequestPayload: map[string]map[string]string{}},
-			"bridge-acp": {CredentialRef: "b2", ACPCli: "claude", ACPReal: true},
+			"bridgeacp": {CredentialRef: "b2", ACPCli: "claude", ACPReal: true},
 		},
 	}}
 }
 
 func TestACPE2ECases_FakeLayer(t *testing.T) {
-	cases := acpE2ECases(acpFixture(), map[string]bool{"bridge": true, "bridge-acp": true})
+	cases := acpE2ECases(acpFixture(), map[string]bool{"bridge": true, "bridgeacp": true})
 	var fake, real int
 	for _, c := range cases {
 		switch {
@@ -39,7 +39,7 @@ func TestACPE2ECases_FakeLayer(t *testing.T) {
 			if !strings.Contains(c.Steps[3].Message, "CERBERUS_ACP_OK") {
 				t.Fatalf("fake case prompt must request the marker: %s", c.Steps[3].Message)
 			}
-		case strings.Contains(c.ID, "bridge-acp-acpreal-session"):
+		case strings.Contains(c.ID, "bridgeacp-acpreal-session"):
 			real++
 		}
 	}
@@ -55,7 +55,7 @@ func TestACPE2ECases_FakeLayer(t *testing.T) {
 }
 
 func TestACPE2ECases_RealLayerShape(t *testing.T) {
-	cases := acpE2ECases(acpFixture(), map[string]bool{"bridge": true, "bridge-acp": true})
+	cases := acpE2ECases(acpFixture(), map[string]bool{"bridge": true, "bridgeacp": true})
 	for _, c := range cases {
 		if !strings.Contains(c.ID, "acpreal-session") {
 			continue
@@ -79,9 +79,9 @@ func TestACPE2ECases_RealLayerShape(t *testing.T) {
 func TestACPE2ECases_GatedOnRoleDeclaration(t *testing.T) {
 	svc := acpFixture()
 	svc.Protocol.Roles["bridge"].ACPCli = ""
-	cases := acpE2ECases(svc, map[string]bool{"bridge": true, "bridge-acp": true})
+	cases := acpE2ECases(svc, map[string]bool{"bridge": true, "bridgeacp": true})
 	for _, c := range cases {
-		if strings.Contains(c.ID, "bridge-acpe2e") && !strings.Contains(c.ID, "bridge-acp-") {
+		if strings.Contains(c.ID, "bridge-acpe2e") && !strings.Contains(c.ID, "bridgeacp-") {
 			t.Fatalf("role without acp_cli must not emit: %s", c.ID)
 		}
 	}

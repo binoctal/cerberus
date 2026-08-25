@@ -2502,12 +2502,14 @@ func TestWSReceiveExpectAbsentRejectsMatchAll(t *testing.T) {
 
 func TestResolveMessageBody(t *testing.T) {
 	p := &project.Protocol{Roles: map[string]*project.ProtocolRole{
-		"bridge": {CredentialRef: "bridge-actor"},
+		"bridge":   {CredentialRef: "bridge-actor"},
+		"bridge-2": {CredentialRef: "bridge-actor-2"},
 	}}
 	e := &WebSocketExecutor{idx: &WSProtocolIndex{
 		ActorPathParams: map[string]map[string]string{
-			"web-actor":    {"userId": "u1"},
-			"bridge-actor": {"deviceId": "dev_9", "userId": "u1"},
+			"web-actor":      {"userId": "u1"},
+			"bridge-actor":   {"deviceId": "dev_9", "userId": "u1"},
+			"bridge-actor-2": {"deviceId": "dev_9b"},
 		},
 	}}
 	entry := &wsEntry{protocol: p, credentialRef: "web-actor"}
@@ -2528,10 +2530,19 @@ func TestResolveMessageBody(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, in, got)
 
-	// undeclared role in a dot placeholder is left literal, no error.
-	got, err = e.resolveMessageBody(entry, `{"k":"{{ghost.x}}"}`)
+	// undeclared role in a dot placeholder is a hard error: silently sending
+	// the literal (or a charset-mismatched placeholder like a hyphenated role
+	// name pre-2026-08-25) routed nowhere and cost a full receive window to
+	// find (live-observed: sendToBridge "Device not found: {{bridge-acp.deviceId}}").
+	_, err = e.resolveMessageBody(entry, `{"k":"{{ghost.x}}"}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unresolved placeholder")
+	assert.Contains(t, err.Error(), "{{ghost.x}}")
+
+	// hyphenated role names resolve like any other (charset includes '-').
+	got, err = e.resolveMessageBody(entry, `{"k":"{{bridge-2.deviceId}}"}`)
 	require.NoError(t, err)
-	assert.Equal(t, `{"k":"{{ghost.x}}"}`, got)
+	assert.JSONEq(t, `{"k":"dev_9b"}`, got)
 
 	// declared role but missing param → hard fail naming the placeholder.
 	_, err = e.resolveMessageBody(entry, `{"k":"{{bridge.noSuch}}"}`)
