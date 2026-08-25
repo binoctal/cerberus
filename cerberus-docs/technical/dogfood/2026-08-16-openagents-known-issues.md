@@ -380,3 +380,27 @@ open-agents 0c62e11 (2026-08-19): `Orchestrator.scheduleAlarm` stamps
 payload, and `getOrchestratorForInternalEvent` resolves on it — the
 stuckRecovery success case is covered by a route test in
 `missions.test.ts`.
+
+## 15. task_assign silent loss wedges the mission (online-by-D1 vs connected-by-DO) — OPEN 2026-08-25
+
+Run 17's fan-out mission: t0 dispatched to bridge-pty-1 (D1
+`assigned_device_id` set) but the bridge log has ZERO assign entries — the
+DO's sendToBridge dropped the frame while the bridge's HTTP heartbeat kept
+D1 `last_seen` fresh (checkDeviceOnline passes). task_assign has no
+delivery ack, so nothing retries; the task sits in `assigned` and
+finalizeMissionIfDone never fires (job_status never emitted; mission
+`running` forever until stuck-recovery). Evidence:
+2026-08-25-run17-fanout-finds-defects.md.
+
+**Cerberus consequence:** a mission case cannot assert job_status until
+this is fixed; multi-device fan-out proof is blocked on it.
+
+## 16. Duplicate task dispatch race → worktree "branch already exists" — OPEN 2026-08-25
+
+Two dispatch passes re-assigned t1 and t2 within ~600ms (first pass's
+status write not visible to the second); the second `git worktree add`
+fails fatally on the existing branch name. Same run, same evidence doc.
+
+**Cerberus consequence:** none directly (the first session completes), but
+it corrupts retry accounting and log signal-to-noise (62 log lines for one
+task).
