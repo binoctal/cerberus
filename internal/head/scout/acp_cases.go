@@ -67,8 +67,9 @@ func acpE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCas
 // deterministic layer: the prompt requests an exact marker the fake ACP
 // agent replies with, and receive windows are tight. real=true targets a
 // real CLI + LLM: the prompt asks for a short human-readable confirmation
-// and every receive window is 120s (real agent latency, first-token delays
-// included).
+// and every receive window is 300s (real agent latency under degraded
+// gateway conditions, first-token delays included — 2026-08-25 run 23:
+// thought frames streamed but the final chat:response needed >120s).
 func acpOneCase(svc project.Service, client, roleName string, role *project.ProtocolRole, real bool) agent.TestCase {
 	sessionID := "e2e-acp-" + svc.Name + "-" + roleName
 	if real {
@@ -90,7 +91,7 @@ func acpOneCase(svc project.Service, client, roleName string, role *project.Prot
 		"%s: %s starts an ACP-protocol session on the REAL %s process via deviceId routing, the fake ACP agent replies with the marker text CERBERUS_ACP_OK over the adapter, and the session stops",
 		svc.Name, client, roleName)
 	if real {
-		prompt, timeout = "Reply with one short sentence confirming you are a real AI agent. Do not create files.", 120
+		prompt, timeout = "Reply with one short sentence confirming you are a real AI agent. Do not create files.", 300
 		suffix = "-acpreal"
 		expectation = fmt.Sprintf(
 			"%s: %s starts an ACP-protocol session on the REAL %s process via deviceId routing, a REAL AI agent (real CLI, real LLM) replies with a short substantive human-readable confirmation — not an error, not empty — and the session stops",

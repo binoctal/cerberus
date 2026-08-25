@@ -404,3 +404,17 @@ fails fatally on the existing branch name. Same run, same evidence doc.
 **Cerberus consequence:** none directly (the first session completes), but
 it corrupts retry accounting and log signal-to-noise (62 log lines for one
 task).
+
+## 17. ACP-path task failure never fires the exit callback → task wedges in running — OPEN 2026-08-25
+
+The fake ACP agent now errors and exits 1 on CERBERUS_FAIL prompts (PTY-shim
+parity), but an agent process exit on the ACP path does not translate into
+the session exit callback: no task_error is reported, the task sits in
+`running`, retries never fire, and workflow:task_failed is never broadcast
+(runs 22-23: the fail mission's task_failed receive timed out at 600s with
+80+ unmatched frames). PTY tasks fail correctly via process-exit → exit
+callback; the ACP adapter lacks the equivalent teardown wiring.
+
+**Cerberus consequence:** mission-seed's fail leg cannot pass while any
+fail-mission rung lands on the ACP path; its four edges stay coverage gaps
+until fixed.
