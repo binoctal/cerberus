@@ -48,3 +48,14 @@ type ReActLoop struct {
 	projectName  string
 	actorRestart ActorRestarter
 }
+
+// browserExec returns the loop's browser executor when the playwright plugin
+// is available, else nil. Used by the step runner for the screenshot file
+// sink (browser_shot steps and failure auto-capture).
+func (r *ReActLoop) browserExec() *BrowserExecutor {
+	m, ok := r.executor.(*MultiExecutor)
+	if !ok {
+		return nil
+	}
+	return m.BrowserExec()
+}

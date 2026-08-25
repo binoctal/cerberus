@@ -113,6 +113,11 @@ type TestStep struct {
 	// -> per-case param name, substitutable in later steps as {{case.<name>}}
 	// (http_request URL/Body, ws_send Message).
 	Capture map[string]string `json:"capture,omitempty"`
+	// browser_shot: label for the screenshot file ({caseID}-{label}.png).
+	Label string `json:"label,omitempty"`
+	// browser_click/fill/expect: Playwright-engine selector (text=... |
+	// css=... | role=x[name=y]).
+	Target string `json:"target,omitempty"`
 }
 
 // Deps is a []string that unmarshals from either a single string or an array.

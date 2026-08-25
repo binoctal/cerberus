@@ -119,3 +119,15 @@ func BuildMultiExecutor(projectDir string, serviceHeaders map[string]map[string]
 
 	return multi
 }
+
+// BrowserExec returns the registered browser executor, or nil when the
+// playwright plugin is unavailable (registration is single-threaded setup;
+// reads happen after ApplyTo).
+func (m *MultiExecutor) BrowserExec() *BrowserExecutor {
+	if e, ok := m.executors[types.ActionBrowserGoto]; ok {
+		if be, ok := e.(*BrowserExecutor); ok {
+			return be
+		}
+	}
+	return nil
+}

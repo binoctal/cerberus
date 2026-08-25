@@ -60,7 +60,7 @@ func (p *browserPlugin) Name() string            { return "browser" }
 func (p *browserPlugin) Executor() TypedExecutor { return p.executor }
 func (p *browserPlugin) ActionTypes() []types.ActionType {
 	return []types.ActionType{types.ActionBrowserGoto, types.ActionBrowserClick,
-		types.ActionBrowserFill, types.ActionBrowserEval}
+		types.ActionBrowserFill, types.ActionBrowserEval, types.ActionBrowserExpect}
 }
 
 type dbPlugin struct{ executor *DatabaseExecutor }

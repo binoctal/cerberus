@@ -49,6 +49,13 @@ func stepEvidence(s TestStep, result types.ExecutorResult) Evidence {
 		Action:       s.Action,
 		ConnectionID: s.ConnectionID,
 	}
+	if s.Action == "browser_expect" {
+		ev.MatchedType = s.Type // the assertion id (vocab) — coverage credits on it
+		if br, ok := result.(types.BrowserResult); ok {
+			ev.Matched = br.OK
+			ev.Content = fmt.Sprintf("browser_expect %s: %s", s.Type, result.Summary())
+		}
+	}
 	if s.Action == "ws_receive" {
 		ev.MatchedType = s.Type
 		ev.Matched = wsReceiveMatched(result)
@@ -216,6 +223,41 @@ func stepToAction(tc *TestCase, s TestStep) (types.TypedAction, error) {
 	}
 }
 
+// browserExpectComparator reads the comparator off a browser_expect step:
+// s.Asserts["expectation"] when the step came from YAML/vocab, else
+// "text_present" (the overwhelmingly common shape).
+func browserExpectComparator(s TestStep) string {
+	if v, ok := s.Asserts["expectation"].(string); ok && v != "" {
+		return v
+	}
+	return "text_present"
+}
+
+// resolveBrowserStep turns a browser_* TestStep into its typed action. URL
+// resolution mirrors ws_connect: an absolute s.URL wins; otherwise it is a
+// route joined onto tc.Target (the UI base URL carried by the case).
+func resolveBrowserStep(tc *TestCase, s TestStep) (types.TypedAction, error) {
+	switch s.Action {
+	case "browser_goto":
+		url := s.URL
+		if url == "" {
+			url = tc.Target
+		} else if !isURL(url) {
+			url = strings.TrimSuffix(tc.Target, "/") + "/" + strings.TrimPrefix(url, "/")
+		}
+		return types.BrowserGotoAction{URL: url}, nil
+	case "browser_click":
+		return types.BrowserClickAction{Selector: s.Target}, nil
+	case "browser_fill":
+		return types.BrowserFillAction{Selector: s.Target, Value: s.Message}, nil
+	case "browser_expect":
+		return types.BrowserExpectAction{Selector: s.Target,
+			Expectation: browserExpectComparator(s), Timeout: s.Timeout}, nil
+	default:
+		return nil, fmt.Errorf("browser steps: unknown action %q", s.Action)
+	}
+}
+
 // resolveHTTPStep turns an http_request TestStep into a dispatchable HTTPAction.
 // URL and Body {{param}}/{{role.param}} placeholders resolve from provisioned
 // actor state (resolvePlaceholders); AuthRole's actor HTTP token is injected as
@@ -380,6 +422,24 @@ func (se *stepExecution) runSteps() StepResult {
 		}
 		if s.Action == "http_request" {
 			action, err = resolveHTTPStep(r.wsIdx, s)
+		} else if strings.HasPrefix(s.Action, "browser_") {
+			if s.Action == "browser_shot" {
+				// Not a typed executor action: capture via the executor's
+				// file sink; the Evidence entry carries the path.
+				if be := r.browserExec(); be != nil {
+					caseID, _ := se.ctx.Value(caseIDKey{}).(string)
+					if p, serr := be.ScreenshotToFile(caseID, s.Label); serr == nil {
+						evidence = append(evidence, Evidence{Type: "browser_shot",
+							Content: fmt.Sprintf("browser_shot: %s", p), Action: s.Action})
+					} else {
+						return se.failureResult(fmt.Errorf("browser_shot: %w", serr), 1)
+					}
+				} else {
+					return se.failureResult(fmt.Errorf("browser_shot: browser executor unavailable"), 1)
+				}
+				continue
+			}
+			action, err = resolveBrowserStep(se.tc, s)
 		} else {
 			action, err = stepToAction(se.tc, s)
 		}
@@ -423,6 +483,15 @@ func (se *stepExecution) runSteps() StepResult {
 			continue
 		}
 		if !result.Success() {
+			if strings.HasPrefix(s.Action, "browser_") {
+				// Auto-capture on failure (spec §6): the DOM excerpt rides the
+				// result; the screenshot rides the shots dir. Best-effort — the
+				// failure itself must still propagate.
+				if be := r.browserExec(); be != nil {
+					caseID, _ := se.ctx.Value(caseIDKey{}).(string)
+					_, _ = be.ScreenshotToFile(caseID, "fail")
+				}
+			}
 			return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
 				Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence}
 		}
