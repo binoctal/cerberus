@@ -27,6 +27,12 @@ func (r *RuleEngine) matchBrowserRules(tc TestCase) (types.TypedAction, bool) {
 	case "browser_eval":
 		return types.BrowserEvalAction{Expression: tc.Target}, true
 
+	// Rule 15b: browser_expect — wait-type DOM assertion. The comparator
+	// rides Expectation; TestCase carries no timeout field, so the executor
+	// default window applies.
+	case "browser_expect":
+		return types.BrowserExpectAction{Selector: tc.Target, Expectation: tc.Expectation}, true
+
 	default:
 		return nil, false
 	}
