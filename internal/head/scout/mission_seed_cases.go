@@ -249,10 +249,12 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 600},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 60},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 60},
-		// One completion per subtask (three total — run 17's first task_completed
-		// matched task 1-of-3 while siblings were still running).
+		// Completion observation: two per-task frames at step level plus the
+		// FINALIZER — workflow:job_status status:completed only fires when
+		// every task is done, so it subsumes the third frame (run 21: the
+		// third task_completed was broadcast but the third receive missed
+		// it while job_status arrived on schedule).
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 300},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 300},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 600},
 	)

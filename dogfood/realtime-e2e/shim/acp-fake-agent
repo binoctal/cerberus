@@ -46,6 +46,22 @@ def main():
         elif method == "session/prompt":
             params = req.get("params", {})
             sid = params.get("sessionId", "")
+            text = ""
+            for chunk in params.get("prompt", []):
+                if isinstance(chunk, dict):
+                    text += chunk.get("text", "")
+            # Failure semantics match the PTY shims: a prompt carrying the
+            # CERBERUS_FAIL marker must FAIL the task. The retry ladder's
+            # claude(ACP) rung reaches this agent on the replica bridges —
+            # answering success here would "rescue" fail-missions and the
+            # workflow:task_failed edge would never fire (run 21).
+            if "CERBERUS_FAIL" in text:
+                send({"jsonrpc": "2.0", "id": rid, "error": {
+                    "code": -32000, "message": "CERBERUS_FAIL task failure",
+                }})
+                sys.stderr.write("CERBERUS_FAIL marker: exiting 1\n")
+                sys.stderr.flush()
+                return 1
             send({"jsonrpc": "2.0", "method": "session/update", "params": {
                 "sessionId": sid,
                 "update": {
