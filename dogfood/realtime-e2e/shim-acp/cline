@@ -1,0 +1,5 @@
+#!/bin/sh
+# Harmless stub for the real-ACP bridge: startup CLI detection (and any
+# stray rung) must never launch the REAL desktop apps on this PATH-free
+# actor. exit 0 satisfies detection; no task targets this device.
+exit 0

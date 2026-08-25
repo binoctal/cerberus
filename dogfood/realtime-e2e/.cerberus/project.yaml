@@ -91,6 +91,10 @@ actors:
       start: ["./build/open-agents-bridge", "start", "-d", "bridge-acp-real"]
       env:
         HOME: "{{runtime.dir}}/bridge-acp-real-home"
+        # Harmless stubs for every OTHER CLI: startup detection must not
+        # launch the real desktop apps (kiro!) from this actor. npx stays
+        # REAL — the ACP leg runs the real claude-agent-acp chain.
+        PATH: "{{runtime.dir}}/../../shim-acp:{{env.PATH}}"
       capture_file: "{{runtime.dir}}/bridge-acp-real-home/.open-agents-bridge/config.json"
       capture_json:
         deviceId: "devices.bridge-acp-real.deviceId"
