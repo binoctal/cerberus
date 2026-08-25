@@ -30,9 +30,13 @@ type Vocabulary struct {
 // locale assertion strings are written in, the actor whose http_login yields
 // the injected JWT, and the display promises themselves.
 type VocabUI struct {
-	BaseURL    string             `yaml:"base_url" json:"base_url"`
-	Locale     string             `yaml:"locale" json:"locale"`
-	AuthActor  string             `yaml:"auth_actor,omitempty" json:"auth_actor,omitempty"` // default web-actor
+	BaseURL string `yaml:"base_url" json:"base_url"`
+	Locale  string `yaml:"locale" json:"locale"`
+	// AuthActor names the actor whose credentials seed the browser session
+	// (email/password credentials run the UI login; default web-actor).
+	AuthActor string `yaml:"auth_actor,omitempty" json:"auth_actor,omitempty"`
+	// LoginPath overrides the UI login endpoint (default /api/auth/login).
+	LoginPath  string             `yaml:"login_path,omitempty" json:"login_path,omitempty"`
 	Assertions []VocabUIAssertion `yaml:"assertions" json:"assertions"`
 }
 
