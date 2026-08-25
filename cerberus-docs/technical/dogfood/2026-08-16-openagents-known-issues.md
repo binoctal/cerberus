@@ -381,7 +381,7 @@ payload, and `getOrchestratorForInternalEvent` resolves on it — the
 stuckRecovery success case is covered by a route test in
 `missions.test.ts`.
 
-## 15. task_assign silent loss wedges the mission (online-by-D1 vs connected-by-DO) — OPEN 2026-08-25
+## 15. question-timeout session leak wedged missions via pool starvation — FIXED 2026-08-25 (bridge: timeout branch stops the session; run 18 live-validated: mission finalizes). Root cause was NOT message loss: the duplicate-dispatch retry session re-asked after the web had answered, timed out, and leaked its pool slot forever
 
 Run 17's fan-out mission: t0 dispatched to bridge-pty-1 (D1
 `assigned_device_id` set) but the bridge log has ZERO assign entries — the
@@ -395,7 +395,7 @@ finalizeMissionIfDone never fires (job_status never emitted; mission
 **Cerberus consequence:** a mission case cannot assert job_status until
 this is fixed; multi-device fan-out proof is blocked on it.
 
-## 16. Duplicate task dispatch race → worktree "branch already exists" — OPEN 2026-08-25
+## 16. Duplicate task dispatch race → worktree "branch already exists" — FIXED 2026-08-25 (apps/api markTaskDispatched CAS; run 18: zero 600ms duplicates). Same fix family: bridge session route last_seen now ISO (the offline-flicker that made round-robin skip devices) — FIXED same day
 
 Two dispatch passes re-assigned t1 and t2 within ~600ms (first pass's
 status write not visible to the second); the second `git worktree add`

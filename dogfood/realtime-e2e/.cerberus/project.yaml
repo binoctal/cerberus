@@ -84,5 +84,5 @@ settings:
     # below the 10K per-call cap, degrading 458/691 judge verdicts to step
     # status — no drift aggregate). 800K lets all ~700 verdicts judge plus the
     # bridge3 replica's cases (run 15 spent ~711K at 2 bridges).
-    session_total_tokens: 800000
+    session_total_tokens: 900000
     per_call_limit: 10000
