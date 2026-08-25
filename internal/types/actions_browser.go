@@ -81,3 +81,29 @@ func (a BrowserEvalAction) Validate() error {
 	}
 	return nil
 }
+
+// BrowserExpectAction is a wait-type DOM assertion: poll the locator until it
+// satisfies the comparator or the timeout expires. The one capability the
+// goto/click/fill/eval quartet lacks — TextContent() does not wait, so async
+// render makes instant checks flaky (spec 2026-08-26 §3.1).
+type BrowserExpectAction struct {
+	// Selector is a Playwright-engine selector (text=... | css=... | role=x[name=y]).
+	Selector string `json:"selector"`
+	// Expectation is the comparator: text_present | text_absent |
+	// element_visible | element_count>=N.
+	Expectation string `json:"expectation"`
+	// Timeout is the wait window in seconds (default 10, hard cap 30).
+	Timeout int `json:"timeout,omitempty"`
+}
+
+func (a BrowserExpectAction) GetActionType() ActionType { return ActionBrowserExpect }
+func (a BrowserExpectAction) Target() string            { return a.Selector }
+func (a BrowserExpectAction) Validate() error {
+	if a.Selector == "" {
+		return fmt.Errorf("selector is required")
+	}
+	if a.Expectation == "" {
+		return fmt.Errorf("expectation comparator is required")
+	}
+	return nil
+}
