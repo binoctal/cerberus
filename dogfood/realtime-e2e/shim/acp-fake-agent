@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+# Deterministic fake ACP agent for zero-LLM ACP-path E2E (dogfood). The
+# bridge's ACP adapter spawns `npx @agentclientprotocol/claude-agent-acp`
+# (shim/npx routes here) and speaks line-delimited JSON-RPC on stdio. This
+# agent implements exactly what that adapter needs — initialize,
+# session/new, session/prompt (one agent_message_chunk + end_turn),
+# session/close — and answers any other request with an empty result so
+# protocol additions never hang the session.
+import json
+import sys
+
+REPLY = "CERBERUS_ACP_OK"
+
+
+def send(obj):
+    sys.stdout.write(json.dumps(obj) + "\n")
+    sys.stdout.flush()
+
+
+def main():
+    n = 0
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        method = req.get("method", "")
+        rid = req.get("id")
+        if method == "initialize":
+            # agentInfo is REQUIRED: the adapter closes its initDone signal
+            # only when the initialize result carries it — without agentInfo
+            # the connect times out after 30s and falls back to PTY.
+            send({"jsonrpc": "2.0", "id": rid, "result": {
+                "protocolVersion": 1,
+                "agentCapabilities": {},
+                "agentInfo": {"name": "cerberus-fake-acp", "version": "1.0.0"},
+            }})
+        elif method == "session/new":
+            n += 1
+            send({"jsonrpc": "2.0", "id": rid, "result": {
+                "sessionId": "cerberus-acp-%d" % n,
+            }})
+        elif method == "session/prompt":
+            params = req.get("params", {})
+            sid = params.get("sessionId", "")
+            send({"jsonrpc": "2.0", "method": "session/update", "params": {
+                "sessionId": sid,
+                "update": {
+                    "sessionUpdate": "agent_message_chunk",
+                    "content": {"type": "text", "text": REPLY},
+                },
+            }})
+            send({"jsonrpc": "2.0", "id": rid, "result": {
+                "stopReason": "end_turn",
+            }})
+        elif method == "session/close":
+            send({"jsonrpc": "2.0", "id": rid, "result": {}})
+            return 0
+        else:
+            # Unknown request: empty result keeps the adapter moving.
+            if rid is not None:
+                send({"jsonrpc": "2.0", "id": rid, "result": {}})
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

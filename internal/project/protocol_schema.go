@@ -124,6 +124,16 @@ type ProtocolRole struct {
 	// addition to the default relay claim. SUT fact: which promise a role's
 	// per-role cases evidence lives here, not in scout code.
 	Claims []string `yaml:"claims,omitempty"`
+	// ACPCli declares that this real-process role's device runs this CLI
+	// over the ACP adapter (e.g. "claude" — the bridge resolves it to
+	// npx @agentclientprotocol/claude-agent-acp, its PREFERRED protocol;
+	// PTY is only the fallback). Scout emits a deterministic ACP-path case
+	// per such role. Empty = no ACP case.
+	ACPCli string `yaml:"acp_cli,omitempty"`
+	// ACPReal additionally emits the REAL-layer ACP case: the target device
+	// runs the real agent (real CLI + real LLM), so the case's prompt goes
+	// to a live model. Requires ACPCli.
+	ACPReal bool `yaml:"acp_real,omitempty"`
 }
 
 // RoleHandshake declares the message the executor auto-awaits after connect.

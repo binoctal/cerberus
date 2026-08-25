@@ -1,10 +1,21 @@
 #!/bin/sh
-# Fail-fast npx stub for the offline dogfood env: the claude ACP adapter
-# (cliType "claude") shells out to `npx @agentclientprotocol/claude-agent-acp`,
-# which cannot be fetched offline. The real npx leaves a JSON-protocol process
-# alive that errors on every prompt line and never exits -- a task retried onto
-# the fallback CLI then hangs forever with no failure report. Exiting 1
-# immediately models "adapter not installed": ACP fails fast, the PTY fallback
-# fails fast, and the session exit reaches the orchestrator so retry
-# exhaustion -> workflow:task_failed stays deterministic.
-exit 1
+# npx router for the dogfood shim dir (prepended to the replica bridges'
+# PATH): route @agentclientprotocol/claude-agent-acp invocations to the
+# deterministic fake ACP agent; pass everything else through to the FIRST
+# real npx found on PATH outside this shim directory (wrangler and other
+# tooling must keep working).
+set -u
+SHIM_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ "${1:-}" = "@agentclientprotocol/claude-agent-acp" ]; then
+  exec python3 "$SHIM_DIR/acp-fake-agent"
+fi
+OLDIFS=$IFS
+IFS=:
+for dir in $PATH; do
+  IFS=$OLDIFS
+  [ "$dir" = "$SHIM_DIR" ] && continue
+  [ -x "$dir/npx" ] && exec "$dir/npx" "$@"
+done
+IFS=$OLDIFS
+echo "shim/npx: no real npx found on PATH" >&2
+exit 127

@@ -58,6 +58,7 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 		// emulated side driving a session THROUGH the real process (positive
 		// counterpart of the self-play suppression below)…
 		cases = append(cases, realE2ECases(svc, realRoles)...)
+		cases = append(cases, acpE2ECases(svc, realRoles)...)
 		// …and the declarative request-response exchanges the real process
 		// answers itself (role `responses`), e.g. the sync/ack family.
 		cases = append(cases, realResponderCases(svc, realRoles)...)

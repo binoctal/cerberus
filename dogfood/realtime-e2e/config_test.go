@@ -27,8 +27,8 @@ func TestProjectConfig_Loads(t *testing.T) {
 		t.Fatalf("framing=%q want json", svc.Protocol.Framing)
 	}
 
-	if len(cfg.Actors) != 5 {
-		t.Fatalf("actors=%d want 5 (web + admin + 3 real bridges)", len(cfg.Actors))
+	if len(cfg.Actors) != 6 {
+		t.Fatalf("actors=%d want 6 (web + admin + 3 replica bridges + real-ACP bridge)", len(cfg.Actors))
 	}
 	if cfg.Actors[0].Name != "web-actor" || (cfg.Actors[0].Fidelity != project.FidelityEmulated && cfg.Actors[0].Fidelity != "") {
 		t.Fatalf("web actor=%+v", cfg.Actors[0])
@@ -52,10 +52,17 @@ func TestProjectConfig_Loads(t *testing.T) {
 
 	// Roles bind to the real actors so the generator suppression and
 	// {{bridge.deviceId}} templating have their anchors.
-	for role, wantActor := range map[string]string{"bridge": "bridge-pty-1", "bridge2": "bridge-pty-2", "bridge3": "bridge-pty-3"} {
+	for role, wantActor := range map[string]string{"bridge": "bridge-pty-1", "bridge2": "bridge-pty-2", "bridge3": "bridge-pty-3", "bridge-acp": "bridge-acp-real"} {
 		r := svc.Protocol.Roles[role]
 		if r == nil || r.CredentialRef != wantActor {
 			t.Fatalf("role %s=%+v want credential_ref %s", role, r, wantActor)
 		}
+	}
+	// ACP layer declarations: replicas fake, bridge-acp real.
+	if r := svc.Protocol.Roles["bridge"]; r.ACPCli != "claude" || r.ACPReal {
+		t.Fatalf("bridge acp decl = %+v", svc.Protocol.Roles["bridge"])
+	}
+	if r := svc.Protocol.Roles["bridge-acp"]; r.ACPCli != "claude" || !r.ACPReal {
+		t.Fatalf("bridge-acp acp decl = %+v", r)
 	}
 }

@@ -76,6 +76,26 @@ actors:
         deviceId: "devices.{{actor.name}}.deviceId"
       ready_pattern: "Connected to server successfully"
       ready_timeout: 30s
+  # Real-ACP bridge: same pairing discipline but WITHOUT the shim dir on
+  # PATH — its `npx` is real, so cliType "claude" resolves to the real
+  # @agentclientprotocol/claude-agent-acp chain and a REAL CLI + real LLM
+  # (env: ANTHROPIC_BASE_URL/AUTH_TOKEN inherited from the dogfood env).
+  # The replica bridges above run the fake ACP agent via shim/npx for the
+  # deterministic layer.
+  - name: bridge-acp-real
+    credentials: {}
+    fidelity: real-process
+    process:
+      workdir: "../../../open-agents/bridge"
+      setup: ["./build/open-agents-bridge", "pair", "--dev", "--server", "http://localhost:8989", "-n", "bridge-acp-real"]
+      start: ["./build/open-agents-bridge", "start", "-d", "bridge-acp-real"]
+      env:
+        HOME: "{{runtime.dir}}/bridge-acp-real-home"
+      capture_file: "{{runtime.dir}}/bridge-acp-real-home/.open-agents-bridge/config.json"
+      capture_json:
+        deviceId: "devices.bridge-acp-real.deviceId"
+      ready_pattern: "Connected to server successfully"
+      ready_timeout: 60s
 settings:
   max_duration: 60m   # mission-orchestration case alone runs ~4-6min; full judge of ~700 verdicts needs ~15-25min more (25m truncated it once the budget stopped starving the judge)
   confidence_threshold: 0.7
