@@ -419,7 +419,7 @@ callback; the ACP adapter lacks the equivalent teardown wiring.
 fail-mission rung lands on the ACP path; its four edges stay coverage gaps
 until fixed.
 
-## 18. Sidebar "Connecting..." forever — web appStore.isConnected is a dead field (written by nobody) — OPEN 2026-08-26
+## 18. Sidebar "Connecting..." forever — web appStore.isConnected is a dead field (written by nobody) — FIXED 2026-08-26 (open-agents 660d41f: sidebar reads websocketStore.isConnected; MissionsPage fetches devices — live-verified "Connected / 3/744 online")
 
 WebSocketProvider.onConnect calls websocketStore.setConnected, but
 DashboardLayout's sidebar indicator reads appStore.isConnected. No code
@@ -437,7 +437,7 @@ demo bridges online.
 **Cerberus consequence:** none — SUT APIs and WS are healthy; this is
 purely a web display defect that misleads demo observers.
 
-## 19. WebSocketProvider gives up permanently when the first ensureValidToken fails — OPEN 2026-08-26
+## 19. WebSocketProvider gives up permanently when the first ensureValidToken fails — FIXED 2026-08-26 (open-agents 660d41f: 5xx refresh keeps credentials instead of wiping auth; refreshWithMutex returns one shared promise and frees the slot on settle; WS token gate retries with backoff)
 
 The provider's effect (deps `[isHydrated, userId]`) calls
 `ensureValidToken()` once; if it returns null (e.g. a transient
