@@ -405,7 +405,7 @@ fails fatally on the existing branch name. Same run, same evidence doc.
 it corrupts retry accounting and log signal-to-noise (62 log lines for one
 task).
 
-## 17. ACP-path task failure never fires the exit callback → task wedges in running — OPEN 2026-08-25
+## 17. ACP-path task failure never fired the exit callback → task wedged in running — FIXED 2026-08-25 (bridge 205631b: agent death emits the PTY-shaped exit_code status; run 24 live-validated: task_failed returns, mission-seed passes, the four coverage gaps close, coverage 100%)
 
 The fake ACP agent now errors and exits 1 on CERBERUS_FAIL prompts (PTY-shim
 parity), but an agent process exit on the ACP path does not translate into
