@@ -244,21 +244,25 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 	fanout := append(setupSteps,
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
 			AuthRole: "web", ExpectStatusClass: "2xx",
-			Body: `{"inputText":"Split this mission into exactly three independent subtasks with no dependencies between them. Each subtask replies with the single word done and creates no files.","deviceIds":["{{bridge.deviceId}}","{{bridge2.deviceId}}","{{bridge3.deviceId}}"],"autoConfirm":true}`,
+			Body:    `{"inputText":"Split this mission into exactly three independent subtasks with no dependencies between them. Each subtask replies with the single word done and creates no files.","deviceIds":["{{bridge.deviceId}}","{{bridge2.deviceId}}","{{bridge3.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "fanoutMissionId"}},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 600},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 60},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 60},
+		// One completion per subtask (three total — run 17's first task_completed
+		// matched task 1-of-3 while siblings were still running).
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
-		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 120},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 300},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 300},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 600},
 	)
 	return append(cases, agent.TestCase{
 		ID: wsCaseID(svc.Name, "wf", "mission-fanout"), Service: svc.Name, Target: svc.URL,
 		Name:   "multi-device mission fans its subtasks out across three real bridges",
 		Action: "ws_flow", Priority: 0.8,
 		Expectation: "a mission addressed to all three real bridges decomposes into three independent subtasks; per-task device-targeted dispatch spreads them across the bridges (the bridge-origin workflow:task_progress frames carry at least two DIFFERENT deviceId values — not all subtasks on one device); every task completes (workflow:task_completed) and the mission finalizes (workflow:job_status)",
-		Claims: []string{"multi-device-orchestration"},
-		Steps:  fanout,
+		Claims:      []string{"multi-device-orchestration"},
+		Steps:       fanout,
 	})
 }
 
