@@ -100,11 +100,19 @@ func repairCaseFromCall(call llm.ToolCall, original agent.TestCase, steps []agen
 		svc = original.Service
 	}
 	if len(steps) > 0 {
+		target := wsFlowTarget(steps)
+		if target == "" {
+			// The emission's steps omit every URL: inherit the original's
+			// dial target (same service by definition). An empty target makes
+			// resolveProtocol fail and the replacement dies on
+			// 'ws connect: unknown role' (live-observed runs 21/23).
+			target = original.Target
+		}
 		return agent.TestCase{
 			ID:          fmt.Sprintf("repair-%s", replaces),
 			Name:        fmt.Sprintf("repair %s", replaces),
 			Action:      "ws_flow",
-			Target:      wsFlowTarget(steps),
+			Target:      target,
 			Service:     svc,
 			Steps:       steps,
 			Expectation: llm.StrField(call, "expectation"),

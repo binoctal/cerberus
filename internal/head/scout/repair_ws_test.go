@@ -251,3 +251,35 @@ func TestAssembleRepair_InheritsOmittedFields(t *testing.T) {
 	assert.Equal(t, "/api/things", out[0].Target)
 	assert.Equal(t, "POST", out[0].Method)
 }
+
+// A WS repair emission whose steps omit every URL (the LLM describes the
+// flow but not the dial target) must inherit the ORIGINAL case's target —
+// an empty target makes resolveProtocol fail and the replacement dies on
+// 'ws connect: unknown role' (live-observed runs 21/23: repair-mission-seed
+// verdicts carried target "unknown").
+func TestAssembleRepair_WSStepsWithoutURLInheritOriginalTarget(t *testing.T) {
+	calls := []llm.ToolCall{{
+		Name: "repair_case",
+		Input: map[string]any{
+			"replaces": "ws-rt-wf-mission-seed",
+			// steps deliberately carry no url field anywhere
+			"steps": []any{
+				map[string]any{"action": "ws_connect", "role": "web", "connection_id": "web"},
+				map[string]any{"action": "ws_receive", "type": "workflow:task_failed", "timeout": 600},
+			},
+			"expectation": "task_failed arrives",
+		},
+	}}
+	original := agent.TestCase{
+		ID: "ws-rt-wf-mission-seed", Action: "ws_flow",
+		Target: "ws://localhost:8989/ws/{userId}", Service: "realtime",
+		Steps: []agent.TestStep{{Action: "ws_connect"}},
+	}
+	got := assembleRepair(calls, []RepairInput{{Case: original, Hint: agent.HintWsMatch}})
+	if len(got) != 1 {
+		t.Fatalf("want 1 replacement, got %d", len(got))
+	}
+	if got[0].Target != original.Target {
+		t.Fatalf("replacement target = %q, want inherited %q", got[0].Target, original.Target)
+	}
+}
