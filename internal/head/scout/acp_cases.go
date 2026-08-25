@@ -50,9 +50,14 @@ func acpE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCas
 		if role == nil || role.ACPCli == "" {
 			continue
 		}
-		cases = append(cases, acpOneCase(svc, client, roleName, role, false))
+		// Layer separation by device, not just by flag: an acp_real role's
+		// device has no fake-agent shim on PATH (its npx IS real), so it
+		// only gets the real-LLM case; non-real roles get the deterministic
+		// fake-agent case only.
 		if role.ACPReal {
 			cases = append(cases, acpOneCase(svc, client, roleName, role, true))
+		} else {
+			cases = append(cases, acpOneCase(svc, client, roleName, role, false))
 		}
 	}
 	return cases

@@ -165,6 +165,13 @@ func realE2ECases(svc project.Service, realRoles map[string]bool) []agent.TestCa
 		if !realRoles[roleName] {
 			continue
 		}
+		// acp_real roles are ACP-only devices: no deterministic CLI shim on
+		// their PATH, so a claude-pty session there would launch the REAL
+		// CLI (an unplanned LLM call that then times out). Their session
+		// coverage is the acpE2ECases real leg.
+		if r := svc.Protocol.Roles[roleName]; r != nil && r.ACPReal {
+			continue
+		}
 		sessionID := "e2e-l1-" + svc.Name + "-" + roleName
 		startPayload := map[string]string{
 			"sessionId": sessionID,
