@@ -106,6 +106,13 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// post-creation connect (live-observed 2026-08-22 — matched=0 while
 		// completed/job_status flowed around the late connection).
 		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: "web"},
+	)
+	// The fan-out case (below) repeats the SAME unlocking chain — slice it
+	// off before the mission legs append, so both cases stay seed-independent
+	// (case ordering is not guaranteed and D1 rows persist, but each case
+	// must stand alone if run first).
+	setupSteps := append([]agent.TestStep(nil), steps...)
+	steps = append(steps,
 		// 6. The mission itself (create returns {mission:{id}} → dot-path
 		// capture). Web role: the mission user must be the device owner.
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
@@ -213,13 +220,46 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 			})},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
 	)
-	return []agent.TestCase{{
+	cases := []agent.TestCase{{
 		ID: wsCaseID(svc.Name, "wf", "mission-seed"), Service: svc.Name, Target: svc.URL,
 		Name:   "seeded mission drives real orchestration end to end",
 		Action: "ws_flow", Priority: 0.8,
 		Expectation: "mission created (plan gate, provider, agent row seeded), real planner decomposes it, the orchestrator dispatches to the real bridge, the task session pushes workflow:task_progress, completion flows back through the bridge HTTP callback (workflow:task_completed + workflow:job_status), a web-initiated task_merge elicits workflow:task_result, a failing mission exhausts its retries into workflow:task_failed, a branchless merge elicits workflow:task_error, and a question mission drives the human-in-the-loop loop (bridge asks workflow:task_question, web answers workflow:task_answer, completion follows)",
 		Steps:       steps,
 	}}
+	// Multi-device fan-out (replicas cardinality follow-up): a mission whose
+	// deviceIds span all three real bridges. selectDevice spreads the
+	// planner's subtasks least-loaded round-robin across the candidates, so
+	// an exactly-three-subtasks plan exercises one task per device. The
+	// per-task workflow:task_assign is DEVICE-TARGETED (the DO routes it to
+	// the owning bridge only, never to web spectators), so fan-out is
+	// observed through the bridge-origin workflow:task_progress frames —
+	// each carries its executor's deviceId; the examiner checks those
+	// deviceIds are not all the same. Emitted only when every bridge-family
+	// role is a real process (a two-bridge project keeps the single-device
+	// shape).
+	if !realRoles["bridge2"] || !realRoles["bridge3"] {
+		return cases
+	}
+	fanout := append(setupSteps,
+		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
+			AuthRole: "web", ExpectStatusClass: "2xx",
+			Body: `{"inputText":"Split this mission into exactly three independent subtasks with no dependencies between them. Each subtask replies with the single word done and creates no files.","deviceIds":["{{bridge.deviceId}}","{{bridge2.deviceId}}","{{bridge3.deviceId}}"],"autoConfirm":true}`,
+			Capture: map[string]string{"mission.id": "fanoutMissionId"}},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 600},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 60},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 60},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_completed", Timeout: 600},
+		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:job_status", Timeout: 120},
+	)
+	return append(cases, agent.TestCase{
+		ID: wsCaseID(svc.Name, "wf", "mission-fanout"), Service: svc.Name, Target: svc.URL,
+		Name:   "multi-device mission fans its subtasks out across three real bridges",
+		Action: "ws_flow", Priority: 0.8,
+		Expectation: "a mission addressed to all three real bridges decomposes into three independent subtasks; per-task device-targeted dispatch spreads them across the bridges (the bridge-origin workflow:task_progress frames carry at least two DIFFERENT deviceId values — not all subtasks on one device); every task completes (workflow:task_completed) and the mission finalizes (workflow:job_status)",
+		Claims: []string{"multi-device-orchestration"},
+		Steps:  fanout,
+	})
 }
 
 // hasWorkflowEdges: any vocab edge whose type carries the workflow: prefix.

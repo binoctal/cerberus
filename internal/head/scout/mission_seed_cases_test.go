@@ -151,3 +151,67 @@ func TestMissionSeedCases_NoBridgeReal_EmitsNothing(t *testing.T) {
 		t.Fatalf("emitted %d cases without a real bridge", len(got))
 	}
 }
+
+// TestMissionSeedCases_FanoutMission: when ALL THREE bridge-family roles are
+// real processes, a second case seeds a MULTI-DEVICE mission (deviceIds
+// spanning the three captured bridges). The per-task device-targeted
+// task_assign never reaches web spectators (room.ts routes it to the owning
+// bridge only), so fan-out is observed through the bridge-origin
+// workflow:task_progress frames, each carrying its executor's deviceId.
+func TestMissionSeedCases_FanoutMission(t *testing.T) {
+	roles := map[string]bool{"bridge": true, "bridge2": true, "bridge3": true}
+	cases := missionSeedCases(missionSendFixture(), roles)
+	var fanout *agent.TestCase
+	for i := range cases {
+		if cases[i].ID == wsCaseID("open-agents", "wf", "mission-fanout") {
+			fanout = &cases[i]
+		}
+	}
+	if fanout == nil {
+		t.Fatal("expected a mission-fanout case with all three bridges real")
+	}
+	if len(fanout.Claims) != 1 || fanout.Claims[0] != "multi-device-orchestration" {
+		t.Fatalf("fanout claims = %v, want [multi-device-orchestration]", fanout.Claims)
+	}
+	create := firstStepWithURL(fanout.Steps, "/api/missions")
+	if !strings.Contains(create.Body, `"{{bridge.deviceId}}"`) ||
+		!strings.Contains(create.Body, `"{{bridge2.deviceId}}"`) ||
+		!strings.Contains(create.Body, `"{{bridge3.deviceId}}"`) {
+		t.Fatalf("fanout mission must address all three bridges: %s", create.Body)
+	}
+	if !strings.Contains(create.Body, `"autoConfirm":true`) {
+		t.Fatal("fanout mission must auto-confirm")
+	}
+	progress := 0
+	completed, jobStatus := false, false
+	for _, s := range fanout.Steps {
+		if s.Action != "ws_receive" {
+			continue
+		}
+		switch s.Type {
+		case "workflow:task_progress":
+			progress++
+		case "workflow:task_completed":
+			completed = true
+		case "workflow:job_status":
+			jobStatus = true
+		}
+	}
+	if progress < 3 {
+		t.Fatalf("fanout case needs >= 3 task_progress receives (one per subtask), got %d", progress)
+	}
+	if !completed || !jobStatus {
+		t.Fatal("fanout case must observe completion (task_completed + job_status)")
+	}
+}
+
+// The fan-out case is emitted only when every bridge-family role is a real
+// process — a two-bridge project keeps the single-device mission-seed shape.
+func TestMissionSeedCases_FanoutNeedsAllThreeBridges(t *testing.T) {
+	cases := missionSeedCases(missionSendFixture(), map[string]bool{"bridge": true, "bridge2": true})
+	for _, c := range cases {
+		if c.ID == wsCaseID("open-agents", "wf", "mission-fanout") {
+			t.Fatal("fanout case must not emit without bridge3")
+		}
+	}
+}
