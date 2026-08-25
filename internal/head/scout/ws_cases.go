@@ -48,8 +48,10 @@ func WSCasesCovered(cfg *project.Config, goal string, covered map[string]map[str
 	var cases []agent.TestCase
 	for _, svc := range cfg.Services {
 		// Vocab HTTP routes emit independently of any WS protocol — an
-		// http_routes-only service still gets its reachability sweep.
+		// http_routes-only service still gets its reachability sweep. Same
+		// for the UI display-promise sweep (ui vocabulary).
 		cases = append(cases, httpRouteCases(svc)...)
+		cases = append(cases, uiVocabCases(svc)...)
 		if svc.Protocol == nil || len(svc.Protocol.Roles) == 0 {
 			continue
 		}
@@ -381,7 +383,9 @@ func wsCasesForService(svc project.Service, goal string, svcCovered map[string]b
 	cases = append(cases, violationCases(svc)...)
 	// Vocab HTTP routes: one bare-client reachability smoke each (auth not
 	// penetrated; any response credits the route — see http_route_cases.go).
-	return append(cases, httpRouteCases(svc)...)
+	// UI assertions: one deterministic browser_flow each (see ui_cases.go).
+	cases = append(cases, httpRouteCases(svc)...)
+	return append(cases, uiVocabCases(svc)...)
 }
 
 // relayCoexistence resolves the deterministic peer-join relay cases against what
