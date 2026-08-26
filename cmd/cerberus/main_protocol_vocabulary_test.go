@@ -114,6 +114,108 @@ func TestRunProtocolVocabulary_ReextractPreservesAnnotations(t *testing.T) {
 	t.Fatalf("re-extracted vocab lost the annotated edge %s->%s %s entirely", v.Edges[0].FromRole, v.Edges[0].ToRole, v.Edges[0].Type)
 }
 
+// Route-level hand marks follow the same rule: a hand-tuned param_sources
+// chain and a hand-curated http_auth_middlewares list survive re-extraction,
+// while auth (like middlewares and min_body) comes back fresh from the
+// extractor — hand values only win where the brief says they do.
+func TestRunProtocolVocabulary_ReextractPreservesRouteHandMarks(t *testing.T) {
+	honoSrc, err := filepath.Abs(filepath.Join("..", "..", "internal", "vocabextract", "testdata", "hono", "use-auth.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml")
+	if err := runProtocolVocabulary(context.Background(), dir, []string{honoSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load hono vocab: %v", err)
+	}
+	// Hand-tune the :id chain and the auth middleware list; hand-corrupt
+	// auth so the re-extraction proves it is re-derived fresh.
+	for i := range hv.HTTPRoutes {
+		switch hv.HTTPRoutes[i].Method + "|" + hv.HTTPRoutes[i].Path {
+		case "GET|/api/things/:id":
+			if hv.HTTPRoutes[i].ParamSources == nil {
+				hv.HTTPRoutes[i].ParamSources = map[string]project.VocabParamSource{}
+			}
+			hv.HTTPRoutes[i].ParamSources[":id"] = project.VocabParamSource{Route: "GET /api/things", Pick: "1.id"}
+		case "GET|/api/things":
+			hv.HTTPRoutes[i].Auth = "none"
+		}
+	}
+	hv.HTTPAuthMiddlewares = []string{"handPicked"}
+	block, err := yaml.Marshal(hv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, block, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProtocolVocabulary(context.Background(), dir, []string{honoSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv2, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load re-extracted vocab: %v", err)
+	}
+	if len(hv2.HTTPAuthMiddlewares) != 1 || hv2.HTTPAuthMiddlewares[0] != "handPicked" {
+		t.Fatalf("http_auth_middlewares = %v, want [handPicked] (hand-curated wins)", hv2.HTTPAuthMiddlewares)
+	}
+	for _, r := range hv2.HTTPRoutes {
+		switch r.Method + "|" + r.Path {
+		case "GET|/api/things/:id":
+			if ps := r.ParamSources[":id"]; ps.Pick != "1.id" || ps.Route != "GET /api/things" {
+				t.Fatalf("re-extraction dropped hand param_sources: %#v", r.ParamSources)
+			}
+		case "GET|/api/things":
+			if r.Auth != "required" {
+				t.Fatalf("GET|/api/things auth = %q, want required (re-derived fresh)", r.Auth)
+			}
+		}
+	}
+}
+
+// TestRunProtocolVocabulary_AuthDerivationAndParamChain: middleware names
+// matching (?i)auth|bearer|jwt derive auth "required" (and feed the
+// http_auth_middlewares list); no middleware derives "none"; a non-auth
+// middleware alone leaves "unknown". A trailing :param whose param-free
+// prefix is a GET list route chains to that route with the "0.id" pick.
+func TestRunProtocolVocabulary_AuthDerivationAndParamChain(t *testing.T) {
+	vocab := extractVocabForTest(t, filepath.Join("hono", "use-auth.ts"))
+	byKey := map[string]project.VocabHTTPRoute{}
+	for _, r := range vocab.HTTPRoutes {
+		byKey[r.Method+"|"+r.Path] = r
+	}
+	// authMiddleware (inherited via the /api/things app.use prefix) -> required.
+	if r := byKey["GET|/api/things"]; r.Auth != "required" {
+		t.Fatalf("GET|/api/things auth = %q, want required", r.Auth)
+	}
+	// No middleware -> none.
+	if r := byKey["GET|/health"]; r.Auth != "none" {
+		t.Fatalf("GET|/health auth = %q, want none", r.Auth)
+	}
+	// Inherited authMiddleware beats the inline non-auth rateLimiter.
+	if r := byKey["GET|/api/things/:id/gated"]; r.Auth != "required" {
+		t.Fatalf("GET|/api/things/:id/gated auth = %q, want required", r.Auth)
+	}
+	// rateLimiter alone is a middleware but not an auth one -> unknown.
+	if r := byKey["GET|/limited"]; r.Auth != "unknown" {
+		t.Fatalf("GET|/limited auth = %q, want unknown", r.Auth)
+	}
+	// The heuristic's matched set is emitted for hand override.
+	if !slices.Contains(vocab.HTTPAuthMiddlewares, "authMiddleware") {
+		t.Fatalf("http_auth_middlewares = %v, want authMiddleware", vocab.HTTPAuthMiddlewares)
+	}
+	// :id chain points at the list route with the dot-path pick.
+	r := byKey["GET|/api/things/:id"]
+	ps, ok := r.ParamSources[":id"]
+	if !ok || ps.Route != "GET /api/things" || ps.Pick != "0.id" {
+		t.Fatalf("param_sources = %#v", r.ParamSources)
+	}
+}
+
 // TestRunProtocolVocabulary_HonoRoutes: extraction over a Hono entry writes
 // http_routes with per-file hashes, and re-extraction preserves route marks
 // (method|path) the same way WS edge marks survive.

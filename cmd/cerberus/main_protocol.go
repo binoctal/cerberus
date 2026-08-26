@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -223,13 +225,66 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		sum := sha256.Sum256(data)
 		files = append(files, project.VocabFile{Path: p, Hash: hex.EncodeToString(sum[:])})
 	}
+	// Auth middleware heuristic: names matching auth|bearer|jwt mark a route
+	// auth-required; the matched set is emitted as http_auth_middlewares so a
+	// human can review and override the judgment (hand-curated lists survive
+	// re-extraction).
+	authMw := map[string]bool{}
+	authMwRe := regexp.MustCompile(`(?i)auth|bearer|jwt`)
+	for _, r := range routes {
+		for _, mw := range r.Middlewares {
+			if authMwRe.MatchString(mw) {
+				authMw[mw] = true
+			}
+		}
+	}
+	authMiddlewares := make([]string, 0, len(authMw))
+	for mw := range authMw {
+		authMiddlewares = append(authMiddlewares, mw)
+	}
+	sort.Strings(authMiddlewares)
+	for i := range routes {
+		switch {
+		case len(routes[i].Middlewares) == 0:
+			routes[i].Auth = "none"
+		default:
+			routes[i].Auth = "unknown"
+			for _, mw := range routes[i].Middlewares {
+				if authMw[mw] {
+					routes[i].Auth = "required"
+					break
+				}
+			}
+		}
+		// Param-chain inference: a trailing :param whose param-free prefix
+		// is a GET list route chains to that route, picking the first
+		// record's id. Hand-set sources (none can exist on a first pass)
+		// win over re-derivation via the preservation block below.
+		for _, p := range pathParams(routes[i].Path) {
+			if _, hand := routes[i].ParamSources[p]; hand {
+				continue
+			}
+			list := strings.TrimSuffix(routes[i].Path, "/"+p)
+			if strings.Contains(list, ":") {
+				continue
+			}
+			if !routeMethodPath(routes, "GET", list) {
+				continue
+			}
+			if routes[i].ParamSources == nil {
+				routes[i].ParamSources = map[string]project.VocabParamSource{}
+			}
+			routes[i].ParamSources[p] = project.VocabParamSource{Route: "GET " + list, Pick: "0.id"}
+		}
+	}
 	vocab := &project.Vocabulary{
 		Source: project.VocabSource{
 			Files:       files,
 			ProtocolRef: name,
 		},
-		Edges:      edges,
-		HTTPRoutes: routes,
+		Edges:               edges,
+		HTTPRoutes:          routes,
+		HTTPAuthMiddlewares: authMiddlewares,
 	}
 	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
 	// Re-extraction must not drop manually-annotated marks (partial/unsupported)
@@ -248,7 +303,13 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 				vocab.Edges[i].Unsupported = old.Unsupported
 			}
 		}
-		// Route marks follow the same rule, keyed method|path.
+		// A hand-curated auth middleware list wins over the name heuristic.
+		if len(prev.HTTPAuthMiddlewares) > 0 {
+			vocab.HTTPAuthMiddlewares = prev.HTTPAuthMiddlewares
+		}
+		// Route marks follow the same rule, keyed method|path. Hand-tuned
+		// param chains win over re-derivation; auth/middlewares/min_body are
+		// always re-derived fresh above.
 		routeMarks := make(map[string]project.VocabHTTPRoute, len(prev.HTTPRoutes))
 		for _, r := range prev.HTTPRoutes {
 			routeMarks[r.Method+"|"+r.Path] = r
@@ -257,6 +318,12 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 			if old, ok := routeMarks[vocab.HTTPRoutes[i].Method+"|"+vocab.HTTPRoutes[i].Path]; ok {
 				vocab.HTTPRoutes[i].Partial = old.Partial
 				vocab.HTTPRoutes[i].Unsupported = old.Unsupported
+				for p, ps := range old.ParamSources {
+					if vocab.HTTPRoutes[i].ParamSources == nil {
+						vocab.HTTPRoutes[i].ParamSources = map[string]project.VocabParamSource{}
+					}
+					vocab.HTTPRoutes[i].ParamSources[p] = ps
+				}
 			}
 		}
 	}
@@ -278,6 +345,28 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		return err
 	}
 	return os.WriteFile(outPath, block, 0644)
+}
+
+// pathParams lists a route path's :name segments in order.
+func pathParams(path string) []string {
+	var params []string
+	for _, seg := range strings.Split(path, "/") {
+		if len(seg) > 1 && strings.HasPrefix(seg, ":") {
+			params = append(params, seg)
+		}
+	}
+	return params
+}
+
+// routeMethodPath reports whether a route with the exact method and path
+// exists in the extracted set; param-chain targets must be real routes.
+func routeMethodPath(routes []project.VocabHTTPRoute, method, path string) bool {
+	for _, r := range routes {
+		if r.Method == method && r.Path == path {
+			return true
+		}
+	}
+	return false
 }
 
 func protocolInferCmd() *cobra.Command {
