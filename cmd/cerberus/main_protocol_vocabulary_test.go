@@ -593,3 +593,44 @@ func TestRunProtocolVocabulary_ParamSourcesOffVeto(t *testing.T) {
 	}
 	t.Fatal("GET|/api/things/:id lost by re-extraction")
 }
+
+// TestRunProtocolVocabulary_PreservesHTTPRoleMap: the hand-curated HTTP role
+// map (which protocol role's JWT a path prefix takes) is live-probe
+// knowledge, not source-derivable — re-extraction must never drop it.
+func TestRunProtocolVocabulary_PreservesHTTPRoleMap(t *testing.T) {
+	honoSrc, err := filepath.Abs(filepath.Join("..", "..", "internal", "vocabextract", "testdata", "hono", "use-auth.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml")
+	if err := runProtocolVocabulary(context.Background(), dir, []string{honoSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load hono vocab: %v", err)
+	}
+	hv.HTTPRoleRoutes = []project.VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}}
+	hv.HTTPDefaultRole = "web"
+	block, err := yaml.Marshal(hv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, block, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProtocolVocabulary(context.Background(), dir, []string{honoSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv2, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load re-extracted vocab: %v", err)
+	}
+	if len(hv2.HTTPRoleRoutes) != 1 || hv2.HTTPRoleRoutes[0].Prefix != "/api/admin" || hv2.HTTPRoleRoutes[0].Role != "admin" {
+		t.Fatalf("http_role_routes did not survive re-extraction: %#v", hv2.HTTPRoleRoutes)
+	}
+	if hv2.HTTPDefaultRole != "web" {
+		t.Fatalf("http_default_role = %q, want web", hv2.HTTPDefaultRole)
+	}
+}

@@ -28,6 +28,23 @@ type Vocabulary struct {
 	// assertion = one coverage-denominator unit, compiled into deterministic
 	// browser_flow cases. Nil when the project declares no UI surface.
 	UI *VocabUI `yaml:"ui,omitempty" json:"ui,omitempty"`
+	// HTTPRoleRoutes declares which protocol role's credential the HTTP
+	// generators inject per path prefix (spec 2026-08-26 v2 §3: SUT facts
+	// live in the vocab, not in generator code). Longest matching prefix
+	// wins; HTTPDefaultRole covers everything else.
+	HTTPRoleRoutes []VocabRoleRoute `yaml:"http_role_routes,omitempty" json:"http_role_routes,omitempty"`
+	// HTTPDefaultRole is the fallback role for paths matching no
+	// HTTPRoleRoutes prefix (used only when it carries a credential).
+	HTTPDefaultRole string `yaml:"http_default_role,omitempty" json:"http_default_role,omitempty"`
+}
+
+// VocabRoleRoute maps a path prefix to the protocol role whose JWT the HTTP
+// generators inject on routes under it. Shape-validated here; whether the
+// role exists (and carries a CredentialRef) is checked at generation time,
+// where the protocol is available.
+type VocabRoleRoute struct {
+	Prefix string `yaml:"prefix" json:"prefix"`
+	Role   string `yaml:"role" json:"role"`
 }
 
 // VocabUI declares the web UI test surface: where the UI is served, the
@@ -223,6 +240,14 @@ func ValidateVocabulary(v *Vocabulary) error {
 			if _, hand := r.ParamSources[name]; hand {
 				return fmt.Errorf("http_routes[%d]: param %q is both vetoed (param_sources_off) and sourced (param_sources)", i, name)
 			}
+		}
+	}
+	for i, rr := range v.HTTPRoleRoutes {
+		if !strings.HasPrefix(rr.Prefix, "/") {
+			return fmt.Errorf("http_role_routes[%d]: prefix %q must start with /", i, rr.Prefix)
+		}
+		if rr.Role == "" {
+			return fmt.Errorf("http_role_routes[%d]: role is required", i)
 		}
 	}
 	if v.UI != nil {

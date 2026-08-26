@@ -47,11 +47,13 @@ func TestHTTPRouteCases_TiersAndOrdering(t *testing.T) {
 	if cases[1].Expectation != "route reachable over HTTP (any status response; no transport error)" {
 		t.Errorf("flat expectation = %q", cases[1].Expectation)
 	}
-	if cases[0].Expectation == cases[1].Expectation {
-		t.Errorf("admin route must carry an admin tier distinct from flat: %q", cases[0].Expectation)
+	// No vocab role map declared: there is no admin tier to distinguish —
+	// the SUT fact lives in the vocabulary, not in generator path literals.
+	if cases[0].Expectation != cases[1].Expectation {
+		t.Errorf("no role map declared: admin-path expectation must equal flat, got %q vs %q", cases[0].Expectation, cases[1].Expectation)
 	}
 	if cases[0].Steps[0].AuthRole != "" {
-		t.Errorf("no admin protocol role declared: AuthRole must stay empty, got %q", cases[0].Steps[0].AuthRole)
+		t.Errorf("no mapped credentialed role: AuthRole must stay empty, got %q", cases[0].Steps[0].AuthRole)
 	}
 	if cases[3].Expectation == cases[1].Expectation {
 		t.Errorf("param route must carry the placeholder tier: %q", cases[3].Expectation)
@@ -86,9 +88,11 @@ func indexOf(s, sub string) int {
 	return -1
 }
 
-// TestHTTPRouteCases_AdminRoleInjection: with an "admin" protocol role
-// declared, admin-path routes carry AuthRole=admin (JWT injection) while
-// flat routes stay bare.
+// TestHTTPRouteCases_AdminRoleInjection: the admin-role fact moved from
+// generator code into the fixture's vocab role map — an "admin" protocol
+// role plus http_role_routes [/api/admin -> admin] gives admin-path routes
+// AuthRole=admin (JWT injection) while flat routes stay bare (no default
+// declared).
 func TestHTTPRouteCases_AdminRoleInjection(t *testing.T) {
 	svc := project.Service{
 		Name: "realtime",
@@ -96,10 +100,15 @@ func TestHTTPRouteCases_AdminRoleInjection(t *testing.T) {
 		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
 			"admin": {CredentialRef: "admin-actor"},
 		}},
-		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
-			{Method: "GET", Path: "/api/admin/stats"},
-			{Method: "GET", Path: "/api/health"},
-		}},
+		Vocabulary: &project.Vocabulary{
+			HTTPRoleRoutes: []project.VocabRoleRoute{
+				{Prefix: "/api/admin", Role: "admin"},
+			},
+			HTTPRoutes: []project.VocabHTTPRoute{
+				{Method: "GET", Path: "/api/admin/stats"},
+				{Method: "GET", Path: "/api/health"},
+			},
+		},
 	}
 	cases := httpRouteCases(svc)
 	if len(cases) != 2 {
@@ -107,7 +116,7 @@ func TestHTTPRouteCases_AdminRoleInjection(t *testing.T) {
 	}
 	var admin, flat *agent.TestCase
 	for i := range cases {
-		if isAdminPath(cases[i].Steps[0].URL) {
+		if strings.HasPrefix(cases[i].Steps[0].URL, "http://localhost:8989/api/admin") {
 			admin = &cases[i]
 		} else {
 			flat = &cases[i]
@@ -117,10 +126,71 @@ func TestHTTPRouteCases_AdminRoleInjection(t *testing.T) {
 		t.Errorf("admin route AuthRole = %q, want admin", admin.Steps[0].AuthRole)
 	}
 	if flat.Steps[0].AuthRole != "" {
-		t.Errorf("flat route AuthRole = %q, want empty", flat.Steps[0].AuthRole)
+		t.Errorf("flat route AuthRole = %q, want empty (no default declared)", flat.Steps[0].AuthRole)
 	}
-	if !contains(admin.Expectation, "admin JWT injected") {
+	if !contains(admin.Expectation, "role JWT injected via vocab role map") {
 		t.Errorf("admin expectation = %q", admin.Expectation)
+	}
+}
+
+// TestHTTPRouteCases_NoRoleMapDegradation: multiple credentialed roles and
+// no vocab role map is the honest degradation — no authed cases at all
+// (refusing to guess which role a path takes), reachability stays bare.
+func TestHTTPRouteCases_NoRoleMapDegradation(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"admin": {CredentialRef: "admin-actor"},
+			"web":   {CredentialRef: "web-actor"},
+		}},
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "GET", Path: "/api/things", Auth: "required"},
+			{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
+		}},
+	}
+	for _, c := range httpRouteCases(svc) {
+		if strings.HasSuffix(c.ID, "-authed") {
+			t.Errorf("%s: no role map + multiple credentialed roles must not guess an authed tier", c.ID)
+		}
+		if c.Steps[0].AuthRole != "" {
+			t.Errorf("%s: reachability must stay bare without a role map, got AuthRole %q", c.ID, c.Steps[0].AuthRole)
+		}
+	}
+}
+
+// TestHTTPRouteCasesV2_RoleMapShape: longest prefix wins over shorter ones,
+// an uncredentialed mapped role falls through to the default, and a route
+// matching nothing falls to the default too.
+func TestHTTPRouteCasesV2_RoleMapShape(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"admin": {CredentialRef: "admin-actor"},
+			"audit": {}, // mapped but carries no credential
+			"web":   {CredentialRef: "web-actor"},
+		}},
+		Vocabulary: &project.Vocabulary{
+			HTTPRoleRoutes: []project.VocabRoleRoute{
+				{Prefix: "/api/admin", Role: "admin"},
+				{Prefix: "/api/admin/audit", Role: "audit"},
+			},
+			HTTPDefaultRole: "web",
+			HTTPRoutes: []project.VocabHTTPRoute{
+				{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
+				{Method: "GET", Path: "/api/things", Auth: "required"},
+			},
+		},
+	}
+	if got := roleForRoute(svc, "/api/admin/stats"); got != "admin" {
+		t.Errorf("longest-prefix role = %q, want admin", got)
+	}
+	if got := roleForRoute(svc, "/api/admin/audit/x"); got != "web" {
+		t.Errorf("uncredentialed mapped role must fall to default: %q, want web", got)
+	}
+	if got := roleForRoute(svc, "/api/things"); got != "web" {
+		t.Errorf("default role = %q, want web", got)
 	}
 }
 
@@ -142,25 +212,30 @@ func routeV2Fixture() project.Service {
 			"admin": {CredentialRef: "admin-actor"},
 			"web":   {CredentialRef: "web-actor"},
 		}},
-		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
-			{Method: "GET", Path: "/api/things", Auth: "required"},
-			{Method: "POST", Path: "/api/things", Auth: "required",
-				MinBody: map[string]any{"name": "x"}},
-			{Method: "GET", Path: "/api/things/:id", Auth: "required",
-				ParamSources: map[string]project.VocabParamSource{
-					":id": {Route: "GET /api/things", Pick: "0.id"},
-				}},
-			{Method: "GET", Path: "/health", Auth: "none"},
-			{Method: "GET", Path: "/api/mystery/:id", Auth: "required"},
-			// :pid chains to a list route that itself has a :param — the
-			// nested-source degradation shape (never 2xx against a guessed id).
-			{Method: "GET", Path: "/api/things/:id/parts/:pid", Auth: "required",
-				ParamSources: map[string]project.VocabParamSource{
-					":id":  {Route: "GET /api/things", Pick: "0.id"},
-					":pid": {Route: "GET /api/things/:id/parts", Pick: "0.id"},
-				}},
-			{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
-		}},
+		Vocabulary: &project.Vocabulary{
+			HTTPRoleRoutes: []project.VocabRoleRoute{
+				{Prefix: "/api/admin", Role: "admin"},
+			},
+			HTTPDefaultRole: "web",
+			HTTPRoutes: []project.VocabHTTPRoute{
+				{Method: "GET", Path: "/api/things", Auth: "required"},
+				{Method: "POST", Path: "/api/things", Auth: "required",
+					MinBody: map[string]any{"name": "x"}},
+				{Method: "GET", Path: "/api/things/:id", Auth: "required",
+					ParamSources: map[string]project.VocabParamSource{
+						":id": {Route: "GET /api/things", Pick: "0.id"},
+					}},
+				{Method: "GET", Path: "/health", Auth: "none"},
+				{Method: "GET", Path: "/api/mystery/:id", Auth: "required"},
+				// :pid chains to a list route that itself has a :param — the
+				// nested-source degradation shape (never 2xx against a guessed id).
+				{Method: "GET", Path: "/api/things/:id/parts/:pid", Auth: "required",
+					ParamSources: map[string]project.VocabParamSource{
+						":id":  {Route: "GET /api/things", Pick: "0.id"},
+						":pid": {Route: "GET /api/things/:id/parts", Pick: "0.id"},
+					}},
+				{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
+			}},
 	}
 }
 
@@ -254,20 +329,25 @@ func TestHTTPRouteCasesV2_CaptureStepRole(t *testing.T) {
 			"admin": {CredentialRef: "admin-actor"},
 			"web":   {CredentialRef: "web-actor"},
 		}},
-		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
-			{Method: "GET", Path: "/api/devices", Auth: "required"},
-			// Admin-prefixed target chaining to the web-carried device list.
-			{Method: "GET", Path: "/api/admin/devices/:id", Auth: "required",
-				ParamSources: map[string]project.VocabParamSource{
-					":id": {Route: "GET /api/devices", Pick: "devices.0.id"},
-				}},
-			{Method: "GET", Path: "/api/admin/tenants", Auth: "required"},
-			// Non-admin target chaining to an admin-carried list route.
-			{Method: "DELETE", Path: "/api/tenants/:id", Auth: "required",
-				ParamSources: map[string]project.VocabParamSource{
-					":id": {Route: "GET /api/admin/tenants", Pick: "tenants.0.id"},
-				}},
-		}},
+		Vocabulary: &project.Vocabulary{
+			HTTPRoleRoutes: []project.VocabRoleRoute{
+				{Prefix: "/api/admin", Role: "admin"},
+			},
+			HTTPDefaultRole: "web",
+			HTTPRoutes: []project.VocabHTTPRoute{
+				{Method: "GET", Path: "/api/devices", Auth: "required"},
+				// Admin-prefixed target chaining to the web-carried device list.
+				{Method: "GET", Path: "/api/admin/devices/:id", Auth: "required",
+					ParamSources: map[string]project.VocabParamSource{
+						":id": {Route: "GET /api/devices", Pick: "devices.0.id"},
+					}},
+				{Method: "GET", Path: "/api/admin/tenants", Auth: "required"},
+				// Non-admin target chaining to an admin-carried list route.
+				{Method: "DELETE", Path: "/api/tenants/:id", Auth: "required",
+					ParamSources: map[string]project.VocabParamSource{
+						":id": {Route: "GET /api/admin/tenants", Pick: "tenants.0.id"},
+					}},
+			}},
 	}
 	byID := map[string]agent.TestCase{}
 	for _, c := range httpRouteCases(svc) {

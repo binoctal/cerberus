@@ -7689,3 +7689,7 @@ ui:
           target: text=Prompt Lab
           expectation: text_present
           timeout: 15
+http_role_routes:
+    - prefix: /api/admin
+      role: admin
+http_default_role: web

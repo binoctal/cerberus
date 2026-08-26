@@ -347,6 +347,15 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		if prev.UI != nil {
 			vocab.UI = prev.UI
 		}
+		// Same for the hand-curated HTTP role map (spec §3): which protocol
+		// role's JWT a path prefix takes is live-probe knowledge, not a
+		// source-derivable fact.
+		if len(prev.HTTPRoleRoutes) > 0 {
+			vocab.HTTPRoleRoutes = prev.HTTPRoleRoutes
+		}
+		if prev.HTTPDefaultRole != "" {
+			vocab.HTTPDefaultRole = prev.HTTPDefaultRole
+		}
 		// Route marks follow the same rule, keyed method|path. Hand-tuned
 		// param chains and hand-set auth (spec §5: the judgment layer rides
 		// the merge) win over re-derivation; middlewares/min_body are the

@@ -33,15 +33,6 @@ func httpRouteCases(svc project.Service) []agent.TestCase {
 	if svc.Vocabulary == nil || len(svc.Vocabulary.HTTPRoutes) == 0 {
 		return nil
 	}
-	// An "admin" protocol role (HTTP-only, never WS-connects) upgrades the
-	// admin route block's reachability tier from bare 401-probe to
-	// authenticated routing via AuthRole token injection.
-	adminRole := ""
-	if svc.Protocol != nil {
-		if r := svc.Protocol.Roles["admin"]; r != nil && r.CredentialRef != "" {
-			adminRole = "admin"
-		}
-	}
 	routes := make([]project.VocabHTTPRoute, 0, len(svc.Vocabulary.HTTPRoutes))
 	for _, r := range svc.Vocabulary.HTTPRoutes {
 		if r.Partial || r.Unsupported {
@@ -65,7 +56,7 @@ func httpRouteCases(svc project.Service) []agent.TestCase {
 		if r.Auth == "required" {
 			cases = append(cases,
 				unauthRouteCase(svc, host, r, method),
-				reachabilityRouteCase(svc, host, r, method, adminRole))
+				reachabilityRouteCase(svc, host, r, method))
 			// The authed 2xx tier needs a credential to inject and real
 			// :param values — a guessed id would 404 and lie red.
 			if role := roleForRoute(svc, r.Path); role != "" && paramResolvable(r) {
@@ -74,7 +65,7 @@ func httpRouteCases(svc project.Service) []agent.TestCase {
 			continue
 		}
 		// none | unknown | "" (pre-v2 vocab): reachability honesty fallback.
-		cases = append(cases, reachabilityRouteCase(svc, host, r, method, adminRole))
+		cases = append(cases, reachabilityRouteCase(svc, host, r, method))
 	}
 	return cases
 }
@@ -87,20 +78,19 @@ func routeBaseID(svc project.Service, method, path string) string {
 
 // reachabilityRouteCase is the v1 shape verbatim: a bare-client request
 // whose pass condition is ANY response (expect_status_class "any") —
-// transport errors fail, proving the route is reachable, nothing more.
-func reachabilityRouteCase(svc project.Service, host string, r project.VocabHTTPRoute, method, adminRole string) agent.TestCase {
+// transport errors fail, proving the route is reachable, nothing more. The
+// v1 admin-block JWT injection now flows through the vocab role map
+// (roleForRoute) instead of an isAdminPath literal.
+func reachabilityRouteCase(svc project.Service, host string, r project.VocabHTTPRoute, method string) agent.TestCase {
 	path := fillRouteParams(r.Path)
-	authRole := ""
-	if adminRole != "" && isAdminPath(r.Path) {
-		authRole = adminRole
-	}
+	authRole := roleForRoute(svc, r.Path)
 	return agent.TestCase{
 		ID:          routeBaseID(svc, method, r.Path),
 		Name:        fmt.Sprintf("%s %s reachability", method, path),
 		Service:     svc.Name,
 		Target:      host,
 		Action:      "ws_flow",
-		Expectation: routeExpectation(r.Path, authRole != ""),
+		Expectation: routeExpectation(svc, r.Path, authRole),
 		Priority:    0.5,
 		Steps: []agent.TestStep{{
 			Action:            "http_request",
@@ -196,24 +186,50 @@ func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 	}
 }
 
-// roleForRoute picks the protocol role whose JWT the authed tier injects:
-// the admin role for the admin route block, the web role elsewhere. "" when
-// no candidate carries a credential (nothing to inject). Generalizes the v1
-// adminRole special case without new SUT knowledge.
+// roleForRoute picks the protocol role whose JWT the authed tier injects,
+// from the vocabulary's declarable role map (spec §3): the longest
+// http_role_routes prefix matching the path wins (path == prefix or path
+// starts with prefix+"/"), else http_default_role — each only when the role
+// carries a CredentialRef. When the vocab declares no mapping at all, the
+// honest fallback is the single credentialed protocol role, if exactly one
+// exists; multiple candidates without a map yield "" (no guessing).
 func roleForRoute(svc project.Service, path string) string {
 	if svc.Protocol == nil {
 		return ""
 	}
-	prefer := []string{"web"}
-	if isAdminPath(path) {
-		prefer = []string{"admin", "web"}
+	credentialed := func(name string) bool {
+		r := svc.Protocol.Roles[name]
+		return r != nil && r.CredentialRef != ""
 	}
-	for _, name := range prefer {
-		if r := svc.Protocol.Roles[name]; r != nil && r.CredentialRef != "" {
-			return name
+	if svc.Vocabulary != nil && (len(svc.Vocabulary.HTTPRoleRoutes) > 0 || svc.Vocabulary.HTTPDefaultRole != "") {
+		best, bestLen := "", -1
+		for _, rr := range svc.Vocabulary.HTTPRoleRoutes {
+			if (path == rr.Prefix || strings.HasPrefix(path, rr.Prefix+"/")) && len(rr.Prefix) > bestLen {
+				best, bestLen = rr.Role, len(rr.Prefix)
+			}
 		}
+		if bestLen >= 0 {
+			if credentialed(best) {
+				return best
+			}
+		}
+		if credentialed(svc.Vocabulary.HTTPDefaultRole) {
+			return svc.Vocabulary.HTTPDefaultRole
+		}
+		return ""
 	}
-	return ""
+	// No declared mapping: single credentialed role or honest degradation.
+	var sole string
+	for name := range svc.Protocol.Roles {
+		if !credentialed(name) {
+			continue
+		}
+		if sole != "" {
+			return "" // multiple candidates, no map — refuse to guess
+		}
+		sole = name
+	}
+	return sole
 }
 
 // routeParams lists a route path's :name segments in order.
@@ -246,9 +262,19 @@ func paramResolvable(r project.VocabHTTPRoute) bool {
 	return true
 }
 
-// isAdminPath: the admin route block (prefix per the open-agents layout).
-func isAdminPath(path string) bool {
-	return strings.HasPrefix(path, "/api/admin") || strings.Contains(path, "/admin/")
+// routeRoleMapped reports whether the path matches any declared
+// http_role_routes prefix — used to keep the "auth not penetrated" honesty
+// note when the mapped role has no credential to inject.
+func routeRoleMapped(svc project.Service, path string) bool {
+	if svc.Vocabulary == nil {
+		return false
+	}
+	for _, rr := range svc.Vocabulary.HTTPRoleRoutes {
+		if path == rr.Prefix || strings.HasPrefix(path, rr.Prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // fillRouteParams replaces :param segments with a stable placeholder and a
@@ -286,18 +312,19 @@ func fillRouteParamsFromSources(path string, srcs map[string]project.VocabParamS
 	return strings.Join(segs, "/")
 }
 
-// routeExpectation renders the honesty tier for one route.
-func routeExpectation(path string, authed bool) string {
+// routeExpectation renders the honesty tier for one route. The wording is
+// SUT-agnostic: which role a prefix takes comes from the vocab role map
+// (authRole already resolved by the caller), never from path literals.
+func routeExpectation(svc project.Service, path, authRole string) string {
 	exp := "route reachable over HTTP (any status response; no transport error)"
 	if strings.Contains(path, ":") {
 		exp += "; placeholder param values — handler semantics unverified"
 	}
-	if isAdminPath(path) {
-		if authed {
-			exp += "; admin JWT injected — authenticated routing"
-		} else {
-			exp += "; auth not penetrated — reachability only"
-		}
+	switch {
+	case authRole != "":
+		exp += "; role JWT injected via vocab role map — authenticated routing"
+	case routeRoleMapped(svc, path):
+		exp += "; auth not penetrated — reachability only"
 	}
 	return exp
 }

@@ -131,7 +131,7 @@ func TestValidateVocabularyRouteFacts(t *testing.T) {
 	}
 }
 
-// TestValidateVocabulary_ParamSourcesOff: param_sources_off
+// TestValidateVocabulary_ParamSourcesOffAndRoleMap: param_sources_off
 // entries follow the same :param containment rule as param_sources keys and
 // must not overlap a live source; the declarable HTTP role map is
 // shape-validated (prefix starts with /, role non-empty) — role existence
@@ -161,6 +161,12 @@ func TestValidateVocabulary_ParamSourcesOffAndRoleMap(t *testing.T) {
 			v.HTTPRoutes[0].ParamSources = map[string]VocabParamSource{
 				":type": {Route: "GET /api/export", Pick: "0.id"}}
 		}, "both vetoed"},
+		{"role route prefix without slash", func(v *Vocabulary) {
+			v.HTTPRoleRoutes = []VocabRoleRoute{{Prefix: "api/admin", Role: "admin"}}
+		}, "must start with /"},
+		{"role route empty role", func(v *Vocabulary) {
+			v.HTTPRoleRoutes = []VocabRoleRoute{{Prefix: "/api/admin"}}
+		}, "role is required"},
 	}
 	for _, tc := range bad {
 		t.Run(tc.name, func(t *testing.T) {
@@ -171,5 +177,12 @@ func TestValidateVocabulary_ParamSourcesOffAndRoleMap(t *testing.T) {
 				t.Fatalf("want error containing %q, got %v", tc.want, err)
 			}
 		})
+	}
+	// A declared map with a default is the sanctioned shape.
+	v := base()
+	v.HTTPRoleRoutes = []VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}}
+	v.HTTPDefaultRole = "web"
+	if err := ValidateVocabulary(v); err != nil {
+		t.Fatalf("valid role map rejected: %v", err)
 	}
 }
