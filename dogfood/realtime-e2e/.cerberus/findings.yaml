@@ -471,14 +471,14 @@ findings:
     - id: ws-realtime-wf-mission-fanout-900ae5cd
       summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
       case_ref: ws-realtime-wf-mission-fanout
-      session_ref: 3549899c-d8aa-4410-9b43-fc3a501ad325
+      session_ref: 9b6315a7-6a54-400b-8955-7e731d6e96fb
       claim_refs:
         - multi-device-orchestration
       tier: real
       status: open
       first_seen: "2026-08-25T06:58:56Z"
-      last_seen: "2026-08-25T12:47:25Z"
-      count: 3
+      last_seen: "2026-08-26T02:38:26Z"
+      count: 4
     - id: tc-006-74631fea
       summary: HTTP 404 http://localhost:8989/health (2.214032ms)
       case_ref: tc-006
@@ -654,4 +654,33 @@ findings:
       status: open
       first_seen: "2026-08-25T17:57:46Z"
       last_seen: "2026-08-25T17:57:46Z"
+      count: 1
+    - id: ui-vocab-devices-page-populated-0b31b62f
+      summary: browser error http://localhost:5183/dashboard/devices (30.010479018s)
+      case_ref: ui-vocab-devices-page-populated
+      session_ref: 9b6315a7-6a54-400b-8955-7e731d6e96fb
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T02:38:26Z"
+      last_seen: "2026-08-26T02:38:26Z"
+      count: 1
+    - id: ui-vocab-devices-page-populated-a6d259a7
+      summary: browser error http://localhost:5183/dashboard/devices (30.014005322s)
+      case_ref: ui-vocab-devices-page-populated
+      session_ref: 9b6315a7-6a54-400b-8955-7e731d6e96fb
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T02:38:26Z"
+      last_seen: "2026-08-26T02:38:26Z"
+      count: 1
+    - id: repair-ws-realtime-wf-mission-fanout-33482f71
+      summary: ws error /ws/%7BuserId%7D (matched=0 seen=0, 9.336µs)
+      case_ref: repair-ws-realtime-wf-mission-fanout
+      session_ref: 9b6315a7-6a54-400b-8955-7e731d6e96fb
+      claim_refs:
+        - multi-device-orchestration
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T02:38:26Z"
+      last_seen: "2026-08-26T02:38:26Z"
       count: 1
