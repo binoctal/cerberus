@@ -3578,3 +3578,57 @@ ui:
         auth_role: web
         capture:
           length:devices: onlineCount
+    # Page-breadth batch (2026-08-26): dashboard pages get a static
+    # display-promise sentinel. Every selector was checked against the
+    # sidebar nav labels (nav.*) to avoid a false-positive that only proves
+    # the persistent sidebar rendered, not that the page's own content did.
+    #
+    # NOT included: /dashboard (home) itself. Live probe found goto to this
+    # route hangs ~30s regardless of wait_until (load AND domcontentloaded
+    # both hit the full timeout) — plausibly the PWA service worker (vite
+    # build registers workbox precache/sw.js) intercepting the navigation.
+    # Root cause not chased further this session; a real display promise
+    # here needs the navigation issue fixed first, not a broader assertion
+    # timeout (that would just hide a real hang behind a longer wait).
+    - id: approvals-keyboard-hint
+      route: /dashboard/approvals
+      # Unconditional (renders with zero pending requests too — verified
+      # against ApprovalsPage.tsx, not inside the empty-state branch).
+      target: "text=Shortcuts: Enter to approve, Esc to deny, arrow keys to navigate"
+      expectation: text_present
+      timeout: 15
+    - id: agents-page-title
+      route: /dashboard/agents
+      # "Custom Agents" (page title) vs sidebar's "Agents" (nav.agents) —
+      # distinct strings, so a match proves the page body rendered.
+      target: "text=Custom Agents"
+      expectation: text_present
+      timeout: 15
+    - id: logs-page-title
+      route: /dashboard/logs
+      # "Logs Center" (page title) vs sidebar's "Logs" (nav.logs) — distinct.
+      target: "text=Logs Center"
+      expectation: text_present
+      timeout: 15
+    - id: search-page-subtitle
+      route: /dashboard/search
+      target: "text=Search across sessions, logs, commands and all platform content"
+      expectation: text_present
+      timeout: 15
+    - id: sessions-page-title
+      route: /dashboard/sessions
+      target: "text=Session Management"
+      expectation: text_present
+      timeout: 15
+    # Machine-generated batch (2026-08-26): `cerberus protocol ui-vocab`
+    # against open-agents/apps/web (PageHeader title extraction, safe half
+    # of its output — see internal/vocabextract/ui_titles.go). Not hand-
+    # curated; kept here to prove the pipeline round-trips into a real,
+    # live-verifiable vocab entry. prompt-lab-title, also machine-proposed,
+    # is NOT included — it hit the same /dashboard navigation hang noted
+    # above (both dropped routes need that fixed first).
+    - id: a2a-keys-title
+      route: /dashboard/a2a-keys
+      target: "text=A2A API Keys"
+      expectation: text_present
+      timeout: 15

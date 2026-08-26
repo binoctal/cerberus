@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +39,7 @@ func protocolCmd() *cobra.Command {
 	}
 	cmd.AddCommand(protocolInferCmd())
 	cmd.AddCommand(protocolVocabularyCmd())
+	cmd.AddCommand(protocolUIVocabCmd())
 	return cmd
 }
 
@@ -46,6 +48,79 @@ var (
 	protocolVocabFrom []string
 	protocolVocabDry  bool
 )
+
+var (
+	uiVocabRouter string
+	uiVocabPages  string
+	uiVocabNav    string
+	uiVocabLocale string
+)
+
+// protocolUIVocabCmd proposes static UI display-promise assertions mined
+// from real source (PageHeader title props resolved against the locale
+// file, cross-checked against persistent nav chrome) — the grounded-
+// extraction counterpart to `protocol vocabulary`'s WS/HTTP passes, built
+// specifically to avoid the LLM-invents-plausible-but-absent-surface
+// failure mode this project already hit for HTTP endpoints (see
+// downgradeUnmodeledHTTPProbes in internal/head/scout/direct_planning.go).
+// Print-only in v1: vocab.yaml's ui.assertions carries hand-curated,
+// protocol-coupled, and non-PageHeader entries a blind write would
+// clobber — committing a candidate stays a human (or agent) editing step.
+func protocolUIVocabCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "ui-vocab",
+		Short: "Propose UI display-promise vocab assertions from React PageHeader usage (print-only)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProtocolUIVocab(uiVocabRouter, uiVocabPages, uiVocabNav, uiVocabLocale, cmd.OutOrStdout())
+		},
+	}
+	cmd.Flags().StringVar(&uiVocabRouter, "router", "", "path to the React router source (e.g. App.tsx) — required")
+	cmd.Flags().StringVar(&uiVocabPages, "pages", "", "path to the page components directory — required")
+	cmd.Flags().StringVar(&uiVocabNav, "nav", "", "path to the persistent layout/nav chrome source — required")
+	cmd.Flags().StringVar(&uiVocabLocale, "locale", "", "path to the locale JSON (e.g. en.json) — required")
+	for _, f := range []string{"router", "pages", "nav", "locale"} {
+		_ = cmd.MarkFlagRequired(f)
+	}
+	return cmd
+}
+
+// runProtocolUIVocab is the testable core: run the extractor and print two
+// YAML-ready blocks (safe candidates, flagged collisions) plus a one-line
+// summary. It never writes to any file — the caller pastes safe candidates
+// into vocab.yaml's ui.assertions by hand, the same review step already
+// used for missions-conn-status et al.
+func runProtocolUIVocab(routerFile, pagesDir, navFile, localeFile string, out io.Writer) error {
+	res, err := vocabextract.ExtractUITitleCandidatesFromDisk(routerFile, pagesDir, navFile, localeFile)
+	if err != nil {
+		return err
+	}
+	slug := func(route string) string {
+		s := strings.TrimPrefix(route, "/dashboard")
+		s = strings.Trim(s, "/")
+		s = strings.ReplaceAll(s, "/", "-")
+		if s == "" {
+			s = "home"
+		}
+		return s
+	}
+	_, _ = fmt.Fprintf(out, "# %d safe candidate(s) — paste into vocab.yaml's ui.assertions after review\n", len(res.Safe))
+	for _, c := range res.Safe {
+		_, _ = fmt.Fprintf(out, "- id: %s-title\n", slug(c.Route))
+		_, _ = fmt.Fprintf(out, "  route: %s\n", c.Route)
+		_, _ = fmt.Fprintf(out, "  target: \"text=%s\"\n", c.Text)
+		_, _ = fmt.Fprintf(out, "  expectation: text_present\n")
+		_, _ = fmt.Fprintf(out, "  timeout: 15\n")
+		_, _ = fmt.Fprintf(out, "  # source: %s (%s)\n", c.SourceFile, c.I18nKey)
+	}
+	if len(res.Flagged) > 0 {
+		_, _ = fmt.Fprintf(out, "\n# %d candidate(s) FLAGGED — text collides with persistent nav/layout chrome,\n", len(res.Flagged))
+		_, _ = fmt.Fprintf(out, "# would pass on every page and prove nothing; needs a different selector or skip:\n")
+		for _, c := range res.Flagged {
+			_, _ = fmt.Fprintf(out, "#   %s (%s): %q — source: %s (%s)\n", c.Route, c.Component, c.Text, c.SourceFile, c.I18nKey)
+		}
+	}
+	return nil
+}
 
 func protocolVocabularyCmd() *cobra.Command {
 	cmd := &cobra.Command{

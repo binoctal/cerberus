@@ -471,14 +471,14 @@ findings:
     - id: ws-realtime-wf-mission-fanout-900ae5cd
       summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
       case_ref: ws-realtime-wf-mission-fanout
-      session_ref: 9b6315a7-6a54-400b-8955-7e731d6e96fb
+      session_ref: 0584da01-d502-496c-aef8-47e8ec883481
       claim_refs:
         - multi-device-orchestration
       tier: real
       status: open
       first_seen: "2026-08-25T06:58:56Z"
-      last_seen: "2026-08-26T02:38:26Z"
-      count: 4
+      last_seen: "2026-08-26T06:59:08Z"
+      count: 5
     - id: tc-006-74631fea
       summary: HTTP 404 http://localhost:8989/health (2.214032ms)
       case_ref: tc-006
@@ -683,4 +683,15 @@ findings:
       status: open
       first_seen: "2026-08-26T02:38:26Z"
       last_seen: "2026-08-26T02:38:26Z"
+      count: 1
+    - id: ws-realtime-bridgeacp-acpreal-session-ce29d0a3
+      summary: ws error  (matched=0 seen=7, 5m0.011260188s)
+      case_ref: ws-realtime-bridgeacp-acpreal-session
+      session_ref: 0584da01-d502-496c-aef8-47e8ec883481
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-26T06:59:08Z"
+      last_seen: "2026-08-26T06:59:08Z"
       count: 1
