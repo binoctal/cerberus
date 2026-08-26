@@ -1422,7 +1422,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/auth/sessions
-            pick: 0.id
+            pick: sessions.0.id
       source:
         spans:
             - start: 78
@@ -1486,7 +1486,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/auth/tokens
-            pick: 0.id
+            pick: tokens.0.id
       source:
         spans:
             - start: 144
@@ -1856,7 +1856,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/devices
-            pick: 0.id
+            pick: devices.0.id
       source:
         spans:
             - start: 128
@@ -1877,7 +1877,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/devices
-            pick: 0.id
+            pick: devices.0.id
       source:
         spans:
             - start: 150
@@ -2121,7 +2121,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/sessions
-            pick: 0.id
+            pick: sessions.0.id
       source:
         spans:
             - start: 537
@@ -2227,7 +2227,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/sessions
-            pick: 0.id
+            pick: sessions.0.id
       source:
         spans:
             - start: 846
@@ -2248,7 +2248,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/sessions
-            pick: 0.id
+            pick: sessions.0.id
       source:
         spans:
             - start: 938
@@ -2303,7 +2303,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/prompts
-            pick: 0.id
+            pick: prompts.0.id
       source:
         spans:
             - start: 56
@@ -2324,7 +2324,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/prompts
-            pick: 0.id
+            pick: prompts.0.id
       source:
         spans:
             - start: 78
@@ -2464,7 +2464,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/agents
-            pick: 0.id
+            pick: agents.0.id
       source:
         spans:
             - start: 34
@@ -2519,7 +2519,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/agents
-            pick: 0.id
+            pick: agents.0.id
       source:
         spans:
             - start: 103
@@ -2540,7 +2540,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/agents
-            pick: 0.id
+            pick: agents.0.id
       source:
         spans:
             - start: 136
@@ -2612,7 +2612,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/skills
-            pick: 0.id
+            pick: skills.0.id
       source:
         spans:
             - start: 45
@@ -2650,7 +2650,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/skills
-            pick: 0.id
+            pick: skills.0.id
       source:
         spans:
             - start: 97
@@ -2671,7 +2671,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/skills
-            pick: 0.id
+            pick: skills.0.id
       source:
         spans:
             - start: 130
@@ -2763,7 +2763,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/rules
-            pick: 0.id
+            pick: rules.0.id
       source:
         spans:
             - start: 87
@@ -2803,7 +2803,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/rules
-            pick: 0.id
+            pick: rules.0.id
       source:
         spans:
             - start: 131
@@ -2858,7 +2858,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/permissions
-            pick: 0.id
+            pick: data.0.id
       source:
         spans:
             - start: 78
@@ -2896,7 +2896,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/permissions
-            pick: 0.id
+            pick: data.0.id
       source:
         spans:
             - start: 112
@@ -2917,7 +2917,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/permissions
-            pick: 0.id
+            pick: data.0.id
       source:
         spans:
             - start: 131
@@ -3020,10 +3020,6 @@ http_routes:
         - use:/api/*
         - planLimiter
       auth: required
-      param_sources:
-        :type:
-            route: GET /api/export
-            pick: 0.id
       source:
         spans:
             - start: 20
@@ -3109,10 +3105,6 @@ http_routes:
         - use:/api/*
         - planLimiter
       auth: required
-      param_sources:
-        :id:
-            route: GET /api/audit
-            pick: 0.id
       source:
         spans:
             - start: 65
@@ -3410,7 +3402,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/missions
-            pick: 0.id
+            pick: missions.0.id
       source:
         spans:
             - start: 513
@@ -3703,7 +3695,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/missions
-            pick: 0.id
+            pick: missions.0.id
       source:
         spans:
             - start: 901
@@ -3825,7 +3817,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/teams
-            pick: 0.id
+            pick: teams.0.id
       source:
         spans:
             - start: 31
@@ -3846,7 +3838,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/teams
-            pick: 0.id
+            pick: teams.0.id
       source:
         spans:
             - start: 39
@@ -3867,7 +3859,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/teams
-            pick: 0.id
+            pick: teams.0.id
       source:
         spans:
             - start: 49
@@ -4079,7 +4071,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/plans
-            pick: 0.id
+            pick: plans.0.id
       source:
         spans:
             - start: 59
@@ -4121,7 +4113,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/plans
-            pick: 0.id
+            pick: plans.0.id
       source:
         spans:
             - start: 105
@@ -4144,7 +4136,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/plans
-            pick: 0.id
+            pick: plans.0.id
       source:
         spans:
             - start: 176
@@ -4186,7 +4178,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/subscriptions
-            pick: 0.id
+            pick: subscriptions.0.id
       source:
         spans:
             - start: 69
@@ -4209,7 +4201,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/subscriptions
-            pick: 0.id
+            pick: subscriptions.0.id
       source:
         spans:
             - start: 95
@@ -4270,7 +4262,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/invoices
-            pick: 0.id
+            pick: invoices.0.id
       source:
         spans:
             - start: 87
@@ -4312,7 +4304,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/invoices
-            pick: 0.id
+            pick: invoices.0.id
       source:
         spans:
             - start: 135
@@ -4392,7 +4384,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/billing/payments
-            pick: 0.id
+            pick: payments.0.id
       source:
         spans:
             - start: 63
@@ -4472,7 +4464,7 @@ http_routes:
       param_sources:
         :key:
             route: GET /api/admin/settings
-            pick: 0.id
+            pick: settings.0.key
       source:
         spans:
             - start: 51
@@ -4495,7 +4487,7 @@ http_routes:
       param_sources:
         :key:
             route: GET /api/admin/settings
-            pick: 0.id
+            pick: settings.0.key
       source:
         spans:
             - start: 67
@@ -4556,7 +4548,7 @@ http_routes:
       param_sources:
         :key:
             route: GET /api/admin/settings
-            pick: 0.id
+            pick: settings.0.key
       source:
         spans:
             - start: 182
@@ -4598,7 +4590,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/feedback
-            pick: 0.id
+            pick: feedback.0.id
       source:
         spans:
             - start: 81
@@ -4621,7 +4613,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/feedback
-            pick: 0.id
+            pick: feedback.0.id
       source:
         spans:
             - start: 103
@@ -4663,7 +4655,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/feedback
-            pick: 0.id
+            pick: feedback.0.id
       source:
         spans:
             - start: 178
@@ -4721,10 +4713,6 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/blacklist
-            pick: 0.id
       source:
         spans:
             - start: 100
@@ -4782,10 +4770,6 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/blacklist
-            pick: 0.id
       source:
         spans:
             - start: 202
@@ -4960,7 +4944,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/compliance/reports
-            pick: 0.id
+            pick: reports.0.id
       source:
         spans:
             - start: 87
@@ -5040,7 +5024,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/compliance/retention
-            pick: 0.id
+            pick: policies.0.id
       source:
         spans:
             - start: 191
@@ -5063,7 +5047,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/compliance/retention
-            pick: 0.id
+            pick: policies.0.id
       source:
         spans:
             - start: 235
@@ -5105,7 +5089,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/content
-            pick: 0.id
+            pick: items.0.id
       source:
         spans:
             - start: 66
@@ -5147,7 +5131,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/content
-            pick: 0.id
+            pick: items.0.id
       source:
         spans:
             - start: 111
@@ -5227,7 +5211,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/content
-            pick: 0.id
+            pick: items.0.id
       source:
         spans:
             - start: 221
@@ -5266,10 +5250,6 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/content/moderation
-            pick: 0.id
       source:
         spans:
             - start: 263
@@ -5406,7 +5386,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ai-comparison/reports
-            pick: 0.id
+            pick: reports.0.id
       source:
         spans:
             - start: 279
@@ -5429,7 +5409,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ai-comparison/reports
-            pick: 0.id
+            pick: reports.0.id
       source:
         spans:
             - start: 295
@@ -5528,7 +5508,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/budget
-            pick: 0.id
+            pick: budgets.0.id
       source:
         spans:
             - start: 49
@@ -5551,7 +5531,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/budget
-            pick: 0.id
+            pick: budgets.0.id
       source:
         spans:
             - start: 69
@@ -5669,7 +5649,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ip-whitelist
-            pick: 0.id
+            pick: entries.0.id
       source:
         spans:
             - start: 53
@@ -5692,7 +5672,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ip-whitelist
-            pick: 0.id
+            pick: entries.0.id
       source:
         spans:
             - start: 72
@@ -5753,7 +5733,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/org-policies
-            pick: 0.id
+            pick: policies.0.id
       source:
         spans:
             - start: 37
@@ -5795,7 +5775,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/org-policies
-            pick: 0.id
+            pick: policies.0.id
       source:
         spans:
             - start: 54
@@ -5818,7 +5798,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/org-policies
-            pick: 0.id
+            pick: policies.0.id
       source:
         spans:
             - start: 74
@@ -5879,7 +5859,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/sso
-            pick: 0.id
+            pick: configs.0.id
       source:
         spans:
             - start: 40
@@ -5902,7 +5882,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/sso
-            pick: 0.id
+            pick: configs.0.id
       source:
         spans:
             - start: 60
@@ -5963,7 +5943,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/audit-export
-            pick: 0.id
+            pick: exports.0.id
       source:
         spans:
             - start: 35
@@ -5986,7 +5966,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/audit-export
-            pick: 0.id
+            pick: exports.0.id
       source:
         spans:
             - start: 42
@@ -6047,7 +6027,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/coupons
-            pick: 0.id
+            pick: coupons.0.id
       source:
         spans:
             - start: 53
@@ -6070,7 +6050,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/coupons
-            pick: 0.id
+            pick: coupons.0.id
       source:
         spans:
             - start: 72
@@ -6150,7 +6130,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/segments
-            pick: 0.id
+            pick: segments.0.id
       source:
         spans:
             - start: 61
@@ -6173,7 +6153,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/segments
-            pick: 0.id
+            pick: segments.0.id
       source:
         spans:
             - start: 77
@@ -6196,7 +6176,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/segments
-            pick: 0.id
+            pick: segments.0.id
       source:
         spans:
             - start: 91
@@ -6371,7 +6351,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/database-ops
-            pick: 0.id
+            pick: operations.0.id
       source:
         spans:
             - start: 52
@@ -6394,7 +6374,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/database-ops
-            pick: 0.id
+            pick: operations.0.id
       source:
         spans:
             - start: 68
@@ -6455,7 +6435,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/tenants
-            pick: 0.id
+            pick: tenants.0.id
       source:
         spans:
             - start: 46
@@ -6478,7 +6458,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/tenants
-            pick: 0.id
+            pick: tenants.0.id
       source:
         spans:
             - start: 54
@@ -6501,7 +6481,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/tenants
-            pick: 0.id
+            pick: tenants.0.id
       source:
         spans:
             - start: 76
@@ -7113,7 +7093,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/white-label
-            pick: 0.id
+            pick: configs.0.id
       source:
         spans:
             - start: 47
@@ -7136,7 +7116,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/white-label
-            pick: 0.id
+            pick: configs.0.id
       source:
         spans:
             - start: 72
@@ -7235,7 +7215,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ai-providers
-            pick: 0.id
+            pick: providers.0.id
       source:
         spans:
             - start: 81
@@ -7277,7 +7257,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ai-providers
-            pick: 0.id
+            pick: providers.0.id
       source:
         spans:
             - start: 130
@@ -7300,7 +7280,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/ai-providers
-            pick: 0.id
+            pick: providers.0.id
       source:
         spans:
             - start: 164
@@ -7361,7 +7341,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/admin/missions
-            pick: 0.id
+            pick: missions.0.id
       source:
         spans:
             - start: 152
@@ -7454,7 +7434,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/api-keys
-            pick: 0.id
+            pick: keys.0.id
       source:
         spans:
             - start: 93
@@ -7512,7 +7492,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/external-agents
-            pick: 0.id
+            pick: agents.0.id
       source:
         spans:
             - start: 109
@@ -7534,7 +7514,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/external-agents
-            pick: 0.id
+            pick: agents.0.id
       source:
         spans:
             - start: 129
@@ -7556,7 +7536,7 @@ http_routes:
       param_sources:
         :id:
             route: GET /api/external-agents
-            pick: 0.id
+            pick: agents.0.id
       source:
         spans:
             - start: 146
