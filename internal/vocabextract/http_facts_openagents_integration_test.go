@@ -53,25 +53,28 @@ func TestExtractHTTPFactsAgainstRealOpenAgents(t *testing.T) {
 	t.Logf("observed: %d routes, %d with middleware, %d with auth middleware, %d with min_body",
 		len(out.HTTPRoutes), withAnyMw, authed, withBody)
 
-	// Thresholds pinned from the first live run of this test (2026-08-26,
-	// apps/api/src/worker.ts): 323 routes, 1 route with a middleware
-	// (inline strictRateLimit on POST /api/devices/pair/verify), 0 routes
-	// with an auth-named middleware, 0 routes with min_body. Loosen ONLY
-	// with a written justification referencing fresh observed counts.
+	// Thresholds re-pinned 2026-08-26 after the glob-prefix + anonymous-use
+	// hardening (observed: 343 routes, 343 with a middleware = 100%; floor
+	// pinned at >= 60%). Before the hardening only 1 route carried a
+	// middleware. Loosen ONLY with a written justification referencing fresh
+	// observed counts.
 	//
-	// The brief's guessed 30 auth / 5 min_body thresholds do not hold for
-	// this repo's real shape:
-	//   - auth is an ANONYMOUS inline gate (worker.ts app.use('/api/*',
-	//     async ...)), and the extractor deliberately captures only
-	//     identifier middlewares, so 0 auth facts is correct, not a bug;
-	//   - the repo has no zValidator('json', zod) route schemas at all, so
-	//     min_body 0 is the omit-not-guess contract working as designed.
-	// Both stay as logged observations, not >= assertions. If either count
-	// becomes non-zero after a repo change, re-run and pin a >=60% floor.
+	// The auth-name heuristic counter stays a logged observation, NOT a gate:
+	// the real open-agents auth is an ANONYMOUS app.use('/api/*', async ...)
+	// captured as "use:/api/*", which contains no auth|bearer|jwt substring.
+	// Auth facts for this SUT flow through the hand-curated
+	// http_auth_middlewares list intersected with per-route middlewares
+	// (spec §1), never through the name regex — a name-based floor would
+	// forever read 0 here while the auth tier is fully populated.
+	//
+	// min_body stays a logged observation too: the repo has no
+	// zValidator('json', zod) route schemas at all, so 0 is the
+	// omit-not-guess contract working as designed.
 	if len(out.HTTPRoutes) < 300 {
-		t.Fatalf("expected 300+ routes (dogfood vocab has 337), got %d", len(out.HTTPRoutes))
+		t.Fatalf("expected 300+ routes (dogfood vocab has 343), got %d", len(out.HTTPRoutes))
 	}
-	if withAnyMw < 1 {
-		t.Fatalf("middleware facts suspiciously low: %d routes carry a middleware", withAnyMw)
+	if withAnyMw < len(out.HTTPRoutes)*6/10 {
+		t.Fatalf("middleware facts suspiciously low: %d of %d routes carry a middleware (observed 343/343 = 100%%)",
+			withAnyMw, len(out.HTTPRoutes))
 	}
 }
