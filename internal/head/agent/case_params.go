@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -30,11 +31,14 @@ func substituteCaseParams(s TestStep, params map[string]string) TestStep {
 }
 
 // captureFromHTTPBody walks dot-paths into the JSON body and stringifies
-// the scalar leaf. A path prefixed with "length:" resolves to the array at
-// that path and captures its element count (protocol-coupled UI assertions
-// template list sizes into display text). Missing paths and non-scalar (or
-// for length:, non-array) leaves are hard errors (clear failure over a
-// silently-wrong later request — same policy as resolveURLParams).
+// the scalar leaf. A numeric segment indexes an array node ("devices.0.id"
+// picks the first record's id of a wrapped list; "0.id" a top-level array) —
+// out-of-range or non-array is the not-found error. A path prefixed with
+// "length:" resolves to the array at that path and captures its element
+// count (protocol-coupled UI assertions template list sizes into display
+// text). Missing paths and non-scalar (or for length:, non-array) leaves are
+// hard errors (clear failure over a silently-wrong later request — same
+// policy as resolveURLParams).
 func captureFromHTTPBody(body string, capture map[string]string) (map[string]string, error) {
 	if len(capture) == 0 {
 		return nil, nil
@@ -51,13 +55,20 @@ func captureFromHTTPBody(body string, capture map[string]string) (map[string]str
 		length := strings.HasPrefix(path, "length:")
 		segs := strings.Split(strings.TrimPrefix(path, "length:"), ".")
 		for _, seg := range segs {
-			m, isMap := cur.(map[string]any)
-			if !isMap {
+			if m, isMap := cur.(map[string]any); isMap {
+				leaf, ok = m[seg]
+				if !ok {
+					break
+				}
+			} else if arr, isArr := cur.([]any); isArr {
+				idx, err := strconv.Atoi(seg)
+				if err != nil || idx < 0 || idx >= len(arr) {
+					ok = false
+					break
+				}
+				leaf = arr[idx]
+			} else {
 				ok = false
-				break
-			}
-			leaf, ok = m[seg]
-			if !ok {
 				break
 			}
 			cur = leaf
