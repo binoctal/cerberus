@@ -537,3 +537,31 @@ separately.
 storm across dogfood runs; degraded windows make otherwise-healthy
 missions flap (spurious task_error/re-dispatch), which is noise the
 Examiner sees as SUT flakiness.
+
+## 22. Bridge becomes a zombie after its reconnect time budget is exhausted — OPEN 2026-08-26
+
+Demo bridge b2 (evidence /tmp/demo-ui-b2.out line ~108): WS died with 1006
+at 01:02:23, the reconnect loop logged "Reconnect time budget exhausted
+(10m0s), giving up", and the process stayed alive indefinitely — no WS, no
+heartbeats (server-side it shows offline), but also no exit and no further
+reconnect attempts. It holds task sessions, worktrees, and the device slot
+as a half-live process: any task dispatched to it queues forever, and an
+operator sees a "running" bridge that is dead.
+
+Root cause (bridge internal/bridge/bridge.go:513-523): on
+`HasExhaustedBudget()` the readLoop sets StateFailed, fires a reconnect
+EventMaxRetry, and RETURNS — nothing else exits the process or schedules a
+slow-poke retry. StateFailed is terminal in state.go's model.
+
+Fix directions (pick one deliberately):
+- endless-but-backed-off retry: after the 10-min budget, fall back to a
+  slow keep-alive cadence (e.g. every 5 min — same ceiling philosophy as
+  #21) so the bridge self-recovers when the server returns; or
+- exit non-zero so whatever launched the bridge (shell wrapper, dogfood
+  harness, future supervisor) can restart it.
+
+**Cerberus consequence:** dogfood bridge actors that hit a long gateway
+flap go zombie mid-run; downstream cases see device-offline semantics
+(dispatch backs off) rather than a crash, so this hides as "device went
+away" instead of surfacing as a restart — masking the defect family the
+process_restart coverage is meant to exercise.
