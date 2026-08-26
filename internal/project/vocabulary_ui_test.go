@@ -69,6 +69,12 @@ func TestVocabularyUIValidateRejects(t *testing.T) {
 		"ui:\n  base_url: http://x\n  locale: en\n  assertions: [{id: a, route: /r, target: \"text=x\", expectation: text_present},{id: a, route: /r2, target: \"text=y\", expectation: text_present}]",
 		// unsupported without reason
 		"ui:\n  base_url: http://x\n  locale: en\n  assertions: [{id: a, route: /r, target: \"text=x\", expectation: text_present, unsupported: true}]",
+		// from_api without capture
+		"ui:\n  base_url: http://x\n  locale: en\n  assertions: [{id: a, route: /r, target: \"text={{case.n}} online\", expectation: text_present, from_api: {method: GET, path: /api/d}}]",
+		// from_api with relative path
+		"ui:\n  base_url: http://x\n  locale: en\n  assertions: [{id: a, route: /r, target: \"text={{case.n}} online\", expectation: text_present, from_api: {method: GET, path: api/d, capture: {total: n}}}]",
+		// from_api with non-GET method
+		"ui:\n  base_url: http://x\n  locale: en\n  assertions: [{id: a, route: /r, target: \"text={{case.n}} online\", expectation: text_present, from_api: {method: POST, path: /api/d, capture: {total: n}}}]",
 	}
 	for i, src := range bad {
 		var v Vocabulary
@@ -78,5 +84,42 @@ func TestVocabularyUIValidateRejects(t *testing.T) {
 		if err := ValidateVocabulary(&v); err == nil {
 			t.Errorf("case %d: invalid ui vocab accepted", i)
 		}
+	}
+}
+
+func TestVocabularyUIFromAPIDecode(t *testing.T) {
+	src := `
+ui:
+  base_url: http://localhost:5183
+  locale: en
+  assertions:
+    - id: missions-device-selector-count
+      route: /dashboard/missions
+      target: "text={{case.onlineCount}} devices online"
+      expectation: text_present
+      timeout: 15
+      from_api:
+        method: GET
+        path: /api/missions/online-devices
+        auth_role: web
+        capture:
+          length:devices: onlineCount
+`
+	var v Vocabulary
+	if err := yaml.Unmarshal([]byte(src), &v); err != nil {
+		t.Fatal(err)
+	}
+	a := v.UI.Assertions[0]
+	if a.FromAPI == nil {
+		t.Fatal("from_api not decoded")
+	}
+	if a.FromAPI.Method != "GET" || a.FromAPI.Path != "/api/missions/online-devices" || a.FromAPI.AuthRole != "web" {
+		t.Fatalf("from_api fields: %+v", a.FromAPI)
+	}
+	if a.FromAPI.Capture["length:devices"] != "onlineCount" {
+		t.Fatalf("capture map: %v", a.FromAPI.Capture)
+	}
+	if err := ValidateVocabulary(&v); err != nil {
+		t.Fatalf("valid coupled assertion rejected: %v", err)
 	}
 }

@@ -3560,3 +3560,21 @@ ui:
       target: "text=dev-device"
       expectation: element_count>=1
       timeout: 15
+    # First protocol-coupled display promise (spec §4 follow-up): the device
+    # selector's online count must equal the API's online-device count at
+    # assertion time. Chosen over a mission-count coupling deliberately:
+    # dogfood creates missions mid-run (mission-seed family), so an
+    # "All {{total}}" badge assertion races new creations and would flake;
+    # the bridge set is fixed for the whole run, so a mismatch here is a
+    # REAL protocol↔display inconsistency, not a timing artifact.
+    - id: missions-device-selector-count
+      route: /dashboard/missions
+      target: "text={{case.onlineCount}} devices online"
+      expectation: text_present
+      timeout: 15
+      from_api:
+        method: GET
+        path: /api/missions/online-devices
+        auth_role: web
+        capture:
+          length:devices: onlineCount

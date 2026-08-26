@@ -7,6 +7,8 @@
 package agent
 
 import (
+	"io"
+	"net/http"
 	"testing"
 
 	"go.uber.org/zap"
@@ -55,6 +57,43 @@ func TestBrowserLegFullChainIntegration(t *testing.T) {
 			if p, serr := be.ScreenshotToFile("integration", a.name); serr == nil {
 				t.Logf("failure screenshot: %s", p)
 			}
+		}
+	}
+
+	// missions-device-selector-count: the first protocol-coupled promise.
+	// The API's online-device count must equal the count the device
+	// selector renders — a display that disagrees with the protocol truth
+	// fails here (this leg mirrors the vocab from_api compilation).
+	coupledLogin, err := sendLogin(t.Context(), "http://localhost:8989", project.AuthLogin{
+		Method: "POST", Path: "/api/auth/login",
+		Body:    map[string]string{"email": "{email}", "password": "{password}"},
+		Headers: map[string]string{"Origin": "http://localhost:8989"},
+	}, map[string]string{"{email}": "dev@openagents.local", "{password}": "dev123456"})
+	if err != nil {
+		t.Fatalf("coupled login: %v", err)
+	}
+	apiToken, _ := extractByDotPath(coupledLogin, "token")
+
+	req, _ := http.NewRequest("GET", "http://localhost:8989/api/missions/online-devices", nil)
+	req.Header.Set("Authorization", "Bearer "+apiToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("online-devices: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	captured, err := captureFromHTTPBody(string(body), map[string]string{"length:devices": "onlineCount"})
+	if err != nil {
+		t.Fatalf("capture: %v (body: %s)", err, body)
+	}
+	res := be.Execute(t.Context(), types.BrowserExpectAction{
+		Selector:    "text=" + captured["onlineCount"] + " devices online",
+		Expectation: "text_present", Timeout: 15})
+	if br, ok := res.(types.BrowserResult); !ok || !br.OK {
+		t.Errorf("missions-device-selector-count failed: API says %s, display: %+v",
+			captured["onlineCount"], res)
+		if p, serr := be.ScreenshotToFile("integration", "coupled-count"); serr == nil {
+			t.Logf("failure screenshot: %s", p)
 		}
 	}
 }

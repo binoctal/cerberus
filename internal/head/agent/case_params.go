@@ -13,6 +13,8 @@ var caseParamRe = regexp.MustCompile(`\{\{case\.([A-Za-z0-9_]+)\}\}`)
 // substituteCaseParams rewrites {{case.<name>}} placeholders from params.
 // Leftover placeholders stay verbatim — the downstream request failing on a
 // literal {{case.x}} is a clearer failure than a silent empty string.
+// Target is substituted too: browser steps carry their Playwright selector
+// there, and protocol-coupled UI assertions template captured values into it.
 func substituteCaseParams(s TestStep, params map[string]string) TestStep {
 	replace := func(in string) string {
 		return caseParamRe.ReplaceAllStringFunc(in, func(m string) string {
@@ -23,12 +25,15 @@ func substituteCaseParams(s TestStep, params map[string]string) TestStep {
 			return m
 		})
 	}
-	s.URL, s.Body, s.Message = replace(s.URL), replace(s.Body), replace(s.Message)
+	s.URL, s.Body, s.Message, s.Target = replace(s.URL), replace(s.Body), replace(s.Message), replace(s.Target)
 	return s
 }
 
 // captureFromHTTPBody walks dot-paths into the JSON body and stringifies
-// the scalar leaf. Missing paths are hard errors (clear failure over a
+// the scalar leaf. A path prefixed with "length:" resolves to the array at
+// that path and captures its element count (protocol-coupled UI assertions
+// template list sizes into display text). Missing paths and non-scalar (or
+// for length:, non-array) leaves are hard errors (clear failure over a
 // silently-wrong later request — same policy as resolveURLParams).
 func captureFromHTTPBody(body string, capture map[string]string) (map[string]string, error) {
 	if len(capture) == 0 {
@@ -43,7 +48,9 @@ func captureFromHTTPBody(body string, capture map[string]string) (map[string]str
 		cur := root
 		var leaf = cur
 		ok := true
-		for _, seg := range strings.Split(path, ".") {
+		length := strings.HasPrefix(path, "length:")
+		segs := strings.Split(strings.TrimPrefix(path, "length:"), ".")
+		for _, seg := range segs {
 			m, isMap := cur.(map[string]any)
 			if !isMap {
 				ok = false
@@ -57,6 +64,14 @@ func captureFromHTTPBody(body string, capture map[string]string) (map[string]str
 		}
 		if !ok {
 			return nil, fmt.Errorf("capture: path %q not found in response", path)
+		}
+		if length {
+			arr, isArr := leaf.([]any)
+			if !isArr {
+				return nil, fmt.Errorf("capture: path %q is not an array", path)
+			}
+			out[name] = fmt.Sprint(len(arr))
+			continue
 		}
 		switch leaf.(type) {
 		case map[string]any, []any:

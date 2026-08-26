@@ -40,17 +40,31 @@ type VocabUI struct {
 	Assertions []VocabUIAssertion `yaml:"assertions" json:"assertions"`
 }
 
-// VocabUIAssertion is one static display promise: after navigating Route,
+// VocabUIAssertion is one display promise: after navigating Route,
 // Target must satisfy Expectation within Timeout seconds. ID is the
 // coverage-denominator unit (requiredEdges synthesizes one ui_assert edge).
+// A static promise needs no FromAPI; a protocol-coupled promise declares
+// the API request whose captured values template into Target as
+// {{case.<name>}} (spec §4 follow-up: "协议↔显示一致性").
 type VocabUIAssertion struct {
-	ID          string `yaml:"id" json:"id"`
-	Route       string `yaml:"route" json:"route"`
-	Target      string `yaml:"target" json:"target"`
-	Expectation string `yaml:"expectation" json:"expectation"`
-	Timeout     int    `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Unsupported bool   `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
-	Reason      string `yaml:"reason,omitempty" json:"reason,omitempty"`
+	ID          string          `yaml:"id" json:"id"`
+	Route       string          `yaml:"route" json:"route"`
+	Target      string          `yaml:"target" json:"target"`
+	Expectation string          `yaml:"expectation" json:"expectation"`
+	Timeout     int             `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	Unsupported bool            `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
+	Reason      string          `yaml:"reason,omitempty" json:"reason,omitempty"`
+	FromAPI     *VocabUIFromAPI `yaml:"from_api,omitempty" json:"from_api,omitempty"`
+}
+
+// VocabUIFromAPI is the protocol-side source of a coupled assertion: a GET
+// against the service API whose captured response values (dot-paths, with
+// "length:<path>" for array sizes) substitute into the assertion Target.
+type VocabUIFromAPI struct {
+	Method   string            `yaml:"method" json:"method"`
+	Path     string            `yaml:"path" json:"path"`
+	AuthRole string            `yaml:"auth_role,omitempty" json:"auth_role,omitempty"` // default "web"
+	Capture  map[string]string `yaml:"capture" json:"capture"`
 }
 
 // VocabSource records where the vocabulary was extracted from.
@@ -210,6 +224,20 @@ func validateUI(ui *VocabUI) error {
 		}
 		if !uiComparatorKnown(a.Expectation) {
 			return fmt.Errorf("ui.assertions[%d] (%s): unknown comparator %q", i, a.ID, a.Expectation)
+		}
+		if a.FromAPI != nil {
+			// v1 coupling is read-only: a GET whose captured values template
+			// into the selector. Mutating requests don't belong in the display
+			// sweep (they'd perturb the very state being asserted).
+			if a.FromAPI.Method != "GET" {
+				return fmt.Errorf("ui.assertions[%d] (%s): from_api method must be GET in v1, got %q", i, a.ID, a.FromAPI.Method)
+			}
+			if !strings.HasPrefix(a.FromAPI.Path, "/") {
+				return fmt.Errorf("ui.assertions[%d] (%s): from_api path must start with /", i, a.ID)
+			}
+			if len(a.FromAPI.Capture) == 0 {
+				return fmt.Errorf("ui.assertions[%d] (%s): from_api requires a capture map (nothing would template into the target)", i, a.ID)
+			}
 		}
 	}
 	return nil
