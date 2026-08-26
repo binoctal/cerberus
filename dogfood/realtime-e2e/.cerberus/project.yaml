@@ -8,6 +8,12 @@ actors:
   - name: web-actor
     credentials:
       token: demo_token   # static dev backdoor for the WS query param
+      # email/password seed the browser-leg UI login (POST /api/auth/login
+      # returns the token + refreshToken pair the web app's WS gate needs —
+      # see internal/head/agent/browser_session.go). The WS token above is
+      # unaffected.
+      email: dev@openagents.local
+      password: dev123456
     auth:
       login:
         method: POST

@@ -76,3 +76,20 @@ fi
 echo "building cerberus binary (${REPO_ROOT})"
 (cd "${REPO_ROOT}" && go build -o build/cerberus ./cmd/cerberus) \
   || echo "WARNING: cerberus build failed - dogfood will run the existing binary"
+
+# Web UI for the browser leg (spec 2026-08-26 §7): build once, serve the
+# static bundle via vite preview. NOT `vite dev` — dev's file watchers hit
+# inotify ENOSPC on this host and die mid-run (observed 2026-08-25).
+# Sourcing note: this script is sourced, so the EXIT trap below fires when
+# the sourcing SHELL exits — acceptable for the manual dogfood flow.
+_WEB_DIR="${REPO_ROOT}/../open-agents/apps/web"
+if [ -d "${_WEB_DIR}" ] && command -v fnm >/dev/null 2>&1; then
+  echo "building web bundle (vite build)"
+  (cd "${_WEB_DIR}" && eval "$(fnm env)" && fnm use 22 >/dev/null 2>&1 && npm run build --silent) \
+    || echo "WARNING: web build failed - UI vocab cases will fail target_unreachable"
+  echo "starting vite preview :5183"
+  (cd "${_WEB_DIR}" && eval "$(fnm env)" && fnm use 22 >/dev/null 2>&1 && exec npx vite preview --port 5183 --strictPort) &
+  CERBERUS_UI_PREVIEW_PID=$!
+  export CERBERUS_UI_PREVIEW_PID
+  trap 'kill "${CERBERUS_UI_PREVIEW_PID}" 2>/dev/null' EXIT
+fi

@@ -31,7 +31,7 @@ func BuiltinPluginsWithSandbox(projectDir string, serviceHeaders map[string]map[
 	)
 
 	// Browser executor (optional — requires playwright binary).
-	if browserExec, err := NewBrowserExecutor(logger); err == nil {
+	if browserExec, err := NewBrowserExecutor(projectDir, logger); err == nil {
 		plugins = append(plugins, &browserPlugin{executor: browserExec})
 		logger.Info("browser plugin registered (playwright)")
 	} else {

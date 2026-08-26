@@ -3525,3 +3525,34 @@ http_routes:
     spans:
     - start: 324
       end: 324
+
+# Browser display-promise surface (spec 2026-08-26 §4). One assertion = one
+# coverage-denominator unit; uiVocabCases compiles each into a deterministic
+# browser_flow. locale pins assertion strings (the UI is i18n'd). These four
+# encode the post-#18-fix behavior: missions-conn-status would have FAILED
+# before open-agents 660d41f (the dead appStore field said "Connecting..."
+# forever) — that regression is what this leg exists to catch.
+ui:
+  base_url: http://localhost:5183
+  locale: en
+  auth_actor: web-actor
+  assertions:
+    - id: missions-conn-status
+      route: /dashboard/missions
+      target: "text=Connected"
+      expectation: text_present
+      timeout: 15
+    - id: missions-device-counter
+      route: /dashboard/missions
+      target: "text=devices online"
+      expectation: text_present
+      timeout: 15
+    - id: missions-list-renders
+      route: /dashboard/missions
+      target: "css=aside"
+      expectation: element_visible
+    - id: devices-page-populated
+      route: /dashboard/devices
+      target: "css=table tbody tr"
+      expectation: element_count>=1
+      timeout: 15

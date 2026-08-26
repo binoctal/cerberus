@@ -258,6 +258,20 @@ func exercisedEdges(results []agent.StepResult, required []project.VocabEdge, re
 			}
 		}
 		for _, ev := range r.Evidence {
+			// browser_expect evidence credits the matching ui_assert edge:
+			// MatchedType carries the assertion id (vocab cases set it), and
+			// only a matched (passed) assertion proves the display promise.
+			if ev.Action == "browser_expect" {
+				if !ev.Matched || ev.MatchedType == "" {
+					continue
+				}
+				for _, e := range required {
+					if e.Trigger == "ui_assert" && e.Type == "ui_assert "+ev.MatchedType {
+						exercised[edgeKey(e.FromRole, e.ToRole, e.Type)] = true
+					}
+				}
+				continue
+			}
 			// http_request steps credit routes directly: any response status
 			// proves the route was reached. Rule-engine HTTP evidence lacks
 			// structured Method/URL and is not attributed.
@@ -398,6 +412,23 @@ func requiredEdges(sess *Session) []project.VocabEdge {
 					ToRole:   "api",
 					Type:     r.Method + " " + r.Path,
 					Trigger:  "http_request",
+				})
+			}
+		}
+		// UI display promises: one required edge per declared assertion
+		// (unsupported excluded), same synthesis pattern as HTTP routes.
+		// FromRole "browser" / ToRole "web_ui" are reserved names no WS role
+		// can collide with; Trigger "ui_assert" distinguishes them.
+		if svc.Vocabulary != nil && svc.Vocabulary.UI != nil {
+			for _, a := range svc.Vocabulary.UI.Assertions {
+				if a.Unsupported {
+					continue
+				}
+				out = append(out, project.VocabEdge{
+					FromRole: "browser",
+					ToRole:   "web_ui",
+					Type:     "ui_assert " + a.ID,
+					Trigger:  "ui_assert",
 				})
 			}
 		}

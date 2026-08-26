@@ -20,6 +20,37 @@ type Vocabulary struct {
 	// separate from Edges: WS delivery semantics do not apply; coverage
 	// synthesizes one edge per route in requiredEdges (http_trigger pattern).
 	HTTPRoutes []VocabHTTPRoute `yaml:"http_routes,omitempty" json:"http_routes,omitempty"`
+	// UI is the declared browser display surface (spec 2026-08-26 §4): one
+	// assertion = one coverage-denominator unit, compiled into deterministic
+	// browser_flow cases. Nil when the project declares no UI surface.
+	UI *VocabUI `yaml:"ui,omitempty" json:"ui,omitempty"`
+}
+
+// VocabUI declares the web UI test surface: where the UI is served, the
+// locale assertion strings are written in, the actor whose http_login yields
+// the injected JWT, and the display promises themselves.
+type VocabUI struct {
+	BaseURL string `yaml:"base_url" json:"base_url"`
+	Locale  string `yaml:"locale" json:"locale"`
+	// AuthActor names the actor whose credentials seed the browser session
+	// (email/password credentials run the UI login; default web-actor).
+	AuthActor string `yaml:"auth_actor,omitempty" json:"auth_actor,omitempty"`
+	// LoginPath overrides the UI login endpoint (default /api/auth/login).
+	LoginPath  string             `yaml:"login_path,omitempty" json:"login_path,omitempty"`
+	Assertions []VocabUIAssertion `yaml:"assertions" json:"assertions"`
+}
+
+// VocabUIAssertion is one static display promise: after navigating Route,
+// Target must satisfy Expectation within Timeout seconds. ID is the
+// coverage-denominator unit (requiredEdges synthesizes one ui_assert edge).
+type VocabUIAssertion struct {
+	ID          string `yaml:"id" json:"id"`
+	Route       string `yaml:"route" json:"route"`
+	Target      string `yaml:"target" json:"target"`
+	Expectation string `yaml:"expectation" json:"expectation"`
+	Timeout     int    `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	Unsupported bool   `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
+	Reason      string `yaml:"reason,omitempty" json:"reason,omitempty"`
 }
 
 // VocabSource records where the vocabulary was extracted from.
@@ -125,6 +156,60 @@ func ValidateVocabulary(v *Vocabulary) error {
 			if s == ":" || (strings.HasPrefix(s, ":") && len(s) == 1) {
 				return fmt.Errorf("http_routes[%d]: empty param name in %q", i, r.Path)
 			}
+		}
+	}
+	if v.UI != nil {
+		if err := validateUI(v.UI); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// uiComparatorKnown reports whether an expectation string is one of the four
+// browser_expect comparators (element_count>=N parses the suffix).
+func uiComparatorKnown(c string) bool {
+	if c == "text_present" || c == "text_absent" || c == "element_visible" {
+		return true
+	}
+	return strings.HasPrefix(c, "element_count>=")
+}
+
+// validateUI enforces the display-promise contract: base_url + locale are
+// required (locale pins assertion strings — the UI is i18n'd, so an unpinned
+// locale is a flake factory), every non-exempt assertion needs id/route/
+// target/expectation with a known comparator, ids are unique, and unsupported
+// assertions must state why (same escape-hatch discipline as WS edges).
+func validateUI(ui *VocabUI) error {
+	if ui.BaseURL == "" {
+		return fmt.Errorf("ui: base_url is required")
+	}
+	if ui.Locale == "" {
+		return fmt.Errorf("ui: locale is required (assertion strings are locale-pinned)")
+	}
+	seen := map[string]bool{}
+	for i, a := range ui.Assertions {
+		if a.ID == "" {
+			return fmt.Errorf("ui.assertions[%d]: id is required", i)
+		}
+		if seen[a.ID] {
+			return fmt.Errorf("ui.assertions[%d]: duplicate id %q", i, a.ID)
+		}
+		seen[a.ID] = true
+		if a.Unsupported {
+			if a.Reason == "" {
+				return fmt.Errorf("ui.assertions[%d] (%s): unsupported requires a reason", i, a.ID)
+			}
+			continue
+		}
+		if !strings.HasPrefix(a.Route, "/") {
+			return fmt.Errorf("ui.assertions[%d] (%s): route must start with /", i, a.ID)
+		}
+		if a.Target == "" {
+			return fmt.Errorf("ui.assertions[%d] (%s): target is required", i, a.ID)
+		}
+		if !uiComparatorKnown(a.Expectation) {
+			return fmt.Errorf("ui.assertions[%d] (%s): unknown comparator %q", i, a.ID, a.Expectation)
 		}
 	}
 	return nil

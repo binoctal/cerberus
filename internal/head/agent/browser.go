@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,16 +18,18 @@ import (
 
 // BrowserExecutor drives a headless browser via Playwright.
 type BrowserExecutor struct {
-	pw      *pw.Playwright
-	browser pw.Browser
-	page    pw.Page
-	logger  *zap.Logger
-	mu      sync.Mutex // serializes all page operations; a Playwright page is not concurrency-safe
+	pw         *pw.Playwright
+	browser    pw.Browser
+	page       pw.Page
+	projectDir string
+	logger     *zap.Logger
+	mu         sync.Mutex // serializes all page operations; a Playwright page is not concurrency-safe
 }
 
 // NewBrowserExecutor creates a browser executor by launching a headless Chromium.
+// projectDir anchors the screenshot sink (<projectDir>/.cerberus/runtime/shots).
 // Returns an error if Playwright driver or browser binary is unavailable.
-func NewBrowserExecutor(logger *zap.Logger) (*BrowserExecutor, error) {
+func NewBrowserExecutor(projectDir string, logger *zap.Logger) (*BrowserExecutor, error) {
 	driver, err := pw.Run()
 	if err != nil {
 		return nil, fmt.Errorf("start playwright driver: %w", err)
@@ -46,10 +51,11 @@ func NewBrowserExecutor(logger *zap.Logger) (*BrowserExecutor, error) {
 	}
 
 	return &BrowserExecutor{
-		pw:      driver,
-		browser: browser,
-		page:    page,
-		logger:  logger,
+		pw:         driver,
+		browser:    browser,
+		page:       page,
+		projectDir: projectDir,
+		logger:     logger,
 	}, nil
 }
 
@@ -85,6 +91,8 @@ func (e *BrowserExecutor) Execute(ctx context.Context, action types.TypedAction)
 		return e.fillField(a, start)
 	case types.BrowserEvalAction:
 		return e.evalJS(a, start)
+	case types.BrowserExpectAction:
+		return e.expectAssertion(a, start)
 	default:
 		return types.ErrorResult{Err: fmt.Sprintf("browser executor: unsupported action %T", action)}
 	}
@@ -196,4 +204,73 @@ func truncateStr(s string, maxRunes int) string {
 		return s
 	}
 	return string(runes[:maxRunes]) + "..."
+}
+
+// expectWindowSeconds clamps a declared step timeout to [1,30] with default
+// 10 (spec §8: a 30 s hard cap keeps a hung page from stalling the sweep).
+func expectWindowSeconds(declared int) int {
+	if declared <= 0 {
+		return 10
+	}
+	if declared > 30 {
+		return 30
+	}
+	return declared
+}
+
+// shotPath is the screenshot sink path: shots are keyed by case + label so a
+// run's captures never collide (spec amendment A5).
+func shotPath(projectDir, caseID, label string) string {
+	return filepath.Join(projectDir, ".cerberus", "runtime", "shots", caseID+"-"+label+".png")
+}
+
+// failReason renders "" on pass so Err stays empty for successes.
+func failReason(a types.BrowserExpectAction, pass bool, observed string) string {
+	if pass {
+		return ""
+	}
+	return fmt.Sprintf("expect %s %q: not satisfied within window (observed %q)", a.Expectation, a.Selector, observed)
+}
+
+// expectAssertion polls the locator until the comparator holds or the window
+// expires. Polarity (amendment A2): text_absent fails FAST on appearance and
+// passes only by outliving the window; every other comparator passes on the
+// first hit. The per-case timeout in executeStep bounds the loop as a whole;
+// the plain sleep keeps cancellation semantics simple.
+func (e *BrowserExecutor) expectAssertion(a types.BrowserExpectAction, start time.Time) types.ExecutorResult {
+	window := time.Duration(expectWindowSeconds(a.Timeout)) * time.Second
+	deadline := start.Add(window)
+	locator := e.page.Locator(a.Selector)
+	for {
+		text, _ := locator.TextContent()
+		count, _ := locator.Count()
+		pass, obs, err := types.EvaluateBrowserExpectation(a.Expectation, strings.TrimSpace(text), count)
+		if err != nil {
+			return types.BrowserResult{OK: false, URL: e.page.URL(), Selector: a.Selector,
+				Expectation: a.Expectation, Err: err.Error(), Latency: time.Since(start)}
+		}
+		// text_absent only ends by deadline (appearance returned above as a
+		// fail); every other comparator ends on first pass or deadline.
+		if pass || time.Now().After(deadline) {
+			return types.BrowserResult{OK: pass, URL: e.page.URL(), Selector: a.Selector,
+				Expectation: a.Expectation, Observed: obs, Latency: time.Since(start),
+				Err: failReason(a, pass, obs)}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+}
+
+// ScreenshotToFile captures the page into the run's shots dir and returns the
+// path. Called by browser_shot steps and auto-captured on any step failure;
+// evidence frames store the path, not the base64 payload (spec §6).
+func (e *BrowserExecutor) ScreenshotToFile(caseID, label string) (string, error) {
+	data, err := e.page.Screenshot(pw.PageScreenshotOptions{Type: pw.ScreenshotTypePng})
+	if err != nil {
+		return "", err
+	}
+	p := shotPath(e.projectDir, caseID, label)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return "", err
+	}
+	return p, os.WriteFile(p, data, 0o644)
 }

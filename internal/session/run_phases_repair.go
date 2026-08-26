@@ -323,6 +323,9 @@ func isRepairable(tc *agent.TestCase) bool {
 	if tc == nil {
 		return false
 	}
+	if tc.Action == "browser_flow" {
+		return false // browser steps have no repair_case shape
+	}
 	if len(tc.Steps) > 0 {
 		return true // WebSocket flow
 	}

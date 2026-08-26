@@ -386,3 +386,272 @@ findings:
       first_seen: "2026-08-23T15:25:03Z"
       last_seen: "2026-08-23T15:25:03Z"
       count: 1
+    - id: ws-realtime-wf-mission-seed-fee8f90d
+      summary: ws error  (matched=0 seen=135, 5m0.00069226s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 521968ba-432c-4bb9-857f-a2a0621df783
+      tier: real
+      status: open
+      first_seen: "2026-08-24T12:57:42Z"
+      last_seen: "2026-08-24T12:57:42Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-86fe4f3a
+      summary: ws error  (matched=0 seen=2, 2m0.009413079s)
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: ec8e9cdf-e9f3-4530-9bf4-3e813f099ff1
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-25T02:02:56Z"
+      last_seen: "2026-08-25T02:02:56Z"
+      count: 1
+    - id: repair-ws-realtime-wf-mission-fanout-3d4ee6a9
+      summary: ws error  (matched=0 seen=0, 6.462µs)
+      case_ref: repair-ws-realtime-wf-mission-fanout
+      session_ref: ec8e9cdf-e9f3-4530-9bf4-3e813f099ff1
+      claim_refs:
+        - multi-device-orchestration
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T02:02:56Z"
+      last_seen: "2026-08-25T02:02:56Z"
+      count: 1
+    - id: tc-005-0d0850d8
+      summary: HTTP 404 http://localhost:8989/ (1.891581ms)
+      case_ref: tc-005
+      session_ref: 7d99df90-8900-4f87-8b0a-25c26abaadaf
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T06:58:56Z"
+      last_seen: "2026-08-25T06:58:56Z"
+      count: 1
+    - id: ws-realtime-bridge-acp-reale2e-session-9e774c5c
+      summary: ws error  (matched=0 seen=0, 15.004682304s)
+      case_ref: ws-realtime-bridge-acp-reale2e-session
+      session_ref: 7d99df90-8900-4f87-8b0a-25c26abaadaf
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-25T06:58:56Z"
+      last_seen: "2026-08-25T06:58:56Z"
+      count: 1
+    - id: ws-realtime-bridge-acp-acpe2e-session-f56f502d
+      summary: ws error  (matched=0 seen=0, 30.019147358s)
+      case_ref: ws-realtime-bridge-acp-acpe2e-session
+      session_ref: 7d99df90-8900-4f87-8b0a-25c26abaadaf
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-25T06:58:56Z"
+      last_seen: "2026-08-25T06:58:56Z"
+      count: 1
+    - id: ws-realtime-bridge-acp-acpreal-session-3b121e06
+      summary: ws error  (matched=0 seen=0, 2m0.000943504s)
+      case_ref: ws-realtime-bridge-acp-acpreal-session
+      session_ref: 7d99df90-8900-4f87-8b0a-25c26abaadaf
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-25T06:58:56Z"
+      last_seen: "2026-08-25T06:58:56Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-ccd5e901
+      summary: ws error  (matched=0 seen=120, 10m0.094898767s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 7d99df90-8900-4f87-8b0a-25c26abaadaf
+      tier: real
+      status: open
+      first_seen: "2026-08-25T06:58:56Z"
+      last_seen: "2026-08-25T06:58:56Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: 3549899c-d8aa-4410-9b43-fc3a501ad325
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-25T06:58:56Z"
+      last_seen: "2026-08-25T12:47:25Z"
+      count: 3
+    - id: tc-006-74631fea
+      summary: HTTP 404 http://localhost:8989/health (2.214032ms)
+      case_ref: tc-006
+      session_ref: a7f221d0-4c13-4986-a9b7-81ef02cada19
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T10:32:19Z"
+      last_seen: "2026-08-25T10:32:19Z"
+      count: 1
+    - id: ws-realtime-bridge-acp-acpreal-session-7d85bc5e
+      summary: ws error  (matched=0 seen=0, 2m0.00522243s)
+      case_ref: ws-realtime-bridge-acp-acpreal-session
+      session_ref: a7f221d0-4c13-4986-a9b7-81ef02cada19
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-25T10:32:19Z"
+      last_seen: "2026-08-25T10:32:19Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-e19cae59
+      summary: ws error  (matched=0 seen=98, 10m0.005045517s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: a7f221d0-4c13-4986-a9b7-81ef02cada19
+      tier: real
+      status: open
+      first_seen: "2026-08-25T10:32:19Z"
+      last_seen: "2026-08-25T10:32:19Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-0bbb7a44
+      summary: ws error  (matched=0 seen=115, 10m0.009814104s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 486023c2-e132-443c-a197-364baedb3b31
+      tier: real
+      status: open
+      first_seen: "2026-08-25T11:52:35Z"
+      last_seen: "2026-08-25T11:52:35Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-2095a631
+      summary: ws error  (matched=0 seen=1, 5m0.000114216s)
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: 486023c2-e132-443c-a197-364baedb3b31
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-25T11:52:35Z"
+      last_seen: "2026-08-25T11:52:35Z"
+      count: 1
+    - id: repair-ws-realtime-wf-mission-seed-42e2111d
+      summary: ws error  (matched=0 seen=0, 5.431µs)
+      case_ref: repair-ws-realtime-wf-mission-seed
+      session_ref: 486023c2-e132-443c-a197-364baedb3b31
+      tier: real
+      status: open
+      first_seen: "2026-08-25T11:52:35Z"
+      last_seen: "2026-08-25T11:52:35Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-f6ed43de
+      summary: ws error  (matched=0 seen=103, 8m6.218435503s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: dec936dd-3afe-4734-8604-a3c543711173
+      tier: real
+      status: open
+      first_seen: "2026-08-25T12:12:38Z"
+      last_seen: "2026-08-25T12:12:38Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: dec936dd-3afe-4734-8604-a3c543711173
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-25T12:12:38Z"
+      last_seen: "2026-08-25T12:12:38Z"
+      count: 1
+    - id: ws-realtime-bridgeacp-restart-pair-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridgeacp-restart-pair
+      session_ref: dec936dd-3afe-4734-8604-a3c543711173
+      tier: real
+      status: open
+      first_seen: "2026-08-25T12:12:38Z"
+      last_seen: "2026-08-25T12:12:38Z"
+      count: 1
+    - id: ws-realtime-bridgeacp-acpreal-session-726bffb2
+      summary: ws error  (matched=0 seen=10, 2m0.000140395s)
+      case_ref: ws-realtime-bridgeacp-acpreal-session
+      session_ref: 3549899c-d8aa-4410-9b43-fc3a501ad325
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-25T12:47:25Z"
+      last_seen: "2026-08-25T12:47:25Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-992f3d84
+      summary: ws error  (matched=0 seen=82, 10m0.00017696s)
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 3549899c-d8aa-4410-9b43-fc3a501ad325
+      tier: real
+      status: open
+      first_seen: "2026-08-25T12:47:25Z"
+      last_seen: "2026-08-25T12:47:25Z"
+      count: 1
+    - id: repair-ws-realtime-bridgeacp-acpreal-session-9c040806
+      summary: ws error  (matched=0 seen=0, 5.05µs)
+      case_ref: repair-ws-realtime-bridgeacp-acpreal-session
+      session_ref: 3549899c-d8aa-4410-9b43-fc3a501ad325
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-25T12:47:25Z"
+      last_seen: "2026-08-25T12:47:25Z"
+      count: 1
+    - id: repair-ws-realtime-wf-mission-fanout-1002104e
+      summary: ws error  (matched=0 seen=0, 6.762µs)
+      case_ref: repair-ws-realtime-wf-mission-fanout
+      session_ref: 3549899c-d8aa-4410-9b43-fc3a501ad325
+      claim_refs:
+        - multi-device-orchestration
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T12:47:25Z"
+      last_seen: "2026-08-25T12:47:25Z"
+      count: 1
+    - id: ui-vocab-missions-conn-status-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-missions-conn-status
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ui-vocab-missions-device-counter-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ui-vocab-missions-list-renders-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-missions-list-renders
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ui-vocab-devices-page-populated-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-devices-page-populated
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ws-realtime-wf-mission-fanout-58cfc954
+      summary: ws error  (matched=0 seen=4, 1m0.012968123s)
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 1

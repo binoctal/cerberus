@@ -30,10 +30,11 @@ const (
 	ActionCodeSymbols ActionType = "code_symbols"
 
 	// Browser automation
-	ActionBrowserGoto  ActionType = "browser_goto"
-	ActionBrowserClick ActionType = "browser_click"
-	ActionBrowserFill  ActionType = "browser_fill"
-	ActionBrowserEval  ActionType = "browser_eval"
+	ActionBrowserGoto   ActionType = "browser_goto"
+	ActionBrowserClick  ActionType = "browser_click"
+	ActionBrowserFill   ActionType = "browser_fill"
+	ActionBrowserEval   ActionType = "browser_eval"
+	ActionBrowserExpect ActionType = "browser_expect"
 
 	// Database
 	ActionDBQuery  ActionType = "db_query"
