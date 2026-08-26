@@ -485,7 +485,7 @@ Two missing defenses:
 (any re-dispatch after a transient error while the first attempt is still
 connecting); the 3-min stuck window in dogfood timings hides it.
 
-## 21. Stuck missions' 10s scheduleNext retry alarms never expire → permanent DO alarm storm — OPEN 2026-08-26
+## 21. Stuck missions' 10s scheduleNext retry alarms never expire → permanent DO alarm storm — FIXED 2026-08-26 (open-agents c3a0071)
 
 Old missions with no online devices (dogfood history: job_1787595006700,
 job_1787656433018, job_1787659470814, job_1787660490153 ×4, …) each
@@ -501,6 +501,16 @@ peer"). The degraded window is what reset t1 to pending and triggered the
 Missing defenses: retry alarms need a TTL/attempt cap (a mission offline
 for >N hours must stop retrying and park as failed), and/or the 10s retry
 should back off exponentially.
+
+**Fix (2026-08-26, open-agents 57c36c7 merged as c3a0071):** the no-device
+scheduleNext retry now backs off 10s → 30s → 90s → 270s → 5min ceiling,
+attempt count riding the alarm payload (no new state). Ceiling is
+deliberately the stuck-recovery cadence rather than a TTL give-up: there is
+no device-online re-kick path, so a parking mission would never resume —
+at the ceiling the storm cost is ~1 alarm/5min/mission (trivial) and the
+mission self-resumes within 5 min of a device returning. Unit-verified
+(orchestrator-scheduling.test.ts, 143 api test files green, tsc clean);
+live storm-reproduction folded into the next dogfood run's baseline.
 
 Bonus observation (same log): the demo bridge's WS died with 1006 at
 01:02:23 and "Reconnect time budget exhausted (10m0s), giving up" — a
