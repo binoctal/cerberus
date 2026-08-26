@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -115,9 +116,10 @@ func TestRunProtocolVocabulary_ReextractPreservesAnnotations(t *testing.T) {
 }
 
 // Route-level hand marks follow the same rule: a hand-tuned param_sources
-// chain and a hand-curated http_auth_middlewares list survive re-extraction,
-// while auth (like middlewares and min_body) comes back fresh from the
-// extractor — hand values only win where the brief says they do.
+// chain, a hand-curated http_auth_middlewares list, and hand-set per-route
+// auth all survive re-extraction (spec §5: the judgment layer rides the
+// merge), while middlewares and min_body come back fresh from the extractor
+// (the fact layer is re-derived).
 func TestRunProtocolVocabulary_ReextractPreservesRouteHandMarks(t *testing.T) {
 	honoSrc, err := filepath.Abs(filepath.Join("..", "..", "internal", "vocabextract", "testdata", "hono", "use-auth.ts"))
 	if err != nil {
@@ -132,8 +134,9 @@ func TestRunProtocolVocabulary_ReextractPreservesRouteHandMarks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load hono vocab: %v", err)
 	}
-	// Hand-tune the :id chain and the auth middleware list; hand-corrupt
-	// auth so the re-extraction proves it is re-derived fresh.
+	// Hand-tune the :id chain and the auth middleware list; hand-set auth so
+	// the re-extraction proves the judgment layer survives the merge (spec
+	// §5 — previously this test asserted the opposite, re-derivation fresh).
 	for i := range hv.HTTPRoutes {
 		switch hv.HTTPRoutes[i].Method + "|" + hv.HTTPRoutes[i].Path {
 		case "GET|/api/things/:id":
@@ -170,9 +173,74 @@ func TestRunProtocolVocabulary_ReextractPreservesRouteHandMarks(t *testing.T) {
 				t.Fatalf("re-extraction dropped hand param_sources: %#v", r.ParamSources)
 			}
 		case "GET|/api/things":
-			if r.Auth != "required" {
-				t.Fatalf("GET|/api/things auth = %q, want required (re-derived fresh)", r.Auth)
+			if r.Auth != "none" {
+				t.Fatalf("GET|/api/things auth = %q, want none (hand-set auth survives the merge)", r.Auth)
 			}
+		}
+	}
+}
+
+// TestRunProtocolVocabulary_EffectiveAuthList: when the previous vocab
+// declares http_auth_middlewares, per-route auth derivation intersects the
+// route's middlewares with THAT list — an anonymous gate like use:/api/*
+// matches no auth-name regex, so its auth facts can only flow through the
+// curated list. First pass (no prior list): /api routes come back unknown;
+// after curating [use:/api/*] and re-extracting they derive required.
+func TestRunProtocolVocabulary_EffectiveAuthList(t *testing.T) {
+	anonSrc, err := filepath.Abs(filepath.Join("..", "..", "internal", "vocabextract", "testdata", "hono", "use-anon.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml")
+	if err := runProtocolVocabulary(context.Background(), dir, []string{anonSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load hono vocab: %v", err)
+	}
+	if len(hv.HTTPAuthMiddlewares) != 0 {
+		t.Fatalf("first pass http_auth_middlewares = %v, want empty (no name matches the regex)", hv.HTTPAuthMiddlewares)
+	}
+	for _, r := range hv.HTTPRoutes {
+		if r.Path == "/health" && r.Auth != "unknown" {
+			t.Fatalf("/health auth = %q, want unknown (requestLogger matches no auth regex)", r.Auth)
+		}
+		if strings.HasPrefix(r.Path, "/api") && r.Auth != "unknown" {
+			t.Fatalf("%s auth = %q, want unknown (use:/api/* matches no auth regex)", r.Path, r.Auth)
+		}
+	}
+	// Curate the anonymous gate into the service-level list and re-extract.
+	hv.HTTPAuthMiddlewares = []string{"use:/api/*"}
+	block, err := yaml.Marshal(hv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, block, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProtocolVocabulary(context.Background(), dir, []string{anonSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv2, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load re-extracted vocab: %v", err)
+	}
+	if len(hv2.HTTPAuthMiddlewares) != 1 || hv2.HTTPAuthMiddlewares[0] != "use:/api/*" {
+		t.Fatalf("http_auth_middlewares = %v, want [use:/api/*]", hv2.HTTPAuthMiddlewares)
+	}
+	for _, r := range hv2.HTTPRoutes {
+		if r.Path == "/health" {
+			// requestLogger/use:/* are middlewares but not in the curated
+			// list, and the route sits outside the /api glob — unknown.
+			if r.Auth != "unknown" {
+				t.Fatalf("/health auth = %q, want unknown (outside the glob)", r.Auth)
+			}
+			continue
+		}
+		if r.Auth != "required" {
+			t.Fatalf("%s auth = %q, want required via the effective list", r.Path, r.Auth)
 		}
 	}
 }

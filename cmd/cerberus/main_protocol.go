@@ -225,17 +225,38 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		sum := sha256.Sum256(data)
 		files = append(files, project.VocabFile{Path: p, Hash: hex.EncodeToString(sum[:])})
 	}
-	// Auth middleware heuristic: names matching auth|bearer|jwt mark a route
-	// auth-required; the matched set is emitted as http_auth_middlewares so a
-	// human can review and override the judgment (hand-curated lists survive
-	// re-extraction).
+	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
+	// The previous vocab (when re-extracting) decides the effective auth
+	// middleware list BEFORE per-route derivation runs.
+	var prev *project.Vocabulary
+	if p, perr := project.LoadVocabulary(outPath); perr == nil {
+		prev = p
+	}
+	// Auth derivation (spec §1): auth = middlewares ∩ the service-level auth
+	// list. The effective list is the previous vocab's hand-curated
+	// http_auth_middlewares when present — anonymous gates (use:/api/*) match
+	// no name regex, so the curated list is the only way their auth facts
+	// flow. Only when no prior list exists does the (?i)auth|bearer|jwt name
+	// heuristic supply it, and the matched set is emitted as before so a
+	// human can review and override.
+	effective := map[string]bool{}
+	if prev != nil {
+		for _, mw := range prev.HTTPAuthMiddlewares {
+			effective[mw] = true
+		}
+	}
 	authMw := map[string]bool{}
 	authMwRe := regexp.MustCompile(`(?i)auth|bearer|jwt`)
-	for _, r := range routes {
-		for _, mw := range r.Middlewares {
-			if authMwRe.MatchString(mw) {
-				authMw[mw] = true
+	if len(effective) == 0 {
+		for _, r := range routes {
+			for _, mw := range r.Middlewares {
+				if authMwRe.MatchString(mw) {
+					authMw[mw] = true
+				}
 			}
+		}
+		for mw := range authMw {
+			effective[mw] = true
 		}
 	}
 	authMiddlewares := make([]string, 0, len(authMw))
@@ -250,7 +271,7 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		default:
 			routes[i].Auth = "unknown"
 			for _, mw := range routes[i].Middlewares {
-				if authMw[mw] {
+				if effective[mw] {
 					routes[i].Auth = "required"
 					break
 				}
@@ -286,13 +307,12 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		HTTPRoutes:          routes,
 		HTTPAuthMiddlewares: authMiddlewares,
 	}
-	outPath := filepath.Join(workDir, ".cerberus", "vocab", name+".vocab.yaml")
 	// Re-extraction must not drop manually-annotated marks (partial/unsupported)
 	// on edges that still exist, matched by (from_role, to_role, type). A blind
 	// overwrite re-admits server-only edges to the coverage denominator, which
 	// timeout-fail until the executor escalates. Extraction cannot know these
 	// marks — they encode live-probe knowledge about the running server.
-	if prev, perr := project.LoadVocabulary(outPath); perr == nil {
+	if prev != nil {
 		marks := make(map[string]project.VocabEdge, len(prev.Edges))
 		for _, e := range prev.Edges {
 			marks[e.FromRole+"|"+e.ToRole+"|"+e.Type] = e
@@ -307,9 +327,19 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		if len(prev.HTTPAuthMiddlewares) > 0 {
 			vocab.HTTPAuthMiddlewares = prev.HTTPAuthMiddlewares
 		}
+		// The hand-curated UI surface is not derivable from source; a
+		// re-extraction must never silently drop it.
+		if prev.UI != nil {
+			vocab.UI = prev.UI
+		}
 		// Route marks follow the same rule, keyed method|path. Hand-tuned
-		// param chains win over re-derivation; auth/middlewares/min_body are
-		// always re-derived fresh above.
+		// param chains and hand-set auth (spec §5: the judgment layer rides
+		// the merge) win over re-derivation; middlewares/min_body are the
+		// fact layer and always come back fresh above. Auth preservation
+		// covers the judgment values none|required — "unknown" is the
+		// not-determined marker (a first pass emits it everywhere), so
+		// preserving it would freeze ignorance and block the curated-list
+		// derivation from ever marking a route required.
 		routeMarks := make(map[string]project.VocabHTTPRoute, len(prev.HTTPRoutes))
 		for _, r := range prev.HTTPRoutes {
 			routeMarks[r.Method+"|"+r.Path] = r
@@ -318,6 +348,9 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 			if old, ok := routeMarks[vocab.HTTPRoutes[i].Method+"|"+vocab.HTTPRoutes[i].Path]; ok {
 				vocab.HTTPRoutes[i].Partial = old.Partial
 				vocab.HTTPRoutes[i].Unsupported = old.Unsupported
+				if old.Auth == "none" || old.Auth == "required" {
+					vocab.HTTPRoutes[i].Auth = old.Auth
+				}
 				for p, ps := range old.ParamSources {
 					if vocab.HTTPRoutes[i].ParamSources == nil {
 						vocab.HTTPRoutes[i].ParamSources = map[string]project.VocabParamSource{}
