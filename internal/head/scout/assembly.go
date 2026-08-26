@@ -55,19 +55,20 @@ func (c *caseAssembler) nextID() string {
 }
 
 // finalizeOpen flushes the open ws_flow case (if any). A begin_case the LLM
-// opened with no following ws_* calls is dropped (a 0-step ws_flow is not a real
-// case — it would waste an Agent cycle and confuse the Examiner). Otherwise the
-// case is sanitized (self-handshake re-await), judged for soundness, and only a
-// SOUND case marks its connected roles covered (so WSCasesCovered still emits
-// the deterministic fallback for unsound roles). The case is appended either
-// way; soundness only affects the coverage side table.
+// opened with no following ws_*/browser_* calls is dropped (a 0-step flow is
+// not a real case — it would waste an Agent cycle and confuse the Examiner).
+// WS cases are sanitized (self-handshake re-await) and judged for soundness;
+// only a SOUND case marks its connected roles covered (so WSCasesCovered
+// still emits the deterministic fallback for unsound roles). The case is
+// appended either way; soundness only affects the coverage side table.
+// browser_flow cases skip the WS-specific sanitize/soundness pass.
 func (c *caseAssembler) finalizeOpen() {
 	if c.open == nil {
 		return
 	}
 	open := c.open
-	if open.Action == "ws_flow" && len(open.Steps) == 0 {
-		// A begin_case the LLM opened with no following ws_* calls. Drop it.
+	if len(open.Steps) == 0 {
+		// A begin_case the LLM opened with no following step calls. Drop it.
 		c.open = nil
 		return
 	}
@@ -152,37 +153,75 @@ func (c *caseAssembler) handle(call llm.ToolCall) {
 			Service: svcName,
 			Target:  target,
 		}
-	case "ws_connect":
-		if c.open == nil {
+	case "ws_connect", "ws_send", "ws_receive", "ws_disconnect":
+		if c.open == nil || c.open.Action == "browser_flow" {
+			// No open case, or a browser_flow: ws_* steps never join a
+			// browser case (the executors are different families — no chimeras).
 			return
 		}
-		c.open.Steps = append(c.open.Steps, agent.TestStep{
-			Action: "ws_connect", ConnectionID: llm.StrField(call, "role"), Role: llm.StrField(call, "role"),
-			URL: llm.StrField(call, "url"),
-		})
-	case "ws_send":
-		if c.open == nil {
+		switch call.Name {
+		case "ws_connect":
+			c.open.Steps = append(c.open.Steps, agent.TestStep{
+				Action: "ws_connect", ConnectionID: llm.StrField(call, "role"), Role: llm.StrField(call, "role"),
+				URL: llm.StrField(call, "url"),
+			})
+		case "ws_send":
+			c.open.Steps = append(c.open.Steps, agent.TestStep{
+				Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type"), nil),
+			})
+		case "ws_receive":
+			c.open.Steps = append(c.open.Steps, agent.TestStep{
+				Action: "ws_receive", ConnectionID: llm.StrField(call, "role"),
+				Type: llm.StrField(call, "type"), Aliases: llm.StrSliceField(call, "aliases"),
+				Asserts: llm.MapField(call, "assert"), Timeout: llm.IntField(call, "timeout"),
+			})
+		case "ws_disconnect":
+			c.open.Steps = append(c.open.Steps, agent.TestStep{
+				Action: "ws_disconnect", ConnectionID: llm.StrField(call, "role"),
+			})
+		}
+	case "browser_goto", "browser_click", "browser_fill", "browser_expect", "browser_shot":
+		if c.open == nil || (c.open.Action == "ws_flow" && len(c.open.Steps) > 0) {
+			// No open case, or a WS choreography already carrying ws steps:
+			// browser steps never join a ws_flow (different executor
+			// families — no chimeras). A step-less open case is retagged
+			// below: begin_case deliberately opens as ws_flow.
 			return
 		}
-		c.open.Steps = append(c.open.Steps, agent.TestStep{
-			Action: "ws_send", ConnectionID: llm.StrField(call, "role"), Message: wsSendBody(llm.StrField(call, "type"), nil),
-		})
-	case "ws_receive":
-		if c.open == nil {
-			return
+		if c.open.Action != "browser_flow" {
+			// First browser step retags the begin_case (which opens as
+			// ws_flow) into a browser_flow targeting the service's declared
+			// UI base URL. Without a ui vocabulary there is no UI surface to
+			// drive — drop the whole group rather than goto the API URL.
+			base := uiBaseURLByName(c.open.Service, c.services)
+			if base == "" {
+				c.open = nil
+				return
+			}
+			c.open.Action = "browser_flow"
+			c.open.Target = base
 		}
-		c.open.Steps = append(c.open.Steps, agent.TestStep{
-			Action: "ws_receive", ConnectionID: llm.StrField(call, "role"),
-			Type: llm.StrField(call, "type"), Aliases: llm.StrSliceField(call, "aliases"),
-			Asserts: llm.MapField(call, "assert"), Timeout: llm.IntField(call, "timeout"),
-		})
-	case "ws_disconnect":
-		if c.open == nil {
-			return
+		step := agent.TestStep{Action: call.Name}
+		switch call.Name {
+		case "browser_goto":
+			step.URL = llm.StrField(call, "url")
+		case "browser_click":
+			step.Target = llm.StrField(call, "target")
+		case "browser_fill":
+			step.Target = llm.StrField(call, "target")
+			step.Message = llm.StrField(call, "text")
+		case "browser_expect":
+			step.Target = llm.StrField(call, "target")
+			comparator := llm.StrField(call, "expectation")
+			if comparator == "" {
+				comparator = "text_present"
+			}
+			step.Asserts = map[string]any{"expectation": comparator}
+			step.Timeout = llm.IntField(call, "timeout")
+		case "browser_shot":
+			step.Label = llm.StrField(call, "label")
 		}
-		c.open.Steps = append(c.open.Steps, agent.TestStep{
-			Action: "ws_disconnect", ConnectionID: llm.StrField(call, "role"),
-		})
+		c.open.Steps = append(c.open.Steps, step)
 	}
 }
 
@@ -356,6 +395,18 @@ func serviceURLByName(name string, services []project.Service) string {
 	for _, s := range services {
 		if s.Name == name {
 			return s.URL
+		}
+	}
+	return ""
+}
+
+// uiBaseURLByName returns the declared UI base URL of the named service, or
+// "" when the service declares no ui vocabulary (browser cases then have no
+// surface to drive and are dropped at assembly).
+func uiBaseURLByName(name string, services []project.Service) string {
+	for _, s := range services {
+		if s.Name == name && s.Vocabulary != nil && s.Vocabulary.UI != nil {
+			return s.Vocabulary.UI.BaseURL
 		}
 	}
 	return ""

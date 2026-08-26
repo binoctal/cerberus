@@ -80,6 +80,14 @@ Multi-step WebSocket choreography uses begin_case to open a case, then ws_* call
 - ws_receive {role, type, aliases?, assert?, timeout?} awaits a typed message.
 - ws_disconnect {role} closes role's connection.
 
+Browser UI flows use the same begin_case, then browser_* calls (ONLY for a service whose ui vocabulary declares base_url + locale):
+- browser_goto {url} navigates to a route on the declared UI.
+- browser_click {target} clicks a Playwright selector (text=... | css=... | role=x[name=y]).
+- browser_fill {target, text} types into a field.
+- browser_expect {target, expectation?, timeout?} wait-asserts the DOM: text_present | text_absent | element_visible | element_count>=N. Assertions are waits, not instant checks — expect async rendering.
+- browser_shot {label?} captures a screenshot evidence frame.
+Never mix ws_* and browser_* steps in one case.
+
 Rules:
 - Cover every endpoint in the project model. Order high-risk/low-confidence first.
 - For POST/PUT/PATCH, include a concrete body unless a service body_template applies.

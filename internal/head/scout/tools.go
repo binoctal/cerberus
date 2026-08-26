@@ -52,7 +52,7 @@ func planTools() []llm.Tool {
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
 				"path": map[string]any{"type": "string"}, "expect": map[string]any{"type": "string"},
 			}, "required": []any{"path"}}},
-		{Name: "begin_case", Description: "Open a multi-step WS choreography case. Following ws_* calls belong to it until the next begin_case or high-level tool.",
+		{Name: "begin_case", Description: "Open a multi-step case (WS choreography or browser UI flow). Following ws_*/browser_* calls belong to it until the next begin_case or high-level tool.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
 				"name": map[string]any{"type": "string"}, "expectation": map[string]any{"type": "string"},
 				"service": map[string]any{"type": "string"},
@@ -81,6 +81,28 @@ func planTools() []llm.Tool {
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
 				"role": map[string]any{"type": "string"},
 			}, "required": []any{"role"}}},
+		{Name: "browser_goto", Description: "Browser step: navigate to a route on the case service's declared UI. Only when the service declares a ui vocabulary.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"url": map[string]any{"type": "string", "description": "Route path (e.g. /dashboard/missions)."},
+			}, "required": []any{"url"}}},
+		{Name: "browser_click", Description: "Browser step: click an element by selector.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"target": map[string]any{"type": "string", "description": "Playwright selector: text=..., css=..., or role=x[name=y]."},
+			}, "required": []any{"target"}}},
+		{Name: "browser_fill", Description: "Browser step: type text into a field.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"target": map[string]any{"type": "string"}, "text": map[string]any{"type": "string"},
+			}, "required": []any{"target", "text"}}},
+		{Name: "browser_expect", Description: "Browser step: wait-type DOM assertion. Polls until the expectation holds or the timeout (default 10s, max 30s) elapses.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"target":      map[string]any{"type": "string", "description": "Playwright selector."},
+				"expectation": map[string]any{"type": "string", "enum": []any{"text_present", "text_absent", "element_visible", "element_count>=N"}},
+				"timeout":     map[string]any{"type": "number"},
+			}, "required": []any{"target"}}},
+		{Name: "browser_shot", Description: "Browser step: capture a screenshot evidence frame (no assertion).",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"label": map[string]any{"type": "string"},
+			}}},
 	}
 }
 

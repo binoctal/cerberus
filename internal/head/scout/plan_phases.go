@@ -221,11 +221,15 @@ func urlPathOf(target string) string {
 	return ""
 }
 
-// isWSAction reports whether action is one of the WS executor actions. The set
-// is fixed by the coder/websocket executor.
+// isWSAction reports whether action is one of the stepped-executor actions
+// (WS choreography or browser UI flow). The set is fixed by the executors;
+// these cases' Target is a dial/base URL, not an HTTP probe path, so the
+// URL-drift filter must exempt them (a browser_flow whose service lookup
+// fell back to the plan base URL would otherwise match a /ws/… path and be
+// dropped as drift).
 func isWSAction(action string) bool {
 	switch action {
-	case "ws_connect", "ws_send", "ws_receive", "ws_disconnect", "ws_flow":
+	case "ws_connect", "ws_send", "ws_receive", "ws_disconnect", "ws_flow", "browser_flow":
 		return true
 	}
 	return false
