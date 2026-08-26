@@ -764,7 +764,12 @@ func TestStatusInClass(t *testing.T) {
 		{"4xx", 500, false, false},
 		{"2xx", 204, true, false},
 		{"2xx", 301, false, false},
-		{"ANY", 200, false, true}, // unknown value must error, not pass
+		{"2xx_4xx", 200, true, false},
+		{"2xx_4xx", 404, true, false},
+		{"2xx_4xx", 302, false, false},
+		{"2xx_4xx", 500, false, false},
+		{"2xx_4xx", 0, false, false}, // transport error in no class
+		{"ANY", 200, false, true},    // unknown value must error, not pass
 		{"6xx", 600, false, true},
 	}
 	for _, c := range cases {

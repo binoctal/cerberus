@@ -107,9 +107,10 @@ func wsReceiveMatched(result types.ExecutorResult) bool {
 }
 
 // statusInClass reports whether an HTTP status code falls in a declared class
-// ("2xx".."5xx", or "any" = every real status). Status 0 (transport error) is
-// in NO class — reachability means a response was received. An unknown class
-// name returns an error instead of being silently treated as "any".
+// ("2xx".."5xx", the compound "2xx_4xx", or "any" = every real status). Status
+// 0 (transport error) is in NO class — reachability means a response was
+// received. An unknown class name returns an error instead of being silently
+// treated as "any".
 func statusInClass(class string, code int) (bool, error) {
 	switch class {
 	case "any":
@@ -117,8 +118,12 @@ func statusInClass(class string, code int) (bool, error) {
 	case "2xx", "3xx", "4xx", "5xx":
 		want := int(class[0]-'0') * 100
 		return code >= want && code < want+100, nil
+	case "2xx_4xx":
+		// Compound class: success OR client error — "no server error, no
+		// routing error" (authed mutations accept legitimate 4xx rejections).
+		return (code >= 200 && code < 300) || (code >= 400 && code < 500), nil
 	default:
-		return false, fmt.Errorf("expect_status_class: unknown class %q (want 2xx|3xx|4xx|5xx|any)", class)
+		return false, fmt.Errorf("expect_status_class: unknown class %q (want 2xx|3xx|4xx|5xx|2xx_4xx|any)", class)
 	}
 }
 
