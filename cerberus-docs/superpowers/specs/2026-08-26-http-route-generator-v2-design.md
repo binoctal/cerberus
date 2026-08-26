@@ -57,8 +57,12 @@ path, each `route` must resolve to a same-vocab route.
 ts-morph is already a dependency of the bundled Node extractor.
 
 - **auth chain**: recognize both mount forms — prefix `app.use(path, mw)`
-  (inheriting the existing mount-chain traversal) and inline
-  `route.get('/y', mw, handler)` — and emit per-route `middlewares`.
+  and inline `router.get('/y', mw, handler)`. NOTE (review finding): the
+  extractor currently handles NO `app.use` calls at all (only
+  `app.route('/prefix', router)` mounting), and inline middleware args
+  (`call.getArguments()[1..n-2]`, currently only arg0 is read) have never
+  been inspected — both are new code, not extensions of existing traversal.
+  Emit per-route `middlewares`.
 - **body**: locate the handler's first `z.object({...})` argument; extract
   literal primitive fields only (string -> `"x"`, number -> `0`,
   boolean -> `false`). Anything else (`.refine`, non-literal, nested object,
@@ -66,8 +70,9 @@ ts-morph is already a dependency of the bundled Node extractor.
   `min_body` entirely. Prefer missing over guessing.
 - **param chain**: for `/api/devices/:id`, find a GET route with the same
   prefix (`/api/devices`) in the same vocab and emit the default
-  `param_sources` entry. `pick` defaults to `$[0].id`, hand-overridable in
-  the vocab.
+  `param_sources` entry. `pick` defaults to `0.id`, hand-overridable in the
+  vocab. Syntax note: dot-path, matching the existing `Capture` field
+  semantics (`0.id`, `data.0.id`) — NOT JSON pointer.
 
 ## 3. Generator v2 (rewrite `internal/head/scout/http_route_cases.go`)
 
@@ -91,26 +96,36 @@ everything else -> web), mapping declarable in the vocab.
 New compound status class `2xx_4xx` added to `expect_status_class`
 (extends the current `2xx|3xx|4xx|5xx|any` enum; decision (b) — coarse but
 stable, matches the v1 honesty-tier philosophy: prove "no server error, no
-routing error" first, exact codes later).
+routing error" first. An exact-code `expect_status` field ALREADY exists —
+compound was chosen over exact codes for resilience to cross-route semantic
+variation, not for lack of the capability).
 
 Expectation text tiers update accordingly (authed+2xx wording differs from
 reachability wording).
 
-## 4. Executor support (`internal/head/agent`)
+## 4. Executor support (`internal/head/agent`) — mostly already shipped
 
-- `http_request` step gains `capture: {pick: "$[0].id", as: "device_id"}`:
-  extract from the response body via JSON pointer into actor state. Later
-  steps reference `{{device_id}}` in URLs through the existing
-  `resolvePlaceholders` pipeline (verify http URL coverage; WS templating
-  already uses it).
-- List-route chaining is therefore two steps inside one case — GET list
-  (capture) then target route (assert) — no cross-case global state.
+Review against the executor found the heavy lifting already present:
+
+- `Body` field on `http_request` steps: exists (`types.go`).
+- Response capture: exists — `Capture map[string]string` (dot-path ->
+  per-case param), substitutable in later steps as `{{case.<name>}}`.
+- Placeholder substitution covers `http_request` URL **and** Body via the
+  shared `resolvePlaceholders`.
+
+The only executor change: add `2xx_4xx` to `statusInClass` (and its error
+message). List-route chaining is therefore purely a generator concern —
+two steps inside one case: GET list (`capture`) then target route (assert),
+no cross-case global state.
 
 ## 5. Compatibility
 
 - Coverage denominator unchanged (all mounted routes, as v1).
 - `partial`/`unsupported` marks stay preserved on re-extraction keyed by
-  method|path; **new fields must merge through the same path**.
+  method|path — the merge path already exists and is tested
+  (`TestRunProtocolVocabulary_ReextractPreservesAnnotations`); **the new
+  fields (`middlewares`/`auth`/`min_body`/`param_sources`) must ride the
+  same merge and that test must be extended to prove it**.
 - Side effects: mutations with bodies write real rows to the dev database
   (cost already accepted in v1); real `:param` ids hit real handlers — same
   order of magnitude.
