@@ -598,3 +598,37 @@ cerberus-side harness issue in the stepped-case executor — undetermined).
 Treat as noise for coverage/pass-rate purposes until root-caused; do not
 let it block merges. Next dogfood run should capture debug-level logging
 for this case specifically if it recurs.
+
+## 24. Six independent zustand stores each un-cached-fetch `/api/settings` on mount — OPEN 2026-08-26
+
+`weather-cities.ts`, `onboardingStore`, `securityAlertStore`, `themeStore`,
+`notificationsStore`, `storageStore` each independently call
+`api.get('/api/settings')` (and their own `api.patch`) against the SAME
+single settings blob, with no shared fetch/cache layer. Live-observed via
+Playwright request tracing: navigating the dashboard app fires 6 near-
+simultaneous identical `GET /api/settings` requests per page mount, and
+the count is cumulative per new store instance across navigations (6, 12,
+18, 24, 30, 36 observed across 6 successive route changes in one browser
+session) — each store re-runs its init fetch on its own lifecycle, not
+deduped against sibling stores already holding the same data.
+
+Root cause: no shared settings store/selector; six independent Zustand
+stores each own a private slice-fetch of the same server resource.
+
+**Investigation note (2026-08-26):** discovered while chasing a
+non-reproducible ~30s navigation hang on `/dashboard` and
+`/dashboard/prompt-lab` (browser-leg UI vocab work). Four clean
+reproduction attempts (isolated single-page nav ×3, full 8-route
+sequential replay, fresh wrangler+vite restart) all completed in 20-50ms
+with zero hang — the original hang's root cause is UNCONFIRMED, most
+likely a one-off resource-contention blip (system load from concurrent
+session activity) rather than a deterministic app or cerberus bug. This
+request-storm is filed as the one CONFIRMED, reproducible finding from
+that investigation — a plausible (not proven) contributing factor to
+occasional slow navigations under contention, not a standalone crash risk.
+
+**Cerberus consequence:** none confirmed (no case currently asserts on
+`/api/settings` call count); flagging for awareness since browser-leg
+navigation timing assumptions (goto with `wait_until: load`) could
+occasionally flake under real contention if this compounds with other
+concurrent load.
