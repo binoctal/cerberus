@@ -3553,6 +3553,10 @@ ui:
       expectation: element_visible
     - id: devices-page-populated
       route: /dashboard/devices
-      target: "css=table tbody tr"
+      # The devices page renders a CARD GRID, not a table (run 26: the
+      # css=table probe matched 0 elements — wrong assertion, not a SUT
+      # defect). Dogfood devices are uniformly named dev-device; the first
+      # page of cards always carries the name.
+      target: "text=dev-device"
       expectation: element_count>=1
       timeout: 15
