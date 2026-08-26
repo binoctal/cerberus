@@ -1,6 +1,8 @@
 package scout
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
@@ -126,6 +128,98 @@ func TestHTTPRouteCases_AdminRoleInjection(t *testing.T) {
 func TestHTTPRouteCases_NoVocab(t *testing.T) {
 	if got := httpRouteCases(project.Service{Name: "x", URL: "http://h"}); got != nil {
 		t.Errorf("no-vocab service emitted %d cases", len(got))
+	}
+}
+
+// routeV2Fixture builds a service whose vocab carries the v2 facts (auth,
+// min_body, param_sources) plus both degradation shapes: an auth:none route
+// and a :param route with no param source.
+func routeV2Fixture() project.Service {
+	return project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"admin": {CredentialRef: "admin-actor"},
+			"web":   {CredentialRef: "web-actor"},
+		}},
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "GET", Path: "/api/things", Auth: "required"},
+			{Method: "POST", Path: "/api/things", Auth: "required",
+				MinBody: map[string]any{"name": "x"}},
+			{Method: "GET", Path: "/api/things/:id", Auth: "required",
+				ParamSources: map[string]project.VocabParamSource{
+					":id": {Route: "GET /api/things", Pick: "0.id"},
+				}},
+			{Method: "GET", Path: "/health", Auth: "none"},
+			{Method: "GET", Path: "/api/mystery/:id", Auth: "required"},
+			{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
+		}},
+	}
+}
+
+// caseID mirrors the generator's ID scheme: the v1 reachability base ID plus
+// a v2 tier suffix ("-unauth" | "-authed" | "" for reachability).
+func caseID(svc project.Service, method, path, suffix string) string {
+	id := fmt.Sprintf("http-route-%s-%s-%s", svc.Name, strings.ToLower(method), trimPathForID(fillRouteParams(path)))
+	if suffix != "" {
+		id += "-" + suffix
+	}
+	return id
+}
+
+// TestHTTPRouteCasesV2: auth-fact-driven tiers — unauth 4xx probes, authed
+// 2xx with param chaining and minimal bodies, reachability degradation for
+// unresolvable :param routes and pre-v2 auth shapes.
+func TestHTTPRouteCasesV2(t *testing.T) {
+	svc := routeV2Fixture()
+	cases := httpRouteCases(svc)
+	byID := map[string]agent.TestCase{}
+	for _, c := range cases {
+		byID[c.ID] = c
+	}
+	// authed GET, param-free: single step, 2xx.
+	c := byID[caseID(svc, "GET", "/api/things", "authed")]
+	if len(c.Steps) != 1 || c.Steps[0].ExpectStatusClass != "2xx" || c.Steps[0].AuthRole != "web" {
+		t.Fatalf("authed GET shape wrong: %+v", c.Steps)
+	}
+	// unauth probe on the same route: 4xx, no AuthRole.
+	c = byID[caseID(svc, "GET", "/api/things", "unauth")]
+	if len(c.Steps) != 1 || c.Steps[0].ExpectStatusClass != "4xx" || c.Steps[0].AuthRole != "" {
+		t.Fatalf("unauth shape wrong: %+v", c.Steps)
+	}
+	// authed mutation: body + 2xx_4xx.
+	c = byID[caseID(svc, "POST", "/api/things", "authed")]
+	if len(c.Steps) != 1 || c.Steps[0].ExpectStatusClass != "2xx_4xx" || c.Steps[0].Body != `{"name":"x"}` {
+		t.Fatalf("mutation shape wrong: %+v", c.Steps)
+	}
+	// param chain: two steps — capture then assert.
+	c = byID[caseID(svc, "GET", "/api/things/:id", "authed")]
+	if len(c.Steps) != 2 {
+		t.Fatalf("param chain must be 2 steps, got %d", len(c.Steps))
+	}
+	if c.Steps[0].Capture["0.id"] == "" || !strings.Contains(c.Steps[1].URL, "{{case.") {
+		t.Fatalf("capture/placeholder wiring wrong: %+v", c.Steps)
+	}
+	if c.Steps[1].URL != "http://localhost:8989/api/things/{{case.p_id}}" {
+		t.Fatalf("param placeholder url = %q", c.Steps[1].URL)
+	}
+	// degradation: no param_sources -> reachability tier only (any, placeholder 1).
+	if _, ok := byID[caseID(svc, "GET", "/api/mystery/:id", "authed")]; ok {
+		t.Fatalf("unresolvable param route must NOT emit an authed case")
+	}
+	if c := byID[caseID(svc, "GET", "/api/mystery/:id", "")]; c.Steps[0].ExpectStatusClass != "any" {
+		t.Fatalf("degraded route must stay reachability: %+v", c.Steps)
+	}
+	// auth none: single reachability case, no unauth twin.
+	if _, ok := byID[caseID(svc, "GET", "/health", "unauth")]; ok {
+		t.Fatalf("auth:none route must not get an unauth twin")
+	}
+	if _, ok := byID[caseID(svc, "GET", "/health", "authed")]; ok {
+		t.Fatalf("auth:none route must not get an authed twin")
+	}
+	// admin prefix -> admin role.
+	if c := byID[caseID(svc, "GET", "/api/admin/stats", "authed")]; c.Steps[0].AuthRole != "admin" {
+		t.Fatalf("admin route must inject admin role, got %q", c.Steps[0].AuthRole)
 	}
 }
 
