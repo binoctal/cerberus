@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -72,5 +73,60 @@ func TestLoadVocabulary_RejectsBadRoute(t *testing.T) {
 	}
 	if _, err := LoadVocabulary(p); err == nil {
 		t.Fatal("LoadVocabulary accepted an invalid http_route (broken denominator must not pass silently)")
+	}
+}
+
+func TestValidateVocabularyRouteFacts(t *testing.T) {
+	base := func(mut func(*Vocabulary)) *Vocabulary {
+		v := &Vocabulary{HTTPRoutes: []VocabHTTPRoute{
+			{
+				Method: "GET", Path: "/api/devices/:id",
+				Middlewares: []string{"authMiddleware"}, Auth: "required",
+				ParamSources: map[string]VocabParamSource{
+					":id": {Route: "GET /api/devices", Pick: "0.id"},
+				},
+			},
+			// The list route param_sources resolve against: it must be part of
+			// the vocabulary for routeSet to resolve "GET /api/devices".
+			{Method: "GET", Path: "/api/devices"},
+		}}
+		mut(v)
+		return v
+	}
+	cases := []struct {
+		name string
+		mut  func(*Vocabulary)
+		want string
+	}{
+		{"valid", func(*Vocabulary) {}, ""},
+		{"bad auth enum", func(v *Vocabulary) {
+			v.HTTPRoutes[0].Auth = "maybe"
+		}, `auth "maybe" not in enum`},
+		{"param source key not in path", func(v *Vocabulary) {
+			v.HTTPRoutes[0].ParamSources = map[string]VocabParamSource{
+				":other": {Route: "GET /api/devices", Pick: "0.id"}}
+		}, ":other"},
+		{"param source route unresolved", func(v *Vocabulary) {
+			v.HTTPRoutes[0].ParamSources = map[string]VocabParamSource{
+				":id": {Route: "GET /api/nope", Pick: "0.id"}}
+		}, `unresolved list route "GET /api/nope"`},
+		{"param route method mismatch", func(v *Vocabulary) {
+			v.HTTPRoutes[0].ParamSources[":id"] = VocabParamSource{
+				Route: "POST /api/devices", Pick: "0.id"}
+		}, `unresolved list route "POST /api/devices"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateVocabulary(base(tc.mut))
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want error containing %q, got %v", tc.want, err)
+			}
+		})
 	}
 }

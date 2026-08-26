@@ -20,6 +20,10 @@ type Vocabulary struct {
 	// separate from Edges: WS delivery semantics do not apply; coverage
 	// synthesizes one edge per route in requiredEdges (http_trigger pattern).
 	HTTPRoutes []VocabHTTPRoute `yaml:"http_routes,omitempty" json:"http_routes,omitempty"`
+	// HTTPAuthMiddlewares is the service-level list of middleware names that
+	// authenticate a request. Cross-checked against per-route auth facts so
+	// the generator can derive auth shapes (spec 2026-08-26 v2).
+	HTTPAuthMiddlewares []string `yaml:"http_auth_middlewares,omitempty" json:"http_auth_middlewares,omitempty"`
 	// UI is the declared browser display surface (spec 2026-08-26 §4): one
 	// assertion = one coverage-denominator unit, compiled into deterministic
 	// browser_flow cases. Nil when the project declares no UI surface.
@@ -138,12 +142,29 @@ type VocabSpan struct {
 // the full normalized pattern (mount chain + route path); :param matches one
 // segment, a trailing * matches one-or-more, ALL matches any method.
 type VocabHTTPRoute struct {
-	Method      string          `yaml:"method" json:"method"`
-	Path        string          `yaml:"path" json:"path"`
-	Mount       string          `yaml:"mount,omitempty" json:"mount,omitempty"`
-	Partial     bool            `yaml:"partial,omitempty" json:"partial,omitempty"`
-	Unsupported bool            `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
-	Source      VocabEdgeSource `yaml:"source" json:"source"`
+	Method string `yaml:"method" json:"method"`
+	Path   string `yaml:"path" json:"path"`
+	Mount  string `yaml:"mount,omitempty" json:"mount,omitempty"`
+	// Middlewares names the route's middleware chain, outermost first.
+	Middlewares []string `yaml:"middlewares,omitempty" json:"middlewares,omitempty"`
+	// Auth is the resolved auth shape: required | none | unknown ("" = unset).
+	Auth string `yaml:"auth,omitempty" json:"auth,omitempty"`
+	// MinBody is the minimal JSON request body that satisfies validation,
+	// keyed by field path; nil when the route takes no body.
+	MinBody map[string]any `yaml:"min_body,omitempty" json:"min_body,omitempty"`
+	// ParamSources maps each :param in Path to the list route whose captured
+	// response yields a concrete value for it (param chaining).
+	ParamSources map[string]VocabParamSource `yaml:"param_sources,omitempty" json:"param_sources,omitempty"`
+	Partial      bool                        `yaml:"partial,omitempty" json:"partial,omitempty"`
+	Unsupported  bool                        `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
+	Source       VocabEdgeSource             `yaml:"source" json:"source"`
+}
+
+// VocabParamSource chains a route param to a list-route response value: run
+// Route (a GET list endpoint), then Pick the dot-path out of the response.
+type VocabParamSource struct {
+	Route string `yaml:"route" json:"route"` // e.g. "GET /api/devices"
+	Pick  string `yaml:"pick" json:"pick"`   // dot-path, e.g. "0.id"
 }
 
 // vocabRouteMethods is the closed method enum (ALL = Hono app.all).
@@ -155,6 +176,12 @@ var vocabRouteMethods = map[string]bool{
 // ValidateVocabulary checks the HTTP route surface so a broken denominator
 // cannot pass silently (same principle as claims).
 func ValidateVocabulary(v *Vocabulary) error {
+	// routeSet indexes every declared path so param_sources can be checked
+	// against the whole surface, not just routes seen so far.
+	routeSet := map[string]bool{}
+	for _, r := range v.HTTPRoutes {
+		routeSet[r.Path] = true
+	}
 	for i, r := range v.HTTPRoutes {
 		if !vocabRouteMethods[r.Method] {
 			return fmt.Errorf("http_routes[%d]: method %q not in enum", i, r.Method)
@@ -169,6 +196,20 @@ func ValidateVocabulary(v *Vocabulary) error {
 			}
 			if s == ":" || (strings.HasPrefix(s, ":") && len(s) == 1) {
 				return fmt.Errorf("http_routes[%d]: empty param name in %q", i, r.Path)
+			}
+		}
+		switch r.Auth {
+		case "", "required", "none", "unknown":
+		default:
+			return fmt.Errorf("http_routes[%d]: auth %q not in enum (required|none|unknown)", i, r.Auth)
+		}
+		for name, ps := range r.ParamSources {
+			if !strings.Contains(r.Path, "/"+name+"/") && !strings.HasSuffix(r.Path, name) {
+				return fmt.Errorf("http_routes[%d]: param_sources key %q not a :param of %q", i, name, r.Path)
+			}
+			m, rp, ok := strings.Cut(ps.Route, " ")
+			if !ok || m != "GET" || !routeSet[rp] {
+				return fmt.Errorf("http_routes[%d]: param_sources[%q]: unresolved list route %q", i, name, ps.Route)
 			}
 		}
 	}
