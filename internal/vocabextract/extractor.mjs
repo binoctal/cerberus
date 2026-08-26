@@ -384,9 +384,10 @@ function routeHasPrefix(p, pre) {
   return pre === '/' || p === pre || p.startsWith(pre + '/');
 }
 
-function addRoute(method, fullPath, mount, line, middlewares) {
+function addRoute(method, fullPath, mount, line, middlewares, minBody) {
   const e = { method, path: fullPath, mount: mount || undefined,
               middlewares: middlewares.length ? middlewares : undefined,
+              min_body: minBody || undefined,
               source: { spans: [{ start: line, end: line }] } };
   const k = `${e.method}|${e.path}`;
   const ex = routeMap.get(k);
@@ -399,6 +400,75 @@ function addRoute(method, fullPath, mount, line, middlewares) {
 // app.use(prefix) middlewares declared by parent files (entries {prefix, name});
 // they keep applying to every route registered under their prefix, including
 // routes inside routers mounted later via app.route.
+// ── zod minimal request bodies ──────────────────────────────────
+// zValidator('json', schema) lets the extractor derive the minimal legal
+// request body from literal zod primitives. Only plain z.string()/
+// z.number()/z.boolean() properties are extractable; anything richer
+// (.refine, nested z.object, .optional() chains, spreads) marks the WHOLE
+// schema unextractable — min_body is omitted, never guessed.
+
+// z.object literal mapper: returns {field: minimal value} or null when any
+// property is not a plain PropertyAssignment of a zero-arg z.<primitive>().
+const ZOD_PRIMITIVES = { string: 'x', number: 0, boolean: false };
+function zodBodyOf(node) {
+  if (!node || node.getKind() !== SyntaxKind.CallExpression) return null;
+  const callee = node.getExpression();
+  if (callee.getKind() !== SyntaxKind.PropertyAccessExpression) return null;
+  if (callee.getName() !== 'object' || callee.getExpression().getText() !== 'z') return null;
+  const arg = node.getArguments()[0];
+  if (!arg || arg.getKind() !== SyntaxKind.ObjectLiteralExpression) return null;
+  const body = {};
+  for (const p of arg.getProperties()) {
+    if (p.getKind() !== SyntaxKind.PropertyAssignment) return null; // spread etc.
+    const init = p.getInitializer();
+    if (!init || init.getKind() !== SyntaxKind.CallExpression) return null;
+    const c = init.getExpression();
+    if (c.getKind() !== SyntaxKind.PropertyAccessExpression) return null;
+    if (c.getExpression().getText() !== 'z') return null;
+    const prim = ZOD_PRIMITIVES[c.getName()];
+    if (prim === undefined || init.getArguments().length > 0) return null;
+    body[p.getName()] = prim;
+  }
+  return body;
+}
+
+// Module-level `const X = z.object({...})` declarations. Value is the mapped
+// body, or explicit null when the schema exists but is unextractable.
+function schemaMapOf(sf) {
+  const m = new Map();
+  for (const stmt of sf.getStatements()) {
+    if (stmt.getKind() !== SyntaxKind.VariableStatement) continue;
+    for (const d of stmt.getDeclarations()) {
+      const body = zodBodyOf(d.getInitializer());
+      if (body !== null) m.set(d.getName(), body);
+    }
+  }
+  return m;
+}
+
+// zValidator('json', <arg2>) among route args: arg2 is an Identifier resolved
+// through schemaMapOf or an inline z.object literal. The validator may be a
+// bare imported identifier or a namespace member (validators.zValidator).
+// Unresolvable or unextractable schemas return undefined (omit min_body).
+function isZValidator(callee) {
+  if (callee.getKind() === SyntaxKind.Identifier) return callee.getText() === 'zValidator';
+  if (callee.getKind() === SyntaxKind.PropertyAccessExpression) return callee.getName() === 'zValidator';
+  return false;
+}
+function zValidatorBodyOf(args, schemas) {
+  for (const a of args) {
+    if (a.getKind() !== SyntaxKind.CallExpression) continue;
+    if (!isZValidator(a.getExpression())) continue;
+    const target = a.getArguments()[0];
+    if (!target || target.getText().replace(/^['"`]|['"`]$/g, '') !== 'json') continue;
+    const schema = a.getArguments()[1];
+    if (!schema) return undefined;
+    if (schema.getKind() === SyntaxKind.Identifier) return schemas.get(schema.getText());
+    return zodBodyOf(schema) ?? undefined;
+  }
+  return undefined;
+}
+
 function walkFile(filePath, prefix, depth, useMws) {
   const abs = path.resolve(filePath);
   if (depth > 8 || visitedFiles.has(abs)) return;
@@ -413,6 +483,7 @@ function walkFile(filePath, prefix, depth, useMws) {
     }
   }
   const imports = importMap(sf2);
+  const schemas = schemaMapOf(sf2);
   const mws = [...useMws];
   for (const stmt of sf2.getStatements()) {
     if (stmt.getKind() !== SyntaxKind.ExpressionStatement) continue;
@@ -431,7 +502,8 @@ function walkFile(filePath, prefix, depth, useMws) {
         .filter(a => a.getKind() === SyntaxKind.Identifier)
         .map(a => a.getText());
       const mwsForRoute = [...inlineMw, ...mws.filter(u => routeHasPrefix(joinPath(prefix, lit0), u.prefix)).map(u => u.name)];
-      addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber(), mwsForRoute);
+      const minBody = zValidatorBodyOf(call.getArguments(), schemas);
+      addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber(), mwsForRoute, minBody);
     } else if (name === 'use') {
       // app.use('/p', mw, ...) registers each identifier middleware under
       // the prefix; a path-less app.use(mw) covers everything ('/').

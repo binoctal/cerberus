@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -309,5 +311,50 @@ func TestRunProtocolVocabulary_UseAuthMiddlewares(t *testing.T) {
 	}
 	if !slices.Contains(r.Middlewares, "rateLimiter") || slices.Contains(r.Middlewares, "authMiddleware") {
 		t.Fatalf("GET|/limited middlewares = %v, want [rateLimiter] only", r.Middlewares)
+	}
+}
+
+// TestRunProtocolVocabulary_MinBody: zValidator('json', schema) yields the
+// minimal legal body from literal zod primitives (string/number/boolean).
+// Anything richer (refine, nested objects, optional chains) omits min_body
+// entirely — prefer missing over guessing.
+func TestRunProtocolVocabulary_MinBody(t *testing.T) {
+	vocab := extractVocabForTest(t, filepath.Join("hono", "zod-body.ts"))
+	byKey := map[string]project.VocabHTTPRoute{}
+	for _, r := range vocab.HTTPRoutes {
+		byKey[r.Method+"|"+r.Path] = r
+	}
+	want := map[string]map[string]any{
+		"POST|/api/things": {"name": "x", "count": float64(0), "active": false},
+		"POST|/api/inline": {"label": "x"},
+	}
+	// jsonNormalize round-trips through JSON so whole-number fields decode
+	// as float64: the vocab file stores `count: 0`, which yaml.Unmarshal
+	// into any yields as int, while every JSON consumer of min_body sees
+	// float64. Comparing the JSON-decoded shape pins the wire-relevant value.
+	jsonNormalize := func(m map[string]any) map[string]any {
+		b, err := json.Marshal(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out map[string]any
+		if err := json.Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	for key, body := range want {
+		r, ok := byKey[key]
+		if !ok {
+			t.Fatalf("route %s missing", key)
+		}
+		if !reflect.DeepEqual(jsonNormalize(r.MinBody), body) {
+			t.Fatalf("%s: min_body = %#v, want %#v", key, r.MinBody, body)
+		}
+	}
+	for _, key := range []string{"POST|/api/picky", "POST|/api/bare"} {
+		if r := byKey[key]; len(r.MinBody) != 0 {
+			t.Fatalf("%s: min_body must be omitted, got %#v", key, r.MinBody)
+		}
 	}
 }
