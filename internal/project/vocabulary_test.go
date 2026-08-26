@@ -130,3 +130,46 @@ func TestValidateVocabularyRouteFacts(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateVocabulary_ParamSourcesOff: param_sources_off
+// entries follow the same :param containment rule as param_sources keys and
+// must not overlap a live source; the declarable HTTP role map is
+// shape-validated (prefix starts with /, role non-empty) — role existence
+// is a generation-time check where the protocol is available.
+func TestValidateVocabulary_ParamSourcesOffAndRoleMap(t *testing.T) {
+	base := func() *Vocabulary {
+		return &Vocabulary{HTTPRoutes: []VocabHTTPRoute{
+			{
+				Method: "GET", Path: "/api/export/:type", Auth: "required",
+				ParamSourcesOff: []string{":type"},
+			},
+			{Method: "GET", Path: "/api/export"},
+		}}
+	}
+	if err := ValidateVocabulary(base()); err != nil {
+		t.Fatalf("valid veto rejected: %v", err)
+	}
+	bad := []struct {
+		name string
+		mut  func(*Vocabulary)
+		want string
+	}{
+		{"veto entry not a :param", func(v *Vocabulary) {
+			v.HTTPRoutes[0].ParamSourcesOff = []string{":nope"}
+		}, ":nope"},
+		{"veto overlaps a source", func(v *Vocabulary) {
+			v.HTTPRoutes[0].ParamSources = map[string]VocabParamSource{
+				":type": {Route: "GET /api/export", Pick: "0.id"}}
+		}, "both vetoed"},
+	}
+	for _, tc := range bad {
+		t.Run(tc.name, func(t *testing.T) {
+			v := base()
+			tc.mut(v)
+			err := ValidateVocabulary(v)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want error containing %q, got %v", tc.want, err)
+			}
+		})
+	}
+}

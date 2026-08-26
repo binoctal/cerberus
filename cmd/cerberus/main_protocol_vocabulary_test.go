@@ -528,3 +528,68 @@ func TestRunProtocolVocabulary_MinBody(t *testing.T) {
 		}
 	}
 }
+
+// TestRunProtocolVocabulary_ParamSourcesOffVeto: a hand-deleted param chain
+// must stay deleted across re-extraction. The re-derivation heuristic cannot
+// distinguish "hand-deleted" from "never curated", so param_sources_off is
+// the durable record of the deletion — re-extraction never re-derives a
+// vetoed param, and the veto itself rides the preservation merge.
+func TestRunProtocolVocabulary_ParamSourcesOffVeto(t *testing.T) {
+	honoSrc, err := filepath.Abs(filepath.Join("..", "..", "internal", "vocabextract", "testdata", "hono", "use-auth.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml")
+	if err := runProtocolVocabulary(context.Background(), dir, []string{honoSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load hono vocab: %v", err)
+	}
+	// First pass derives the :id chain — sanity that the resurrection shape
+	// under test actually exists.
+	derived := false
+	for i := range hv.HTTPRoutes {
+		if hv.HTTPRoutes[i].Method+"|"+hv.HTTPRoutes[i].Path == "GET|/api/things/:id" {
+			if _, ok := hv.HTTPRoutes[i].ParamSources[":id"]; !ok {
+				t.Fatal("first pass did not derive the :id chain; veto test would be vacuous")
+			}
+			derived = true
+			// Hand-delete the chain and veto its re-derivation.
+			hv.HTTPRoutes[i].ParamSources = nil
+			hv.HTTPRoutes[i].ParamSourcesOff = []string{":id"}
+		}
+	}
+	if !derived {
+		t.Fatal("GET|/api/things/:id missing from extracted vocab")
+	}
+	block, err := yaml.Marshal(hv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, block, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProtocolVocabulary(context.Background(), dir, []string{honoSrc}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	hv2, err := project.LoadVocabulary(out)
+	if err != nil {
+		t.Fatalf("load re-extracted vocab: %v", err)
+	}
+	for _, r := range hv2.HTTPRoutes {
+		if r.Method+"|"+r.Path != "GET|/api/things/:id" {
+			continue
+		}
+		if len(r.ParamSources) != 0 {
+			t.Fatalf("vetoed chain resurrected by re-derivation: %#v", r.ParamSources)
+		}
+		if len(r.ParamSourcesOff) != 1 || r.ParamSourcesOff[0] != ":id" {
+			t.Fatalf("param_sources_off did not survive the merge: %#v", r.ParamSourcesOff)
+		}
+		return
+	}
+	t.Fatal("GET|/api/things/:id lost by re-extraction")
+}

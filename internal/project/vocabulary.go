@@ -155,9 +155,13 @@ type VocabHTTPRoute struct {
 	// ParamSources maps each :param in Path to the list route whose captured
 	// response yields a concrete value for it (param chaining).
 	ParamSources map[string]VocabParamSource `yaml:"param_sources,omitempty" json:"param_sources,omitempty"`
-	Partial      bool                        `yaml:"partial,omitempty" json:"partial,omitempty"`
-	Unsupported  bool                        `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
-	Source       VocabEdgeSource             `yaml:"source" json:"source"`
+	// ParamSourcesOff vetoes inference for the named params: re-extraction
+	// never re-derives a chain for them (a hand-deleted unresolvable shape
+	// must stay deleted, degrading the route to reachability).
+	ParamSourcesOff []string        `yaml:"param_sources_off,omitempty" json:"param_sources_off,omitempty"`
+	Partial         bool            `yaml:"partial,omitempty" json:"partial,omitempty"`
+	Unsupported     bool            `yaml:"unsupported,omitempty" json:"unsupported,omitempty"`
+	Source          VocabEdgeSource `yaml:"source" json:"source"`
 }
 
 // VocabParamSource chains a route param to a list-route response value: run
@@ -204,12 +208,20 @@ func ValidateVocabulary(v *Vocabulary) error {
 			return fmt.Errorf("http_routes[%d]: auth %q not in enum (required|none|unknown)", i, r.Auth)
 		}
 		for name, ps := range r.ParamSources {
-			if !strings.Contains(r.Path, "/"+name+"/") && !strings.HasSuffix(r.Path, name) {
+			if !paramInPath(r.Path, name) {
 				return fmt.Errorf("http_routes[%d]: param_sources key %q not a :param of %q", i, name, r.Path)
 			}
 			m, rp, ok := strings.Cut(ps.Route, " ")
 			if !ok || m != "GET" || !routeSet[rp] {
 				return fmt.Errorf("http_routes[%d]: param_sources[%q]: unresolved list route %q", i, name, ps.Route)
+			}
+		}
+		for _, name := range r.ParamSourcesOff {
+			if !paramInPath(r.Path, name) {
+				return fmt.Errorf("http_routes[%d]: param_sources_off entry %q not a :param of %q", i, name, r.Path)
+			}
+			if _, hand := r.ParamSources[name]; hand {
+				return fmt.Errorf("http_routes[%d]: param %q is both vetoed (param_sources_off) and sourced (param_sources)", i, name)
 			}
 		}
 	}
@@ -219,6 +231,12 @@ func ValidateVocabulary(v *Vocabulary) error {
 		}
 	}
 	return nil
+}
+
+// paramInPath reports whether name is a :param segment of path (the shared
+// containment rule for param_sources keys and param_sources_off entries).
+func paramInPath(path, name string) bool {
+	return strings.Contains(path, "/"+name+"/") || strings.HasSuffix(path, name)
 }
 
 // uiComparatorKnown reports whether an expectation string is one of the four

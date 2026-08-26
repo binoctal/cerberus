@@ -31,7 +31,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/prompts.ts
           hash: 723312f523101055ca7ad618926e5846eba77682e0aa90e793d2060244653976
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/agents.ts
-          hash: 9bd1bfcefded5fef82432df3e9912c717cf2b1188f7b065fe615621fe09c42f5
+          hash: b458ea4e927e37729a4b8eed03334eb8ac98af0c6b1a8c3e2473da0cf6d3ff8a
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/skills.ts
           hash: 3320ff75a6d939a34211e22caa86450cefdc90a62c17052fdfa6cbcaeeae9dc3
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/rules.ts
@@ -117,7 +117,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/learning-metrics.ts
           hash: f7e24af582b144a963b481cb7ba4df0be34eb1021674819b049892c23d629b52
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-providers.ts
-          hash: 40b1dcf9df5f3a483b0cce3514c1041731b19768f52b3c1a6b1eb3c725ddc11f
+          hash: 97585c6350a417bed3d480b5ba1e093f194ce3f3e7ff05d4c802a1b2f412b6c7
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/missions.ts
           hash: 47c36d89f96f34dc28ce8477294c28494d9667f0b8c1dc62e6d3a228b338cfe2
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/api-keys.ts
@@ -2543,8 +2543,8 @@ http_routes:
             pick: agents.0.id
       source:
         spans:
-            - start: 136
-              end: 136
+            - start: 140
+              end: 140
     - method: GET
       path: /api/skills
       mount: /api/skills
@@ -3020,6 +3020,8 @@ http_routes:
         - use:/api/*
         - planLimiter
       auth: required
+      param_sources_off:
+        - :type
       source:
         spans:
             - start: 20
@@ -3105,6 +3107,8 @@ http_routes:
         - use:/api/*
         - planLimiter
       auth: required
+      param_sources_off:
+        - :id
       source:
         spans:
             - start: 65
@@ -4713,6 +4717,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      param_sources_off:
+        - :id
       source:
         spans:
             - start: 100
@@ -4770,6 +4776,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      param_sources_off:
+        - :id
       source:
         spans:
             - start: 202
@@ -5250,6 +5258,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      param_sources_off:
+        - :id
       source:
         spans:
             - start: 263
@@ -7283,8 +7293,8 @@ http_routes:
             pick: providers.0.id
       source:
         spans:
-            - start: 164
-              end: 164
+            - start: 167
+              end: 167
     - method: GET
       path: /api/admin/missions/stats
       mount: /api/admin/missions

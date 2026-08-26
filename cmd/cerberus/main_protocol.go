@@ -232,6 +232,18 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 	if p, perr := project.LoadVocabulary(outPath); perr == nil {
 		prev = p
 	}
+	// Hand-deleted param chains (param_sources_off in the previous vocab)
+	// must never resurrect: re-derivation skips vetoed params entirely —
+	// the heuristic cannot distinguish "hand-deleted" from "never curated",
+	// so the veto is the only durable record of the deletion.
+	vetoedParam := map[string]bool{}
+	if prev != nil {
+		for _, r := range prev.HTTPRoutes {
+			for _, p := range r.ParamSourcesOff {
+				vetoedParam[r.Method+"|"+r.Path+"|"+p] = true
+			}
+		}
+	}
 	// Auth derivation (spec §1): auth = middlewares ∩ the service-level auth
 	// list. The effective list is the previous vocab's hand-curated
 	// http_auth_middlewares when present — anonymous gates (use:/api/*) match
@@ -284,6 +296,9 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 		for _, p := range pathParams(routes[i].Path) {
 			if _, hand := routes[i].ParamSources[p]; hand {
 				continue
+			}
+			if vetoedParam[routes[i].Method+"|"+routes[i].Path+"|"+p] {
+				continue // param_sources_off: hand-deleted chain stays deleted
 			}
 			list := strings.TrimSuffix(routes[i].Path, "/"+p)
 			if strings.Contains(list, ":") {
@@ -357,6 +372,7 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 					}
 					vocab.HTTPRoutes[i].ParamSources[p] = ps
 				}
+				vocab.HTTPRoutes[i].ParamSourcesOff = old.ParamSourcesOff
 			}
 		}
 	}
