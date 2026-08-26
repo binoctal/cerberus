@@ -175,7 +175,7 @@ func TestHTTPRouteAuthedParamChainSampleLive(t *testing.T) {
 	var sample []agent.TestCase
 	adminSeen, webSeen := 0, 0
 	for _, c := range chains {
-		admin := isAdminPath(c.Steps[0].URL)
+		admin := c.Steps[0].AuthRole == "admin"
 		if (admin && adminSeen < 5) || (!admin && webSeen < 5) {
 			sample = append(sample, c)
 			if admin {
@@ -186,7 +186,7 @@ func TestHTTPRouteAuthedParamChainSampleLive(t *testing.T) {
 		}
 	}
 
-	executed, passed, skippedEmpty, sutFindings := 0, 0, 0, 0
+	executed, passed, skippedEmpty := 0, 0, 0
 	adminExec, webExec := false, false
 	for _, c := range sample {
 		capStep, tgtStep := c.Steps[0], c.Steps[1]
@@ -226,7 +226,7 @@ func TestHTTPRouteAuthedParamChainSampleLive(t *testing.T) {
 		}
 		_, code = authedSampleDo(t, client, tgtStep.Method, tgtURL, tgtJWT, tgtStep.Body)
 		executed++
-		if isAdminPath(capStep.URL) {
+		if capStep.AuthRole == "admin" {
 			adminExec = true
 		} else {
 			webExec = true
@@ -239,32 +239,21 @@ func TestHTTPRouteAuthedParamChainSampleLive(t *testing.T) {
 			passed++
 			continue
 		}
-		// Known open-agents SUT defect family (live-observed 2026-08-27):
-		// body-less PUTs die 500 in the handler's c.req.json() instead of
-		// 400 (PUT /api/agents/:id, PUT /api/admin/ai-providers/:id; the
-		// same PUT with a {} body returns 200). The chain itself — auth,
-		// capture, param substitution — worked and the request reached the
-		// handler, so this is recorded as an open-agents finding, not a
-		// cerberus generator/executor failure. open-agents is read-only
-		// here; the generator's "never 5xx" honesty claim only ever
-		// applied to body-carrying mutations.
-		if code >= 500 && tgtStep.Body == "" && tgtStep.Method != http.MethodGet {
-			sutFindings++
-			t.Logf("%s: SUT DEFECT (open-agents): body-less %s %s returns %d (handler crashes on empty body; {} body returns 200)",
-				c.ID, tgtStep.Method, tgtURL, code)
-			continue
-		}
+		// The open-agents body-less-PUT 500 family is fixed (d729629: empty
+		// bodies now 400) — a 5xx on the target step is a real failure.
+		// Diagnostics only; no exemption.
+		t.Logf("%s: target %s %s (body %q) status %d, want %s", c.ID, tgtStep.Method, tgtURL, tgtStep.Body, code, tgtStep.ExpectStatusClass)
 		t.Errorf("%s: target %s %s status %d, want %s", c.ID, tgtStep.Method, tgtURL, code, tgtStep.ExpectStatusClass)
 	}
-	fmt.Printf("authed param-chain gate: sampled %d chains, %d executed, %d passed, %d SUT findings, %d skipped (empty list)\n",
-		len(sample), executed, passed, sutFindings, skippedEmpty)
+	fmt.Printf("authed param-chain gate: sampled %d chains, %d executed, %d passed, %d skipped (empty list)\n",
+		len(sample), executed, passed, skippedEmpty)
 	if executed < 3 {
 		t.Fatalf("only %d of %d sampled chains executed — the gate went vacuous", executed, len(sample))
 	}
 	if !adminExec || !webExec {
 		t.Fatalf("gate must exercise both capture carriers: admin=%v web=%v", adminExec, webExec)
 	}
-	if passed+sutFindings != executed {
-		t.Fatalf("%d of %d executed chains failed", executed-(passed+sutFindings), executed)
+	if passed != executed {
+		t.Fatalf("%d of %d executed chains failed", executed-passed, executed)
 	}
 }
