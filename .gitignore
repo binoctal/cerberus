@@ -50,6 +50,11 @@ node_modules/
 
 # Claude Code session transcript dumps (local artifacts, never source)
 conversation-*.txt
+20*-*.txt
+
+# Playwright MCP session artifacts (console logs / page snapshots / screenshots)
+.playwright-mcp/
+demo-*.png
 internal/session/.cerberus/
 .ast-graph/
 
