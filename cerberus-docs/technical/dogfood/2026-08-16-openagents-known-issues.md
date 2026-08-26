@@ -538,7 +538,7 @@ storm across dogfood runs; degraded windows make otherwise-healthy
 missions flap (spurious task_error/re-dispatch), which is noise the
 Examiner sees as SUT flakiness.
 
-## 22. Bridge becomes a zombie after its reconnect time budget is exhausted — OPEN 2026-08-26
+## 22. Bridge becomes a zombie after its reconnect time budget is exhausted — FIXED 2026-08-26 (bridge def0acd, open-agents 35ae557: endless-but-backed-off retry picked — after the 10-min budget the readLoop falls back to one attempt every 5 min, interruptible by shutdown; the exhaustion announcement logs/notifies exactly once via an atomic mode flag, cleared on successful reconnect)
 
 Demo bridge b2 (evidence /tmp/demo-ui-b2.out line ~108): WS died with 1006
 at 01:02:23, the reconnect loop logged "Reconnect time budget exhausted
@@ -612,7 +612,7 @@ Treat as noise for coverage/pass-rate purposes until root-caused; do not
 let it block merges. Next dogfood run should capture debug-level logging
 for this case specifically if it recurs.
 
-## 24. Six independent zustand stores each un-cached-fetch `/api/settings` on mount — OPEN 2026-08-26
+## 24. Six independent zustand stores each un-cached-fetch `/api/settings` on mount — FIXED 2026-08-26 (open-agents 32c4175: shared `lib/settingsClient` — in-flight dedupe + 30s TTL + patch invalidation; all six call sites swapped; web suite 1477/1477. The intermittent ~30s navigation hang stays UNCONFIRMED and out of scope — no fix attempted, see investigation note below)
 
 `weather-cities.ts`, `onboardingStore`, `securityAlertStore`, `themeStore`,
 `notificationsStore`, `storageStore` each independently call
