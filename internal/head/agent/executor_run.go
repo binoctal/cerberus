@@ -84,6 +84,7 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			zap.String("case_id", tc.ID),
 			zap.String("status", string(result.Status)),
 			zap.Int("attempts", result.Attempts),
+			zap.NamedError("error", result.Error),
 		)
 		r.emitProgress(ProgressEvent{Type: "case_complete", CaseID: tc.ID, Status: result.Status, Attempt: result.Attempts})
 

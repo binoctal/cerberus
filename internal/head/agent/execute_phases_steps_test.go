@@ -33,6 +33,12 @@ func newStepExecution(t *testing.T, tc *TestCase) *stepExecution {
 // newStepExecutionWithIdx is like newStepExecution but wires a WSProtocolIndex
 // into the executor so the role+handshake path is exercised through runSteps.
 func newStepExecutionWithIdx(t *testing.T, tc *TestCase, wsIdx *WSProtocolIndex) *stepExecution {
+	return newStepExecutionWithIdxLogger(t, tc, wsIdx, zap.NewNop())
+}
+
+// newStepExecutionWithIdxLogger is newStepExecutionWithIdx with the loop's
+// logger injectable, so log-output tests can observe the per-step lines.
+func newStepExecutionWithIdxLogger(t *testing.T, tc *TestCase, wsIdx *WSProtocolIndex, logger *zap.Logger) *stepExecution {
 	t.Helper()
 	s, err := store.New(":memory:")
 	require.NoError(t, err)
@@ -40,12 +46,12 @@ func newStepExecutionWithIdx(t *testing.T, tc *TestCase, wsIdx *WSProtocolIndex)
 	err = store.RunMigrations(context.Background(), s.DB(), "../../../migrations")
 	require.NoError(t, err)
 
-	executor := BuildMultiExecutor(".", nil, wsIdx, nil, zap.NewNop())
+	executor := BuildMultiExecutor(".", nil, wsIdx, nil, logger)
 	loop := &ReActLoop{
 		executor: executor,
 		store:    s,
 		wsIdx:    wsIdx, // wire http_request resolution (runSteps reads loop.wsIdx)
-		logger:   zap.NewNop(),
+		logger:   logger,
 	}
 
 	// Create a real session row so CreateTrace's foreign key is satisfied.

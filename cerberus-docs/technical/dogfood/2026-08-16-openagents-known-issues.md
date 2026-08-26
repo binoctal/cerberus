@@ -592,6 +592,19 @@ debug-level rerun of just this case, or step-level evidence to be logged
 at `info` for `ws_flow` cases the way `browser_flow` steps already are
 (spec 2026-08-26 §Evidence: `ui_action`/`ui_observe` frames).
 
+**Cerberus-side observability shipped 2026-08-26** (step logging in
+`runSteps`): every executed step now emits one `case step` info line
+(case_id, 1-based step position, action, connection/type/method/url,
+passed, latency, truncated summary, http status_code), and — the actual
+blind spot — step-RESOLUTION failures (`stepToAction`/`resolveBrowserStep`/
+`resolveHTTPStep`/`browser_shot`/capture errors) now log before the
+historical zero-evidence early-return; the case-completion line carries
+`error` via NamedError. Note this reframes the leading hypothesis: the
+run-28 failure shape (0.13 s, no POST /api/missions, no evidence rows)
+matches a resolution-phase failure — e.g. placeholder/http-token
+resolution — not a dispatch defect; the next recurrence's `case step`
+line will say which.
+
 **Cerberus consequence:** none confirmed yet (the failure may be a genuine
 open-agents defect in multi-device dispatch under contention, or a
 cerberus-side harness issue in the stepped-case executor — undetermined).

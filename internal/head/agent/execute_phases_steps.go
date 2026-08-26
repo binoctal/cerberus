@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/binoctal/cerberus/internal/project"
 	"github.com/binoctal/cerberus/internal/types"
 )
@@ -384,6 +386,61 @@ func httpStepPassed(s TestStep, result types.ExecutorResult) (bool, error) {
 	return result.Success(), nil
 }
 
+// stepLogFields collects the fields shared by every per-step info line: the
+// case, the 1-based step position, the action, and the step's discriminating
+// parameters — enough to tell WHICH step acted and on what from the run log
+// alone, without dumping message bodies. Emitted once per executed step
+// (open-agents #23 observability: ws_flow cases previously logged only case
+// start/completion, so a mid-case failure was invisible at info level).
+func (se *stepExecution) stepLogFields(i int, s TestStep) []zap.Field {
+	caseID, _ := se.ctx.Value(caseIDKey{}).(string)
+	fields := []zap.Field{
+		zap.String("case_id", caseID),
+		zap.Int("step", i+1),
+		zap.String("action", s.Action),
+	}
+	if s.ConnectionID != "" {
+		fields = append(fields, zap.String("connection_id", s.ConnectionID))
+	}
+	if s.Type != "" {
+		fields = append(fields, zap.String("type", s.Type))
+	}
+	if s.Role != "" {
+		fields = append(fields, zap.String("role", s.Role))
+	}
+	if s.Method != "" {
+		fields = append(fields, zap.String("method", s.Method))
+	}
+	if s.URL != "" {
+		fields = append(fields, zap.String("url", s.URL))
+	}
+	if s.Target != "" {
+		fields = append(fields, zap.String("target", s.Target))
+	}
+	return fields
+}
+
+// logStep emits the per-step info line once the step's outcome is known.
+// passed carries the step-level verdict (http gates can override the
+// executor's own success gate); result may be nil for pre-execution failures
+// (step resolution), which is exactly the blind spot this line closes.
+func (se *stepExecution) logStep(i int, s TestStep, result types.ExecutorResult, latency time.Duration, passed bool, err error) {
+	fields := append(se.stepLogFields(i, s),
+		zap.Bool("passed", passed),
+		zap.Duration("latency", latency),
+	)
+	if result != nil {
+		fields = append(fields, zap.String("summary", truncateStr(result.Summary(), 200)))
+		if hr, ok := result.(types.HTTPResult); ok {
+			fields = append(fields, zap.Int("status_code", hr.StatusCode))
+		}
+	}
+	if err != nil {
+		fields = append(fields, zap.Error(err))
+	}
+	se.loop.logger.Info("case step", fields...)
+}
+
 // runSteps executes a deterministic multi-step WS case: each step runs via the
 // shared executor under the case context (caseIDKey already set by executeStep).
 // Steps citing the SAME connection_id share one connection; steps citing
@@ -401,8 +458,9 @@ func (se *stepExecution) runSteps() StepResult {
 	var evidence []Evidence
 	var lastAction types.TypedAction
 	var lastResult types.ExecutorResult
-	for _, s := range se.tc.Steps {
+	for i, s := range se.tc.Steps {
 		s = substituteCaseParams(s, se.caseParams)
+		stepStart := time.Now()
 		var action types.TypedAction
 		var err error
 		if s.Action == "process_restart" {
@@ -413,6 +471,7 @@ func (se *stepExecution) runSteps() StepResult {
 			// Evidence entry below carries the facts.
 			result, rerr := se.runProcessRestart(s)
 			evidence = append(evidence, stepEvidence(s, result))
+			se.logStep(i, s, result, time.Since(stepStart), rerr == nil, rerr)
 			if rerr != nil || !result.Success() {
 				return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
 					Attempts: 1, Duration: time.Since(se.start), Result: result, Evidence: evidence,
@@ -431,11 +490,16 @@ func (se *stepExecution) runSteps() StepResult {
 					if p, serr := be.ScreenshotToFile(caseID, s.Label); serr == nil {
 						evidence = append(evidence, Evidence{Type: "browser_shot",
 							Content: fmt.Sprintf("browser_shot: %s", p), Action: s.Action})
+						se.logStep(i, s, nil, time.Since(stepStart), true, nil)
 					} else {
-						return se.failureResult(fmt.Errorf("browser_shot: %w", serr), 1)
+						err := fmt.Errorf("browser_shot: %w", serr)
+						se.logStep(i, s, nil, time.Since(stepStart), false, err)
+						return se.failureResult(err, 1)
 					}
 				} else {
-					return se.failureResult(fmt.Errorf("browser_shot: browser executor unavailable"), 1)
+					err := fmt.Errorf("browser_shot: browser executor unavailable")
+					se.logStep(i, s, nil, time.Since(stepStart), false, err)
+					return se.failureResult(err, 1)
 				}
 				continue
 			}
@@ -444,6 +508,9 @@ func (se *stepExecution) runSteps() StepResult {
 			action, err = stepToAction(se.tc, s)
 		}
 		if err != nil {
+			// Resolution failed before the executor ran: no evidence row is
+			// written for this step, so this log line is the ONLY trace of it.
+			se.logStep(i, s, nil, time.Since(stepStart), false, err)
 			return se.failureResult(err, 1)
 		}
 		// Tell an optional-handshake connect which await-types a later receive on
@@ -462,6 +529,7 @@ func (se *stepExecution) runSteps() StepResult {
 		lastAction, lastResult = action, result
 		if s.Action == "http_request" {
 			passed, gateErr := httpStepPassed(s, result)
+			se.logStep(i, s, result, time.Since(stepStart), passed, gateErr)
 			if !passed {
 				return StepResult{TestCase: se.tc, Status: StepFailed, TraceID: se.traceID,
 					Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence,
@@ -475,6 +543,7 @@ func (se *stepExecution) runSteps() StepResult {
 				if hr, ok := result.(types.HTTPResult); ok {
 					captured, err := captureFromHTTPBody(hr.Body, s.Capture)
 					if err != nil {
+						se.logStep(i, s, result, time.Since(stepStart), false, err)
 						return se.failureResult(err, 1)
 					}
 					maps.Copy(se.caseParams, captured)
@@ -482,6 +551,7 @@ func (se *stepExecution) runSteps() StepResult {
 			}
 			continue
 		}
+		se.logStep(i, s, result, time.Since(stepStart), result.Success(), nil)
 		if !result.Success() {
 			if strings.HasPrefix(s.Action, "browser_") {
 				// Auto-capture on failure (spec §6): the DOM excerpt rides the
