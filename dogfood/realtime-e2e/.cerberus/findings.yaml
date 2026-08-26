@@ -608,3 +608,50 @@ findings:
       first_seen: "2026-08-25T12:47:25Z"
       last_seen: "2026-08-25T12:47:25Z"
       count: 1
+    - id: ui-vocab-missions-conn-status-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-missions-conn-status
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ui-vocab-missions-device-counter-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ui-vocab-missions-list-renders-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-missions-list-renders
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ui-vocab-devices-page-populated-02497da7
+      summary: 'error: no executor for action type: browser_goto'
+      case_ref: ui-vocab-devices-page-populated
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      tier: emulated
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 2
+    - id: ws-realtime-wf-mission-fanout-58cfc954
+      summary: ws error  (matched=0 seen=4, 1m0.012968123s)
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: 1504a576-a658-4046-854c-6db89791cb5b
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-25T17:57:46Z"
+      last_seen: "2026-08-25T17:57:46Z"
+      count: 1

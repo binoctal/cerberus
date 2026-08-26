@@ -9,12 +9,12 @@ import (
 
 // BrowserResult represents a browser automation result.
 type BrowserResult struct {
-	OK         bool          `json:"success"`
-	URL        string        `json:"url"`
-	Title      string        `json:"title"`
-	Text       string        `json:"text,omitempty"`
-	Screenshot string        `json:"screenshot,omitempty"` // base64 encoded
-	EvalResult string        `json:"eval_result,omitempty"`
+	OK         bool   `json:"success"`
+	URL        string `json:"url"`
+	Title      string `json:"title"`
+	Text       string `json:"text,omitempty"`
+	Screenshot string `json:"screenshot,omitempty"` // base64 encoded
+	EvalResult string `json:"eval_result,omitempty"`
 	// Assertion facts (browser_expect): expected vs observed, judged by the
 	// executor; the Examiner reviews why, not whether.
 	Selector    string        `json:"selector,omitempty"`
