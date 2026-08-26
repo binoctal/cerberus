@@ -66,7 +66,9 @@ if [ -n "${TEST:-}" ]; then
 fi
 # agent: the executor-side live suite; scout: the generator-side live gates
 # (e.g. the -unauth vocab gate) — both need the real open-agents server.
-go test -tags=integration -v -timeout=10m ./internal/head/agent/ ./internal/head/scout/ "${RUN_ARG[@]}"
+# -count=1: live gates must always probe the server, never replay cached
+# results from a previous (possibly server-down, skipped) run.
+go test -count=1 -tags=integration -v -timeout=10m ./internal/head/agent/ ./internal/head/scout/ "${RUN_ARG[@]}"
 status=$?
 echo "→ integration suite exit: $status"
 exit $status
