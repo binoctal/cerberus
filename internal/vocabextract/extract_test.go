@@ -487,3 +487,63 @@ func TestExtract_HonoRoutes(t *testing.T) {
 		}
 	}
 }
+
+// TestExtract_AnonUseMiddlewares: a glob use prefix ('/api/*', bare '*')
+// applies to every path under the stripped prefix, and anonymous inline
+// app.use middlewares are captured under a stable synthesized name
+// ('use:/api/*', 'use:/' for the path-less form), deduped with '#N'
+// suffixes when repeated within one file. This is the real open-agents
+// shape: its JWT gate is an anonymous app.use('/api/*', async ...).
+func TestExtract_AnonUseMiddlewares(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "hono", "use-anon.ts"))
+	if err != nil {
+		t.Skipf("node unavailable or npm failed: %v", err)
+	}
+	var got struct {
+		HTTPRoutes []struct {
+			Method      string   `json:"method"`
+			Path        string   `json:"path"`
+			Middlewares []string `json:"middlewares"`
+		} `json:"http_routes"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("parse extractor stdout: %v\nraw=%s", err, out)
+	}
+	has := func(mws []string, name string) bool {
+		for _, m := range mws {
+			if m == name {
+				return true
+			}
+		}
+		return false
+	}
+	for _, r := range got.HTTPRoutes {
+		// The named '*' use applies to every route, glob or not.
+		if !has(r.Middlewares, "requestLogger") {
+			t.Errorf("%s %s must carry requestLogger (bare '*' glob), got %v", r.Method, r.Path, r.Middlewares)
+		}
+		if !strings.HasPrefix(r.Path, "/api") {
+			continue
+		}
+		// Both anonymous /api/* uses apply under the stripped prefix; the
+		// second gets the '#2' suffix, not a name collision.
+		if !has(r.Middlewares, "use:/api/*") {
+			t.Errorf("%s %s must carry use:/api/* (anonymous use, glob prefix), got %v", r.Method, r.Path, r.Middlewares)
+		}
+		if !has(r.Middlewares, "use:/api/*#2") {
+			t.Errorf("%s %s must carry use:/api/*#2 (deduped second anonymous use), got %v", r.Method, r.Path, r.Middlewares)
+		}
+	}
+	// Outside the glob: no /api/* middleware leaks onto the route.
+	for _, r := range got.HTTPRoutes {
+		if r.Path == "/health" && (has(r.Middlewares, "use:/api/*") || has(r.Middlewares, "use:/api/*#2")) {
+			t.Errorf("/health must not carry /api/* middlewares, got %v", r.Middlewares)
+		}
+	}
+	if len(got.HTTPRoutes) != 3 {
+		t.Fatalf("http_routes = %+v, want 3 routes", got.HTTPRoutes)
+	}
+}

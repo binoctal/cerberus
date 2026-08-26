@@ -379,9 +379,17 @@ function importMap(sf) {
 
 // routeHasPrefix: an app.use(prefix) middleware applies to the prefix itself
 // and every path under it. A path-less app.use(mw) records prefix '/', which
-// applies to every route.
+// applies to every route. A prefix ending in '/*' (e.g. Hono's '/api/*') is a
+// glob: it matches the stripped prefix and everything under it; a bare '*'
+// matches every path (it survives joinPath as '/*' at the root, '<mount>/*'
+// inside a mounted router).
 function routeHasPrefix(p, pre) {
-  return pre === '/' || p === pre || p.startsWith(pre + '/');
+  if (pre === '/' || pre === '*') return true;
+  if (pre.endsWith('/*')) {
+    const base = pre.slice(0, -2);
+    return p === base || p.startsWith(base + '/');
+  }
+  return p === pre || p.startsWith(pre + '/');
 }
 
 function addRoute(method, fullPath, mount, line, middlewares, minBody) {
@@ -485,6 +493,9 @@ function walkFile(filePath, prefix, depth, useMws) {
   const imports = importMap(sf2);
   const schemas = schemaMapOf(sf2);
   const mws = [...useMws];
+  // Per-file counter that disambiguates repeated synthesized anonymous-use
+  // names (scoped to this file; parent-file names are already fixed).
+  const anonUseNames = new Map();
   for (const stmt of sf2.getStatements()) {
     if (stmt.getKind() !== SyntaxKind.ExpressionStatement) continue;
     const call = stmt.getExpression();
@@ -506,12 +517,23 @@ function walkFile(filePath, prefix, depth, useMws) {
       addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber(), mwsForRoute, minBody);
     } else if (name === 'use') {
       // app.use('/p', mw, ...) registers each identifier middleware under
-      // the prefix; a path-less app.use(mw) covers everything ('/').
+      // the prefix; a path-less app.use(mw) covers everything ('/'). An
+      // inline arrow/function middleware (the anonymous auth gate pattern)
+      // gets a stable synthesized name 'use:<prefix>' so it still rides the
+      // middleware chain; a repeated name within one file gets '#2', '#3',
+      // ... The name is pattern-derived, not SUT-specific.
       const args = call.getArguments();
       const mwPrefix = lit0 !== null ? joinPath(prefix, lit0) : '/';
       const mwArgs = lit0 !== null ? args.slice(1) : args;
       for (const a of mwArgs) {
-        if (a.getKind() === SyntaxKind.Identifier) mws.push({ prefix: mwPrefix, name: a.getText() });
+        if (a.getKind() === SyntaxKind.Identifier) {
+          mws.push({ prefix: mwPrefix, name: a.getText() });
+        } else if (a.getKind() === SyntaxKind.ArrowFunction || a.getKind() === SyntaxKind.FunctionExpression) {
+          const base = 'use:' + mwPrefix;
+          const n = (anonUseNames.get(base) || 0) + 1;
+          anonUseNames.set(base, n);
+          mws.push({ prefix: mwPrefix, name: n === 1 ? base : `${base}#${n}` });
+        }
       }
     } else if (name === 'route' && lit0 !== null) {
       const target = imports.get(call.getArguments()[1]?.getText().trim());
