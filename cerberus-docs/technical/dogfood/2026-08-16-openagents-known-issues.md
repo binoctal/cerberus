@@ -451,3 +451,64 @@ gateway flaps; POST /auth/refresh 500 in console, zero ws:// opens).
 
 **Cerberus consequence:** none for dogfood runs (they drive WS directly);
 it degrades the web demo exactly when the API host is flaky.
+
+## 20. Duplicate re-dispatch destroys a healthy in-flight session (worktree collision → wrong-dir replacement) — OPEN 2026-08-26
+
+Demo mission `job_1787672167461` t1 on b2: first dispatch created the
+worktree session normally. Exactly +30.03s later a second task_assign
+arrived (t1 had been reset to pending — the reset itself happened during a
+worker degradation window, see #21; CAS correctly allowed the re-dispatch
+because the task was pending again). The second assign's worktree creation
+collided with the existing branch (#16 family) and fell back to workDir
+"."; `manager_new.go:57` then treated the workDir mismatch as
+"cannot resume" and REPLACED the session — disconnecting the healthy
+in-flight session and recreating it in the bridge root directory. The task
+lost its session ("Session not found ... Active sessions: []" output drops,
+/tmp/demo-ui-b2.out lines 69-78), sat stuck for ~4 minutes until the 5-min
+stuck-recovery alarm re-dispatched, and the final successful attempt ran
+with workDir "." (no worktree isolation).
+
+Evidence: /tmp/demo-ui-b2.out full timeline 23:37:51→23:42:59; wrangler
+demo log (alarm storm + 503s + 5.5s event POSTs at the same instant).
+
+Two missing defenses:
+1. Bridge: a re-assign whose existing session is ALIVE and matches the same
+   job/task should be ignored (or resume), never replaced on a workDir
+   mismatch — the mismatch is the re-dispatcher's degradation, not the
+   session's.
+2. Orchestrator: the retry/re-dispatch path should reuse the original
+   workDir (or clean up the colliding branch) instead of silently dropping
+   isolation ("falling back to original dir" runs the task in the bridge
+   root).
+
+**Cerberus consequence:** mission-fanout cases can spuriously stall on this
+(any re-dispatch after a transient error while the first attempt is still
+connecting); the 3-min stuck window in dogfood timings hides it.
+
+## 21. Stuck missions' 10s scheduleNext retry alarms never expire → permanent DO alarm storm — OPEN 2026-08-26
+
+Old missions with no online devices (dogfood history: job_1787595006700,
+job_1787656433018, job_1787659470814, job_1787660490153 ×4, …) each
+schedule a 10s 'scheduleNext' retry on every pass
+(orchestrator.ts:150-151). The DO alarm queue sat at capacity (queued=16,
+climbing 10→16 in the log) and fired CONTINUOUSLY (~30 alarms/s, one DO
+invocation each) for hours. This degraded the whole worker during the
+demo: device heartbeats 503 (3-4s latency), an orchestrator event POST at
+5577ms, and a workerd internal disconnect ("write: Connection reset by
+peer"). The degraded window is what reset t1 to pending and triggered the
+#20 chain.
+
+Missing defenses: retry alarms need a TTL/attempt cap (a mission offline
+for >N hours must stop retrying and park as failed), and/or the 10s retry
+should back off exponentially.
+
+Bonus observation (same log): the demo bridge's WS died with 1006 at
+01:02:23 and "Reconnect time budget exhausted (10m0s), giving up" — a
+bridge that exhausts its reconnect budget stays a live-but-zombie process
+forever (never exits, never reconnects). Related candidate, not yet filed
+separately.
+
+**Cerberus consequence:** long-lived wrangler instances accumulate the
+storm across dogfood runs; degraded windows make otherwise-healthy
+missions flap (spurious task_error/re-dispatch), which is noise the
+Examiner sees as SUT flakiness.
