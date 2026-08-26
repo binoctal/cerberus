@@ -565,3 +565,36 @@ flap go zombie mid-run; downstream cases see device-offline semantics
 (dispatch backs off) rather than a crash, so this hides as "device went
 away" instead of surfacing as a restart — masking the defect family the
 process_restart coverage is meant to exercise.
+
+## 23. `ws-realtime-wf-mission-fanout` recurring flaky failure — root cause not yet pinned — OPEN 2026-08-26
+
+Multi-device fan-out mission case (`mission_seed_cases.go`, 3-subtask
+mission spanning all real bridges) has failed in 3 of the last 4 dogfood
+runs targeting it: run 25, run 26 ("recurring ws_match family"), run 28
+(this filing). Only run 27 was clean.
+
+Run 28 evidence: the case completed (executing → completed) in 0.13s —
+far too fast for a real fan-out (`http_request` create mission → 3×
+`ws_receive workflow:task_progress` → 3× `task_completed`/`job_status`,
+normally minutes). No `POST /api/missions` appears in the wrangler log
+near the case's execution window, and no step-level evidence rows exist
+for its trace_id — the case appears to fail before or during its first
+step, with no observable server-side request. This does NOT correlate
+with the open-agents #20/#21 fixes (both landed and re-verified clean in
+run 27) or with a mid-run interrupt (this case failed at 14:49:16, ~10
+minutes before an unrelated SIGINT hit the run's tail-end judging phase —
+see the dogfood run docs).
+
+**Why root cause is still open:** cerberus's `info`-level run logging
+does not capture step-level detail (which step failed, why) for `ws_flow`
+cases — only case start/completion. Pinning this needs either a
+debug-level rerun of just this case, or step-level evidence to be logged
+at `info` for `ws_flow` cases the way `browser_flow` steps already are
+(spec 2026-08-26 §Evidence: `ui_action`/`ui_observe` frames).
+
+**Cerberus consequence:** none confirmed yet (the failure may be a genuine
+open-agents defect in multi-device dispatch under contention, or a
+cerberus-side harness issue in the stepped-case executor — undetermined).
+Treat as noise for coverage/pass-rate purposes until root-caused; do not
+let it block merges. Next dogfood run should capture debug-level logging
+for this case specifically if it recurs.
