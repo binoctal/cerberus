@@ -585,6 +585,13 @@ run 27) or with a mid-run interrupt (this case failed at 14:49:16, ~10
 minutes before an unrelated SIGINT hit the run's tail-end judging phase —
 see the dogfood run docs).
 
+**Run 29 (2026-08-26): did NOT recur** — 4th clean run out of 5. The case
+executed a REAL 4.5-minute fan-out (step logs: genuine 24s/35s
+task_progress receives → pass), not the run-28 0.13s instant-fail. No root
+cause pinned yet: the failure has not recurred since per-step logging
+landed, so the resolution-phase hypothesis stays untested; the next
+recurrence will be caught by the `case step` lines.
+
 **Why root cause is still open:** cerberus's `info`-level run logging
 does not capture step-level detail (which step failed, why) for `ws_flow`
 cases — only case start/completion. Pinning this needs either a
