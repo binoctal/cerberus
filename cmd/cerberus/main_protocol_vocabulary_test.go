@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -252,5 +253,61 @@ export default app;
 	}
 	if len(v2.Edges) == 0 || len(v2.HTTPRoutes) != 1 || !v2.HTTPRoutes[0].Partial {
 		t.Fatalf("re-extraction lost content or marks: %d edges, %+v", len(v2.Edges), v2.HTTPRoutes)
+	}
+}
+
+// extractVocabForTest runs the vocabulary extraction over a bundled
+// internal/vocabextract/testdata source and returns the parsed vocabulary.
+// Shared by tests that assert on extractor output shape without writing
+// their own fixtures.
+func extractVocabForTest(t *testing.T, rel string) *project.Vocabulary {
+	t.Helper()
+	src, err := filepath.Abs(filepath.Join("..", "..", "internal", "vocabextract", "testdata", rel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := runProtocolVocabulary(context.Background(), dir, []string{src}, "hono", false, func(string) bool { return true }); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	v, err := project.LoadVocabulary(filepath.Join(dir, ".cerberus", "vocab", "hono.vocab.yaml"))
+	if err != nil {
+		t.Fatalf("load vocab: %v", err)
+	}
+	return v
+}
+
+// TestRunProtocolVocabulary_UseAuthMiddlewares: app.use('/api/things', authMiddleware)
+// prefixes every route under /api/things (direct + router-mounted), and inline
+// middleware args are captured per-route. Routes outside the prefix carry only
+// their own inline middleware; untouched routes carry none.
+func TestRunProtocolVocabulary_UseAuthMiddlewares(t *testing.T) {
+	vocab := extractVocabForTest(t, filepath.Join("hono", "use-auth.ts"))
+	byKey := map[string]project.VocabHTTPRoute{}
+	for _, r := range vocab.HTTPRoutes {
+		byKey[r.Method+"|"+r.Path] = r
+	}
+	if r := byKey["GET|/health"]; len(r.Middlewares) != 0 {
+		t.Fatalf("/health must carry no middlewares, got %v", r.Middlewares)
+	}
+	for _, key := range []string{"GET|/api/things", "GET|/api/things/:id", "GET|/api/things/:id/gated"} {
+		r, ok := byKey[key]
+		if !ok {
+			t.Fatalf("route %s missing", key)
+		}
+		if !slices.Contains(r.Middlewares, "authMiddleware") {
+			t.Fatalf("%s must inherit authMiddleware from app.use, got %v", key, r.Middlewares)
+		}
+	}
+	if r := byKey["GET|/api/things/:id/gated"]; !slices.Contains(r.Middlewares, "rateLimiter") {
+		t.Fatalf("inline rateLimiter not captured: %v", r.Middlewares)
+	}
+	// Outside the /api/things prefix: only the inline middleware applies.
+	r, ok := byKey["GET|/limited"]
+	if !ok {
+		t.Fatal("route GET|/limited missing")
+	}
+	if !slices.Contains(r.Middlewares, "rateLimiter") || slices.Contains(r.Middlewares, "authMiddleware") {
+		t.Fatalf("GET|/limited middlewares = %v, want [rateLimiter] only", r.Middlewares)
 	}
 }

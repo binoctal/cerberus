@@ -377,8 +377,16 @@ function importMap(sf) {
   return m;
 }
 
-function addRoute(method, fullPath, mount, line) {
+// routeHasPrefix: an app.use(prefix) middleware applies to the prefix itself
+// and every path under it. A path-less app.use(mw) records prefix '/', which
+// applies to every route.
+function routeHasPrefix(p, pre) {
+  return pre === '/' || p === pre || p.startsWith(pre + '/');
+}
+
+function addRoute(method, fullPath, mount, line, middlewares) {
   const e = { method, path: fullPath, mount: mount || undefined,
+              middlewares: middlewares.length ? middlewares : undefined,
               source: { spans: [{ start: line, end: line }] } };
   const k = `${e.method}|${e.path}`;
   const ex = routeMap.get(k);
@@ -387,7 +395,11 @@ function addRoute(method, fullPath, mount, line) {
   httpRoutes.push(e);
 }
 
-function walkFile(filePath, prefix, depth) {
+// walkFile collects routes declared in one file. useMws carries the
+// app.use(prefix) middlewares declared by parent files (entries {prefix, name});
+// they keep applying to every route registered under their prefix, including
+// routes inside routers mounted later via app.route.
+function walkFile(filePath, prefix, depth, useMws) {
   const abs = path.resolve(filePath);
   if (depth > 8 || visitedFiles.has(abs)) return;
   visitedFiles.add(abs);
@@ -401,6 +413,7 @@ function walkFile(filePath, prefix, depth) {
     }
   }
   const imports = importMap(sf2);
+  const mws = [...useMws];
   for (const stmt of sf2.getStatements()) {
     if (stmt.getKind() !== SyntaxKind.ExpressionStatement) continue;
     const call = stmt.getExpression();
@@ -412,16 +425,31 @@ function walkFile(filePath, prefix, depth) {
     const arg0 = call.getArguments()[0];
     const lit0 = arg0 && arg0.getKind() === SyntaxKind.StringLiteral ? lit(arg0) : null;
     if (HTTP_METHODS.includes(name) && lit0 !== null) {
-      addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber());
+      // Inline middleware: bare identifier args between the path and the
+      // handler (arrow/function args are the handler itself).
+      const inlineMw = call.getArguments().slice(1)
+        .filter(a => a.getKind() === SyntaxKind.Identifier)
+        .map(a => a.getText());
+      const mwsForRoute = [...inlineMw, ...mws.filter(u => routeHasPrefix(joinPath(prefix, lit0), u.prefix)).map(u => u.name)];
+      addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber(), mwsForRoute);
+    } else if (name === 'use') {
+      // app.use('/p', mw, ...) registers each identifier middleware under
+      // the prefix; a path-less app.use(mw) covers everything ('/').
+      const args = call.getArguments();
+      const mwPrefix = lit0 !== null ? joinPath(prefix, lit0) : '/';
+      const mwArgs = lit0 !== null ? args.slice(1) : args;
+      for (const a of mwArgs) {
+        if (a.getKind() === SyntaxKind.Identifier) mws.push({ prefix: mwPrefix, name: a.getText() });
+      }
     } else if (name === 'route' && lit0 !== null) {
       const target = imports.get(call.getArguments()[1]?.getText().trim());
-      if (target) { traversed.push(target); walkFile(target, joinPath(prefix, lit0), depth + 1); }
+      if (target) { traversed.push(target); walkFile(target, joinPath(prefix, lit0), depth + 1, mws); }
     } else if (name === 'on') {
       skippedOn++;
     }
   }
 }
-walkFile(file, '', 0);
+walkFile(file, '', 0, []);
 
 console.log(JSON.stringify({
   edges: [...merged.values()],
