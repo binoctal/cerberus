@@ -615,20 +615,38 @@ deduped against sibling stores already holding the same data.
 Root cause: no shared settings store/selector; six independent Zustand
 stores each own a private slice-fetch of the same server resource.
 
-**Investigation note (2026-08-26):** discovered while chasing a
-non-reproducible ~30s navigation hang on `/dashboard` and
-`/dashboard/prompt-lab` (browser-leg UI vocab work). Four clean
-reproduction attempts (isolated single-page nav ×3, full 8-route
-sequential replay, fresh wrangler+vite restart) all completed in 20-50ms
-with zero hang — the original hang's root cause is UNCONFIRMED, most
-likely a one-off resource-contention blip (system load from concurrent
-session activity) rather than a deterministic app or cerberus bug. This
-request-storm is filed as the one CONFIRMED, reproducible finding from
-that investigation — a plausible (not proven) contributing factor to
-occasional slow navigations under contention, not a standalone crash risk.
+**Investigation note (2026-08-26, corrected):** discovered while chasing an
+intermittent ~30s navigation hang on `/dashboard` and
+`/dashboard/prompt-lab` (browser-leg UI vocab work). Extensive
+reproduction testing (7 genuine executions with Go test caching
+explicitly ruled out via `-count=1` and per-run request tracing) showed
+the hang is NOT deterministic on any single code path: the identical
+`cerberus`-executor call (`BrowserExecutor.gotoPage`, `wait_until: load`,
+no timeout override) hung twice and completed cleanly in ~75ms a third
+time in back-to-back runs against a freshly-restarted, otherwise-idle
+wrangler+vite stack. An earlier working theory ("only the production
+`be.Execute` path hangs, raw `page.Goto()` never does") was directly
+falsified once caching was ruled out — both paths hang sometimes, succeed
+sometimes. Root cause remains genuinely unconfirmed; this settings-fetch
+storm is the one CONFIRMED, deterministically-reproducible finding from
+the investigation — plausible (not proven) as a contributing factor when
+its 6 near-simultaneous requests happen to land during the same window as
+a page's `load` event resolution, not a standalone crash risk on its own.
+No fix was attempted for the navigation hang itself: there is no reliable
+way to force the failure on demand, so a "fix" (e.g. a goto retry) could
+not be verified to actually help — shipping it would be an unverified
+guess, not a resolution. If this recurs with enough frequency to be
+worth the investigation cost, the next productive step is Chrome
+DevTools Protocol-level network waterfall capture during a live-caught
+hang, not another black-box repro attempt.
 
 **Cerberus consequence:** none confirmed (no case currently asserts on
 `/api/settings` call count); flagging for awareness since browser-leg
 navigation timing assumptions (goto with `wait_until: load`) could
 occasionally flake under real contention if this compounds with other
-concurrent load.
+concurrent load. The two affected vocab assertions
+(dashboard-home-quick-actions, prompt-lab-title) are kept in the dogfood
+vocab rather than dropped — the flake rate observed (2 hangs in 7 runs,
+~29%) is not zero but the pages themselves are not broken, and dropping
+real coverage over an unconfirmed intermittent issue trades a known cost
+(reduced UI surface coverage) for an unquantified one.
