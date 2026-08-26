@@ -452,7 +452,7 @@ gateway flaps; POST /auth/refresh 500 in console, zero ws:// opens).
 **Cerberus consequence:** none for dogfood runs (they drive WS directly);
 it degrades the web demo exactly when the API host is flaky.
 
-## 20. Duplicate re-dispatch destroys a healthy in-flight session (worktree collision → wrong-dir replacement) — OPEN 2026-08-26
+## 20. Duplicate re-dispatch destroys a healthy in-flight session (worktree collision → wrong-dir replacement) — FIXED 2026-08-26 (bridge 8766f72, open-agents e2b0a83)
 
 Demo mission `job_1787672167461` t1 on b2: first dispatch created the
 worktree session normally. Exactly +30.03s later a second task_assign
@@ -480,6 +480,21 @@ Two missing defenses:
    workDir (or clean up the colliding branch) instead of silently dropping
    isolation ("falling back to original dir" runs the task in the bridge
    root).
+
+**Fix (2026-08-26, bridge 8766f72 → open-agents e2b0a83 submodule bump):**
+both defenses landed bridge-side (the orchestrator never knew the worktree
+path, so inheritance belongs where the worktree is created):
+- `handleWorkflowTaskAssign` ignores a re-dispatch while the task's session
+  is live (active + connected), re-emitting `task_started` so the
+  orchestrator records the dispatch to this device — the healthy session is
+  never touched;
+- `CreateWorktree` is idempotent: an existing task worktree (linked `.git`
+  file present) is reused instead of erroring, so any dispatch that does
+  get through (e.g. after the first session died) lands in the same
+  isolated directory rather than falling back to the bridge root.
+Unit-verified (isLiveTaskSession + CreateWorktree idempotency tests; the
+four affected packages green); live re-dispatch reproduction folded into
+the next dogfood run.
 
 **Cerberus consequence:** mission-fanout cases can spuriously stall on this
 (any re-dispatch after a transient error while the first attempt is still
