@@ -446,6 +446,10 @@ func TestExtract_HonoRoutes(t *testing.T) {
 	for _, w := range []string{
 		"GET /health",
 		"POST /api/dev/setup",
+		// The worker fixture mounts its router through an ALIASED named
+		// import (thingRoutes as stuffRoutes): these three assertions are the
+		// regression guard that the local alias name resolves to the source
+		// file and the mounted routes do not silently vanish.
 		"GET /api/things",
 		"GET /api/things/:id",
 		"DELETE /api/things/nested/jobs/*",

@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { thingRoutes } from './routes/things';
+// Aliased named import: app.route references the LOCAL name, so the resolver
+// must follow the alias (real open-agents: import { app as authRoutes }).
+import { thingRoutes as stuffRoutes } from './routes/things';
 import { helper } from './routes/unmounted';
 
 const app = new Hono();
@@ -7,6 +9,6 @@ const app = new Hono();
 app.get('/health', (c) => c.json({ ok: true }));
 app.post('/api/dev/setup', strictRateLimit, (c) => c.json({}));
 app.post('/api/dev/setup', (c) => c.json({}));
-app.route('/api/things', thingRoutes);
+app.route('/api/things', stuffRoutes);
 
 export default app;

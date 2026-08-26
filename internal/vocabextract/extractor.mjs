@@ -363,6 +363,9 @@ function resolveSpecifier(fromFile, spec) {
 }
 
 // importName → resolved source path for relative imports (default, named, ns).
+// A named import may carry an alias (import { app as authRoutes }); the LOCAL
+// name is what app.route(..., authRoutes) references, so both the original
+// and the alias must resolve.
 function importMap(sf) {
   const m = new Map();
   for (const imp of sf.getImportDeclarations()) {
@@ -370,7 +373,11 @@ function importMap(sf) {
     if (!src) continue;
     const def = imp.getDefaultImport();
     if (def) m.set(def.getText(), src);
-    for (const n of imp.getNamedImports()) m.set(n.getName(), src);
+    for (const n of imp.getNamedImports()) {
+      m.set(n.getName(), src);
+      const alias = n.getAliasNode();
+      if (alias) m.set(alias.getText(), src);
+    }
     const ns = imp.getNamespaceImport();
     if (ns) m.set(ns.getText(), src);
   }
