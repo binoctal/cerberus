@@ -45,9 +45,10 @@ coverage:
 e2e:
 	go test -v -race -tags=e2e ./internal/smoke/ -timeout 5m
 
-# integration-openagents runs the agent package's //go:build integration build
-# (which includes the live open-agents surface — TestVocabularyDriven, relay,
-# lifecycle, auth, orchestrator-callback, sender-exclusion probe) against a real
+# integration-openagents runs the agent and scout packages' //go:build
+# integration builds (agent: the live open-agents surface —
+# TestVocabularyDriven, relay, lifecycle, auth, orchestrator-callback,
+# sender-exclusion probe; scout: the vocab-driven -unauth gate) against a real
 # wrangler dev server (sibling ../open-agents repo). The script brings the server
 # up (fnm selects Node >=22), runs the suite, and tears the server down — reusing
 # an already-running one without killing it. Narrow with TEST=<regex>; point at a

@@ -64,7 +64,9 @@ RUN_ARG=()
 if [ -n "${TEST:-}" ]; then
   RUN_ARG=(-run "$TEST")
 fi
-go test -tags=integration -v -timeout=10m ./internal/head/agent/ "${RUN_ARG[@]}"
+# agent: the executor-side live suite; scout: the generator-side live gates
+# (e.g. the -unauth vocab gate) — both need the real open-agents server.
+go test -tags=integration -v -timeout=10m ./internal/head/agent/ ./internal/head/scout/ "${RUN_ARG[@]}"
 status=$?
 echo "→ integration suite exit: $status"
 exit $status
