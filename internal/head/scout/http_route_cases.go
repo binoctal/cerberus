@@ -142,16 +142,25 @@ func unauthRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute, method, role string) agent.TestCase {
 	// One capture step per :param, in path order: GET the param's list
 	// route, pick the dot-path out of the first record, expose it as a
-	// per-case param for the target step's URL placeholder.
+	// per-case param for the target step's URL placeholder. The capture
+	// step authenticates as the LIST route's own role (roleForRoute on the
+	// list path), falling back to the target's role when the list route
+	// has none — an admin-prefixed target chaining to a web-carried list
+	// must not send the admin JWT there, and the web list is scoped to the
+	// web user's data.
 	steps := make([]agent.TestStep, 0, len(r.ParamSources)+1)
 	for _, p := range routeParams(r.Path) {
 		ps := r.ParamSources[p]
 		_, listPath, _ := strings.Cut(ps.Route, " ")
+		listRole := roleForRoute(svc, listPath)
+		if listRole == "" {
+			listRole = role
+		}
 		steps = append(steps, agent.TestStep{
 			Action:            "http_request",
 			URL:               host + fillRouteParams(listPath),
 			Method:            "GET",
-			AuthRole:          role,
+			AuthRole:          listRole,
 			ExpectStatusClass: "2xx",
 			Capture:           map[string]string{ps.Pick: "p_" + strings.TrimPrefix(p, ":")},
 		})

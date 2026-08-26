@@ -240,6 +240,63 @@ func TestHTTPRouteCasesV2(t *testing.T) {
 	}
 }
 
+// TestHTTPRouteCasesV2_CaptureStepRole: the param-chain capture step injects
+// the LIST route's own role, not the target's — an admin-prefixed target
+// chaining to a web-carried list route must not send the admin JWT there
+// (the web list is scoped to the web user's data), and vice versa an
+// admin-carried list route needs the admin JWT even when the target is not
+// admin-prefixed.
+func TestHTTPRouteCasesV2_CaptureStepRole(t *testing.T) {
+	svc := project.Service{
+		Name: "realtime",
+		URL:  "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"admin": {CredentialRef: "admin-actor"},
+			"web":   {CredentialRef: "web-actor"},
+		}},
+		Vocabulary: &project.Vocabulary{HTTPRoutes: []project.VocabHTTPRoute{
+			{Method: "GET", Path: "/api/devices", Auth: "required"},
+			// Admin-prefixed target chaining to the web-carried device list.
+			{Method: "GET", Path: "/api/admin/devices/:id", Auth: "required",
+				ParamSources: map[string]project.VocabParamSource{
+					":id": {Route: "GET /api/devices", Pick: "devices.0.id"},
+				}},
+			{Method: "GET", Path: "/api/admin/tenants", Auth: "required"},
+			// Non-admin target chaining to an admin-carried list route.
+			{Method: "DELETE", Path: "/api/tenants/:id", Auth: "required",
+				ParamSources: map[string]project.VocabParamSource{
+					":id": {Route: "GET /api/admin/tenants", Pick: "tenants.0.id"},
+				}},
+		}},
+	}
+	byID := map[string]agent.TestCase{}
+	for _, c := range httpRouteCases(svc) {
+		byID[c.ID] = c
+	}
+	// Admin target, web list: capture web, target admin.
+	c := byID[caseID(svc, "GET", "/api/admin/devices/:id", "authed")]
+	if len(c.Steps) != 2 {
+		t.Fatalf("param chain must be 2 steps, got %d", len(c.Steps))
+	}
+	if c.Steps[0].AuthRole != "web" {
+		t.Errorf("capture step (web list route) AuthRole = %q, want web", c.Steps[0].AuthRole)
+	}
+	if c.Steps[1].AuthRole != "admin" {
+		t.Errorf("target step (admin route) AuthRole = %q, want admin", c.Steps[1].AuthRole)
+	}
+	// Web target, admin list: capture admin, target web.
+	c = byID[caseID(svc, "DELETE", "/api/tenants/:id", "authed")]
+	if len(c.Steps) != 2 {
+		t.Fatalf("param chain must be 2 steps, got %d", len(c.Steps))
+	}
+	if c.Steps[0].AuthRole != "admin" {
+		t.Errorf("capture step (admin list route) AuthRole = %q, want admin", c.Steps[0].AuthRole)
+	}
+	if c.Steps[1].AuthRole != "web" {
+		t.Errorf("target step (web route) AuthRole = %q, want web", c.Steps[1].AuthRole)
+	}
+}
+
 // TestHTTPRouteCases_WiredIntoWSCases: the generator rides WSCases for a
 // service with routes (violations+routes both present).
 func TestHTTPRouteCases_WiredIntoWSCases(t *testing.T) {
