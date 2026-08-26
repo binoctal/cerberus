@@ -219,11 +219,18 @@ func routeParams(path string) []string {
 }
 
 // paramResolvable reports whether the authed tier can run: the path is
-// param-free, or every :param has a param source to chain from.
+// param-free, or every :param has a param source whose own path is param-free
+// too — a source route with :params would need its own guessed id, which the
+// degradation rule forbids.
 func paramResolvable(r project.VocabHTTPRoute) bool {
 	params := routeParams(r.Path)
 	for _, p := range params {
-		if _, ok := r.ParamSources[p]; !ok {
+		ps, ok := r.ParamSources[p]
+		if !ok {
+			return false
+		}
+		_, listPath, _ := strings.Cut(ps.Route, " ")
+		if len(routeParams(listPath)) > 0 {
 			return false
 		}
 	}

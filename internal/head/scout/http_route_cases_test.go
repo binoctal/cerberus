@@ -152,6 +152,13 @@ func routeV2Fixture() project.Service {
 				}},
 			{Method: "GET", Path: "/health", Auth: "none"},
 			{Method: "GET", Path: "/api/mystery/:id", Auth: "required"},
+			// :pid chains to a list route that itself has a :param — the
+			// nested-source degradation shape (never 2xx against a guessed id).
+			{Method: "GET", Path: "/api/things/:id/parts/:pid", Auth: "required",
+				ParamSources: map[string]project.VocabParamSource{
+					":id":  {Route: "GET /api/things", Pick: "0.id"},
+					":pid": {Route: "GET /api/things/:id/parts", Pick: "0.id"},
+				}},
 			{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
 		}},
 	}
@@ -209,6 +216,16 @@ func TestHTTPRouteCasesV2(t *testing.T) {
 	}
 	if c := byID[caseID(svc, "GET", "/api/mystery/:id", "")]; c.Steps[0].ExpectStatusClass != "any" {
 		t.Fatalf("degraded route must stay reachability: %+v", c.Steps)
+	}
+	// nested-source degradation: a param_source whose route itself has a
+	// :param degrades to reachability too — its capture step would assert 2xx
+	// against a guessed id.
+	nested := caseID(svc, "GET", "/api/things/:id/parts/:pid", "authed")
+	if _, ok := byID[nested]; ok {
+		t.Fatalf("nested param source route must NOT emit an authed case: %s", nested)
+	}
+	if c := byID[caseID(svc, "GET", "/api/things/:id/parts/:pid", "")]; c.Steps[0].ExpectStatusClass != "any" {
+		t.Fatalf("nested-source route must stay reachability: %+v", c.Steps)
 	}
 	// auth none: single reachability case, no unauth twin.
 	if _, ok := byID[caseID(svc, "GET", "/health", "unauth")]; ok {
