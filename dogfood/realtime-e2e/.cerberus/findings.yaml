@@ -695,3 +695,39 @@ findings:
       first_seen: "2026-08-26T06:59:08Z"
       last_seen: "2026-08-26T06:59:08Z"
       count: 1
+    - id: ui-vocab-dashboard-home-quick-actions-1c6406dc
+      summary: browser error http://localhost:5183/dashboard (15.246730155s)
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: 0f68445e-c8c8-4c5e-a934-5ad039083b32
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T12:50:50Z"
+      last_seen: "2026-08-26T12:50:50Z"
+      count: 1
+    - id: ui-vocab-prompt-lab-title-fba6f321
+      summary: browser error http://localhost:5183/dashboard/prompt-lab (30.002178979s)
+      case_ref: ui-vocab-prompt-lab-title
+      session_ref: 0f68445e-c8c8-4c5e-a934-5ad039083b32
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T12:50:50Z"
+      last_seen: "2026-08-26T12:50:50Z"
+      count: 1
+    - id: ui-vocab-dashboard-home-quick-actions-d958e0ba
+      summary: browser error http://localhost:5183/dashboard (15.010033222s)
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: 0f68445e-c8c8-4c5e-a934-5ad039083b32
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T12:50:50Z"
+      last_seen: "2026-08-26T12:50:50Z"
+      count: 1
+    - id: ui-vocab-prompt-lab-title-54531780
+      summary: browser error http://localhost:5183/dashboard/prompt-lab (30.002351182s)
+      case_ref: ui-vocab-prompt-lab-title
+      session_ref: 0f68445e-c8c8-4c5e-a934-5ad039083b32
+      tier: emulated
+      status: open
+      first_seen: "2026-08-26T12:50:50Z"
+      last_seen: "2026-08-26T12:50:50Z"
+      count: 1
