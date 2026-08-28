@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -30,15 +31,22 @@ func substituteCaseParams(s TestStep, params map[string]string) TestStep {
 	return s
 }
 
+// ErrEmptyListCapture marks a capture whose dot-path walked into an EMPTY
+// array ("things.0.id" against {"things":[]}). The chain itself is
+// live-correct — the list route answered 2xx, there is just nothing to chain
+// from — so the case skips instead of failing.
+var ErrEmptyListCapture = errors.New("capture: empty list")
+
 // captureFromHTTPBody walks dot-paths into the JSON body and stringifies
 // the scalar leaf. A numeric segment indexes an array node ("devices.0.id"
 // picks the first record's id of a wrapped list; "0.id" a top-level array) —
-// out-of-range or non-array is the not-found error. A path prefixed with
-// "length:" resolves to the array at that path and captures its element
-// count (protocol-coupled UI assertions template list sizes into display
-// text). Missing paths and non-scalar (or for length:, non-array) leaves are
-// hard errors (clear failure over a silently-wrong later request — same
-// policy as resolveURLParams).
+// out-of-range or non-array is the not-found error, except an out-of-range
+// index into an EMPTY array, which wraps ErrEmptyListCapture (skip signal).
+// A path prefixed with "length:" resolves to the array at that path and
+// captures its element count (protocol-coupled UI assertions template list
+// sizes into display text). Missing paths and non-scalar (or for length:,
+// non-array) leaves are hard errors (clear failure over a silently-wrong
+// later request — same policy as resolveURLParams).
 func captureFromHTTPBody(body string, capture map[string]string) (map[string]string, error) {
 	if len(capture) == 0 {
 		return nil, nil
@@ -63,6 +71,9 @@ func captureFromHTTPBody(body string, capture map[string]string) (map[string]str
 			} else if arr, isArr := cur.([]any); isArr {
 				idx, err := strconv.Atoi(seg)
 				if err != nil || idx < 0 || idx >= len(arr) {
+					if err == nil && idx >= 0 && len(arr) == 0 {
+						return nil, fmt.Errorf("capture: path %q not found in response (empty list): %w", path, ErrEmptyListCapture)
+					}
 					ok = false
 					break
 				}

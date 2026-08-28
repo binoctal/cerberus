@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -543,12 +544,19 @@ func (se *stepExecution) runSteps() StepResult {
 			// Capture dot-paths from the response body into per-case params so
 			// later steps can consume server-generated ids ({{case.<name>}}).
 			// Missing paths are hard errors — a silently-wrong later request is
-			// worse than a clear failure here.
+			// worse than a clear failure here. The one exception is an EMPTY
+			// list: the chain is live-correct, there is just nothing to chain
+			// from, so the case ends as a skip and the target step never runs.
 			if len(s.Capture) > 0 {
 				if hr, ok := result.(types.HTTPResult); ok {
 					captured, err := captureFromHTTPBody(hr.Body, s.Capture)
 					if err != nil {
 						se.logStep(i, s, result, time.Since(stepStart), false, err)
+						if errors.Is(err, ErrEmptyListCapture) {
+							return StepResult{TestCase: se.tc, Status: StepSkipped, TraceID: se.traceID,
+								Attempts: 1, Duration: time.Since(se.start), Action: action, Result: result, Evidence: evidence,
+								Error: err}
+						}
 						return se.failureResult(err, 1)
 					}
 					maps.Copy(se.caseParams, captured)

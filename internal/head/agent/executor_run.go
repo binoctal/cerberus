@@ -95,8 +95,11 @@ func (r *ReActLoop) ExecutePlan(ctx context.Context, plan *TestPlan, sessionID s
 			return results, fmt.Errorf("execution aborted: budget warning at %.0f%% usage", usedPct)
 		}
 
-		// Track consecutive failures for systemic failure escalation.
-		if result.Status == StepFailed || result.Status == StepSkipped {
+		// Track consecutive failures for systemic failure escalation. Skips
+		// do not count: a skip is a decision not to assert (empty-list param
+		// chains, deprioritized cases), not a failure signal — the http sweep
+		// produces long runs of consecutive legitimate skips.
+		if result.Status == StepFailed {
 			consecutiveFailures++
 		} else {
 			consecutiveFailures = 0

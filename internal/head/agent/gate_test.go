@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 
@@ -61,20 +64,23 @@ func TestExecutePlan_TracksConsecutiveFailures(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../../migrations"))
+	sessionID := createTestSession(t, s)
 
 	plan := &TestPlan{
 		Goal:       "test systemic failure",
 		ProjectURL: "http://localhost:9999",
 		Cases: []TestCase{
-			{ID: "tc-1", Name: "fail 1", Target: "/api/fail", Method: "GET", Expectation: "should fail"},
-			{ID: "tc-2", Name: "fail 2", Target: "/api/fail", Method: "GET", Expectation: "should fail"},
-			{ID: "tc-3", Name: "fail 3", Target: "/api/fail", Method: "GET", Expectation: "should fail"},
-			{ID: "tc-4", Name: "fail 4", Target: "/api/fail", Method: "GET", Expectation: "should fail"},
-			{ID: "tc-5", Name: "fail 5", Target: "/api/fail", Method: "GET", Expectation: "should fail"},
+			// Deterministic failures (closed port, no LLM path): each case's
+			// only step dials a port nothing listens on.
+			{ID: "tc-1", Name: "fail 1", Target: "http://127.0.0.1:1", Steps: []TestStep{{Action: "http_request", URL: "http://127.0.0.1:1/api/fail", Method: "GET", ExpectStatusClass: "2xx"}}},
+			{ID: "tc-2", Name: "fail 2", Target: "http://127.0.0.1:1", Steps: []TestStep{{Action: "http_request", URL: "http://127.0.0.1:1/api/fail", Method: "GET", ExpectStatusClass: "2xx"}}},
+			{ID: "tc-3", Name: "fail 3", Target: "http://127.0.0.1:1", Steps: []TestStep{{Action: "http_request", URL: "http://127.0.0.1:1/api/fail", Method: "GET", ExpectStatusClass: "2xx"}}},
+			{ID: "tc-4", Name: "fail 4", Target: "http://127.0.0.1:1", Steps: []TestStep{{Action: "http_request", URL: "http://127.0.0.1:1/api/fail", Method: "GET", ExpectStatusClass: "2xx"}}},
+			{ID: "tc-5", Name: "fail 5", Target: "http://127.0.0.1:1", Steps: []TestStep{{Action: "http_request", URL: "http://127.0.0.1:1/api/fail", Method: "GET", ExpectStatusClass: "2xx"}}},
 		},
 	}
 
-	results, err := loop.ExecutePlan(ctx, plan, "test-session")
+	results, err := loop.ExecutePlan(ctx, plan, sessionID)
 	assert.NoError(t, err)
 	assert.Len(t, results, 5)
 
@@ -86,4 +92,49 @@ func TestExecutePlan_TracksConsecutiveFailures(t *testing.T) {
 		}
 	}
 	assert.True(t, hasSystemicFailure, "expected systemic_failure escalation after 5 consecutive failures")
+}
+
+// TestExecutePlan_SkipsDoNotEscalateSystemicFailure: a skip is a decision not
+// to assert (empty-list param chains), not a failure signal. Long runs of
+// consecutive skips — the http sweep hits dozens of empty admin lists in a
+// row — must not trip the systemic-failure gate, which exists for failure
+// streaks.
+func TestExecutePlan_SkipsDoNotEscalateSystemicFailure(t *testing.T) {
+	loop, gate, s := setupGateTest(t)
+	ctx := context.Background()
+
+	require.NoError(t, store.RunMigrations(ctx, s.DB(), "../../../migrations"))
+	sessionID := createTestSession(t, s)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"things":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	cases := make([]TestCase, 5)
+	for i := range cases {
+		cases[i] = TestCase{
+			ID: fmt.Sprintf("tc-skip-%d", i+1), Name: "empty list chain", Target: srv.URL,
+			Steps: []TestStep{{
+				Action: "http_request", URL: srv.URL + "/api/things", Method: "GET",
+				ExpectStatusClass: "2xx",
+				Capture:           map[string]string{"things.0.id": "p_id"},
+			}},
+		}
+	}
+	plan := &TestPlan{Goal: "skips are not failures", ProjectURL: srv.URL, Cases: cases}
+
+	results, err := loop.ExecutePlan(ctx, plan, sessionID)
+	require.NoError(t, err)
+	require.Len(t, results, 5)
+	for _, r := range results {
+		if r.Status != StepSkipped {
+			t.Logf("case %s status=%s error=%v", r.TestCase.ID, r.Status, r.Error)
+		}
+		assert.Equal(t, StepSkipped, r.Status, "case %s must skip on the empty list", r.TestCase.ID)
+	}
+	for _, e := range gate.Events() {
+		assert.NotEqual(t, "systemic_failure", e.Type, "consecutive skips must not escalate as systemic failure")
+	}
 }
