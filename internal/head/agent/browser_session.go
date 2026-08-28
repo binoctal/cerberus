@@ -40,6 +40,17 @@ func authStorageBlob(token, refreshToken, userID string, expiryMs int64) string 
 // bootstraps the origin, then the auth blob + i18n locale key are written
 // once; pages opened later share the browser context and thus localStorage.
 func (e *BrowserExecutor) InitBrowserSession(ctx context.Context, ui *project.VocabUI, actor project.Actor, apiBaseURL string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.injectSessionLocked(ctx, ui, actor, apiBaseURL)
+}
+
+// injectSessionLocked (re)establishes the logged-in browser session: resolve
+// a fresh token pair, bootstrap the origin, write the auth-storage blob. The
+// caller must hold e.mu. On success the session recipe is stored so a later
+// auth-loss (expired token, invalidated user) can transparently re-login
+// (see maybeRelogin).
+func (e *BrowserExecutor) injectSessionLocked(ctx context.Context, ui *project.VocabUI, actor project.Actor, apiBaseURL string) error {
 	token, refresh := "", ""
 	userID := "user_unknown"
 	if actor.Credentials.Email != "" && actor.Credentials.Password != "" {
@@ -74,9 +85,6 @@ func (e *BrowserExecutor) InitBrowserSession(ctx context.Context, ui *project.Vo
 	if token == "" {
 		return fmt.Errorf("ui session: no token resolved for actor %q", actor.Name)
 	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	if _, err := e.page.Goto(ui.BaseURL); err != nil {
 		return fmt.Errorf("session bootstrap goto: %w", err)
 	}
@@ -87,6 +95,7 @@ func (e *BrowserExecutor) InitBrowserSession(ctx context.Context, ui *project.Vo
 	if _, err := e.page.Evaluate(script); err != nil {
 		return fmt.Errorf("session injection: %w", err)
 	}
+	e.session = &browserSessionRecipe{ui: *ui, actor: actor, apiBase: apiBaseURL}
 	e.logger.Info("browser session injected", zap.String("base_url", ui.BaseURL),
 		zap.String("locale", ui.Locale), zap.Bool("refresh_token", refresh != ""))
 	return nil

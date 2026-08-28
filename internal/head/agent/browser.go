@@ -18,12 +18,14 @@ import (
 
 // BrowserExecutor drives a headless browser via Playwright.
 type BrowserExecutor struct {
-	pw         *pw.Playwright
-	browser    pw.Browser
-	page       pw.Page
-	projectDir string
-	logger     *zap.Logger
-	mu         sync.Mutex // serializes all page operations; a Playwright page is not concurrency-safe
+	pw          *pw.Playwright
+	browser     pw.Browser
+	page        pw.Page
+	projectDir  string
+	logger      *zap.Logger
+	mu          sync.Mutex // serializes all page operations; a Playwright page is not concurrency-safe
+	session     *browserSessionRecipe
+	reloginGate reloginLimiter
 }
 
 // NewBrowserExecutor creates a browser executor by launching a headless Chromium.
@@ -84,7 +86,7 @@ func (e *BrowserExecutor) Execute(ctx context.Context, action types.TypedAction)
 
 	switch a := action.(type) {
 	case types.BrowserGotoAction:
-		return e.gotoPage(a, start)
+		return e.gotoPage(ctx, a, start)
 	case types.BrowserClickAction:
 		return e.clickElement(a, start)
 	case types.BrowserFillAction:
@@ -98,7 +100,7 @@ func (e *BrowserExecutor) Execute(ctx context.Context, action types.TypedAction)
 	}
 }
 
-func (e *BrowserExecutor) gotoPage(a types.BrowserGotoAction, start time.Time) types.ExecutorResult {
+func (e *BrowserExecutor) gotoPage(ctx context.Context, a types.BrowserGotoAction, start time.Time) types.ExecutorResult {
 	waitUntil := "load"
 	if a.WaitUntil != "" {
 		waitUntil = a.WaitUntil
@@ -113,6 +115,10 @@ func (e *BrowserExecutor) gotoPage(a types.BrowserGotoAction, start time.Time) t
 			OK: false, URL: a.URL, Err: err.Error(), Latency: time.Since(start),
 		}
 	}
+
+	// Auth-loss self-heal: when the app bounced an authenticated target to
+	// the login page, re-login and retry the goto once before reporting.
+	e.maybeRelogin(ctx, a.URL)
 
 	title, _ := e.page.Title()
 	text, _ := e.page.Locator("body").TextContent()
