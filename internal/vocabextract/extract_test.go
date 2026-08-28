@@ -427,9 +427,10 @@ func TestExtract_HonoRoutes(t *testing.T) {
 	}
 	var got struct {
 		HTTPRoutes []struct {
-			Method string `json:"method"`
-			Path   string `json:"path"`
-			Mount  string `json:"mount"`
+			Method  string `json:"method"`
+			Path    string `json:"path"`
+			Mount   string `json:"mount"`
+			Partial bool   `json:"partial"`
 		} `json:"http_routes"`
 		Files []struct {
 			Path string `json:"path"`
@@ -460,6 +461,20 @@ func TestExtract_HonoRoutes(t *testing.T) {
 	}
 	if seen["POST /api/dev/setup"] != 1 {
 		t.Errorf("duplicate registration must merge to one entry, got %d", seen["POST /api/dev/setup"])
+	}
+	// Dev backdoor veto: provisioning endpoints (/api/dev/*, /api/auth/dev/*)
+	// create or rotate identity state. The sweep firing one mid-run (run32:
+	// POST /api/dev/setup recreated the dev user and invalidated the browser
+	// session's token, bricking the whole UI leg) must not happen — the
+	// extractor marks them partial so no cases generate and they leave the
+	// coverage denominator.
+	for _, r := range got.HTTPRoutes {
+		if r.Method == "POST" && r.Path == "/api/dev/setup" && !r.Partial {
+			t.Error("POST /api/dev/setup must be partial (dev backdoor veto)")
+		}
+		if r.Method == "GET" && r.Path == "/api/things" && r.Partial {
+			t.Error("GET /api/things must not be partial")
+		}
 	}
 	if seen["PUT /secret"] != 0 {
 		t.Error("unmounted route leaked into http_routes")

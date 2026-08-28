@@ -1380,6 +1380,7 @@ http_routes:
               end: 681
     - method: POST
       path: /api/auth/dev/setup
+      partial: true  # dev backdoor: provisioning endpoint; firing it mid-run mutates identity state (run32 lesson)
       mount: /api/auth
       middlewares:
         - securityHeaders
@@ -1553,6 +1554,7 @@ http_routes:
               end: 86
     - method: POST
       path: /api/dev/setup
+      partial: true  # dev backdoor: provisioning endpoint; firing it mid-run mutates identity state (run32 lesson)
       mount: /api/dev
       middlewares:
         - securityHeaders
@@ -1568,6 +1570,7 @@ http_routes:
               end: 13
     - method: POST
       path: /api/dev/login
+      partial: true  # dev backdoor: provisioning endpoint; firing it mid-run mutates identity state (run32 lesson)
       mount: /api/dev
       middlewares:
         - securityHeaders
