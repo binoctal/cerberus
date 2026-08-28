@@ -24,16 +24,22 @@ import (
 // forever (verified live 2026-08-18) and no frame ever reaches the web
 // connection. So the user-scoped steps (auth/me, agents, missions) run under
 // the web role's JWT, while admin routes (plan seed, user switch, provider)
-// stay under the admin JWT. The web actor carries no statically-known user id,
+// stay under the admin JWT — both roles resolved through the vocabulary's
+// HTTP role map (the isAdminPath lesson: which role's JWT a path needs is
+// SUT knowledge that lives in the vocab, not in Go literals). The web actor
+// carries no statically-known user id,
 // so step 0 captures it from GET /api/auth/me (top-level id, auth.ts:601-626)
 // and the user-plan step consumes it as {{case.userId}}.
 func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.TestCase {
 	if !realRoles["bridge"] || svc.Protocol == nil || svc.Vocabulary == nil || !hasWorkflowEdges(svc.Vocabulary) {
 		return nil
 	}
-	admin := ""
-	if r := svc.Protocol.Roles["admin"]; r != nil && r.CredentialRef != "" {
-		admin = "admin"
+	admin := roleForRoute(svc, "/api/admin/billing/plans")
+	web := roleForRoute(svc, "/api/missions")
+	if web == "" {
+		// No credentialed mission-user role: every user-scoped step would
+		// run unauthenticated — emit nothing rather than guess a role.
+		return nil
 	}
 	host := serviceHost(svc.URL)
 	plannerKey := os.Getenv("CERBERUS_PLANNER_API_KEY")
@@ -43,7 +49,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// 0. Capture the web user's id (the future mission user — see the
 		// function comment: it must own the bridge devices and the room).
 		{Action: "http_request", URL: host + "/api/auth/me", Method: "GET",
-			AuthRole: "web", ExpectStatusClass: "2xx",
+			AuthRole: web, ExpectStatusClass: "2xx",
 			Capture: map[string]string{"id": "userId"}},
 		// 1. Seed the plan. Every limits section is COMPLETE on purpose:
 		// the admin write path rejects partial sections (open-agents
@@ -98,14 +104,14 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// runs must be cleaned from the dev D1 once (see the env doc), or
 		// glm may pick them instead.
 		agent.TestStep{Action: "http_request", URL: host + "/api/agents", Method: "POST",
-			AuthRole: "web", ExpectStatusClass: "2xx",
+			AuthRole: web, ExpectStatusClass: "2xx",
 			Body:    `{"name":"claude-pty","baseCli":"claude-pty"}`,
 			Capture: map[string]string{"id": "agentId"}},
 		// 5. Connect the web observer BEFORE creating the mission: the
 		// planner can decompose fast enough that dispatch frames pre-date a
 		// post-creation connect (live-observed 2026-08-22 — matched=0 while
 		// completed/job_status flowed around the late connection).
-		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: "web"},
+		agent.TestStep{Action: "ws_connect", ConnectionID: "web", Role: web},
 	)
 	// The fan-out case (below) repeats the SAME unlocking chain — slice it
 	// off before the mission legs append, so both cases stay seed-independent
@@ -116,7 +122,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// 6. The mission itself (create returns {mission:{id}} → dot-path
 		// capture). Web role: the mission user must be the device owner.
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
-			AuthRole: "web", ExpectStatusClass: "2xx",
+			AuthRole: web, ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"Reply with the single word done. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "missionId"}},
 		// 7. Observe what the orchestration path REALLY emits
@@ -171,7 +177,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// retry_count=3 on the host's real codex). Retry exhaustion
 		// broadcasts workflow:task_failed — the only emitter of that frame.
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
-			AuthRole: "web", ExpectStatusClass: "2xx",
+			AuthRole: web, ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"CERBERUS_FAIL: this mission must fail. Every task prints the marker CERBERUS_FAIL in its description and then exits with an error. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "failMissionId"}},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_failed", Timeout: 600},
@@ -207,7 +213,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 		// injects "User answered your question:" into the PTY, and the
 		// shim's completion exit fires the normal callback chain.
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
-			AuthRole: "web", ExpectStatusClass: "2xx",
+			AuthRole: web, ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"CERBERUS_ASK: before finishing, the agent must ask the user for the magic word. Every task description carries CERBERUS_ASK. Do not create files.","deviceIds":["{{bridge.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "questionMissionId"}},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_question", Timeout: 600},
@@ -243,7 +249,7 @@ func missionSeedCases(svc project.Service, realRoles map[string]bool) []agent.Te
 	}
 	fanout := append(setupSteps,
 		agent.TestStep{Action: "http_request", URL: host + "/api/missions", Method: "POST",
-			AuthRole: "web", ExpectStatusClass: "2xx",
+			AuthRole: web, ExpectStatusClass: "2xx",
 			Body:    `{"inputText":"Split this mission into exactly three independent subtasks with no dependencies between them. Each subtask replies with the single word done and creates no files.","deviceIds":["{{bridge.deviceId}}","{{bridge2.deviceId}}","{{bridge3.deviceId}}"],"autoConfirm":true}`,
 			Capture: map[string]string{"mission.id": "fanoutMissionId"}},
 		agent.TestStep{Action: "ws_receive", ConnectionID: "web", Type: "workflow:task_progress", Timeout: 600},

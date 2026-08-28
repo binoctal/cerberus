@@ -5,7 +5,23 @@ import (
 	"testing"
 
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/project"
 )
+
+// missionSeedFixture augments the shared send fixture the way the real
+// dogfood project is shaped: a credentialed web (mission-user) role plus
+// the vocabulary HTTP role map — mission-seed resolves its admin/web roles
+// through that map, not through Go literals (the isAdminPath lesson).
+func missionSeedFixture() project.Service {
+	svc := missionSendFixture()
+	svc.Protocol.Roles["web"] = &project.ProtocolRole{
+		Params:        map[string]string{"type": "web"},
+		CredentialRef: "web-actor",
+	}
+	svc.Vocabulary.HTTPRoleRoutes = []project.VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}}
+	svc.Vocabulary.HTTPDefaultRole = "web"
+	return svc
+}
 
 // firstStepWithURL returns the first step whose URL contains substr, or the
 // zero TestStep when none matches.
@@ -24,7 +40,7 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 	t.Setenv("CERBERUS_PLANNER_API_KEY", "test-key")
 	t.Setenv("CERBERUS_PLANNER_API_URL", "https://planner.example")
 	t.Setenv("CERBERUS_PLANNER_MODEL", "planner-model")
-	cases := missionSeedCases(missionSendFixture(), map[string]bool{"bridge": true})
+	cases := missionSeedCases(missionSeedFixture(), map[string]bool{"bridge": true})
 	if len(cases) != 1 {
 		t.Fatalf("want exactly 1 mission case, got %d", len(cases))
 	}
@@ -115,7 +131,7 @@ func TestMissionSeedCases_SetupChainOrder(t *testing.T) {
 }
 
 func TestMissionSeedCases_ReceiveWindow(t *testing.T) {
-	cases := missionSeedCases(missionSendFixture(), map[string]bool{"bridge": true})
+	cases := missionSeedCases(missionSeedFixture(), map[string]bool{"bridge": true})
 	var recvTimeouts []int
 	for _, s := range cases[0].Steps {
 		if s.Action == "ws_receive" {
@@ -147,7 +163,7 @@ func TestMissionSeedCases_ReceiveWindow(t *testing.T) {
 }
 
 func TestMissionSeedCases_NoBridgeReal_EmitsNothing(t *testing.T) {
-	if got := missionSeedCases(missionSendFixture(), nil); got != nil {
+	if got := missionSeedCases(missionSeedFixture(), nil); got != nil {
 		t.Fatalf("emitted %d cases without a real bridge", len(got))
 	}
 }
@@ -160,7 +176,7 @@ func TestMissionSeedCases_NoBridgeReal_EmitsNothing(t *testing.T) {
 // workflow:task_progress frames, each carrying its executor's deviceId.
 func TestMissionSeedCases_FanoutMission(t *testing.T) {
 	roles := map[string]bool{"bridge": true, "bridge2": true, "bridge3": true}
-	cases := missionSeedCases(missionSendFixture(), roles)
+	cases := missionSeedCases(missionSeedFixture(), roles)
 	var fanout *agent.TestCase
 	for i := range cases {
 		if cases[i].ID == wsCaseID("open-agents", "wf", "mission-fanout") {
@@ -208,10 +224,60 @@ func TestMissionSeedCases_FanoutMission(t *testing.T) {
 // The fan-out case is emitted only when every bridge-family role is a real
 // process — a two-bridge project keeps the single-device mission-seed shape.
 func TestMissionSeedCases_FanoutNeedsAllThreeBridges(t *testing.T) {
-	cases := missionSeedCases(missionSendFixture(), map[string]bool{"bridge": true, "bridge2": true})
+	cases := missionSeedCases(missionSeedFixture(), map[string]bool{"bridge": true, "bridge2": true})
 	for _, c := range cases {
 		if c.ID == wsCaseID("open-agents", "wf", "mission-fanout") {
 			t.Fatal("fanout case must not emit without bridge3")
 		}
+	}
+}
+
+// TestMissionSeedCases_RolesFromVocab: the admin/web role split is resolved
+// through the vocabulary's HTTP role map, not through Go literals — a SUT
+// that names its roles differently needs only a vocab edit (the isAdminPath
+// lesson applied to the mission-seed generator).
+func TestMissionSeedCases_RolesFromVocab(t *testing.T) {
+	svc := missionSeedFixture()
+	svc.Protocol.Roles["root"] = &project.ProtocolRole{CredentialRef: "root-actor"}
+	svc.Protocol.Roles["enduser"] = &project.ProtocolRole{CredentialRef: "enduser-actor"}
+	svc.Vocabulary.HTTPRoleRoutes = []project.VocabRoleRoute{{Prefix: "/api/admin", Role: "root"}}
+	svc.Vocabulary.HTTPDefaultRole = "enduser"
+	cases := missionSeedCases(svc, map[string]bool{"bridge": true})
+	if len(cases) != 1 {
+		t.Fatalf("want exactly 1 mission case, got %d", len(cases))
+	}
+	for _, s := range cases[0].Steps {
+		if s.Action != "http_request" {
+			continue
+		}
+		isAdminRoute := strings.Contains(s.URL, "/api/admin/")
+		if isAdminRoute && s.AuthRole != "root" {
+			t.Fatalf("admin route %q must use the vocab-mapped root role, got %q", s.URL, s.AuthRole)
+		}
+		if !isAdminRoute && s.AuthRole != "enduser" {
+			t.Fatalf("user-scoped route %q must use the vocab default enduser role, got %q", s.URL, s.AuthRole)
+		}
+	}
+	// The web observer connection binds the same vocab-resolved mission-user
+	// role (device ownership and room broadcast scope to that user).
+	for _, s := range cases[0].Steps {
+		if s.Action == "ws_connect" && s.Role != "enduser" {
+			t.Fatalf("ws_connect role = %q, want enduser", s.Role)
+		}
+	}
+}
+
+// TestMissionSeedCases_NoMissionUserRole_EmitsNothing: when the vocab role
+// map yields no credentialed mission-user role (here: default role without
+// a CredentialRef), the user-scoped steps would all run unauthenticated —
+// the generator must emit nothing rather than guess a role.
+func TestMissionSeedCases_NoMissionUserRole_EmitsNothing(t *testing.T) {
+	// The vocab maps the user-scoped routes to web, but the web role carries
+	// no CredentialRef (missionSendFixture's shape).
+	svc := missionSendFixture()
+	svc.Vocabulary.HTTPRoleRoutes = []project.VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}}
+	svc.Vocabulary.HTTPDefaultRole = "web"
+	if got := missionSeedCases(svc, map[string]bool{"bridge": true}); got != nil {
+		t.Fatalf("emitted %d cases without a credentialed mission-user role", len(got))
 	}
 }
