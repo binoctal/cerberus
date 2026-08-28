@@ -225,6 +225,10 @@ func routeV2Fixture() project.Service {
 					ParamSources: map[string]project.VocabParamSource{
 						":id": {Route: "GET /api/things", Pick: "0.id"},
 					}},
+				{Method: "DELETE", Path: "/api/things/:id", Auth: "required",
+					ParamSources: map[string]project.VocabParamSource{
+						":id": {Route: "GET /api/things", Pick: "0.id"},
+					}},
 				{Method: "GET", Path: "/health", Auth: "none"},
 				{Method: "GET", Path: "/api/mystery/:id", Auth: "required"},
 				// :pid chains to a list route that itself has a :param — the
@@ -284,6 +288,23 @@ func TestHTTPRouteCasesV2(t *testing.T) {
 	}
 	if c.Steps[1].URL != "http://localhost:8989/api/things/{{case.p_id}}" {
 		t.Fatalf("param placeholder url = %q", c.Steps[1].URL)
+	}
+	// Destructive-chain safety (run32 lesson): an authed DELETE must NOT
+	// execute with the real captured id — it would destroy the live record
+	// and could take the environment with it (delete-account deleted the
+	// whole dev user). The capture step still runs (proves the list route),
+	// but the target DELETE uses a guaranteed-nonexistent sentinel id and
+	// asserts a 4xx rejection: routing + auth + error handling proven,
+	// nothing destroyed.
+	c = byID[caseID(svc, "DELETE", "/api/things/:id", "authed")]
+	if len(c.Steps) != 2 {
+		t.Fatalf("destructive chain must keep the capture step, got %d steps", len(c.Steps))
+	}
+	if !strings.Contains(c.Steps[1].URL, "cerberus_nonexistent") {
+		t.Fatalf("authed DELETE must target a sentinel id, got %q", c.Steps[1].URL)
+	}
+	if c.Steps[1].ExpectStatusClass != "4xx" {
+		t.Fatalf("authed DELETE must assert the 4xx rejection, got %q", c.Steps[1].ExpectStatusClass)
 	}
 	// degradation: no param_sources -> reachability tier only (any, placeholder 1).
 	if _, ok := byID[caseID(svc, "GET", "/api/mystery/:id", "authed")]; ok {

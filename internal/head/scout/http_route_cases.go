@@ -157,6 +157,7 @@ func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 	}
 	body, class, expectation := "", "2xx",
 		"authenticated request succeeds (2xx); real :param values from list-route chaining"
+	targetURL := host + fillRouteParamsFromSources(r.Path, r.ParamSources)
 	if len(r.MinBody) > 0 {
 		if b, err := json.Marshal(r.MinBody); err == nil {
 			body = string(b)
@@ -166,9 +167,21 @@ func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 	} else if method != "GET" && method != "DELETE" {
 		class = "2xx_4xx"
 	}
+	if method == "DELETE" {
+		// Destructive-chain safety (run32 lesson): an authed DELETE with the
+		// real captured id would destroy the live record — and one such route
+		// (delete-account) took the whole environment with it. The capture
+		// steps still run (the list routes stay covered), but the target
+		// DELETE uses a guaranteed-nonexistent sentinel id and asserts the
+		// 4xx rejection: routing + auth + error handling proven, nothing
+		// destroyed.
+		targetURL = host + fillRouteParamsWith(r.Path, "cerberus_nonexistent")
+		class = "4xx"
+		expectation = "authenticated delete rejects a nonexistent id (4xx) — routing, auth and error handling proven without destroying live records"
+	}
 	steps = append(steps, agent.TestStep{
 		Action:            "http_request",
-		URL:               host + fillRouteParamsFromSources(r.Path, r.ParamSources),
+		URL:               targetURL,
 		Method:            method,
 		AuthRole:          role,
 		Body:              body,
@@ -280,10 +293,15 @@ func routeRoleMapped(svc project.Service, path string) bool {
 // fillRouteParams replaces :param segments with a stable placeholder and a
 // trailing * with a fixed tail so the request path matches the route pattern.
 func fillRouteParams(path string) string {
+	return fillRouteParamsWith(path, "1")
+}
+
+// fillRouteParamsWith is fillRouteParams with an explicit :param value.
+func fillRouteParamsWith(path, paramValue string) string {
 	segs := strings.Split(path, "/")
 	for i, s := range segs {
 		if strings.HasPrefix(s, ":") {
-			segs[i] = "1"
+			segs[i] = paramValue
 		} else if s == "*" {
 			segs[i] = "x"
 		}
