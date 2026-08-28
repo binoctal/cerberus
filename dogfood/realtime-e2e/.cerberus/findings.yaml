@@ -731,3 +731,1085 @@ findings:
       first_seen: "2026-08-26T12:50:50Z"
       last_seen: "2026-08-26T12:50:50Z"
       count: 1
+    - id: http-route-realtime-post-api-admin-ab-tests-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-compare-authed-54a26cd1
+      summary: 'expect_status_class "2xx": got status 400 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-compare-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-comparison-metrics-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-ai-comparison-metrics-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-comparison-reports-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-ai-comparison-reports-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed-5128bf3a
+      summary: 'capture: path "reports.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed-5128bf3a
+      summary: 'capture: path "reports.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-providers-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-ai-providers-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-analytics-events-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-analytics-events-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-audit-export-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-audit-export-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-audit-export-1-authed-49980731
+      summary: 'capture: path "exports.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-audit-export-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-audit-export-1-authed-49980731
+      summary: 'capture: path "exports.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-audit-export-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-invoices-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-billing-invoices-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-invoices-1-authed-26a3febd
+      summary: 'capture: path "invoices.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-invoices-1-authed-26a3febd
+      summary: 'capture: path "invoices.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-billing-invoices-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-payments-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-billing-payments-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-payments-1-authed-c9f38e49
+      summary: 'capture: path "payments.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-billing-payments-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-plans-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-billing-plans-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-plans-1-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-billing-plans-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-subscriptions-1-authed-0c8222dd
+      summary: 'capture: path "subscriptions.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-billing-subscriptions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-subscriptions-1-authed-0c8222dd
+      summary: 'capture: path "subscriptions.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-billing-subscriptions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-blacklist-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-batch-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-blacklist-batch-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-blacklist-check-authed-54a26cd1
+      summary: 'expect_status_class "2xx": got status 400 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-blacklist-check-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-budget-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-budget-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-budget-1-authed-24a3827e
+      summary: 'capture: path "budgets.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-budget-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-budget-1-authed-24a3827e
+      summary: 'capture: path "budgets.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-budget-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-cli-health-metrics-authed-9f5a62c4
+      summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-cli-health-metrics-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-cli-health-overview-authed-9f5a62c4
+      summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-cli-health-overview-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-check-authed-9f5a62c4
+      summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-compliance-check-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-compliance-reports-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-compliance-reports-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-reports-1-authed-5128bf3a
+      summary: 'capture: path "reports.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-compliance-retention-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-compliance-retention-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-compliance-retention-1-authed-667dd252
+      summary: 'capture: path "policies.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-compliance-retention-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-compliance-retention-1-authed-667dd252
+      summary: 'capture: path "policies.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-compliance-retention-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-content-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-content-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-content-1-authed-3cda8850
+      summary: 'capture: path "items.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-content-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-content-1-authed-3cda8850
+      summary: 'capture: path "items.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-content-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-content-1-authed-3cda8850
+      summary: 'capture: path "items.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-content-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-content-moderation-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-content-moderation-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-coupons-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-coupons-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-coupons-1-authed-81fd13b1
+      summary: 'capture: path "coupons.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-coupons-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-coupons-1-authed-81fd13b1
+      summary: 'capture: path "coupons.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-coupons-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-custom-stats-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-custom-stats-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-database-ops-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-database-ops-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-database-ops-1-authed-b07d9bdc
+      summary: 'capture: path "operations.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-database-ops-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-database-ops-1-authed-b07d9bdc
+      summary: 'capture: path "operations.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-database-ops-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-diagnostics-check-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-diagnostics-check-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-feedback-1-authed-650c3366
+      summary: 'capture: path "feedback.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-feedback-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-feedback-1-authed-650c3366
+      summary: 'capture: path "feedback.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-admin-feedback-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-feedback-1-authed-650c3366
+      summary: 'capture: path "feedback.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-admin-feedback-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ip-whitelist-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-admin-ip-whitelist-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ip-whitelist-1-authed-1da15fd7
+      summary: 'capture: path "entries.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-admin-ip-whitelist-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-ip-whitelist-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-ip-whitelist-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-learning-metrics-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-mcp-marketplace-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-mcp-marketplace-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-missions-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-missions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-stats-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-missions-stats-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-nps-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-nps-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-org-policies-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-org-policies-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-org-policies-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-org-policies-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-org-policies-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-org-policies-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-org-policies-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-org-policies-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-productivity-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-productivity-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-productivity-summary-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-productivity-summary-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-remote-logs-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-remote-logs-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-remote-logs-stats-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-remote-logs-stats-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-review-queue-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-review-queue-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-segments-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-segments-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-segments-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-segments-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-segments-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-segments-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-segments-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-segments-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-settings-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-settings-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-settings-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-settings-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-settings-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-settings-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-sso-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-sso-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-sso-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-sso-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-sso-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-sso-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-tenants-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-tenants-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-tenants-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-tenants-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-tenants-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-tenants-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-white-label-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-white-label-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-white-label-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-white-label-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-white-label-1-authed-a8ff7a3d
+      summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-white-label-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-api-keys-1-authed-5e949108
+      summary: 'capture: path "keys.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-api-keys-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-devices-1-authed-28ad0c5d
+      summary: 'capture: path "devices.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-devices-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-patch-api-devices-1-authed-28ad0c5d
+      summary: 'capture: path "devices.0.id" not found in response'
+      case_ref: http-route-realtime-patch-api-devices-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-external-agents-1-authed-0b2dcbb6
+      summary: 'capture: path "agents.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-external-agents-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-external-agents-1-authed-0b2dcbb6
+      summary: 'capture: path "agents.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-external-agents-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-external-agents-1-authed-0b2dcbb6
+      summary: 'capture: path "agents.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-external-agents-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-missions-1-authed-e8a7db66
+      summary: 'capture: path "missions.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-missions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-missions-1-authed-e8a7db66
+      summary: 'capture: path "missions.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-missions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-permissions-1-authed-edfaedf0
+      summary: 'capture: path "data.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-permissions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-permissions-1-authed-edfaedf0
+      summary: 'capture: path "data.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-permissions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-patch-api-permissions-1-authed-edfaedf0
+      summary: 'capture: path "data.0.id" not found in response'
+      case_ref: http-route-realtime-patch-api-permissions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-prompts-1-authed-7c210ec8
+      summary: 'capture: path "prompts.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-prompts-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-prompts-1-authed-7c210ec8
+      summary: 'capture: path "prompts.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-prompts-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-rules-1-authed-5cc5d70c
+      summary: 'capture: path "rules.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-rules-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-rules-1-authed-5cc5d70c
+      summary: 'capture: path "rules.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-rules-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-sessions-1-authed-35bf8e69
+      summary: 'capture: path "sessions.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-sessions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-sessions-1-authed-35bf8e69
+      summary: 'capture: path "sessions.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-sessions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-patch-api-sessions-1-authed-35bf8e69
+      summary: 'capture: path "sessions.0.id" not found in response'
+      case_ref: http-route-realtime-patch-api-sessions-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-sessions-admin-integrity-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-sessions-admin-integrity-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-skills-1-authed-0405e53c
+      summary: 'capture: path "skills.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-skills-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-skills-1-authed-0405e53c
+      summary: 'capture: path "skills.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-skills-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-skills-1-authed-0405e53c
+      summary: 'capture: path "skills.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-skills-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-delete-api-teams-1-authed-0f244093
+      summary: 'capture: path "teams.0.id" not found in response'
+      case_ref: http-route-realtime-delete-api-teams-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-teams-1-authed-0f244093
+      summary: 'capture: path "teams.0.id" not found in response'
+      case_ref: http-route-realtime-get-api-teams-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-put-api-teams-1-authed-0f244093
+      summary: 'capture: path "teams.0.id" not found in response'
+      case_ref: http-route-realtime-put-api-teams-1-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: http-route-realtime-get-api-workflows-jobs-x-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-workflows-jobs-x-authed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 2
+    - id: ui-vocab-devices-page-populated-c44d5ba9
+      summary: browser error http://localhost:5183/dashboard/devices (30.003222788s)
+      case_ref: ui-vocab-devices-page-populated
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
+    - id: ui-vocab-dashboard-home-quick-actions-71b63af9
+      summary: browser error http://localhost:5183/dashboard (30.002386649s)
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
+    - id: ui-vocab-devices-page-populated-b52795a0
+      summary: browser error http://localhost:5183/dashboard/devices (30.002172639s)
+      case_ref: ui-vocab-devices-page-populated
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
+    - id: ui-vocab-dashboard-home-quick-actions-653a4216
+      summary: browser error http://localhost:5183/dashboard (30.00197868s)
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: real
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
+    - id: ws-realtime-bridgeacp-restart-pair-37c6e831
+      summary: 'harness bridge-acp-real: ready pattern "Connected to server successfully" not seen within 1m0s'
+      case_ref: ws-realtime-bridgeacp-restart-pair
+      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      tier: real
+      status: open
+      first_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T11:37:32Z"
+      count: 1
