@@ -399,23 +399,29 @@ function routeHasPrefix(p, pre) {
   return p === pre || p.startsWith(pre + '/');
 }
 
-// Dev backdoor veto: /api/dev/* and /api/auth/dev/* are environment
-// provisioning endpoints, not product surface — they create or rotate
-// identity state. The sweep firing one mid-run mutates the environment under
-// every other actor (run32: POST /api/dev/setup recreated the dev user and
-// invalidated the browser session's token, bricking the whole UI leg), so
-// they are marked partial: no cases generate, and they leave the coverage
-// denominator.
-function isDevBackdoor(p) {
+// Sweep veto: routes that must never receive sweep traffic.
+//  - /api/dev/* and /api/auth/dev/* are environment provisioning backdoors,
+//    not product surface — firing one mid-run mutates identity state under
+//    every other actor (run32: POST /api/dev/setup recreated the dev user).
+//  - /api/auth/delete-account wipes the acting user and CASCADES every
+//    resource they own (devices, missions, tokens), no confirmation. The
+//    run32 sweep fired it with the real web JWT (200, case "passed") and
+//    deleted the dev user mid-run: bridge devices 404'd, WS connections
+//    401'd, the browser session orphaned, the whole UI leg failed on the
+//    login page.
+// Vetoed routes are marked partial: no cases generate, and they leave the
+// coverage denominator.
+function isSweepVetoed(p) {
   return p === '/api/dev' || p.startsWith('/api/dev/')
-      || p === '/api/auth/dev' || p.startsWith('/api/auth/dev/');
+      || p === '/api/auth/dev' || p.startsWith('/api/auth/dev/')
+      || p === '/api/auth/delete-account';
 }
 
 function addRoute(method, fullPath, mount, line, middlewares, minBody) {
   const e = { method, path: fullPath, mount: mount || undefined,
               middlewares: middlewares.length ? middlewares : undefined,
               min_body: minBody || undefined,
-              partial: isDevBackdoor(fullPath) || undefined,
+              partial: isSweepVetoed(fullPath) || undefined,
               source: { spans: [{ start: line, end: line }] } };
   const k = `${e.method}|${e.path}`;
   const ex = routeMap.get(k);

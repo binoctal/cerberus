@@ -9,6 +9,7 @@ const app = new Hono();
 app.get('/health', (c) => c.json({ ok: true }));
 app.post('/api/dev/setup', strictRateLimit, (c) => c.json({}));
 app.post('/api/dev/setup', (c) => c.json({}));
+app.post('/api/auth/delete-account', (c) => c.json({ deleted: true }));
 app.route('/api/things', stuffRoutes);
 
 export default app;

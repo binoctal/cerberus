@@ -1290,6 +1290,7 @@ http_routes:
               end: 484
     - method: POST
       path: /api/auth/delete-account
+      partial: true  # destructive identity reset: wipes the acting user + cascades all their resources; run32 sweep fired it live
       mount: /api/auth
       middlewares:
         - securityHeaders

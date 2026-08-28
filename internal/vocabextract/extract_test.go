@@ -476,6 +476,17 @@ func TestExtract_HonoRoutes(t *testing.T) {
 			t.Error("GET /api/things must not be partial")
 		}
 	}
+	// Destructive identity veto: POST /api/auth/delete-account wipes the
+	// acting user and cascades every resource they own. The run32 sweep fired
+	// it with the real web JWT (200, case "passed") and deleted the dev user
+	// mid-run — bridge devices 404'd, WS connections 401'd, the browser
+	// session's token orphaned, and the whole UI leg failed on the login page.
+	// It must never enter the sweep.
+	for _, r := range got.HTTPRoutes {
+		if r.Path == "/api/auth/delete-account" && !r.Partial {
+			t.Error("POST /api/auth/delete-account must be partial (destructive identity veto)")
+		}
+	}
 	if seen["PUT /secret"] != 0 {
 		t.Error("unmounted route leaked into http_routes")
 	}
