@@ -549,23 +549,23 @@ findings:
     - id: ws-realtime-wf-mission-fanout-ad9e9d06
       summary: 'create trace: context canceled'
       case_ref: ws-realtime-wf-mission-fanout
-      session_ref: dec936dd-3afe-4734-8604-a3c543711173
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
       claim_refs:
         - multi-device-orchestration
       tier: real
       status: open
       first_seen: "2026-08-25T12:12:38Z"
-      last_seen: "2026-08-25T12:12:38Z"
-      count: 1
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
     - id: ws-realtime-bridgeacp-restart-pair-ad9e9d06
       summary: 'create trace: context canceled'
       case_ref: ws-realtime-bridgeacp-restart-pair
-      session_ref: dec936dd-3afe-4734-8604-a3c543711173
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
       tier: real
       status: open
       first_seen: "2026-08-25T12:12:38Z"
-      last_seen: "2026-08-25T12:12:38Z"
-      count: 1
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
     - id: ws-realtime-bridgeacp-acpreal-session-726bffb2
       summary: ws error  (matched=0 seen=10, 2m0.000140395s)
       case_ref: ws-realtime-bridgeacp-acpreal-session
@@ -743,12 +743,12 @@ findings:
     - id: http-route-realtime-get-api-admin-ai-comparison-compare-authed-54a26cd1
       summary: 'expect_status_class "2xx": got status 400 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-ai-comparison-compare-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 4
     - id: http-route-realtime-post-api-admin-ai-comparison-metrics-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-ai-comparison-metrics-authed
@@ -932,12 +932,12 @@ findings:
     - id: http-route-realtime-get-api-admin-blacklist-check-authed-54a26cd1
       summary: 'expect_status_class "2xx": got status 400 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-blacklist-check-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 4
     - id: http-route-realtime-post-api-admin-budget-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-budget-authed
@@ -968,30 +968,30 @@ findings:
     - id: http-route-realtime-get-api-admin-cli-health-metrics-authed-9f5a62c4
       summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-cli-health-metrics-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 3
     - id: http-route-realtime-get-api-admin-cli-health-overview-authed-9f5a62c4
       summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-cli-health-overview-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 3
     - id: http-route-realtime-get-api-admin-compliance-check-authed-9f5a62c4
       summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-compliance-check-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 3
     - id: http-route-realtime-post-api-admin-compliance-reports-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-compliance-reports-authed
@@ -1076,12 +1076,12 @@ findings:
     - id: http-route-realtime-get-api-admin-content-moderation-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-content-moderation-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 4
     - id: http-route-realtime-post-api-admin-coupons-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-coupons-authed
@@ -1220,12 +1220,12 @@ findings:
     - id: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed-a8ff7a3d
       summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 3
     - id: http-route-realtime-get-api-admin-mcp-marketplace-authed-a8ff7a3d
       summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-mcp-marketplace-authed
@@ -1679,12 +1679,12 @@ findings:
     - id: http-route-realtime-get-api-sessions-admin-integrity-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-sessions-admin-integrity-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 5
     - id: http-route-realtime-delete-api-skills-1-authed-0405e53c
       summary: 'capture: path "skills.0.id" not found in response'
       case_ref: http-route-realtime-delete-api-skills-1-authed
@@ -1742,12 +1742,12 @@ findings:
     - id: http-route-realtime-get-api-workflows-jobs-x-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-workflows-jobs-x-authed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 2
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 4
     - id: ui-vocab-devices-page-populated-c44d5ba9
       summary: browser error http://localhost:5183/dashboard/devices (30.003222788s)
       case_ref: ui-vocab-devices-page-populated
@@ -1787,29 +1787,2430 @@ findings:
     - id: ws-realtime-wf-mission-seed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: ws-realtime-wf-mission-seed
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: real
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 1
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
     - id: ws-realtime-wf-mission-fanout-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: ws-realtime-wf-mission-fanout
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       claim_refs:
         - multi-device-orchestration
       tier: real
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
-      count: 1
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
     - id: ws-realtime-bridgeacp-restart-pair-37c6e831
       summary: 'harness bridge-acp-real: ready pattern "Connected to server successfully" not seen within 1m0s'
       case_ref: ws-realtime-bridgeacp-restart-pair
-      session_ref: fb5816de-19ea-49ad-a86c-95b91fb591fd
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
       tier: real
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T11:37:32Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-stats-authed-9f5a62c4
+      summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-missions-stats-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-sessions-authed-a9f019a8
+      summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-sessions-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-authed-901a200e
+      summary: 'expect_status_class "2xx_4xx": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-teams-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-teams-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-teams-1-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-teams-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-1-devices-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-teams-1-devices
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-devices-1-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-teams-1-devices-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-1-invitations-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-teams-1-invitations
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-invitations-1-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-teams-1-invitations-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-members-1-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-teams-1-members-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-teams-1-members-1-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-teams-1-members-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-invitations-accept-b6a83828
+      summary: 'expect_status_class "any": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-teams-invitations-accept
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-invitations-accept-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-teams-invitations-accept-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-user-usage-unauth-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-user-usage-unauth
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-user-usage-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-user-usage
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-user-usage-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-user-usage-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-post-api-webhooks-creem-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-webhooks-creem
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-workflows-jobs-x-unauth-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-workflows-jobs-x-unauth
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-workflows-jobs-x-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-workflows-jobs-x
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-workflows-jobs-x-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-workflows-jobs-x-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-health-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-health
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-metrics-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-metrics
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-missions-conn-status-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-missions-conn-status
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-missions-device-counter-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-missions-list-renders-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-missions-list-renders
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-devices-page-renders-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-missions-device-selector-count-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-dashboard-home-quick-actions-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-approvals-keyboard-hint-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-approvals-keyboard-hint
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-agents-page-title-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-agents-page-title
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-logs-page-title-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-logs-page-title
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-search-page-subtitle-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-search-page-subtitle
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-sessions-page-title-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-sessions-page-title
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-a2a-keys-title-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-a2a-keys-title
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: ui-vocab-prompt-lab-title-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ui-vocab-prompt-lab-title
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-compare-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-compare-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-audit-export-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-audit-export-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-audit-export-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-audit-export-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-invoices-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-billing-invoices-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-billing-invoices-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-payments-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-billing-payments-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-subscriptions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-billing-subscriptions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-billing-subscriptions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-billing-subscriptions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-blacklist-check-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-blacklist-check-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-budget-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-budget-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-budget-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-budget-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-cli-health-metrics-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-cli-health-metrics-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-cli-health-overview-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-cli-health-overview-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-compliance-check-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-compliance-check-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-compliance-reports-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-compliance-retention-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-compliance-retention-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-compliance-retention-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-compliance-retention-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-content-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-content-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-content-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-content-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-content-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-content-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-content-moderation-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-content-moderation-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-coupons-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-coupons-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-coupons-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-coupons-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-database-ops-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-database-ops-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-database-ops-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-database-ops-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-feedback-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-feedback-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-feedback-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-feedback-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-feedback-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-feedback-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-ip-whitelist-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-ip-whitelist-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-ip-whitelist-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-ip-whitelist-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-missions-stats-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-missions-stats-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-org-policies-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-org-policies-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-org-policies-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-org-policies-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-org-policies-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-org-policies-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-segments-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-segments-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-segments-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-segments-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-segments-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-segments-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-sso-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-sso-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-sso-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-sso-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-tenants-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-tenants-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-tenants-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-admin-tenants-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-tenants-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-tenants-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-white-label-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-admin-white-label-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-white-label-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-admin-white-label-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-agents-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-agents-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-agents-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-agents-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-agents-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-agents-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-api-keys-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-api-keys-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-devices-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-devices-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-patch-api-devices-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-patch-api-devices-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-external-agents-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-external-agents-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-external-agents-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-external-agents-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-external-agents-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-external-agents-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-missions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-missions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-missions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-missions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-permissions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-permissions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-permissions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-permissions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-patch-api-permissions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-patch-api-permissions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-prompts-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-prompts-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-prompts-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-prompts-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-rules-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-rules-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-rules-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-rules-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-sessions-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-sessions-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-sessions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-sessions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-sessions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-sessions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-patch-api-sessions-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-patch-api-sessions-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-sessions-admin-integrity-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-sessions-admin-integrity-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-skills-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-skills-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-skills-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-skills-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-skills-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-skills-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-teams-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-teams-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-teams-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-get-api-teams-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-get-api-teams-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-teams-1-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-teams-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-teams-1-authed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-teams-1-authed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-1-devices-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-teams-1-devices
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-devices-1-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-teams-1-devices-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-1-invitations-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-teams-1-invitations
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-invitations-1-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-teams-1-invitations-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-teams-1-members-1-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-delete-api-teams-1-members-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-put-api-teams-1-members-1-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-put-api-teams-1-members-1
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-post-api-teams-invitations-accept-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: http-route-realtime-post-api-teams-invitations-accept
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-reale2e-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-reale2e-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge2-reale2e-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge2-reale2e-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge3-reale2e-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge3-reale2e-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-acpe2e-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-acpe2e-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge2-acpe2e-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge2-acpe2e-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge3-acpe2e-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge3-acpe2e-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridgeacp-acpreal-session-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridgeacp-acpreal-session
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-config-sync-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-config-sync
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-device-listDir-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-device-listDir
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-mcp-list-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-mcp-list
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-mcp-sync-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-mcp-sync
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-prompts-sync-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-prompts-sync
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-rules-sync-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-rules-sync
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-scanner-rules-sync-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-scanner-rules-sync
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-scanner-toggle-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-scanner-toggle
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-session-resume-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-session-resume
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-session-resume-with-context-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-session-resume-with-context
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-storage-sync-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-bridge-realresp-storage-sync
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-start-task-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-start-task
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-start-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-start
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-workflow-pause-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-workflow-pause
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-workflow-cancel-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-workflow-cancel
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-task-assign-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-task-assign
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-session-send-web-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-session-send-web
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-session-family-lifecycle-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-session-family-lifecycle
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-ad9e9d06
+      summary: 'create trace: context canceled'
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 3c4b06cd-d6ee-48ff-92f7-1c08ae5cb77c
+      tier: real
+      status: open
+      first_seen: "2026-08-28T14:22:23Z"
+      last_seen: "2026-08-28T14:22:23Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-tenants-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-tenants-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-tenants-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-tenants-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-tenants-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-white-label-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-white-label-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-white-label-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-white-label-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-white-label-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-white-label-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-delete-api-audit-cleanup-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-audit-cleanup-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-audit-summary-recent-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-audit-summary-recent-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-external-agents-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-external-agents-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-delete-api-external-agents-1-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-external-agents-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-external-agents-1-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-external-agents-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-put-api-external-agents-1-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-external-agents-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-get-api-rules-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-rules-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-delete-api-rules-1-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-rules-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: http-route-realtime-put-api-rules-1-authed-1aecf67c
+      summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-rules-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: ui-vocab-missions-conn-status-19eb0336
+      summary: 'browser expect failed text_present text=Connected: expect text_present "text=Connected": not satisfied within window (observed "") (30.002566574s)'
+      case_ref: ui-vocab-missions-conn-status
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-device-counter-9e8cc223
+      summary: 'browser expect failed text_present text=devices online: expect text_present "text=devices online": not satisfied within window (observed "") (30.001951526s)'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-list-renders-1af296d1
+      summary: 'browser expect failed element_visible css=aside: expect element_visible "css=aside": not satisfied within window (observed "") (30.002240459s)'
+      case_ref: ui-vocab-missions-list-renders
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-b87df8b4
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (30.003511407s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-device-selector-count-c5af8982
+      summary: 'browser expect failed text_present text=0 devices online: expect text_present "text=0 devices online": not satisfied within window (observed "") (30.002863647s)'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-dashboard-home-quick-actions-7e539ab7
+      summary: 'browser expect failed text_present text=Start session: expect text_present "text=Start session": not satisfied within window (observed "") (30.002633858s)'
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-approvals-keyboard-hint-87902634
+      summary: 'browser expect failed text_present text=Shortcuts: Enter to approve, Esc to deny, arrow keys to navigate: expect text_present "text=Shortcuts: Enter to approve,'
+      case_ref: ui-vocab-approvals-keyboard-hint
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: ui-vocab-agents-page-title-f8b46950
+      summary: 'browser expect failed text_present text=Custom Agents: expect text_present "text=Custom Agents": not satisfied within window (observed "") (30.001441794s)'
+      case_ref: ui-vocab-agents-page-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-logs-page-title-eb7155e6
+      summary: 'browser expect failed text_present text=Logs Center: expect text_present "text=Logs Center": not satisfied within window (observed "") (30.001278127s)'
+      case_ref: ui-vocab-logs-page-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-search-page-subtitle-424b55ac
+      summary: 'browser expect failed text_present text=Search across sessions, logs, commands and all platform content: expect text_present "text=Search across sessions, logs,'
+      case_ref: ui-vocab-search-page-subtitle
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 2
+    - id: ui-vocab-sessions-page-title-9e1f6083
+      summary: 'browser expect failed text_present text=Session Management: expect text_present "text=Session Management": not satisfied within window (observed "") (30.0019472'
+      case_ref: ui-vocab-sessions-page-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-a2a-keys-title-de779f5d
+      summary: 'browser expect failed text_present text=A2A API Keys: expect text_present "text=A2A API Keys": not satisfied within window (observed "") (30.002615007s)'
+      case_ref: ui-vocab-a2a-keys-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-prompt-lab-title-8e1384c3
+      summary: 'browser expect failed text_present text=Prompt Lab: expect text_present "text=Prompt Lab": not satisfied within window (observed "") (30.00168485s)'
+      case_ref: ui-vocab-prompt-lab-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-ai-comparison-compare-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-compare-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-ai-providers-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-ai-providers-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-ai-providers-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-ai-providers-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-ai-providers-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-ai-providers-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-audit-export-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-audit-export-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-audit-export-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-audit-export-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-invoices-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-billing-invoices-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-billing-invoices-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-payments-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-billing-payments-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-billing-plans-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-billing-plans-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-plans-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-billing-plans-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-billing-plans-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-billing-plans-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-subscriptions-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-billing-subscriptions-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-billing-subscriptions-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-billing-subscriptions-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-blacklist-check-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-blacklist-check-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-budget-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-budget-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-budget-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-budget-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-compliance-reports-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-compliance-retention-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-compliance-retention-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-compliance-retention-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-compliance-retention-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-content-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-content-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-content-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-content-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-content-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-content-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-content-moderation-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-content-moderation-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-coupons-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-coupons-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-coupons-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-coupons-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-database-ops-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-database-ops-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-database-ops-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-database-ops-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-feedback-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-feedback-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-feedback-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-feedback-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-feedback-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-feedback-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-ip-whitelist-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-ip-whitelist-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-ip-whitelist-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-ip-whitelist-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-missions-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-missions-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-org-policies-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-org-policies-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-org-policies-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-org-policies-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-org-policies-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-org-policies-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-segments-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-segments-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-segments-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-segments-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-segments-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-segments-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-settings-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-settings-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-settings-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-settings-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-settings-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-settings-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-delete-api-admin-sso-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-sso-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: http-route-realtime-put-api-admin-sso-1-authed-900ae5cd
+      summary: 'expect_status_class "2xx": got status 401 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-sso-1-authed
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-conn-status-0edd9d93
+      summary: 'browser expect failed text_present text=Connected: expect text_present "text=Connected": not satisfied within window (observed "") (30.001257162s)'
+      case_ref: ui-vocab-missions-conn-status
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-device-counter-027e1dd4
+      summary: 'browser expect failed text_present text=devices online: expect text_present "text=devices online": not satisfied within window (observed "") (30.001319495s)'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-list-renders-8f18fc77
+      summary: 'browser expect failed element_visible css=aside: expect element_visible "css=aside": not satisfied within window (observed "") (30.003176014s)'
+      case_ref: ui-vocab-missions-list-renders
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-0c915db1
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (30.002620151s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-missions-device-selector-count-300c4023
+      summary: 'browser expect failed text_present text=0 devices online: expect text_present "text=0 devices online": not satisfied within window (observed "") (30.001498027s)'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-dashboard-home-quick-actions-1c34d837
+      summary: 'browser expect failed text_present text=Start session: expect text_present "text=Start session": not satisfied within window (observed "") (30.002708221s)'
+      case_ref: ui-vocab-dashboard-home-quick-actions
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-agents-page-title-10a47743
+      summary: 'browser expect failed text_present text=Custom Agents: expect text_present "text=Custom Agents": not satisfied within window (observed "") (30.002514174s)'
+      case_ref: ui-vocab-agents-page-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-logs-page-title-7714a04a
+      summary: 'browser expect failed text_present text=Logs Center: expect text_present "text=Logs Center": not satisfied within window (observed "") (30.001886763s)'
+      case_ref: ui-vocab-logs-page-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-sessions-page-title-c02812cf
+      summary: 'browser expect failed text_present text=Session Management: expect text_present "text=Session Management": not satisfied within window (observed "") (30.0085674'
+      case_ref: ui-vocab-sessions-page-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-a2a-keys-title-af835adc
+      summary: 'browser expect failed text_present text=A2A API Keys: expect text_present "text=A2A API Keys": not satisfied within window (observed "") (30.00508185s)'
+      case_ref: ui-vocab-a2a-keys-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ui-vocab-prompt-lab-title-b7ee4e79
+      summary: 'browser expect failed text_present text=Prompt Lab: expect text_present "text=Prompt Lab": not satisfied within window (observed "") (30.00093732s)'
+      case_ref: ui-vocab-prompt-lab-title
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: emulated
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-reale2e-session-9a48f282
+      summary: ws error  (matched=0 seen=0, 15.00451631s)
+      case_ref: ws-realtime-bridge-reale2e-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge2-reale2e-session-3a979351
+      summary: ws error  (matched=0 seen=0, 15.010369508s)
+      case_ref: ws-realtime-bridge2-reale2e-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge3-reale2e-session-b64ef58e
+      summary: ws error  (matched=0 seen=0, 15.000133107s)
+      case_ref: ws-realtime-bridge3-reale2e-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-acpe2e-session-cdd54dfa
+      summary: ws error  (matched=0 seen=0, 30.003946685s)
+      case_ref: ws-realtime-bridge-acpe2e-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge2-acpe2e-session-0c2c2deb
+      summary: ws error  (matched=0 seen=0, 30.007129256s)
+      case_ref: ws-realtime-bridge2-acpe2e-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge3-acpe2e-session-ca82d53b
+      summary: ws error  (matched=0 seen=0, 30.019677432s)
+      case_ref: ws-realtime-bridge3-acpe2e-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridgeacp-acpreal-session-14f1b7b6
+      summary: ws error  (matched=0 seen=0, 5m0.000211486s)
+      case_ref: ws-realtime-bridgeacp-acpreal-session
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-config-sync-3361f4aa
+      summary: ws error  (matched=0 seen=0, 15.000610568s)
+      case_ref: ws-realtime-bridge-realresp-config-sync
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-device-listDir-1969b1ab
+      summary: ws error  (matched=0 seen=0, 15.004047141s)
+      case_ref: ws-realtime-bridge-realresp-device-listDir
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-mcp-list-6592accd
+      summary: ws error  (matched=0 seen=0, 15.0042327s)
+      case_ref: ws-realtime-bridge-realresp-mcp-list
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-mcp-sync-e2bdd6e5
+      summary: ws error  (matched=0 seen=0, 15.000122102s)
+      case_ref: ws-realtime-bridge-realresp-mcp-sync
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-prompts-sync-0c449cbf
+      summary: ws error  (matched=0 seen=0, 15.004414591s)
+      case_ref: ws-realtime-bridge-realresp-prompts-sync
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-rules-sync-b52931b0
+      summary: ws error  (matched=0 seen=0, 15.003859127s)
+      case_ref: ws-realtime-bridge-realresp-rules-sync
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-scanner-rules-sync-b9f0b826
+      summary: ws error  (matched=0 seen=0, 15.004599602s)
+      case_ref: ws-realtime-bridge-realresp-scanner-rules-sync
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-scanner-toggle-8c0d8536
+      summary: ws error  (matched=0 seen=0, 15.004104298s)
+      case_ref: ws-realtime-bridge-realresp-scanner-toggle
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-session-resume-9a9e9721
+      summary: ws error  (matched=0 seen=0, 15.0041913s)
+      case_ref: ws-realtime-bridge-realresp-session-resume
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-session-resume-with-context-a651fe83
+      summary: ws error  (matched=0 seen=0, 15.000226323s)
+      case_ref: ws-realtime-bridge-realresp-session-resume-with-context
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-bridge-realresp-storage-sync-b7a089c6
+      summary: ws error  (matched=0 seen=0, 15.004372446s)
+      case_ref: ws-realtime-bridge-realresp-storage-sync
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      claim_refs:
+        - ws-relay-messaging
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-wf-start-task-e0cbff0a
+      summary: ws error  (matched=0 seen=0, 30.000302662s)
+      case_ref: ws-realtime-wf-start-task
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-wf-start-4d525f9f
+      summary: ws error  (matched=0 seen=0, 30.016527421s)
+      case_ref: ws-realtime-wf-start
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-wf-task-assign-1ccb502e
+      summary: ws error  (matched=0 seen=0, 3m0.09965389s)
+      case_ref: ws-realtime-wf-task-assign
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
+      count: 1
+    - id: ws-realtime-session-family-lifecycle-6277ee03
+      summary: ws error  (matched=0 seen=0, 15.004097305s)
+      case_ref: ws-realtime-session-family-lifecycle
+      session_ref: 0508203f-2ef7-4171-9c4a-5d5c8d26108d
+      tier: real
+      status: open
+      first_seen: "2026-08-28T16:59:54Z"
+      last_seen: "2026-08-28T16:59:54Z"
       count: 1
