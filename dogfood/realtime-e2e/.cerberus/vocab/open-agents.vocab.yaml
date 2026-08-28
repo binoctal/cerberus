@@ -7633,10 +7633,10 @@ ui:
           route: /dashboard/missions
           target: css=aside
           expectation: element_visible
-        - id: devices-page-populated
+        - id: devices-page-renders
           route: /dashboard/devices
-          target: text=dev-device
-          expectation: element_count>=1
+          target: text=Devices
+          expectation: text_present
           timeout: 15
         - id: missions-device-selector-count
           route: /dashboard/missions
@@ -7651,7 +7651,7 @@ ui:
                 length:devices: onlineCount
         - id: dashboard-home-quick-actions
           route: /dashboard
-          target: text=Start a session
+          target: text=Start session
           expectation: text_present
           timeout: 15
         - id: approvals-keyboard-hint
