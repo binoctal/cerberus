@@ -107,12 +107,12 @@ actors:
       ready_pattern: "Connected to server successfully"
       ready_timeout: 60s
 settings:
-  max_duration: 60m   # mission-orchestration case alone runs ~4-6min; full judge of ~700 verdicts needs ~15-25min more (25m truncated it once the budget stopped starving the judge)
+  max_duration: 90m   # mission-orchestration case alone runs ~4-6min; run30 (1766 verdicts, http-route v2) spent 45m with judging truncated at the budget wall — full judge needs the extra headroom
   confidence_threshold: 0.7
   ai_budget:
-    # 200K still starved the Examiner (2026-08-19: scout+agent left ~9K,
-    # below the 10K per-call cap, degrading 458/691 judge verdicts to step
-    # status — no drift aggregate). 800K lets all ~700 verdicts judge plus the
-    # bridge3 replica's cases (run 15 spent ~711K at 2 bridges).
-    session_total_tokens: 900000
+    # Scaled for http-route-generator v2 case volume: run15 (~700 verdicts)
+    # spent ~711K (~1K/verdict all-in); run30 tripled verdicts to 1766 and
+    # exhausted 900K with 170 verdicts on step-status fallback plus
+    # repair/reflexion aborted. 2.2M covers ~1.8M steady-state plus repair.
+    session_total_tokens: 2200000
     per_call_limit: 10000
