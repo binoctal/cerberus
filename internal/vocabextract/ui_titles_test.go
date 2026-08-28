@@ -220,3 +220,26 @@ func TestExtractUITitleCandidatesFromDisk(t *testing.T) {
 		t.Fatalf("flagged: %+v", res.Flagged)
 	}
 }
+
+func TestExtractPageHeaderTitlesDeduplicatesRepeatedKey(t *testing.T) {
+	// Real shape (PromptLabPage.tsx, found 2026-08-28): one page renders the
+	// SAME PageHeader title key in two layout branches. One key = one
+	// assertion — a repeat would emit a duplicate assertion id.
+	src := `
+<div branch="a">
+  <PageHeader
+    title={t('promptLab.title')}
+    subtitle={t('promptLab.subtitle')}
+  />
+</div>
+<div branch="b">
+  <PageHeader
+    title={t('promptLab.title')}
+    subtitle={t('promptLab.subtitle')}
+  />
+</div>`
+	got := ExtractPageHeaderTitles(src)
+	if len(got) != 1 || got[0] != "promptLab.title" {
+		t.Fatalf("got %v, want exactly [promptLab.title]", got)
+	}
+}

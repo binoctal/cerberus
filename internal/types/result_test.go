@@ -225,3 +225,17 @@ func TestBrowserResult_Evidence_UsesText(t *testing.T) {
 	e := r.Evidence()
 	assert.Equal(t, "page text", e.Content)
 }
+
+func TestBrowserResult_Summary_ExpectTimeoutNamesTheMissingThing(t *testing.T) {
+	// run30's #23 chase: an expect that waits the full window and fails was
+	// summarized as "browser error <url> (30s)" — indistinguishable from a
+	// transport/navigation error and it took a log archaeology session to
+	// learn the text simply never appeared.
+	r := BrowserResult{OK: false, URL: "http://x/dashboard", Latency: 30 * time.Second,
+		Selector: "text=Start session", Expectation: "text_present", Err: "text not found within timeout"}
+	s := r.Summary()
+	assert.Contains(t, s, "browser expect failed")
+	assert.Contains(t, s, "text=Start session")
+	assert.Contains(t, s, "text_present")
+	assert.NotContains(t, s, "browser error", "an expect timeout is not a transport error")
+}

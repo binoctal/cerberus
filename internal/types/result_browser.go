@@ -27,6 +27,17 @@ type BrowserResult struct {
 func (r BrowserResult) Success() bool           { return r.OK }
 func (r BrowserResult) Duration() time.Duration { return r.Latency }
 func (r BrowserResult) Summary() string {
+	if !r.OK && r.Expectation != "" {
+		// An expect that exhausted its window is not a transport error —
+		// name the missing thing so the log line alone tells the story
+		// (run30's #23 chase: "browser error <url> (30s)" hid a text that
+		// simply never appeared).
+		reason := r.Err
+		if reason == "" {
+			reason = "not found within timeout"
+		}
+		return fmt.Sprintf("browser expect failed %s %s: %s (%s)", r.Expectation, r.Selector, reason, r.Latency)
+	}
 	status := "ok"
 	if !r.OK {
 		status = "error"

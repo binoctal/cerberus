@@ -99,11 +99,14 @@ func ExtractDashboardRoutes(routerSrc string) map[string]string {
 }
 
 // ExtractPageHeaderTitles scans one page source file for `<PageHeader ...
-// title={t('key')} ...>` usages and returns their i18n keys (unresolved —
+// title={t('key')} ...>` usages and returns their i18n keys, deduplicated in
+// first-seen order — a page rendering the same header in two layout branches
+// (PromptLabPage does) yields ONE key, not a duplicate assertion (unresolved —
 // ResolveLocale does the JSON lookup, kept separate so callers can batch
 // multiple pages against one parsed locale file).
 func ExtractPageHeaderTitles(src string) []string {
 	lines := strings.Split(src, "\n")
+	seen := map[string]bool{}
 	var keys []string
 	for i, line := range lines {
 		if !pageHeaderRe.MatchString(line) {
@@ -114,7 +117,8 @@ func ExtractPageHeaderTitles(src string) []string {
 			end = len(lines)
 		}
 		window := strings.Join(lines[i:end], "\n")
-		if m := titlePropRe.FindStringSubmatch(window); m != nil {
+		if m := titlePropRe.FindStringSubmatch(window); m != nil && !seen[m[1]] {
+			seen[m[1]] = true
 			keys = append(keys, m[1])
 		}
 	}
