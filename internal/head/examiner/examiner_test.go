@@ -685,3 +685,34 @@ func TestAutoFixer_Fix_NilTestCase(t *testing.T) {
 	assert.False(t, result.Attempted)
 	assert.False(t, result.Success)
 }
+
+// TestExaminer_SkippedCaseBypassesJudge: a StepSkipped result carries the
+// executor's decision (empty-list param chain — nothing to assert), not
+// evidence for the LLM. Judging it re-reads "target never executed" as a
+// FAILURE (run32: ~150 legit skips flipped to fail verdicts). The verdict
+// must be a deterministic skip and the judge LLM must not be consulted —
+// the mock would return a PASS judgment for any call, so a skip here proves
+// the bypass.
+func TestExaminer_SkippedCaseBypassesJudge(t *testing.T) {
+	s := setupExaminerStore(t)
+
+	mockClient := llm.NewMockClient(nil)
+	mockClient.SetToolResponse("default", []llm.ToolCall{
+		judgeResultCall(StatusPass, 0.99, 0.99, "judge was consulted"),
+	})
+	driver := ai.NewDriver(mockClient, ai.NewTokenBudget(200000, 10000))
+	examinerHead := NewExaminer(driver, nil, s, DefaultExaminerConfig(), zap.NewNop())
+
+	results := []agent.StepResult{
+		makeStepResult("tc-skip", "Empty list chain", "/api/things/1", "2xx with real param", agent.StepSkipped, 200, `{"things":[]}`),
+	}
+	sess, err := s.CreateSession(context.Background(), "run", "test", "test-project")
+	require.NoError(t, err)
+
+	verdicts, _, err := examinerHead.Examine(context.Background(), results, sess.ID, "test-project")
+	require.NoError(t, err)
+	require.Len(t, verdicts, 1)
+	assert.Equal(t, StatusSkip, verdicts[0].Status,
+		"a skipped case must keep its skip verdict, not be re-judged")
+	assert.NotContains(t, verdicts[0].Reasoning, "judge was consulted")
+}

@@ -62,6 +62,21 @@ func (e *Examiner) Examine(ctx context.Context, results []agent.StepResult, sess
 
 			r := results[idx]
 
+			// A skipped case carries the executor's decision (empty-list param
+			// chain — nothing to assert), not evidence. Judging it re-reads
+			// "target never executed" as a failure (run32: ~150 legit skips
+			// flipped to fail verdicts), so the skip verdict is deterministic
+			// and the judge LLM is never consulted.
+			if r.Status == agent.StepSkipped {
+				verdicts[idx] = fallbackVerdict(r, e.config.ConfThreshold, "skipped by executor — no evidence to judge")
+				e.logger.Info("verdict",
+					zap.String("case_id", r.TestCase.ID),
+					zap.String("status", string(verdicts[idx].Status)),
+					zap.Int("degraded_level", verdicts[idx].DegradedLevel),
+				)
+				return
+			}
+
 			// Acquire a worker slot, or bail to a fallback verdict on cancellation.
 			select {
 			case sem <- struct{}{}:
