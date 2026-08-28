@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -37,6 +36,8 @@ func TestRetryAfterWait(t *testing.T) {
 		"unparseable Retry-After falls back to the default wait")
 	require.Equal(t, maxRetryAfterWait, retryAfterWait(resp("300")),
 		"a huge Retry-After is clamped to the ceiling")
+	require.LessOrEqual(t, maxRetryAfterWait, 15*time.Second,
+		"the ceiling must stay short — run31 stalled a case-per-2-minutes when a ~50s window serialized every request behind it")
 }
 
 // TestHTTPExecutor429Retries: a 429 with Retry-After is retried after the
@@ -64,17 +65,19 @@ func TestHTTPExecutor429Retries(t *testing.T) {
 	require.Equal(t, int32(2), hits.Load(), "exactly one retry")
 }
 
-// TestHTTPExecutor429Cooldown: after a 429, the per-host cool-down paces the
-// NEXT request too — without it, the request behind the retried one walks
-// straight back into the same limiter window.
-func TestHTTPExecutor429Cooldown(t *testing.T) {
+// TestHTTPExecutor429SustainedPacing: after a 429, the host is PACED — a
+// short minimum interval between requests held for a sustained window —
+// instead of serializing every request behind one full Retry-After deadline
+// (run31 lesson: full-window cooldowns stalled the sweep to one case per
+// window). Five paced requests must take at least four intervals total even
+// though the server never 429s again.
+func TestHTTPExecutor429SustainedPacing(t *testing.T) {
 	var hits atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		n := hits.Add(1)
-		if n <= 2 {
-			w.Header().Set("Retry-After", "1")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits.Add(1) == 1 && r.URL.Query().Get("throttle") == "1" {
+			w.Header().Set("Retry-After", "0")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_, _ = w.Write([]byte(`{"error":{"code":"RATE_LIMIT_EXCEEDED"}}`))
+			_, _ = w.Write([]byte(`{}`))
 			return
 		}
 		_, _ = w.Write([]byte(`{"ok":true}`))
@@ -82,16 +85,21 @@ func TestHTTPExecutor429Cooldown(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	e := NewHTTPExecutor(zap.NewNop())
+	// Prime the throttle once (absorbs the 250ms floor backoff).
+	res := e.Execute(context.Background(), types.HTTPAction{Method: "GET", URL: srv.URL + "/?throttle=1"})
+	hr, _ := res.(types.HTTPResult)
+	require.Equal(t, 200, hr.StatusCode)
+
 	start := time.Now()
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 5; i++ {
 		res := e.Execute(context.Background(), types.HTTPAction{Method: "GET", URL: srv.URL})
 		hr, ok := res.(types.HTTPResult)
 		require.True(t, ok)
-		require.Equal(t, 200, hr.StatusCode, fmt.Sprintf("request %d must eventually succeed", i+1))
+		require.Equal(t, 200, hr.StatusCode)
 	}
 	elapsed := time.Since(start)
-	require.GreaterOrEqual(t, elapsed, 2*time.Second,
-		"the second request must honor the first request's cool-down (>=2s total)")
+	require.GreaterOrEqual(t, elapsed, 4*throttlePaceInterval,
+		"post-429 requests must be paced (>= 4 intervals for 5 requests), took %s", elapsed)
 }
 
 // TestHTTPExecutor429ExhaustsHonestly: when the limiter never relents within
