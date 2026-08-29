@@ -124,8 +124,9 @@ func (rp *runPhase) runFailRepairAxis(eligible []scout.RepairInput) {
 		return
 	}
 
-	// Execute only the replacements.
-	loop := rp.buildAgentLoop()
+	// Execute only the replacements. (Index discarded: repair's rebuilt index
+	// already carries the refreshed credentials the token refresher wrote.)
+	loop, _ := rp.buildAgentLoop()
 	subPlan := &agent.TestPlan{Goal: rp.plan.Goal, Cases: replacements, ProjectURL: rp.plan.ProjectURL}
 	repResults, err := loop.ExecutePlan(rp.ctx, subPlan, rp.session.ID)
 	if err != nil {

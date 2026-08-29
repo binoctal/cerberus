@@ -300,7 +300,7 @@ func resolveHTTPStep(idx *WSProtocolIndex, s TestStep) (types.TypedAction, error
 		headers[k] = v
 	}
 	if s.AuthRole != "" && owningActor != "" && idx != nil {
-		if tok := idx.ActorHTTPTokens[owningActor]; tok != "" {
+		if tok := idx.ActorHTTPToken(owningActor); tok != "" {
 			if _, set := headers["Authorization"]; !set {
 				headers["Authorization"] = "Bearer " + tok
 			}

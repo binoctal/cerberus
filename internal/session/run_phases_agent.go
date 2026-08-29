@@ -11,7 +11,9 @@ import (
 
 // buildAgentLoop constructs the Agent execution loop from session config. Shared
 // by executeAgentPhase (full plan) and the repair loop (replacement subset).
-func (rp *runPhase) buildAgentLoop() *agent.ReActLoop {
+// The returned index is the loop's live protocol index — the caller that owns
+// the long execution window starts the actor-token refresher against it.
+func (rp *runPhase) buildAgentLoop() (*agent.ReActLoop, *agent.WSProtocolIndex) {
 	projectDir := rp.session.ProjectDir
 	if projectDir == "" {
 		projectDir = "."
@@ -21,7 +23,7 @@ func (rp *runPhase) buildAgentLoop() *agent.ReActLoop {
 	engine.SetWSIndex(wsIdx) // resolve {{role.param}} in rule-engine HTTP case URLs (parity with http_request step path)
 	multiExec := agent.BuildMultiExecutor(projectDir, agent.ServiceHeadersMap(rp.session.Config.Services), wsIdx, rp.session.Gate, rp.session.Logger)
 	emb := embedPkg.NewTrigramProvider(embedPkg.DefaultDimension)
-	return agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{
+	loop := agent.NewReActLoopWithGateWithConfig(agent.ReActLoopConfig{
 		Driver:   rp.session.driverFor(&rp.session.agentDriver),
 		Store:    rp.session.Store,
 		Engine:   engine,
@@ -35,6 +37,7 @@ func (rp *runPhase) buildAgentLoop() *agent.ReActLoop {
 		// process_restart steps reach the session harness through here.
 		ActorRestart: rp.session,
 	})
+	return loop, wsIdx
 }
 
 // executeAgentPhase runs the Agent execution phase
@@ -44,7 +47,13 @@ func (rp *runPhase) executeAgentPhase() error {
 	}
 	fmt.Printf("• Agent: executing %d test cases...\n", len(rp.plan.Cases))
 
-	loop := rp.buildAgentLoop()
+	loop, wsIdx := rp.buildAgentLoop()
+
+	// Rotate actor HTTP tokens for the whole execution window: the SUT's
+	// access tokens expire in 15 minutes while the sweep runs for hours
+	// (run33: 119 "Invalid token" 401 verdicts from the start-of-run token).
+	// Repair rounds rebuild their index from the refreshed credentials.
+	rp.session.startActorTokenRefresh(rp.ctx, wsIdx)
 
 	rp.session.Logger.Info("executing test plan",
 		zap.String("session_id", rp.session.ID),

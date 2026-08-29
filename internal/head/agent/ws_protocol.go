@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -126,8 +127,31 @@ type WSProtocolIndex struct {
 	ActorPathParams map[string]map[string]string // actor -> {url-param: value} (F3)
 	// ActorHTTPTokens maps actor name -> the HTTP credential captured by an
 	// optional http_login (distinct from ActorTokens, the WS credential). Read
-	// by the Steps runner to inject http_request Authorization headers.
+	// by the Steps runner to inject http_request Authorization headers, and
+	// rotated mid-run by the session's token refresher (SUT access tokens
+	// expire in 15 minutes while sweeps run for hours).
 	ActorHTTPTokens map[string]string
+
+	httpTokenMu sync.RWMutex
+}
+
+// SetActorHTTPToken rotates an actor's HTTP credential in the live index.
+// An empty token is ignored — a failed re-login must not blank a working
+// token. Safe for concurrent use with resolving http_request steps.
+func (idx *WSProtocolIndex) SetActorHTTPToken(actor, token string) {
+	if token == "" {
+		return
+	}
+	idx.httpTokenMu.Lock()
+	idx.ActorHTTPTokens[actor] = token
+	idx.httpTokenMu.Unlock()
+}
+
+// ActorHTTPToken returns the actor's current HTTP credential ("" when none).
+func (idx *WSProtocolIndex) ActorHTTPToken(actor string) string {
+	idx.httpTokenMu.RLock()
+	defer idx.httpTokenMu.RUnlock()
+	return idx.ActorHTTPTokens[actor]
 }
 
 // BuildWSProtocolIndex builds the index from config. Returns nil when no

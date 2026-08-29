@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -20,6 +21,21 @@ import (
 // an AuthFlow is discovered in-memory (never persisted) and used for this
 // session only. Failures degrade, never abort.
 func (s *Session) resolveActorAuth(ctx context.Context) {
+	s.refreshActorAuth(ctx, nil)
+}
+
+// actorTokenRefreshInterval re-runs each actor's auth flow well inside the
+// SUT's 15-minute access-token expiry (run33: 119 "Invalid token" 401
+// verdicts — the sweep runs for hours on a token resolved once at start).
+const actorTokenRefreshInterval = 10 * time.Minute
+
+// refreshActorAuth (re)runs each actor's declarative auth flow and writes the
+// results into the actor's Credentials and, when idx is non-nil, the live
+// protocol index's HTTP token map — so every later http_request step injects
+// the rotated credential. A nil idx (the initial resolveActorAuth pass) skips
+// the index update; the index is built afterwards from the resolved config.
+// Failures degrade: a failed re-login keeps the previous token.
+func (s *Session) refreshActorAuth(ctx context.Context, idx *agent.WSProtocolIndex) {
 	for i := range s.Config.Actors {
 		a := &s.Config.Actors[i]
 		if a.Auth == nil {
@@ -57,6 +73,9 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 		a.Credentials.RawToken = res.RawToken
 		a.Credentials.RawHTTPToken = res.HTTPToken
 		a.Credentials.PathParams = res.PathParams // F3: url-param -> captured value
+		if idx != nil && res.HTTPToken != "" {
+			idx.SetActorHTTPToken(a.Name, res.HTTPToken)
+		}
 		s.Logger.Info("auth flow resolved",
 			zap.String("actor", a.Name),
 			zap.String("header", res.HeaderName),
@@ -67,6 +86,27 @@ func (s *Session) resolveActorAuth(ctx context.Context) {
 	// still need a client-generated id), so they get their own pass AFTER auth
 	// resolution — generated values merge into whatever PathParams already exist.
 	s.resolveGeneratedPathParams()
+}
+
+// startActorTokenRefresh rotates actor HTTP tokens in the background until ctx
+// ends. The index is consulted per http_request step, so the rotation is
+// picked up by every later request without rebuilding executors.
+func (s *Session) startActorTokenRefresh(ctx context.Context, idx *agent.WSProtocolIndex) {
+	if idx == nil {
+		return
+	}
+	go func() {
+		t := time.NewTicker(actorTokenRefreshInterval)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				s.refreshActorAuth(ctx, idx)
+			}
+		}
+	}()
 }
 
 // resolveGeneratedPathParams synthesizes runtime values (e.g. uuid) for every

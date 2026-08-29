@@ -8,11 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"testing"
 
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
+	"github.com/binoctal/cerberus/internal/head/agent"
 	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/project"
 )
@@ -314,5 +316,63 @@ func TestResolveActorAuth_CapturedAndGeneratedCoexist(t *testing.T) {
 	}
 	if v := pp["clientId"]; !uuidRE.MatchString(v) {
 		t.Fatalf("generated clientId missing/invalid after merge: %q", v)
+	}
+}
+
+// TestRefreshActorAuthRotatesTokens pins the background refresh contract:
+// the SUT's access tokens expire in 15 minutes while a sweep runs for hours
+// (run33: 119 "Invalid token" 401 verdicts), so re-running an actor's auth
+// flow mid-run must rotate both the actor's credentials and the live
+// protocol index every http_request consults.
+func TestRefreshActorAuthRotatesTokens(t *testing.T) {
+	var mu sync.Mutex
+	n := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		n++
+		tok := fmt.Sprintf("JWT-%d", n)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"token":%q}`, tok)
+	}))
+	defer srv.Close()
+
+	s := &Session{
+		Config: &project.Config{
+			Services: []project.Service{{Name: "api", URL: srv.URL,
+				Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+					"web": {CredentialRef: "u"},
+				}}}},
+			Actors: []project.Actor{{
+				Name:    "u",
+				Service: "api",
+				Auth: &project.AuthFlow{
+					Login:         project.AuthLogin{Method: "POST", Path: "/login"},
+					TokenFrom:     "token",
+					HTTPLogin:     &project.AuthLogin{Method: "POST", Path: "/login"},
+					HTTPTokenFrom: "token",
+					InjectAs:      "Authorization: Bearer {token}",
+				},
+			}},
+		},
+		Logger: zap.NewNop(),
+	}
+	ctx := context.Background()
+	s.resolveActorAuth(ctx)
+	idx := agent.BuildWSProtocolIndex(s.Config)
+	// The resolve pass runs TWO logins (primary + http_login), so the initial
+	// http token is the second response.
+	if got := idx.ActorHTTPToken("u"); got != "JWT-2" {
+		t.Fatalf("initial http token = %q, want JWT-2", got)
+	}
+
+	// What the background refresher does each interval: two more logins, a
+	// fresh token in both the actor and the live index.
+	s.refreshActorAuth(ctx, idx)
+	if got := idx.ActorHTTPToken("u"); got != "JWT-4" {
+		t.Fatalf("rotated http token = %q, want JWT-4", got)
+	}
+	if got := s.Config.Actors[0].Credentials.RawHTTPToken; got != "JWT-4" {
+		t.Fatalf("actor RawHTTPToken = %q, want JWT-4", got)
 	}
 }
