@@ -743,12 +743,12 @@ findings:
     - id: http-route-realtime-get-api-admin-ai-comparison-compare-authed-54a26cd1
       summary: 'expect_status_class "2xx": got status 400 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-ai-comparison-compare-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 5
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 7
     - id: http-route-realtime-post-api-admin-ai-comparison-metrics-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-ai-comparison-metrics-authed
@@ -932,12 +932,12 @@ findings:
     - id: http-route-realtime-get-api-admin-blacklist-check-authed-54a26cd1
       summary: 'expect_status_class "2xx": got status 400 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-blacklist-check-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 5
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 7
     - id: http-route-realtime-post-api-admin-budget-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-budget-authed
@@ -1076,12 +1076,12 @@ findings:
     - id: http-route-realtime-get-api-admin-content-moderation-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-content-moderation-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 5
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 7
     - id: http-route-realtime-post-api-admin-coupons-authed-a9f019a8
       summary: 'expect_status_class "2xx_4xx": got status 500 (transport errors carry status 0)'
       case_ref: http-route-realtime-post-api-admin-coupons-authed
@@ -1220,12 +1220,12 @@ findings:
     - id: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed-a8ff7a3d
       summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-get-api-admin-mcp-marketplace-authed-a8ff7a3d
       summary: 'expect_status_class "2xx": got status 429 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-admin-mcp-marketplace-authed
@@ -1742,12 +1742,12 @@ findings:
     - id: http-route-realtime-get-api-workflows-jobs-x-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-workflows-jobs-x-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 6
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 8
     - id: ui-vocab-devices-page-populated-c44d5ba9
       summary: browser error http://localhost:5183/dashboard/devices (30.003222788s)
       case_ref: ui-vocab-devices-page-populated
@@ -3246,75 +3246,75 @@ findings:
     - id: http-route-realtime-get-api-audit-summary-recent-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-audit-summary-recent-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-get-api-external-agents-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-external-agents-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-delete-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-external-agents-1-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-get-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-external-agents-1-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-put-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-put-api-external-agents-1-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-get-api-rules-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-rules-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-delete-api-rules-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-rules-1-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: http-route-realtime-put-api-rules-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-put-api-rules-1-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 4
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 6
     - id: ui-vocab-missions-conn-status-19eb0336
       summary: 'browser expect failed text_present text=Connected: expect text_present "text=Connected": not satisfied within window (observed "") (30.002566574s)'
       case_ref: ui-vocab-missions-conn-status
@@ -4217,21 +4217,21 @@ findings:
     - id: http-route-realtime-delete-api-permissions-authed-a624e126
       summary: 'expect_status_class "4xx": got status 200 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-permissions-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T19:32:19Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 2
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 4
     - id: http-route-realtime-get-api-sessions-admin-integrity-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-sessions-admin-integrity-authed
-      session_ref: 752be87e-5045-4e92-b088-9f21228b2d9a
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
       tier: emulated
       status: open
       first_seen: "2026-08-28T19:32:19Z"
-      last_seen: "2026-08-28T19:32:19Z"
-      count: 2
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 4
     - id: ui-vocab-missions-conn-status-ca46391d
       summary: 'browser expect failed text_present text=Connected: expect text_present "text=Connected": not satisfied within window (observed "") (30.002976432s)'
       case_ref: ui-vocab-missions-conn-status
@@ -4438,4 +4438,177 @@ findings:
       status: open
       first_seen: "2026-08-28T19:32:19Z"
       last_seen: "2026-08-28T19:32:19Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-billing-subscriptions-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-billing-subscriptions-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-subscriptions-1-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-billing-subscriptions-1-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-subscriptions-1-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-billing-subscriptions-1-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-cli-health-metrics-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-cli-health-metrics-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-cli-health-overview-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-cli-health-overview-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-feedback-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-feedback-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-feedback-1-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-delete-api-admin-feedback-1-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-feedback-1-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-get-api-admin-feedback-1-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-feedback-1-authed-062a10cb
+      summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
+      case_ref: http-route-realtime-put-api-admin-feedback-1-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 2
+    - id: http-route-realtime-post-api-devices-authed-901a200e
+      summary: 'expect_status_class "2xx_4xx": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-devices-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: http-route-realtime-patch-api-devices-1-authed-4fb31803
+      summary: 'expect_status_class "2xx": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-patch-api-devices-1-authed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ui-vocab-missions-device-counter-a1cdebd9
+      summary: 'browser expect failed text_present text=devices online: expect text_present "text=devices online": not satisfied within window (observed "") (30.003486019s)'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-d131d9ea
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (15.157111761s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ui-vocab-missions-device-selector-count-a6bfd8c2
+      summary: 'browser expect failed text_present text=4 devices online: expect text_present "text=4 devices online": not satisfied within window (observed "") (30.002452325s)'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ui-vocab-missions-device-counter-dbb0f7be
+      summary: 'browser expect failed text_present text=devices online: expect text_present "text=devices online": not satisfied within window (observed "") (30.002270886s)'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-d8c6d6f9
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (30.001272681s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ui-vocab-missions-device-selector-count-eb2990d7
+      summary: 'browser expect failed text_present text=4 devices online: expect text_present "text=4 devices online": not satisfied within window (observed "") (30.002645724s)'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: emulated
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-9f5a62c4
+      summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      tier: real
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-9f5a62c4
+      summary: 'expect_status_class "2xx": got status 500 (transport errors carry status 0)'
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: 4a30cbbe-bbe6-435c-923c-c012c8f809cc
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-29T04:29:48Z"
+      last_seen: "2026-08-29T04:29:48Z"
       count: 1

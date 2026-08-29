@@ -113,6 +113,7 @@ settings:
     # Scaled for http-route-generator v2 case volume: run15 (~700 verdicts)
     # spent ~711K (~1K/verdict all-in); run30 tripled verdicts to 1766 and
     # exhausted 900K with 170 verdicts on step-status fallback plus
-    # repair/reflexion aborted. 2.2M covers ~1.8M steady-state plus repair.
-    session_total_tokens: 2200000
+    # repair/reflexion aborted. 2.2M still starved the judging tail (run33:
+    # 92 fallbacks at 2195K; run35: 90 at 2194K) — 2.5M buys the tail.
+    session_total_tokens: 2500000
     per_call_limit: 10000
