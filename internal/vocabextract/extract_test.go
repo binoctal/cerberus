@@ -577,3 +577,85 @@ func TestExtract_AnonUseMiddlewares(t *testing.T) {
 		t.Fatalf("http_routes = %+v, want 3 routes", got.HTTPRoutes)
 	}
 }
+
+// TestExtract_ZodMinBodies pins the rich-shape zod extraction and the
+// handler-side parse pattern (run35's dominant failure family: ~150 admin
+// mutations sent EMPTY bodies because their schemas — .min(), enums, arrays,
+// nested objects, or plain `schema.parse(c.req.json())` without a zValidator
+// middleware — extracted nothing).
+func TestExtract_ZodMinBodies(t *testing.T) {
+	if testing.Short() {
+		t.Skip("spawns node")
+	}
+	out, err := Extract(context.Background(), filepath.Join("testdata", "hono", "worker.ts"))
+	if err != nil {
+		t.Skipf("node unavailable or npm failed: %v", err)
+	}
+	var got struct {
+		HTTPRoutes []struct {
+			Method  string         `json:"method"`
+			Path    string         `json:"path"`
+			MinBody map[string]any `json:"min_body"`
+		} `json:"http_routes"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("parse extractor stdout: %v\nraw=%s", err, out)
+	}
+	byRoute := map[string]map[string]any{}
+	for _, r := range got.HTTPRoutes {
+		byRoute[r.Method+" "+r.Path] = r.MinBody
+	}
+
+	// Rich shapes: every required field with a refinement-satisfying value;
+	// optional and defaulted fields omitted.
+	rich := byRoute["POST /zod/api/rich"]
+	if rich == nil {
+		t.Fatalf("POST /zod/api/rich must carry min_body, got none (routes: %v)", byRoute)
+	}
+	wantRich := map[string]any{
+		"name": "x", "email": "x@x.com", "role": "admin",
+		"age": float64(0), "tags": []any{"x"}, "addr": map[string]any{"city": "x"},
+	}
+	if len(rich) != len(wantRich) {
+		t.Fatalf("rich min_body = %v (bio/status must be omitted)", rich)
+	}
+	for k, v := range wantRich {
+		gotV, ok := rich[k]
+		if !ok {
+			t.Fatalf("rich min_body missing %q: %v", k, rich)
+		}
+		switch want := v.(type) {
+		case []any:
+			arr, ok := gotV.([]any)
+			if !ok || len(arr) != 1 || arr[0] != want[0] {
+				t.Fatalf("rich[%s] = %v, want %v", k, gotV, want)
+			}
+		case map[string]any:
+			m, ok := gotV.(map[string]any)
+			if !ok || m["city"] != want["city"] {
+				t.Fatalf("rich[%s] = %v, want %v", k, gotV, want)
+			}
+		default:
+			if gotV != v {
+				t.Fatalf("rich[%s] = %v, want %v", k, gotV, v)
+			}
+		}
+	}
+
+	// Handler-side schema.parse (no zValidator middleware).
+	parse := byRoute["POST /zod/api/parse"]
+	if parse == nil {
+		t.Fatalf("POST /zod/api/parse must carry min_body from the .parse() schema, got none")
+	}
+	if parse["title"] != "x" || parse["n"] != float64(0) {
+		t.Fatalf("parse min_body = %v, want {title:x, n:0}", parse)
+	}
+
+	// Unextractable in either position: omit, never guess.
+	if m := byRoute["POST /zod/api/picky-parse"]; m != nil {
+		t.Fatalf("unextractable .parse() schema must omit min_body, got %v", m)
+	}
+	if m := byRoute["POST /zod/api/picky"]; m != nil {
+		t.Fatalf("unextractable zValidator schema must omit min_body, got %v", m)
+	}
+}

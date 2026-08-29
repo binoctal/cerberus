@@ -441,9 +441,97 @@ function addRoute(method, fullPath, mount, line, middlewares, minBody) {
 // (.refine, nested z.object, .optional() chains, spreads) marks the WHOLE
 // schema unextractable — min_body is omitted, never guessed.
 
-// z.object literal mapper: returns {field: minimal value} or null when any
-// property is not a plain PropertyAssignment of a zero-arg z.<primitive>().
+// z.object literal mapper. Per-property extraction handles the richer shapes
+// the admin routes actually use: refinement chains (.min/.email/.url/.uuid/
+// .int), z.enum, z.array, nested z.object, z.record; .optional()/.default()
+// fields are OMITTED from the minimal body (they accept absence). A required
+// field that is anything else (.refine, .transform, .preprocess, spreads)
+// marks the WHOLE schema unextractable — min_body is omitted, never guessed.
+// Returns {field: minimal value}, or null when unextractable.
 const ZOD_PRIMITIVES = { string: 'x', number: 0, boolean: false };
+const UUID_MIN = '123e4567-e89b-12d3-a456-426614174000';
+
+// zodValueOf extracts one property's minimal value. Returns
+// {value}, {omit:true} (optional/default — key absent from the minimal body),
+// or null (unextractable).
+function zodValueOf(init) {
+  // Walk the method chain down to its base: z.string().min(1) has methods
+  // [min] over base "string"; z.enum([...]) has base "enum" with arguments.
+  let node = init;
+  let baseNode = null; // the z.<base>(...) call itself — arguments live here
+  const chain = [];
+  while (node && node.getKind() === SyntaxKind.CallExpression) {
+    const e = node.getExpression();
+    if (e.getKind() !== SyntaxKind.PropertyAccessExpression) break;
+    chain.unshift(e.getName());
+    baseNode = node;
+    node = e.getExpression();
+  }
+  if (!node || node.getText() !== 'z' || chain.length === 0 || !baseNode) return null;
+  // chain is [innermost ... outermost]: the base z method rides chain[0],
+  // everything after it is a refinement/optional/default method.
+  const base = chain[0];
+  const methods = chain.slice(1);
+  if (methods.includes('optional') || methods.includes('default')) return { omit: true };
+  if (methods.includes('refine') || methods.includes('transform') || methods.includes('preprocess')) return null;
+
+  const args = baseNode.getArguments();
+  if (base === 'string') {
+    if (methods.includes('email')) return { value: 'x@x.com' };
+    if (methods.includes('url')) return { value: 'http://x.com' };
+    if (methods.includes('uuid')) return { value: UUID_MIN };
+    const minLen = stringMinOf(init);
+    return { value: 'x'.repeat(Math.max(minLen, 1)) };
+  }
+  if (base === 'number') return { value: 0 };
+  if (base === 'boolean') return { value: false };
+  if (base === 'enum') {
+    const arr = args[0];
+    if (arr && arr.getKind() === SyntaxKind.ArrayLiteralExpression) {
+      const first = arr.getElements()[0];
+      if (first && first.getKind() === SyntaxKind.StringLiteral) {
+        return { value: first.getText().slice(1, -1) };
+      }
+    }
+    return null;
+  }
+  if (base === 'literal') {
+    const first = args[0];
+    if (first && (first.getKind() === SyntaxKind.StringLiteral || first.getKind() === SyntaxKind.NumericLiteral)) {
+      const t = first.getText();
+      return { value: first.getKind() === SyntaxKind.NumericLiteral ? Number(t) : t.slice(1, -1) };
+    }
+    return null;
+  }
+  if (base === 'array') {
+    const inner = args[0] ? zodValueOf(args[0]) : null;
+    if (!inner || inner.omit) return null;
+    return { value: [inner.value] };
+  }
+  if (base === 'object') {
+    const nested = zodBodyOf(baseNode);
+    return nested === null ? null : { value: nested };
+  }
+  if (base === 'record') return { value: {} };
+  return null; // z.any()/z.unknown()/z.date()/... — unextractable
+}
+
+// stringMinOf recovers a .min(n) argument from a z.string() chain by walking
+// the receiver chain and reading the numeric argument of the min call.
+function stringMinOf(init) {
+  let node = init;
+  while (node && node.getKind() === SyntaxKind.CallExpression) {
+    const e = node.getExpression();
+    if (e.getKind() !== SyntaxKind.PropertyAccessExpression) break;
+    if (e.getName() === 'min') {
+      const a = node.getArguments()[0];
+      if (a && a.getKind() === SyntaxKind.NumericLiteral) return Number(a.getText());
+    }
+    node = e.getExpression();
+  }
+  return 1;
+}
+
 function zodBodyOf(node) {
   if (!node || node.getKind() !== SyntaxKind.CallExpression) return null;
   const callee = node.getExpression();
@@ -454,30 +542,72 @@ function zodBodyOf(node) {
   const body = {};
   for (const p of arg.getProperties()) {
     if (p.getKind() !== SyntaxKind.PropertyAssignment) return null; // spread etc.
-    const init = p.getInitializer();
-    if (!init || init.getKind() !== SyntaxKind.CallExpression) return null;
-    const c = init.getExpression();
-    if (c.getKind() !== SyntaxKind.PropertyAccessExpression) return null;
-    if (c.getExpression().getText() !== 'z') return null;
-    const prim = ZOD_PRIMITIVES[c.getName()];
-    if (prim === undefined || init.getArguments().length > 0) return null;
-    body[p.getName()] = prim;
+    const v = zodValueOf(p.getInitializer());
+    if (v === null) return null; // required but unextractable — never guess
+    if (v.omit) continue;        // optional/default — absent from the minimal body
+    body[p.getName()] = v.value;
   }
   return body;
 }
 
+// isZodSchemaInit reports whether an initializer is a z.* call chain (any
+// depth) — used so schemaMapOf only registers real schemas.
+function isZodSchemaInit(init) {
+  let node = init;
+  while (node) {
+    if (node.getKind() === SyntaxKind.CallExpression) {
+      const e = node.getExpression();
+      if (e.getKind() === SyntaxKind.Identifier) return e.getText() === 'z';
+      if (e.getKind() !== SyntaxKind.PropertyAccessExpression) return false;
+      node = e.getExpression();
+    } else if (node.getKind() === SyntaxKind.Identifier) {
+      return node.getText() === 'z';
+    } else {
+      return false;
+    }
+  }
+  return false;
+}
+
 // Module-level `const X = z.object({...})` declarations. Value is the mapped
-// body, or explicit null when the schema exists but is unextractable.
+// body, or explicit null when the schema exists but is unextractable (distinct
+// from absent: the handler-side .parse() lookup must be able to tell "schema
+// known but unextractable" from "no schema").
 function schemaMapOf(sf) {
   const m = new Map();
   for (const stmt of sf.getStatements()) {
     if (stmt.getKind() !== SyntaxKind.VariableStatement) continue;
     for (const d of stmt.getDeclarations()) {
-      const body = zodBodyOf(d.getInitializer());
-      if (body !== null) m.set(d.getName(), body);
+      const init = d.getInitializer();
+      if (!init || !isZodSchemaInit(init)) continue;
+      m.set(d.getName(), zodBodyOf(init));
     }
   }
   return m;
+}
+
+// parseBodyOf finds `<Schema>.parse(...)` / `.safeParse(...)` inside the route
+// handler — open-agents' other dominant validation form (no zValidator
+// middleware; the handler awaits c.req.json() and parses it itself). Returns
+// the mapped body, null for an unextractable schema, undefined when no parse
+// of a known schema is found.
+function parseBodyOf(args, schemas) {
+  const handler = args[args.length - 1];
+  if (!handler) return undefined;
+  const k = handler.getKind();
+  if (k !== SyntaxKind.ArrowFunction && k !== SyntaxKind.FunctionExpression) return undefined;
+  for (const desc of handler.getDescendants()) {
+    if (desc.getKind() !== SyntaxKind.CallExpression) continue;
+    const e = desc.getExpression();
+    if (e.getKind() !== SyntaxKind.PropertyAccessExpression) continue;
+    const m = e.getName();
+    if (m !== 'parse' && m !== 'safeParse') continue;
+    const recv = e.getExpression();
+    if (recv.getKind() === SyntaxKind.Identifier && schemas.has(recv.getText())) {
+      return schemas.get(recv.getText());
+    }
+  }
+  return undefined;
 }
 
 // zValidator('json', <arg2>) among route args: arg2 is an Identifier resolved
@@ -539,7 +669,7 @@ function walkFile(filePath, prefix, depth, useMws) {
         .filter(a => a.getKind() === SyntaxKind.Identifier)
         .map(a => a.getText());
       const mwsForRoute = [...inlineMw, ...mws.filter(u => routeHasPrefix(joinPath(prefix, lit0), u.prefix)).map(u => u.name)];
-      const minBody = zValidatorBodyOf(call.getArguments(), schemas);
+      const minBody = zValidatorBodyOf(call.getArguments(), schemas) ?? parseBodyOf(call.getArguments(), schemas);
       addRoute(name.toUpperCase(), joinPath(prefix, lit0), prefix, call.getStartLineNumber(), mwsForRoute, minBody);
     } else if (name === 'use') {
       // app.use('/p', mw, ...) registers each identifier middleware under

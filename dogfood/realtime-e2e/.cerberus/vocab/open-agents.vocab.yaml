@@ -1,13 +1,11 @@
 source:
     files:
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/realtime/room.ts
-          hash: 38199538d3ae89d07bcfb8e5ab11a5afd152fa010f3c7259c32a36fd4d90f26e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/worker.ts
-          hash: 3e051ee0ff7bc145a4b39b79d3a4600fb45a56f7f5185bc6fceb4f6807c81293
+          hash: f88abc5b12e5c2331d2c7af859bdc6a4451b17935453452dd5dfccdf581eaa9f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth/index.ts
           hash: 8f5c4dce9dab75b41af370fce9f49a1d316927c4984e514c9a68c60f1ae2077e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth.ts
-          hash: b6f4451a1dbc5c7e8266ff1fd5db10bd54d62c10b66da332d49b7db96e99524c
+          hash: ffad8ecc05c9505041616f476a9965d16e5ae606205a82ecac19be33ccadc89f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth/sessions.ts
           hash: 0116babc89b6d8953605a9a2cd27420c09b2090d39791e9c3da56b5be51d5e75
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth/tokens.ts
@@ -17,7 +15,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/dev.ts
           hash: f82d395571c3938c21279e747e7aee3a1afb41c0543847661740b02a252e9e31
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/bridge.ts
-          hash: e6d0926818e69292f3f3641c5f82cfb3fec08339f1f462b52edc7e7047cf0e46
+          hash: a8ce85efa5cc1c6cdfcdbe431fc0e1cb383dbabb65a60d8cada1c10e4958115e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/errors-report.ts
           hash: a573053f5fc037c4f2b90a19d3e62f09a1f2b412e021b9ea82727f00cef9ea35
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/a2a.ts
@@ -25,25 +23,25 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/creem-webhook.ts
           hash: c893513819321054dbfa6875ccfad120104ea41d256ce85ad037830962a9c28e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/devices.ts
-          hash: bb881737d7316cb97c01a40343dadf3bbb6fd1de3902b4f5920fce91ff3be120
+          hash: b4340ed7b2893d422eca1b86534e5add6ccffac122969b888e45328c5f815e04
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/sessions.ts
-          hash: a5cd1dd601a3b4238c82e9ba900afb548e622ee4c7d965d74f54359a5fc488fb
+          hash: 195b2815d992a53095932bd94300da2842b5d5587196743d910f779ba88f2bf6
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/prompts.ts
-          hash: 723312f523101055ca7ad618926e5846eba77682e0aa90e793d2060244653976
+          hash: 4063041465d1ea2abcea8ff9df28e9b962356c620ecc1a15faf38dc68ffffa9f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/agents.ts
           hash: b458ea4e927e37729a4b8eed03334eb8ac98af0c6b1a8c3e2473da0cf6d3ff8a
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/skills.ts
           hash: 3320ff75a6d939a34211e22caa86450cefdc90a62c17052fdfa6cbcaeeae9dc3
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/rules.ts
-          hash: c9b88ca559e16ee76ed6fa9e45378816b48d2dfa4d6ada30d50e1ff6ad4397d2
+          hash: d0538aa075d56bf01474834361cacc71c27a7c1550ccf9aa2775549526d78fa9
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/permissions.ts
           hash: 6ce3c9328fa2a4adb541f7e3a701b079dfa78351dce0fc134faf7646a6def9c8
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/settings.ts
-          hash: a99d367cad88585ba366905614783a488e30f98376f85b742a48fe669b49d2f4
+          hash: 6b3a2a587381d585c34ac81dd7ef1e98b573ba114c1278155eed32a1ca262846
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/export.ts
-          hash: 691f9f48b106bf4b0ae42ac84d2334d6360fb55f9f8779074335f5e6c7cb0891
+          hash: bd84f0eb00d31d0f34465408f41b5855f1fa354a4afb6e447f369cbe03516759
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/audit.ts
-          hash: d970ec96a5edfd07e22aeb7cdde09f56e6bc3f45f1d0b52f1e16df7e6d4c3651
+          hash: d4e3c4cbddf64e725617318ba7129064be5c9a16e71059d13a2c4417eec65be8
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/batch.ts
           hash: 0f6793589537685112b26f8a9e79487106d355d035a665e05c3267f3d5003c6f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/missions.ts
@@ -51,21 +49,17 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/teams.ts
           hash: 2a034a92322ff593a1f0f4019dee656cdb730f5c0564c275d64872f9cf164c74
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin.ts
-          hash: 47c66ddf3c37ba948d5f8e88e9ec8ecc185b6debf7e073a3a2d7f694c8fdeea6
+          hash: bf359930c695e7cf7aaf2c0dd7bd01a49b61753babf990a4c672fa112218da1c
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/index.ts
-          hash: 9b5c52c5c05532f665ede4d0bf5f061c8957d01a97a89f2ea3b6e7c7ee555365
+          hash: f28d7b9b1645cdc4d3adce1e9520f1eed78836390e8f1ed7f670ff3132da94b5
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/plans.ts
-          hash: 875e2262f6f2f82e530d5f57be0196e6888005aa2486e63243f8d26f62bad082
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/subscriptions.ts
-          hash: 50fcc2d5f59f421268124ee32a5e4e6dcc9329d928e5fca25e415ce63a1b142f
+          hash: 3948ab778d674fc884a59553f0732967e61c8d98512e655890d78f242de2c41c
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/invoices.ts
           hash: 363e1b5ffe0fde8dc465993e33fd26b02cf61dbe54e5078437b088b59387f9bd
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/payments.ts
           hash: e7d015c06497b2ec34c112ff3863213797b8d4450b08d61f88621300bdd7b1d5
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/settings.ts
           hash: c7a034217469007feecbe518ce3722d575100e4103f87e7da79761a27e302a6b
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/feedback.ts
-          hash: fbae01dd9019241914f8c920e2c206a99d6c649a7887be60b6f1678cf3dc82e5
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/blacklist.ts
           hash: 763c078ef3fe8f2caf87b525e1832e52ab5e48fed76079756705754b9adb2b9d
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/analytics/index.ts
@@ -73,11 +67,9 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/compliance/index.ts
           hash: 0e20bea8d5037de3ef94d3b679b1c1d883bc6b3786c9f739d67c0ec4a5e1fdd4
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/content/index.ts
-          hash: 8e209231f58a618908a93f74e527c8432147b540ebaaf0f3507446c3207c66fb
+          hash: 15d87cd1584a62e373ed3020b41d463b9b6e1e7d241d372b45fb76cbb847f22a
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-comparison/index.ts
           hash: a5b85f4c9274de090a47a2eb99ea35825b46e5f748a1643e5f0e7c425ab05b51
-        - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/cli-health/index.ts
-          hash: 5e2b330407c02e245d60a7dfa7354f97998aa28d7f475c5775974f2953975ed6
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/budget/index.ts
           hash: cb64ad03fbe96211b0f45d2d26a9d9188dfe008d0474dd3e7123061628dca7de
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ip-whitelist/index.ts
@@ -95,7 +87,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/remote-logs/index.ts
           hash: c2eb19d9be415b9ce8601500142c6ed5942862ec2eced35924d735a85599be8e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/diagnostics/index.ts
-          hash: a773a48e1bcf75fd2ae9309721e6d11e33f20ce869141fcd79da151f58a7524e
+          hash: d68d94b3b7563631f442a76206fd2bc6dd0510295276795355a82f0003d2f0ca
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/database-ops.ts
           hash: 7b6a3086c11bf0709e4a3bb9308d950f1c7a188d659082d46511b2c5eea9dc77
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/tenants/index.ts
@@ -119,7 +111,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-providers.ts
           hash: 97585c6350a417bed3d480b5ba1e093f194ce3f3e7ff05d4c802a1b2f412b6c7
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/missions.ts
-          hash: 47c36d89f96f34dc28ce8477294c28494d9667f0b8c1dc62e6d3a228b338cfe2
+          hash: 293965b5405801e33f48a5478187c7b864d81c00bfc51d611411d87b3780d80e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/api-keys.ts
           hash: 77065eb880ea431d15898eb0f0b1341600448fee182c07cb60e1efe496e02f30
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/external-agents.ts
@@ -127,1061 +119,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/user-usage.ts
           hash: 6f714871ae1b53f00ec7cca905a97c08ca7e2d744aad808d3d154d40dfbddad6
     protocol_ref: open-agents
-edges:
-    - from_role: ""
-      to_role: bridge
-      type: (dynamic)
-      trigger: fetch_branch
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      source:
-        spans:
-            - start: 239
-              end: 239
-    - from_role: ""
-      to_role: web
-      type: orchestrator:schedule_alarm
-      trigger: fetch_branch
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 245
-              end: 245
-    - from_role: ""
-      to_role: web
-      type: device:online
-      trigger: fetch_branch
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 320
-              end: 320
-    - from_role: bridge
-      to_role: web
-      type: device:offline
-      trigger: disconnect_bridge
-      guard: meta.type === 'bridge' && meta.deviceId
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 446
-              end: 446
-    - from_role: bridge
-      to_role: web
-      type: sessions:disconnected
-      trigger: disconnect_bridge
-      guard: meta.type === 'bridge' && meta.deviceId
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 453
-              end: 453
-    - from_role: web
-      to_role: bridge
-      type: session:send
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 495
-              end: 495
-    - from_role: web
-      to_role: web
-      type: session:send
-      trigger: message_handled
-      guard: meta.type === 'web'
-      delivery:
-        mode: broadcast_web
-        exclude_sender: true
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 497
-              end: 497
-    - from_role: bridge
-      to_role: web
-      type: encrypted
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: device:online
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:created
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:started
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:stopped
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:error
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:message
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:status
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:cancelled
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:resumed
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:resume:failed
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:resumed-with-context
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:resume-with-context:failed
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: chat:response
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: chat:thought
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: chat:permission
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: permission:request
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: acp:status
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: acp:output
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: acp:tool_call
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: acp:tool_result
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: agent:status
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: tool:call
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: session:usage
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_started
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_progress
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_completed
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_failed
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_result
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_error
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:task_question
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      side_effects:
-        - kind: notify_orchestrator
-          when_types:
-            - workflow:task_result
-            - workflow:task_error
-            - workflow:task_progress
-            - workflow:task_question
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: workflow:merge_progress
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      unsupported: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: prompts:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: mcp:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: mcp:list_response
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: security:alert
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      partial: true
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: scanner:rules:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: scanner:status
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: device:listDirResult
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: config:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: rules:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: bridge
-      to_role: web
-      type: storage:synced
-      trigger: message_handled
-      guard: meta.type === 'bridge' && BRIDGE_TO_WEB_TYPES.has(msg.type)
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 504
-              end: 504
-    - from_role: web
-      to_role: bridge
-      type: session:start
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: session:stop
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: session:cancel
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: session:resume
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: session:resume-with-context
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: session:resize
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: chat:send
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: permission:response
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      partial: true
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: control:takeover
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: config:sync
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: rules:sync
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: storage:sync
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: prompts:sync
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: mcp:sync
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: mcp:list
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:start
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:pause
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:cancel
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:start_task
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_assign
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_merge
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:merge_all
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_answer
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: workflow:task_guidance
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: acp:query_status
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      partial: true
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: scanner:toggle
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: scanner:rules:sync
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: device:restart
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: web
-      to_role: bridge
-      type: device:listDir
-      trigger: message_handled
-      guard: meta.type === 'web' && WEB_TO_BRIDGE_TYPES.has(msg.type)
-      delivery:
-        mode: send_bridge_by_device
-      route_field: payload.deviceId
-      on_missing_route:
-        kind: send_error
-        code: MISSING_DEVICE_ID
-      source:
-        spans:
-            - start: 516
-              end: 516
-    - from_role: ""
-      to_role: web
-      type: session:output-batch
-      trigger: flushBatch
-      delivery:
-        mode: broadcast_web
-      source:
-        spans:
-            - start: 549
-              end: 549
-    - from_role: bridge
-      to_role: web
-      type: session:output
-      trigger: message_handled
-      guard: meta.type === 'bridge'
-      delivery:
-        mode: broadcast_web
-      batch:
-        window_ms: 50
-        key: payload.sessionId
-      partial: true
-      source:
-        spans:
-            - start: 480
-              end: 480
+edges: []
 http_routes:
     - method: POST
       path: /api/auth/register
@@ -1196,8 +134,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 159
-              end: 159
+            - start: 161
+              end: 161
     - method: POST
       path: /api/auth/login
       mount: /api/auth
@@ -1211,8 +149,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 250
-              end: 250
+            - start: 252
+              end: 252
     - method: POST
       path: /api/auth/verify-email
       mount: /api/auth
@@ -1226,8 +164,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 325
-              end: 325
+            - start: 365
+              end: 365
     - method: POST
       path: /api/auth/resend-verification
       mount: /api/auth
@@ -1241,25 +179,10 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 366
-              end: 366
+            - start: 406
+              end: 406
     - method: POST
       path: /api/auth/forgot-password
-      mount: /api/auth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      source:
-        spans:
-            - start: 405
-              end: 405
-    - method: POST
-      path: /api/auth/reset-password
       mount: /api/auth
       middlewares:
         - securityHeaders
@@ -1274,6 +197,21 @@ http_routes:
             - start: 445
               end: 445
     - method: POST
+      path: /api/auth/reset-password
+      mount: /api/auth
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+      auth: none
+      source:
+        spans:
+            - start: 485
+              end: 485
+    - method: POST
       path: /api/auth/change-password
       mount: /api/auth
       middlewares:
@@ -1286,11 +224,10 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 484
-              end: 484
+            - start: 524
+              end: 524
     - method: POST
       path: /api/auth/delete-account
-      partial: true  # destructive identity reset: wipes the acting user + cascades all their resources; run32 sweep fired it live
       mount: /api/auth
       middlewares:
         - securityHeaders
@@ -1300,10 +237,11 @@ http_routes:
         - csrfProtection
         - apiRateLimit
       auth: none
+      partial: true
       source:
         spans:
-            - start: 531
-              end: 531
+            - start: 571
+              end: 571
     - method: PUT
       path: /api/auth/profile
       mount: /api/auth
@@ -1317,8 +255,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 565
-              end: 565
+            - start: 614
+              end: 614
     - method: GET
       path: /api/auth/me
       mount: /api/auth
@@ -1332,8 +270,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 601
-              end: 601
+            - start: 650
+              end: 650
     - method: POST
       path: /api/auth/refresh
       mount: /api/auth
@@ -1347,8 +285,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 628
-              end: 628
+            - start: 677
+              end: 677
     - method: POST
       path: /api/auth/logout
       mount: /api/auth
@@ -1362,8 +300,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 669
-              end: 669
+            - start: 718
+              end: 718
     - method: POST
       path: /api/auth/logout-all
       mount: /api/auth
@@ -1377,11 +315,10 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 681
-              end: 681
+            - start: 736
+              end: 736
     - method: POST
       path: /api/auth/dev/setup
-      partial: true  # dev backdoor: provisioning endpoint; firing it mid-run mutates identity state (run32 lesson)
       mount: /api/auth
       middlewares:
         - securityHeaders
@@ -1391,10 +328,11 @@ http_routes:
         - csrfProtection
         - apiRateLimit
       auth: none
+      partial: true
       source:
         spans:
-            - start: 704
-              end: 704
+            - start: 764
+              end: 764
     - method: GET
       path: /api/auth/sessions
       mount: /api/auth/sessions
@@ -1555,7 +493,6 @@ http_routes:
               end: 86
     - method: POST
       path: /api/dev/setup
-      partial: true  # dev backdoor: provisioning endpoint; firing it mid-run mutates identity state (run32 lesson)
       mount: /api/dev
       middlewares:
         - securityHeaders
@@ -1565,13 +502,13 @@ http_routes:
         - csrfProtection
         - apiRateLimit
       auth: none
+      partial: true
       source:
         spans:
             - start: 13
               end: 13
     - method: POST
       path: /api/dev/login
-      partial: true  # dev backdoor: provisioning endpoint; firing it mid-run mutates identity state (run32 lesson)
       mount: /api/dev
       middlewares:
         - securityHeaders
@@ -1581,6 +518,7 @@ http_routes:
         - csrfProtection
         - apiRateLimit
       auth: none
+      partial: true
       source:
         spans:
             - start: 112
@@ -1598,8 +536,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 110
-              end: 110
+            - start: 104
+              end: 104
     - method: GET
       path: /api/bridge/permission-rules
       mount: /api/bridge
@@ -1617,6 +555,54 @@ http_routes:
             - start: 29
               end: 29
     - method: GET
+      path: /api/bridge/scanner-rules
+      mount: /api/bridge
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/bridge/*
+      auth: unknown
+      source:
+        spans:
+            - start: 61
+              end: 61
+    - method: GET
+      path: /api/bridge/command-alert-rules
+      mount: /api/bridge
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/bridge/*
+      auth: unknown
+      source:
+        spans:
+            - start: 82
+              end: 82
+    - method: POST
+      path: /api/bridge/security-alert
+      mount: /api/bridge
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/bridge/*
+      auth: unknown
+      source:
+        spans:
+            - start: 98
+              end: 98
+    - method: GET
       path: /api/bridge/agents/:id
       mount: /api/bridge
       middlewares:
@@ -1630,8 +616,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 47
-              end: 47
+            - start: 133
+              end: 133
     - method: POST
       path: /api/bridge/sessions
       mount: /api/bridge
@@ -1646,8 +632,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 68
-              end: 68
+            - start: 154
+              end: 154
     - method: DELETE
       path: /api/bridge/sessions/:id
       mount: /api/bridge
@@ -1662,8 +648,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 121
-              end: 121
+            - start: 207
+              end: 207
     - method: POST
       path: /api/bridge/messages
       mount: /api/bridge
@@ -1678,8 +664,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 143
-              end: 143
+            - start: 229
+              end: 229
     - method: POST
       path: /api/bridge/crash
       mount: /api/bridge
@@ -1694,8 +680,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 166
-              end: 166
+            - start: 252
+              end: 252
     - method: GET
       path: /api/bridge/update-check
       mount: /api/bridge
@@ -1710,8 +696,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 204
-              end: 204
+            - start: 290
+              end: 290
     - method: POST
       path: /api/errors/report
       mount: /api/errors
@@ -1791,8 +777,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 33
-              end: 33
+            - start: 34
+              end: 34
     - method: POST
       path: /api/devices
       mount: /api/devices
@@ -1808,8 +794,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 53
-              end: 53
+            - start: 54
+              end: 54
     - method: POST
       path: /api/devices/pair/generate
       mount: /api/devices
@@ -1825,8 +811,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 81
-              end: 81
+            - start: 85
+              end: 85
     - method: GET
       path: /api/devices/pair/status/:code
       mount: /api/devices
@@ -1842,8 +828,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 100
-              end: 100
+            - start: 107
+              end: 107
     - method: PATCH
       path: /api/devices/:id
       mount: /api/devices
@@ -1863,8 +849,8 @@ http_routes:
             pick: devices.0.id
       source:
         spans:
-            - start: 128
-              end: 128
+            - start: 135
+              end: 135
     - method: DELETE
       path: /api/devices/:id
       mount: /api/devices
@@ -1884,27 +870,10 @@ http_routes:
             pick: devices.0.id
       source:
         spans:
-            - start: 150
-              end: 150
+            - start: 162
+              end: 162
     - method: GET
       path: /api/devices/:id/connection
-      mount: /api/devices
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-      auth: required
-      source:
-        spans:
-            - start: 165
-              end: 165
-    - method: POST
-      path: /api/devices/:id/regenerate-token
       mount: /api/devices
       middlewares:
         - securityHeaders
@@ -1921,7 +890,7 @@ http_routes:
             - start: 185
               end: 185
     - method: POST
-      path: /api/devices/:id/pair-code
+      path: /api/devices/:id/regenerate-token
       mount: /api/devices
       middlewares:
         - securityHeaders
@@ -1937,6 +906,23 @@ http_routes:
         spans:
             - start: 205
               end: 205
+    - method: POST
+      path: /api/devices/:id/pair-code
+      mount: /api/devices
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/*
+        - planLimiter
+      auth: required
+      source:
+        spans:
+            - start: 228
+              end: 228
     - method: GET
       path: /api/devices/:id/acp-status
       mount: /api/devices
@@ -1952,8 +938,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 231
-              end: 231
+            - start: 259
+              end: 259
     - method: POST
       path: /api/devices/:id/restart
       mount: /api/devices
@@ -1969,8 +955,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 296
-              end: 296
+            - start: 324
+              end: 324
     - method: POST
       path: /api/devices/:id/heartbeat
       mount: /api/devices
@@ -1986,8 +972,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 336
-              end: 336
+            - start: 364
+              end: 364
     - method: GET
       path: /api/sessions/stats
       mount: /api/sessions
@@ -2037,8 +1023,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 184
-              end: 184
+            - start: 198
+              end: 198
     - method: POST
       path: /api/sessions/:id/end
       mount: /api/sessions
@@ -2054,8 +1040,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 286
-              end: 286
+            - start: 300
+              end: 300
     - method: POST
       path: /api/sessions/cleanup/:deviceId
       mount: /api/sessions
@@ -2071,8 +1057,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 324
-              end: 324
+            - start: 338
+              end: 338
     - method: POST
       path: /api/sessions/admin/cleanup
       mount: /api/sessions
@@ -2089,8 +1075,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 384
-              end: 384
+            - start: 398
+              end: 398
     - method: GET
       path: /api/sessions/admin/integrity
       mount: /api/sessions
@@ -2107,8 +1093,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 484
-              end: 484
+            - start: 498
+              end: 498
     - method: PATCH
       path: /api/sessions/:id
       mount: /api/sessions
@@ -2128,8 +1114,8 @@ http_routes:
             pick: sessions.0.id
       source:
         spans:
-            - start: 537
-              end: 537
+            - start: 551
+              end: 551
     - method: PATCH
       path: /api/sessions/:id/messages/:msgId
       mount: /api/sessions
@@ -2145,8 +1131,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 597
-              end: 597
+            - start: 611
+              end: 611
     - method: POST
       path: /api/sessions/:id/messages
       mount: /api/sessions
@@ -2162,8 +1148,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 645
-              end: 645
+            - start: 659
+              end: 659
     - method: GET
       path: /api/sessions/:id/messages
       mount: /api/sessions
@@ -2179,8 +1165,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 700
-              end: 700
+            - start: 714
+              end: 714
     - method: POST
       path: /api/sessions/:id/messages/batch
       mount: /api/sessions
@@ -2196,8 +1182,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 759
-              end: 759
+            - start: 773
+              end: 773
     - method: DELETE
       path: /api/sessions/:id/messages
       mount: /api/sessions
@@ -2213,8 +1199,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 809
-              end: 809
+            - start: 823
+              end: 823
     - method: GET
       path: /api/sessions/:id
       mount: /api/sessions
@@ -2234,8 +1220,8 @@ http_routes:
             pick: sessions.0.id
       source:
         spans:
-            - start: 846
-              end: 846
+            - start: 860
+              end: 860
     - method: DELETE
       path: /api/sessions/:id
       mount: /api/sessions
@@ -2255,26 +1241,9 @@ http_routes:
             pick: sessions.0.id
       source:
         spans:
-            - start: 938
-              end: 938
+            - start: 952
+              end: 952
     - method: GET
-      path: /api/prompts
-      mount: /api/prompts
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-      auth: required
-      source:
-        spans:
-            - start: 12
-              end: 12
-    - method: POST
       path: /api/prompts
       mount: /api/prompts
       middlewares:
@@ -2291,6 +1260,23 @@ http_routes:
         spans:
             - start: 24
               end: 24
+    - method: POST
+      path: /api/prompts
+      mount: /api/prompts
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/*
+        - planLimiter
+      auth: required
+      source:
+        spans:
+            - start: 36
+              end: 36
     - method: PUT
       path: /api/prompts/:id
       mount: /api/prompts
@@ -2310,8 +1296,8 @@ http_routes:
             pick: prompts.0.id
       source:
         spans:
-            - start: 56
-              end: 56
+            - start: 68
+              end: 68
     - method: DELETE
       path: /api/prompts/:id
       mount: /api/prompts
@@ -2331,8 +1317,8 @@ http_routes:
             pick: prompts.0.id
       source:
         spans:
-            - start: 78
-              end: 78
+            - start: 90
+              end: 90
     - method: POST
       path: /api/prompts/:id/use
       mount: /api/prompts
@@ -2348,8 +1334,25 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 93
-              end: 93
+            - start: 105
+              end: 105
+    - method: POST
+      path: /api/prompts/:id/test
+      mount: /api/prompts
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/*
+        - planLimiter
+      auth: required
+      source:
+        spans:
+            - start: 120
+              end: 120
     - method: GET
       path: /api/prompts/:id/versions
       mount: /api/prompts
@@ -2365,8 +1368,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 106
-              end: 106
+            - start: 285
+              end: 285
     - method: POST
       path: /api/prompts/:id/versions
       mount: /api/prompts
@@ -2382,8 +1385,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 121
-              end: 121
+            - start: 300
+              end: 300
     - method: POST
       path: /api/prompts/:id/rollback/:version
       mount: /api/prompts
@@ -2399,8 +1402,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 137
-              end: 137
+            - start: 316
+              end: 316
     - method: POST
       path: /api/prompts/:id/rate
       mount: /api/prompts
@@ -2416,8 +1419,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 156
-              end: 156
+            - start: 335
+              end: 335
     - method: GET
       path: /api/agents
       mount: /api/agents
@@ -2730,8 +1733,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 33
-              end: 33
+            - start: 53
+              end: 53
     - method: POST
       path: /api/rules
       mount: /api/rules
@@ -2748,8 +1751,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 44
-              end: 44
+            - start: 64
+              end: 64
     - method: PUT
       path: /api/rules/:id
       mount: /api/rules
@@ -2770,8 +1773,8 @@ http_routes:
             pick: rules.0.id
       source:
         spans:
-            - start: 87
-              end: 87
+            - start: 112
+              end: 112
     - method: PUT
       path: /api/rules/priorities
       mount: /api/rules
@@ -2788,8 +1791,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 120
-              end: 120
+            - start: 155
+              end: 155
     - method: DELETE
       path: /api/rules/:id
       mount: /api/rules
@@ -2810,8 +1813,8 @@ http_routes:
             pick: rules.0.id
       source:
         spans:
-            - start: 131
-              end: 131
+            - start: 166
+              end: 166
     - method: GET
       path: /api/permissions
       mount: /api/permissions
@@ -2897,6 +1900,8 @@ http_routes:
         - use:/api/*
         - planLimiter
       auth: required
+      min_body:
+        status: pending
       param_sources:
         :id:
             route: GET /api/permissions
@@ -2958,8 +1963,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 9
-              end: 9
+            - start: 22
+              end: 22
     - method: PUT
       path: /api/settings
       mount: /api/settings
@@ -2975,8 +1980,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 18
-              end: 18
+            - start: 31
+              end: 31
     - method: PATCH
       path: /api/settings
       mount: /api/settings
@@ -2992,8 +1997,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 38
-              end: 38
+            - start: 60
+              end: 60
     - method: GET
       path: /api/export
       mount: /api/export
@@ -3009,8 +2014,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 10
-              end: 10
+            - start: 11
+              end: 11
     - method: GET
       path: /api/export/:type
       mount: /api/export
@@ -3028,8 +2033,8 @@ http_routes:
         - :type
       source:
         spans:
-            - start: 20
-              end: 20
+            - start: 21
+              end: 21
     - method: POST
       path: /api/export/jobs
       mount: /api/export
@@ -3045,8 +2050,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 56
-              end: 56
+            - start: 57
+              end: 57
     - method: GET
       path: /api/export/jobs/:jobId
       mount: /api/export
@@ -3062,8 +2067,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 109
-              end: 109
+            - start: 112
+              end: 112
     - method: DELETE
       path: /api/export/jobs/:jobId
       mount: /api/export
@@ -3079,8 +2084,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 125
-              end: 125
+            - start: 128
+              end: 128
     - method: GET
       path: /api/audit
       mount: /api/audit
@@ -3096,8 +2101,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 31
-              end: 31
+            - start: 40
+              end: 40
     - method: GET
       path: /api/audit/:id
       mount: /api/audit
@@ -3115,8 +2120,8 @@ http_routes:
         - :id
       source:
         spans:
-            - start: 65
-              end: 65
+            - start: 72
+              end: 72
     - method: GET
       path: /api/audit/summary/recent
       mount: /api/audit
@@ -3129,12 +2134,12 @@ http_routes:
         - apiRateLimit
         - use:/api/*
         - planLimiter
-        - use:/api/audit/summary/*
+        - requireAnalytics
       auth: required
       source:
         spans:
-            - start: 80
-              end: 80
+            - start: 89
+              end: 89
     - method: DELETE
       path: /api/audit/cleanup
       mount: /api/audit
@@ -3147,12 +2152,12 @@ http_routes:
         - apiRateLimit
         - use:/api/*
         - planLimiter
-        - use:/api/audit/cleanup
+        - requireAnalytics
       auth: required
       source:
         spans:
-            - start: 91
-              end: 91
+            - start: 99
+              end: 99
     - method: POST
       path: /api/batch/delete
       mount: /api/batch
@@ -3166,6 +2171,10 @@ http_routes:
         - use:/api/*
         - planLimiter
       auth: required
+      min_body:
+        ids:
+            - x
+        type: devices
       source:
         spans:
             - start: 16
@@ -3773,8 +2782,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 246
-              end: 246
+            - start: 240
+              end: 240
     - method: GET
       path: /api/teams
       mount: /api/teams
@@ -4099,6 +3108,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        name: x
+        price_monthly: 0
       source:
         spans:
             - start: 75
@@ -4149,90 +3161,6 @@ http_routes:
         spans:
             - start: 176
               end: 176
-    - method: GET
-      path: /api/admin/billing/subscriptions
-      mount: /api/admin/billing/subscriptions
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 20
-              end: 20
-    - method: GET
-      path: /api/admin/billing/subscriptions/:id
-      mount: /api/admin/billing/subscriptions
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/billing/subscriptions
-            pick: subscriptions.0.id
-      source:
-        spans:
-            - start: 69
-              end: 69
-    - method: PUT
-      path: /api/admin/billing/subscriptions/:id
-      mount: /api/admin/billing/subscriptions
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/billing/subscriptions
-            pick: subscriptions.0.id
-      source:
-        spans:
-            - start: 95
-              end: 95
-    - method: POST
-      path: /api/admin/billing/subscriptions/:id/cancel
-      mount: /api/admin/billing/subscriptions
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 148
-              end: 148
     - method: GET
       path: /api/admin/billing/invoices
       mount: /api/admin/billing/invoices
@@ -4290,6 +3218,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        amount: 0
+        user_id: x
       source:
         spans:
             - start: 109
@@ -4492,6 +3423,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        value: x
       param_sources:
         :key:
             route: GET /api/admin/settings
@@ -4561,113 +3494,6 @@ http_routes:
         spans:
             - start: 182
               end: 182
-    - method: GET
-      path: /api/admin/feedback
-      mount: /api/admin/feedback
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 18
-              end: 18
-    - method: GET
-      path: /api/admin/feedback/:id
-      mount: /api/admin/feedback
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/feedback
-            pick: feedback.0.id
-      source:
-        spans:
-            - start: 81
-              end: 81
-    - method: PUT
-      path: /api/admin/feedback/:id
-      mount: /api/admin/feedback
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/feedback
-            pick: feedback.0.id
-      source:
-        spans:
-            - start: 103
-              end: 103
-    - method: POST
-      path: /api/admin/feedback/:id/assign
-      mount: /api/admin/feedback
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 148
-              end: 148
-    - method: DELETE
-      path: /api/admin/feedback/:id
-      mount: /api/admin/feedback
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      param_sources:
-        :id:
-            route: GET /api/admin/feedback
-            pick: feedback.0.id
-      source:
-        spans:
-            - start: 178
-              end: 178
     - method: GET
       path: /api/admin/blacklist
       mount: /api/admin/blacklist
@@ -4742,6 +3568,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        type: ip
+        value: x
       source:
         spans:
             - start: 116
@@ -4761,6 +3590,10 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        type: ip
+        values:
+            - x
       source:
         spans:
             - start: 150
@@ -4934,6 +3767,10 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        period_end: x
+        period_start: x
+        type: gdpr
       source:
         spans:
             - start: 71
@@ -5014,6 +3851,10 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        data_type: logs
+        name: x
+        retention_days: 0
       source:
         spans:
             - start: 175
@@ -5081,8 +3922,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 23
-              end: 23
+            - start: 22
+              end: 22
     - method: GET
       path: /api/admin/content/:id
       mount: /api/admin/content
@@ -5104,8 +3945,8 @@ http_routes:
             pick: items.0.id
       source:
         spans:
-            - start: 66
-              end: 66
+            - start: 65
+              end: 65
     - method: POST
       path: /api/admin/content
       mount: /api/admin/content
@@ -5121,10 +3962,13 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        title: x
+        type: announcement
       source:
         spans:
-            - start: 82
-              end: 82
+            - start: 81
+              end: 81
     - method: PUT
       path: /api/admin/content/:id
       mount: /api/admin/content
@@ -5146,8 +3990,8 @@ http_routes:
             pick: items.0.id
       source:
         spans:
-            - start: 111
-              end: 111
+            - start: 110
+              end: 110
     - method: POST
       path: /api/admin/content/:id/publish
       mount: /api/admin/content
@@ -5165,8 +4009,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 159
-              end: 159
+            - start: 158
+              end: 158
     - method: POST
       path: /api/admin/content/:id/unpublish
       mount: /api/admin/content
@@ -5184,8 +4028,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 181
-              end: 181
+            - start: 180
+              end: 180
     - method: POST
       path: /api/admin/content/:id/archive
       mount: /api/admin/content
@@ -5203,8 +4047,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 201
-              end: 201
+            - start: 200
+              end: 200
     - method: DELETE
       path: /api/admin/content/:id
       mount: /api/admin/content
@@ -5226,48 +4070,8 @@ http_routes:
             pick: items.0.id
       source:
         spans:
-            - start: 221
-              end: 221
-    - method: GET
-      path: /api/admin/content/moderation
-      mount: /api/admin/content
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 231
-              end: 231
-    - method: POST
-      path: /api/admin/content/moderation/:id
-      mount: /api/admin/content
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      param_sources_off:
-        - :id
-      source:
-        spans:
-            - start: 263
-              end: 263
+            - start: 220
+              end: 220
     - method: GET
       path: /api/admin/ai-comparison/models
       mount: /api/admin/ai-comparison
@@ -5340,6 +4144,14 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        metric_type: latency
+        metric_value: 0
+        model_id: x
+        model_name: x
+        period_end: x
+        period_start: x
+        provider: x
       source:
         spans:
             - start: 159
@@ -5378,6 +4190,14 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        metrics:
+            - x
+        models:
+            - x
+        name: x
+        period_end: x
+        period_start: x
       source:
         spans:
             - start: 214
@@ -5429,44 +4249,6 @@ http_routes:
             - start: 295
               end: 295
     - method: GET
-      path: /api/admin/cli-health/overview
-      mount: /api/admin/cli-health
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 9
-              end: 9
-    - method: GET
-      path: /api/admin/cli-health/metrics
-      mount: /api/admin/cli-health
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-        - use:/api/*
-        - planLimiter
-        - adminRateLimit
-        - adminMiddleware
-      auth: required
-      source:
-        spans:
-            - start: 45
-              end: 45
-    - method: GET
       path: /api/admin/budget
       mount: /api/admin/budget
       middlewares:
@@ -5500,6 +4282,11 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        amount: 0
+        limit_type: daily
+        target_id: x
+        target_type: user
       source:
         spans:
             - start: 39
@@ -5641,6 +4428,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        ip_address: x
       source:
         spans:
             - start: 36
@@ -5767,6 +4556,11 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        org_id: x
+        policy_name: x
+        policy_type: security
+        rules: {}
       source:
         spans:
             - start: 44
@@ -5851,6 +4645,11 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        config: {}
+        display_name: x
+        org_id: x
+        provider_type: saml
       source:
         spans:
             - start: 30
@@ -6019,6 +4818,10 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        code: xxx
+        discount_type: percentage
+        discount_value: 0
       source:
         spans:
             - start: 42
@@ -6269,8 +5072,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 8
-              end: 8
+            - start: 9
+              end: 9
     - method: GET
       path: /api/admin/diagnostics/health
       mount: /api/admin/diagnostics
@@ -6288,8 +5091,27 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 16
-              end: 16
+            - start: 17
+              end: 17
+    - method: GET
+      path: /api/admin/diagnostics/schema
+      mount: /api/admin/diagnostics
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+        - use:/api/*
+        - planLimiter
+        - adminRateLimit
+        - adminMiddleware
+      auth: required
+      source:
+        spans:
+            - start: 49
+              end: 49
     - method: POST
       path: /api/admin/diagnostics/check
       mount: /api/admin/diagnostics
@@ -6307,8 +5129,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 43
-              end: 43
+            - start: 88
+              end: 88
     - method: GET
       path: /api/admin/database-ops
       mount: /api/admin/database-ops
@@ -6427,6 +5249,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        name: x
+        slug: x
       source:
         spans:
             - start: 35
@@ -6534,6 +5359,10 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        name: x
+        slug: x
+        version: x
       source:
         spans:
             - start: 41
@@ -6724,6 +5553,10 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        metric_type: x
+        name: x
+        value: 0
       source:
         spans:
             - start: 35
@@ -6762,6 +5595,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        name: x
       source:
         spans:
             - start: 40
@@ -6857,6 +5692,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        name: x
       source:
         spans:
             - start: 79
@@ -6933,6 +5770,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        name: x
+        question: x
       source:
         spans:
             - start: 29
@@ -7028,6 +5868,11 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        metric_name: x
+        metric_value: 0
+        period_end: x
+        period_start: x
       source:
         spans:
             - start: 40
@@ -7085,6 +5930,8 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_body:
+        brand_name: x
       source:
         spans:
             - start: 36
@@ -7335,8 +6182,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 94
-              end: 94
+            - start: 97
+              end: 97
     - method: GET
       path: /api/admin/missions/:id
       mount: /api/admin/missions
@@ -7358,8 +6205,8 @@ http_routes:
             pick: missions.0.id
       source:
         spans:
-            - start: 152
-              end: 152
+            - start: 155
+              end: 155
     - method: POST
       path: /api/admin/missions/:id/cancel
       mount: /api/admin/missions
@@ -7377,8 +6224,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 192
-              end: 192
+            - start: 195
+              end: 195
     - method: POST
       path: /api/admin/missions/:id/tasks/:taskId/retry
       mount: /api/admin/missions
@@ -7396,8 +6243,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 223
-              end: 223
+            - start: 226
+              end: 226
     - method: GET
       path: /api/api-keys
       mount: /api/api-keys
@@ -7601,8 +6448,8 @@ http_routes:
       auth: unknown
       source:
         spans:
-            - start: 258
-              end: 258
+            - start: 252
+              end: 252
     - method: GET
       path: /metrics
       middlewares:
@@ -7614,8 +6461,8 @@ http_routes:
       auth: unknown
       source:
         spans:
-            - start: 261
-              end: 261
+            - start: 255
+              end: 255
 http_auth_middlewares:
     - use:/api/*
 ui:
