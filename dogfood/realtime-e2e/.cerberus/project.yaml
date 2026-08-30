@@ -18,7 +18,8 @@ actors:
       login:
         method: POST
         path: /api/dev/setup
-        body: {}
+        body:
+          plan: pro   # feature-gated routes (a2a/custom_rules/analytics) 403 a free-plan user; the sweep needs the gates open
         headers:
           Origin: http://localhost:8989   # CSRF middleware rejects POSTs without an Origin header
       # token_from omitted on purpose: provisioning-only flow (captures userId below)

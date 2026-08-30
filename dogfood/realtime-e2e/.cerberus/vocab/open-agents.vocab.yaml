@@ -7603,4 +7603,6 @@ ui:
 http_role_routes:
     - prefix: /api/admin
       role: admin
+    - prefix: /api/sessions/admin   # sessions.ts mounts adminMiddleware on /admin/* (admin-integrity routes)
+      role: admin
 http_default_role: web
