@@ -26,6 +26,7 @@ type BrowserExecutor struct {
 	mu          sync.Mutex // serializes all page operations; a Playwright page is not concurrency-safe
 	session     *browserSessionRecipe
 	reloginGate reloginLimiter
+	lastTarget  string // last goto target that stayed off the login page; expect-time heals return here
 }
 
 // NewBrowserExecutor creates a browser executor by launching a headless Chromium.
@@ -94,7 +95,7 @@ func (e *BrowserExecutor) Execute(ctx context.Context, action types.TypedAction)
 	case types.BrowserEvalAction:
 		return e.evalJS(a, start)
 	case types.BrowserExpectAction:
-		return e.expectAssertion(a, start)
+		return e.expectAssertion(ctx, a, start)
 	default:
 		return types.ErrorResult{Err: fmt.Sprintf("browser executor: unsupported action %T", action)}
 	}
@@ -116,6 +117,12 @@ func (e *BrowserExecutor) gotoPage(ctx context.Context, a types.BrowserGotoActio
 		}
 	}
 
+	// Let the SPA's client-side routing converge before the auth-loss check:
+	// the auth bounce to /login happens after hydration (post-load), so
+	// reading page.URL() straight after Goto still sees the target page
+	// (run36/37: the heal never fired for exactly this reason).
+	_, _ = e.page.Locator("body").TextContent()
+
 	// Auth-loss self-heal: when the app bounced an authenticated target to
 	// the login page, re-login and retry the goto once before reporting.
 	e.maybeRelogin(ctx, a.URL)
@@ -126,6 +133,10 @@ func (e *BrowserExecutor) gotoPage(ctx context.Context, a types.BrowserGotoActio
 	statusCode := 0
 	if resp != nil {
 		statusCode = resp.Status()
+	}
+
+	if final := e.page.URL(); !strings.Contains(final, loginPageMarker) {
+		e.lastTarget = a.URL
 	}
 
 	return types.BrowserResult{
@@ -243,7 +254,26 @@ func failReason(a types.BrowserExpectAction, pass bool, observed string) string 
 // passes only by outliving the window; every other comparator passes on the
 // first hit. The per-case timeout in executeStep bounds the loop as a whole;
 // the plain sleep keeps cancellation semantics simple.
-func (e *BrowserExecutor) expectAssertion(a types.BrowserExpectAction, start time.Time) types.ExecutorResult {
+//
+// Auth-loss rescue (run37): an expect that runs out its window staring at the
+// login page means the session died mid-case — re-login, return to the last
+// authenticated page, and poll once more before reporting failure.
+func (e *BrowserExecutor) expectAssertion(ctx context.Context, a types.BrowserExpectAction, start time.Time) types.ExecutorResult {
+	res := e.pollExpectation(a, start)
+	if res.OK {
+		return res
+	}
+	if e.lastTarget != "" && needsRelogin(e.lastTarget, e.page.URL()) {
+		e.maybeRelogin(ctx, e.lastTarget)
+		if !needsRelogin(e.lastTarget, e.page.URL()) {
+			res = e.pollExpectation(a, time.Now())
+			res.Latency = time.Since(start)
+		}
+	}
+	return res
+}
+
+func (e *BrowserExecutor) pollExpectation(a types.BrowserExpectAction, start time.Time) types.BrowserResult {
 	window := time.Duration(expectWindowSeconds(a.Timeout)) * time.Second
 	deadline := start.Add(window)
 	locator := e.page.Locator(a.Selector)
