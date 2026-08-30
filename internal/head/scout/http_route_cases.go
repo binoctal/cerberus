@@ -3,6 +3,7 @@ package scout
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -179,6 +180,13 @@ func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 		class = "2xx_4xx"
 		expectation = "authenticated delete on a nonexistent id returns success (idempotent) or client-error, never 5xx — routing, auth and error handling proven without destroying live records"
 	}
+	// Routes whose handler validates query params (manual `if (!a) return
+	// 400` guards — run37: ai-comparison/compare, blacklist/check) get the
+	// vocab's minimal legal query string appended, else the authed GET
+	// asserts 2xx against a guaranteed 400.
+	if q := minQueryString(r.MinQuery); q != "" {
+		targetURL += q
+	}
 	steps = append(steps, agent.TestStep{
 		Action:            "http_request",
 		URL:               targetURL,
@@ -294,6 +302,24 @@ func routeRoleMapped(svc project.Service, path string) bool {
 // trailing * with a fixed tail so the request path matches the route pattern.
 func fillRouteParams(path string) string {
 	return fillRouteParamsWith(path, "1")
+}
+
+// minQueryString renders a route's MinQuery as "?k=v&..." with keys sorted
+// for determinism; "" when the route declares none.
+func minQueryString(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, url.QueryEscape(k)+"="+url.QueryEscape(m[k]))
+	}
+	return "?" + strings.Join(parts, "&")
 }
 
 // fillRouteParamsWith is fillRouteParams with an explicit :param value.

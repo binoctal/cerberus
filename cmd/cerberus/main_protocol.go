@@ -375,6 +375,12 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 				if old.Auth == "none" || old.Auth == "required" {
 					vocab.HTTPRoutes[i].Auth = old.Auth
 				}
+				// min_query rides the judgment layer with the role map:
+				// handler-side manual query guards are live-probe
+				// knowledge, not source-derivable facts.
+				if old.MinQuery != nil {
+					vocab.HTTPRoutes[i].MinQuery = old.MinQuery
+				}
 				for p, ps := range old.ParamSources {
 					if vocab.HTTPRoutes[i].ParamSources == nil {
 						vocab.HTTPRoutes[i].ParamSources = map[string]project.VocabParamSource{}

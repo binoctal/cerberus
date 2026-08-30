@@ -239,6 +239,10 @@ func routeV2Fixture() project.Service {
 						":pid": {Route: "GET /api/things/:id/parts", Pick: "0.id"},
 					}},
 				{Method: "GET", Path: "/api/admin/stats", Auth: "required"},
+				// Handler validates query params (run37 400 family): the authed
+				// case must send the vocab's minimal legal query string.
+				{Method: "GET", Path: "/api/admin/gadgets/compare", Auth: "required",
+					MinQuery: map[string]string{"metrics": "accuracy", "models": "gpt-4o"}},
 			}},
 	}
 }
@@ -333,6 +337,14 @@ func TestHTTPRouteCasesV2(t *testing.T) {
 	// admin prefix -> admin role.
 	if c := byID[caseID(svc, "GET", "/api/admin/stats", "authed")]; c.Steps[0].AuthRole != "admin" {
 		t.Fatalf("admin route must inject admin role, got %q", c.Steps[0].AuthRole)
+	}
+	// min_query: the authed GET appends the vocab's minimal legal query
+	// string (sorted keys) — a handler-side `if (!a) return 400` guard
+	// otherwise turns every authed assert into a guaranteed 400 (run37:
+	// ai-comparison/compare, blacklist/check).
+	c = byID[caseID(svc, "GET", "/api/admin/gadgets/compare", "authed")]
+	if c.Steps[0].URL != "http://localhost:8989/api/admin/gadgets/compare?metrics=accuracy&models=gpt-4o" {
+		t.Fatalf("min_query url = %q", c.Steps[0].URL)
 	}
 }
 

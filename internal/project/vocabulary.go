@@ -169,6 +169,11 @@ type VocabHTTPRoute struct {
 	// MinBody is the minimal JSON request body that satisfies validation,
 	// keyed by field path; nil when the route takes no body.
 	MinBody map[string]any `yaml:"min_body,omitempty" json:"min_body,omitempty"`
+	// MinQuery is the minimal query-string parameters a GET needs to pass
+	// handler-side validation (hand-curated live-probe knowledge — the
+	// manual `if (!a) return 400` guard shape is not source-derivable;
+	// preserved across re-extraction like the role map).
+	MinQuery map[string]string `yaml:"min_query,omitempty" json:"min_query,omitempty"`
 	// ParamSources maps each :param in Path to the list route whose captured
 	// response yields a concrete value for it (param chaining).
 	ParamSources map[string]VocabParamSource `yaml:"param_sources,omitempty" json:"param_sources,omitempty"`

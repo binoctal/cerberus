@@ -4588,6 +4588,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_query:
+        type: ip
+        value: 192.0.2.1
       source:
         spans:
             - start: 79
@@ -5185,6 +5188,9 @@ http_routes:
         - adminRateLimit
         - adminMiddleware
       auth: required
+      min_query:
+        models: gpt-4o,claude-3
+        metrics: accuracy,latency
       source:
         spans:
             - start: 99
