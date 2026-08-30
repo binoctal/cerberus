@@ -176,8 +176,8 @@ func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 		// 4xx rejection: routing + auth + error handling proven, nothing
 		// destroyed.
 		targetURL = host + fillRouteParamsWith(r.Path, "cerberus_nonexistent")
-		class = "4xx"
-		expectation = "authenticated delete rejects a nonexistent id (4xx) — routing, auth and error handling proven without destroying live records"
+		class = "2xx_4xx"
+		expectation = "authenticated delete on a nonexistent id returns success (idempotent) or client-error, never 5xx — routing, auth and error handling proven without destroying live records"
 	}
 	steps = append(steps, agent.TestStep{
 		Action:            "http_request",

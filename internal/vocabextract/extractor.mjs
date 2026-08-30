@@ -606,6 +606,12 @@ function parseBodyOf(args, schemas) {
     if (recv.getKind() === SyntaxKind.Identifier && schemas.has(recv.getText())) {
       return schemas.get(recv.getText());
     }
+    // Inline schema at the call site: z.object({...}).parse(...) (also
+    // .safeParse). Any other receiver shape is not statically extractable.
+    if (recv.getKind() === SyntaxKind.CallExpression) {
+      const inline = zodBodyOf(recv);
+      if (inline !== null) return inline;
+    }
   }
   return undefined;
 }

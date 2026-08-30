@@ -55,3 +55,11 @@ app.post('/api/picky-parse', async (c) => {
 	const v = PickyParsed.parse(body);
 	return c.json({});
 });
+
+// INLINE parse: the schema is a literal at the call site, not a named const
+// (open-agents uses both forms; the named form landed first).
+app.post('/api/inline-parse', async (c) => {
+	const body = await c.req.json();
+	const v = z.object({ q: z.string(), n: z.number().optional() }).parse(body);
+	return c.json({});
+});

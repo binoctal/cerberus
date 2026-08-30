@@ -303,8 +303,8 @@ func TestHTTPRouteCasesV2(t *testing.T) {
 	if !strings.Contains(c.Steps[1].URL, "cerberus_nonexistent") {
 		t.Fatalf("authed DELETE must target a sentinel id, got %q", c.Steps[1].URL)
 	}
-	if c.Steps[1].ExpectStatusClass != "4xx" {
-		t.Fatalf("authed DELETE must assert the 4xx rejection, got %q", c.Steps[1].ExpectStatusClass)
+	if c.Steps[1].ExpectStatusClass != "2xx_4xx" {
+		t.Fatalf("authed DELETE must accept the 2xx idempotent OR 4xx rejection (never 5xx), got %q", c.Steps[1].ExpectStatusClass)
 	}
 	// degradation: no param_sources -> reachability tier only (any, placeholder 1).
 	if _, ok := byID[caseID(svc, "GET", "/api/mystery/:id", "authed")]; ok {

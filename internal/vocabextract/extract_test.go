@@ -651,6 +651,18 @@ func TestExtract_ZodMinBodies(t *testing.T) {
 		t.Fatalf("parse min_body = %v, want {title:x, n:0}", parse)
 	}
 
+	// Inline z.object literal at the .parse() call site.
+	inlineParse := byRoute["POST /zod/api/inline-parse"]
+	if inlineParse == nil {
+		t.Fatalf("POST /zod/api/inline-parse must carry min_body from the inline z.object, got none")
+	}
+	if inlineParse["q"] != "x" {
+		t.Fatalf("inline-parse min_body = %v, want {q:x}", inlineParse)
+	}
+	if _, has := inlineParse["n"]; has {
+		t.Fatalf("optional n must be omitted, got %v", inlineParse)
+	}
+
 	// Unextractable in either position: omit, never guess.
 	if m := byRoute["POST /zod/api/picky-parse"]; m != nil {
 		t.Fatalf("unextractable .parse() schema must omit min_body, got %v", m)
