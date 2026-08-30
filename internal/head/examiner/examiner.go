@@ -2,12 +2,15 @@ package examiner
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/binoctal/cerberus/internal/ai"
 	"github.com/binoctal/cerberus/internal/head/agent"
+	"github.com/binoctal/cerberus/internal/llm"
 	"github.com/binoctal/cerberus/internal/store"
 )
 
@@ -55,6 +58,14 @@ func (e *Examiner) Examine(ctx context.Context, results []agent.StepResult, sess
 	sem := make(chan struct{}, workers)
 	var wg sync.WaitGroup
 
+	// Provider quota windows can outlast the judge retries (run37: the
+	// anthropic 5-hour window left 1607/1702 verdicts on step-status
+	// fallback). Track which fallbacks were quota-caused plus the latest
+	// advertised reset so a bounded re-judge pass can run once it lands.
+	rateLimited := make([]bool, len(results))
+	var rlMu sync.Mutex
+	var rlReset time.Time
+
 	for i := range results {
 		wg.Add(1)
 		go func(idx int) {
@@ -94,6 +105,15 @@ func (e *Examiner) Examine(ctx context.Context, results []agent.StepResult, sess
 					zap.Error(err),
 				)
 				verdicts[idx] = fallbackVerdict(r, e.config.ConfThreshold, "Judge failed, using execution status")
+				var rl *llm.RateLimitError
+				if errors.As(err, &rl) {
+					rlMu.Lock()
+					if rl.ResetAt.After(rlReset) {
+						rlReset = rl.ResetAt
+					}
+					rlMu.Unlock()
+					rateLimited[idx] = true
+				}
 				e.logger.Info("verdict",
 					zap.String("case_id", r.TestCase.ID),
 					zap.String("status", string(verdicts[idx].Status)),
@@ -116,6 +136,8 @@ func (e *Examiner) Examine(ctx context.Context, results []agent.StepResult, sess
 		}(i)
 	}
 	wg.Wait()
+
+	e.rejudgeRateLimited(ctx, results, verdicts, rateLimited, rlReset)
 
 	// Reflexion: learn from all results.
 	reflectionsStored, err := e.learner.Learn(ctx, LearnInput{

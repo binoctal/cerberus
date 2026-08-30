@@ -1,6 +1,10 @@
 package examiner
 
-import "github.com/binoctal/cerberus/internal/head/agent"
+import (
+	"time"
+
+	"github.com/binoctal/cerberus/internal/head/agent"
+)
 
 // JudgeStatus represents the verdict of a test step evaluation.
 type JudgeStatus string
@@ -49,18 +53,20 @@ type LearnInput struct {
 
 // ExaminerConfig holds configuration for the Examiner head.
 type ExaminerConfig struct {
-	MaxCritiques  int     // Session-level max critique count (default 1)
-	ConfThreshold float64 // Confidence threshold for early stop (default 0.9)
-	AutoFix       string  // Auto-fix mode: "off", "low_only", "aggressive" (default "low_only")
-	MaxWorkers    int     // Max concurrent judge evaluations in Examine (default 4)
-	VocabSummary  string  // WS routing vocabulary prepended to judge prompts; "" = no-op (non-WS)
+	MaxCritiques       int           // Session-level max critique count (default 1)
+	ConfThreshold      float64       // Confidence threshold for early stop (default 0.9)
+	AutoFix            string        // Auto-fix mode: "off", "low_only", "aggressive" (default "low_only")
+	MaxWorkers         int           // Max concurrent judge evaluations in Examine (default 4)
+	VocabSummary       string        // WS routing vocabulary prepended to judge prompts; "" = no-op (non-WS)
+	RateLimitRewaitMax time.Duration // Cap on waiting out a provider quota window before re-judging fallbacks (default 30m)
 }
 
 func DefaultExaminerConfig() ExaminerConfig {
 	return ExaminerConfig{
-		MaxCritiques:  1,
-		ConfThreshold: 0.9,
-		AutoFix:       "low_only",
-		MaxWorkers:    4,
+		MaxCritiques:       1,
+		ConfThreshold:      0.9,
+		AutoFix:            "low_only",
+		MaxWorkers:         4,
+		RateLimitRewaitMax: 30 * time.Minute,
 	}
 }

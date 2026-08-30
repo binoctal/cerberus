@@ -59,6 +59,9 @@ func sendCompleteRequest(httpReq *http.Request, client *ClaudeClient) (*http.Res
 	if resp.StatusCode != 200 {
 		respBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		if resp.StatusCode == 429 {
+			return nil, NewRateLimitError("anthropic api", resp.StatusCode, string(respBody))
+		}
 		return nil, fmt.Errorf("anthropic api error %d: %s", resp.StatusCode, string(respBody))
 	}
 
