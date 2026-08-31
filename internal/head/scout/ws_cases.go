@@ -518,7 +518,10 @@ func wsRelayCases(svc project.Service) ([]agent.TestCase, map[string]map[string]
 		}
 		var peers []string
 		for _, p := range names {
-			if p != aName {
+			// http_only roles exist for AuthRole injection (admin JWTs, the
+			// crossuser tier's rival principal), never as WS peers —
+			// connecting one would dial a principal that never connects.
+			if pr := svc.Protocol.Roles[p]; p != aName && (pr == nil || !pr.HTTPOnly) {
 				peers = append(peers, p)
 			}
 		}

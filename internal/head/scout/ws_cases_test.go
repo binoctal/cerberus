@@ -1446,3 +1446,36 @@ func TestWSCasesEmulatedRolesUnaffected(t *testing.T) {
 	}
 	assert.NotEmpty(t, WSCases(cfg, "bridge receives permission:response"))
 }
+
+// TestWSRelayCasesSkipsHTTPOnlyPeers: http_only roles exist for AuthRole
+// injection, never as WS peers — an injection-only principal (admin JWT, the
+// crossuser tier's rival) must not be connected over the relay. Pre-existing
+// latent issue (admin since the http_only flag landed); the crossuser tier's
+// web-rival broadened the exposure, this pins the filter.
+func TestWSRelayCasesSkipsHTTPOnlyPeers(t *testing.T) {
+	p := &project.Protocol{TypePath: "type", Roles: map[string]*project.ProtocolRole{
+		"web":       {Handshake: &project.RoleHandshake{AwaitType: "device:online", Optional: true, Timeout: 2}},
+		"bridge":    {},
+		"admin":     {CredentialRef: "admin-actor", HTTPOnly: true},
+		"web-rival": {CredentialRef: "web-rival-actor", HTTPOnly: true},
+	}}
+	svc := project.Service{Name: "rt", URL: "ws://h/ws", Protocol: p}
+
+	cases, _, _ := wsRelayCases(svc)
+	require.Len(t, cases, 1)
+	for _, s := range cases[0].Steps {
+		if s.Action != "ws_connect" {
+			continue
+		}
+		require.NotEqual(t, "admin", s.ConnectionID, "http_only role must never be a relay peer")
+		require.NotEqual(t, "web-rival", s.ConnectionID, "http_only role must never be a relay peer")
+	}
+	// The connectable peer still joins.
+	found := false
+	for _, s := range cases[0].Steps {
+		if s.Action == "ws_connect" && s.ConnectionID == "bridge" {
+			found = true
+		}
+	}
+	require.True(t, found, "non-http_only peer bridge still connects")
+}
