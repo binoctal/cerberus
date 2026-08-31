@@ -27,8 +27,8 @@ func TestProjectConfig_Loads(t *testing.T) {
 		t.Fatalf("framing=%q want json", svc.Protocol.Framing)
 	}
 
-	if len(cfg.Actors) != 6 {
-		t.Fatalf("actors=%d want 6 (web + admin + 3 replica bridges + real-ACP bridge)", len(cfg.Actors))
+	if len(cfg.Actors) != 7 {
+		t.Fatalf("actors=%d want 7 (web + web-rival + admin + 3 replica bridges + real-ACP bridge)", len(cfg.Actors))
 	}
 	if cfg.Actors[0].Name != "web-actor" || (cfg.Actors[0].Fidelity != project.FidelityEmulated && cfg.Actors[0].Fidelity != "") {
 		t.Fatalf("web actor=%+v", cfg.Actors[0])
@@ -37,10 +37,14 @@ func TestProjectConfig_Loads(t *testing.T) {
 	if cfg.Actors[1].Name != "admin-actor" {
 		t.Fatalf("actor[1]=%+v want admin-actor", cfg.Actors[1])
 	}
+	// web-rival-actor (HTTP-only rival principal for the -crossuser tier).
+	if cfg.Actors[2].Name != "web-rival-actor" {
+		t.Fatalf("actor[2]=%+v want web-rival-actor", cfg.Actors[2])
+	}
 	for i, want := range []string{"bridge-pty-1", "bridge-pty-2", "bridge-pty-3"} {
-		a := cfg.Actors[i+2]
+		a := cfg.Actors[i+3]
 		if a.Name != want || a.Fidelity != project.FidelityRealProcess || a.Process == nil {
-			t.Fatalf("actor[%d]=%+v", i+1, a)
+			t.Fatalf("actor[%d]=%+v", i+3, a)
 		}
 		if len(a.Process.Setup) == 0 || len(a.Process.Start) == 0 {
 			t.Fatalf("actor %s missing setup/start: %+v", a.Name, a.Process)
