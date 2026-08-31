@@ -51,7 +51,10 @@ Emit after the authed tier:
 - capture steps 1..n: identical to the authed tier (owner = web role JWT,
   GET the list route, capture the id, assert 2xx)
 - target step: same URL template with the captured id, `AuthRole: web-rival`,
-  GET, `ExpectStatusClass: "4xx"`
+  GET, `ExpectStatusClass: "4xx"`, and the route's `min_query` appended when
+  declared — without it a 400 from a missing query param would satisfy the
+  4xx assertion and mask exactly the IDOR this tier hunts (no route carries
+  both today; the guard is one line against a latent false-green)
 - expectation text: `cross-user isolation: rival principal reading another
   user's resource is rejected (4xx) — horizontal access control holds`
 - case ID: `routeBaseID(...) + "-crossuser"`
@@ -68,8 +71,15 @@ missions, teams, external-agents (each `GET .../:id` chained to its list).
 actor, so a second principal is purely declarative:
 
 - `dogfood/realtime-e2e/.cerberus/protocols/open-agents.yaml` — add role
-  `web-rival` with `credential_ref: web-rival-actor`; params/handshake copied
-  from the web role (same SUT role, different principal).
+  `web-rival` with `credential_ref: web-rival-actor` and `http_only: true`
+  (the admin-role pattern, schema comment: "exists solely so HTTP steps can
+  AuthRole-inject its credential"). This is load-bearing, not cosmetic:
+  client-role selection in real_responder_cases / acp_cases picks the first
+  credentialed, non-real, non-http_only role — without the flag, web-rival
+  is one rename away from hijacking the emulated-client leg, and every other
+  role-iterating generator could hand it WS cases it cannot serve (no
+  devices, no captured userId). http_only keeps it out of all WS paths; no
+  params/handshake needed since it never connects.
 - `dogfood/realtime-e2e/.cerberus/project.yaml` — add actor `web-rival-actor`
   with `rival@openagents.local` / two-step auth identical to web-actor
   (`/api/dev/setup` provision then `/api/dev/login` JWT), **with `plan: pro`**.
