@@ -4,7 +4,7 @@ import "testing"
 
 func TestMergeVocabJudgmentPreservesCrossMarks(t *testing.T) {
 	prev := &Vocabulary{
-		HTTPCrossRole: "web-rival",
+		HTTPCrossRole:  "web-rival",
 		HTTPRoleRoutes: []VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}},
 		HTTPRoutes: []VocabHTTPRoute{
 			{Method: "GET", Path: "/api/teams/:id", CrossExempt: true, MinQuery: map[string]string{"x": "1"}},
