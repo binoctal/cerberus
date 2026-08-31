@@ -50,3 +50,37 @@ func TestValidateAuthFlow_HTTPLogin(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateAuthFlow_ProvisioningOnlyViaHTTPLogin(t *testing.T) {
+	// An actor with neither a static token nor a token_from is provisioning-only
+	// on the primary login; that is valid when http_login supplies the real
+	// credential (e.g. the dogfood admin-actor: /api/dev/setup seeds role:admin,
+	// /api/dev/login returns the JWT).
+	actor := Actor{
+		Name: "admin-actor",
+		Auth: &AuthFlow{
+			Login: AuthLogin{Method: "POST", Path: "/api/dev/setup", Body: map[string]string{
+				"email": "{email}", "password": "{password}", "role": "admin",
+			}},
+			InjectAs: "Authorization: Bearer {token}",
+			HTTPLogin: &AuthLogin{Method: "POST", Path: "/api/dev/login", Body: map[string]string{
+				"email": "{email}", "password": "{password}",
+			}},
+			HTTPTokenFrom: "token",
+		},
+		Credentials: CredentialRef{Email: "admin@openagents.local", Password: "admin123456"},
+	}
+	if got := validateAuthFlow(0, actor); got != "" {
+		t.Fatalf("expected provisioning-only + http_login to validate, got %q", got)
+	}
+
+	// Without http_login and without a static token it must still fail — there
+	// would be no credential at all.
+	noHTTP := *actor.Auth
+	noHTTP.HTTPLogin = nil
+	noHTTP.HTTPTokenFrom = ""
+	actor.Auth = &noHTTP
+	if got := validateAuthFlow(0, actor); got == "" {
+		t.Fatal("expected error: provisioning-only flow with no http_login and no static token")
+	}
+}

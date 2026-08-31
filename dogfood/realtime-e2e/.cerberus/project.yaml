@@ -33,10 +33,12 @@ actors:
         headers:
           Origin: http://localhost:8989
       http_token_from: token
-  # Superadmin JWT for the /api/admin route block. /api/auth/dev/setup
-  # (auth.ts variant) is the only dev endpoint that returns a JWT directly;
-  # a DISTINCT email is required -- the default address already exists as a
-  # plain 'user' created by routes/dev.ts setup and would be reused as-is.
+  # Admin JWT for the /api/admin route block. Two-step like web-actor:
+  # /api/dev/setup seeds the user (role:'admin' needs open-agents >= 5e9c3b1;
+  # the old /api/auth/dev/setup superadmin endpoint was removed in d6e5390),
+  # then /api/dev/login returns the JWT. adminMiddleware reads the role from
+  # the DB by JWT sub, so the token itself carries no role claim. A DISTINCT
+  # email is required -- the default address already exists as a plain 'user'.
   - name: admin-actor
     credentials:
       email: admin@openagents.local
@@ -44,17 +46,19 @@ actors:
     auth:
       login:
         method: POST
-        path: /api/auth/dev/setup
+        path: /api/dev/setup
         body:
           email: "{email}"
           password: "{password}"
+          plan: pro
+          role: admin
         headers:
           Origin: http://localhost:8989
-      token_from: token
+      # token_from omitted on purpose: provisioning-only flow (mirrors web-actor)
       inject_as: "Authorization: Bearer {token}"
       http_login:
         method: POST
-        path: /api/auth/dev/setup
+        path: /api/dev/login
         body:
           email: "{email}"
           password: "{password}"

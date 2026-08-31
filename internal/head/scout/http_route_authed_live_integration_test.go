@@ -24,13 +24,16 @@ import (
 	"github.com/binoctal/cerberus/internal/project"
 )
 
-// authedSampleJWTs returns the web JWT (dev login) and the admin JWT
-// (/api/auth/dev/setup superadmin — same provisioning the dogfood
-// admin-actor uses). Skips when the server rejects either login.
+// authedSampleJWTs returns the web JWT (dev login) and the admin JWT.
+// Admin provisioning mirrors the dogfood admin-actor: /api/dev/setup seeds
+// role:'admin' (needs open-agents >= 5e9c3b1; the old /api/auth/dev/setup
+// superadmin endpoint was removed in d6e5390 and returned the JWT directly),
+// then /api/dev/login issues the token. Skips when the server rejects
+// either login.
 func authedSampleJWTs(t *testing.T, base string) (web, admin string) {
 	t.Helper()
 	client := &http.Client{Timeout: 15 * time.Second}
-	post := func(path string, body string) string {
+	post := func(path string, body string, wantToken bool) string {
 		req, err := http.NewRequest(http.MethodPost, base+path, strings.NewReader(body))
 		if err != nil {
 			t.Fatalf("build %s: %v", path, err)
@@ -47,15 +50,22 @@ func authedSampleJWTs(t *testing.T, base string) (web, admin string) {
 			t.Skipf("%s: status %d: %s", path, resp.StatusCode, strings.TrimSpace(string(b)))
 		}
 		var out struct {
-			Token string `json:"token"`
+			Success bool   `json:"success"`
+			Token   string `json:"token"`
 		}
-		if err := json.Unmarshal(b, &out); err != nil || out.Token == "" {
+		if err := json.Unmarshal(b, &out); err != nil {
+			t.Skipf("%s: bad json in response", path)
+		}
+		if wantToken && out.Token == "" {
 			t.Skipf("%s: no token in response", path)
 		}
 		return out.Token
 	}
-	return post("/api/dev/login", `{}`),
-		post("/api/auth/dev/setup", `{"email":"admin@openagents.local","password":"admin123456"}`)
+	// Provisioning returns a success/user/device envelope with no JWT; only
+	// the logins after it yield tokens.
+	post("/api/dev/setup", `{"email":"admin@openagents.local","password":"admin123456","plan":"pro","role":"admin"}`, false)
+	return post("/api/dev/login", `{}`, true),
+		post("/api/dev/login", `{"email":"admin@openagents.local","password":"admin123456"}`, true)
 }
 
 // walkPick mirrors the executor's captureFromHTTPBody dot-path walk (map key

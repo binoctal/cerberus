@@ -65,11 +65,15 @@ func validateAuthFlow(actorIdx int, a Actor) string {
 	prefix := fmt.Sprintf("actors[%d].auth", actorIdx)
 	// Provisioning-only flow (Task 4): when the actor has a static
 	// Credentials.Token, token_from may be empty — login runs only to capture
-	// path params, and the static token is injected as RawToken. ValidateAuthFlow
-	// is strict (it serves authdiscover, which has no static token), so bypass
-	// its token_from requirement here by substituting a sentinel for validation.
+	// path params, and the static token is injected as RawToken. The same
+	// applies when an http_login supplies the credential instead: the primary
+	// login provisions (e.g. seeds an admin user) and http_token_from captures
+	// the real HTTP credential. ValidateAuthFlow is strict (it serves
+	// authdiscover, which has neither a static token nor an http_login), so
+	// bypass its token_from requirement here by substituting a sentinel for
+	// validation.
 	af := a.Auth
-	if af.TokenFrom == "" && a.Credentials.Token != "" {
+	if af.TokenFrom == "" && (a.Credentials.Token != "" || af.HTTPLogin != nil) {
 		clone := *af
 		clone.TokenFrom = "<static>"
 		af = &clone
