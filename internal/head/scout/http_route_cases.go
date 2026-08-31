@@ -136,21 +136,17 @@ func unauthRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 	}
 }
 
-// authedRouteCase drives the route with a role JWT, real :param values
-// (captured from each param's list route) and the minimal legal body when
-// the vocab declares one. Body-less GET/DELETE claim 2xx; body-carrying
-// mutations accept 2xx or 4xx (legitimate validation rejections) but never
-// 5xx. Body-less mutations take 2xx_4xx too — with no extracted body, a
-// validation 4xx is not evidence of breakage.
-func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute, method, role string) agent.TestCase {
-	// One capture step per :param, in path order: GET the param's list
-	// route, pick the dot-path out of the first record, expose it as a
-	// per-case param for the target step's URL placeholder. The capture
-	// step authenticates as the LIST route's own role (roleForRoute on the
-	// list path), falling back to the target's role when the list route
-	// has none — an admin-prefixed target chaining to a web-carried list
-	// must not send the admin JWT there, and the web list is scoped to the
-	// web user's data.
+// captureStepsFor builds the param-chaining capture steps shared by the
+// authed and crossuser tiers: one capture step per :param, in path order —
+// GET the param's list route, pick the dot-path out of the first record,
+// expose it as a per-case param for the target step's URL placeholder. The
+// capture step authenticates as the LIST route's own role (roleForRoute on
+// the list path), falling back to the target's role when the list route has
+// none — an admin-prefixed target chaining to a web-carried list must not
+// send the admin JWT there, and the web list is scoped to the web user's
+// data. Sharing one builder makes the crossuser capture provably identical
+// to the authed tier's (spec §1) instead of merely reviewed-as-identical.
+func captureStepsFor(svc project.Service, host string, r project.VocabHTTPRoute, role string) []agent.TestStep {
 	steps := make([]agent.TestStep, 0, len(r.ParamSources)+1)
 	for _, p := range routeParams(r.Path) {
 		ps := r.ParamSources[p]
@@ -168,6 +164,17 @@ func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute,
 			Capture:           map[string]string{ps.Pick: "p_" + strings.TrimPrefix(p, ":")},
 		})
 	}
+	return steps
+}
+
+// authedRouteCase drives the route with a role JWT, real :param values
+// (captured from each param's list route) and the minimal legal body when
+// the vocab declares one. Body-less GET/DELETE claim 2xx; body-carrying
+// mutations accept 2xx or 4xx (legitimate validation rejections) but never
+// 5xx. Body-less mutations take 2xx_4xx too — with no extracted body, a
+// validation 4xx is not evidence of breakage.
+func authedRouteCase(svc project.Service, host string, r project.VocabHTTPRoute, method, role string) agent.TestCase {
+	steps := captureStepsFor(svc, host, r, role)
 	body, class, expectation := "", "2xx",
 		"authenticated request succeeds (2xx); real :param values from list-route chaining"
 	targetURL := host + fillRouteParamsFromSources(r.Path, r.ParamSources)
@@ -441,23 +448,7 @@ func ownerScopedSources(svc project.Service, r project.VocabHTTPRoute, ownerRole
 // the authed tier: without it a missing-query 400 would satisfy the 4xx
 // assertion and mask exactly the IDOR being hunted.
 func crossUserRouteCase(svc project.Service, host string, r project.VocabHTTPRoute, method, ownerRole, rivalRole string) agent.TestCase {
-	steps := make([]agent.TestStep, 0, len(r.ParamSources)+1)
-	for _, p := range routeParams(r.Path) {
-		ps := r.ParamSources[p]
-		_, listPath, _ := strings.Cut(ps.Route, " ")
-		listRole := roleForRoute(svc, listPath)
-		if listRole == "" {
-			listRole = ownerRole
-		}
-		steps = append(steps, agent.TestStep{
-			Action:            "http_request",
-			URL:               host + fillRouteParams(listPath),
-			Method:            "GET",
-			AuthRole:          listRole,
-			ExpectStatusClass: "2xx",
-			Capture:           map[string]string{ps.Pick: "p_" + strings.TrimPrefix(p, ":")},
-		})
-	}
+	steps := captureStepsFor(svc, host, r, ownerRole)
 	targetURL := host + fillRouteParamsFromSources(r.Path, r.ParamSources) + minQueryString(r.MinQuery)
 	steps = append(steps, agent.TestStep{
 		Action:            "http_request",
