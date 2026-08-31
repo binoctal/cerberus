@@ -36,6 +36,13 @@ type Vocabulary struct {
 	// HTTPDefaultRole is the fallback role for paths matching no
 	// HTTPRoleRoutes prefix (used only when it carries a credential).
 	HTTPDefaultRole string `yaml:"http_default_role,omitempty" json:"http_default_role,omitempty"`
+	// HTTPCrossRole names the protocol role used as the second principal in
+	// the -crossuser isolation tier. It must resolve to a credentialed,
+	// http_only protocol role (a principal that exists for AuthRole injection
+	// and nothing else). Judgment layer — setting it opts a vocabulary into
+	// the cross tier; unset means no crossuser cases (generic repos are
+	// unaffected).
+	HTTPCrossRole string `yaml:"http_cross_role,omitempty" json:"http_cross_role,omitempty"`
 }
 
 // VocabRoleRoute maps a path prefix to the protocol role whose JWT the HTTP
@@ -174,6 +181,12 @@ type VocabHTTPRoute struct {
 	// manual `if (!a) return 400` guard shape is not source-derivable;
 	// preserved across re-extraction like the role map).
 	MinQuery map[string]string `yaml:"min_query,omitempty" json:"min_query,omitempty"`
+	// CrossExempt vetoes the -crossuser tier for this route: the resource is
+	// genuinely shared cross-principal (e.g. team-scoped membership), so a
+	// rival's 200 is legitimate access, not an isolation failure. Judgment
+	// layer — live-probe knowledge, preserved across re-extraction like
+	// min_query.
+	CrossExempt bool `yaml:"cross_exempt,omitempty" json:"cross_exempt,omitempty"`
 	// ParamSources maps each :param in Path to the list route whose captured
 	// response yields a concrete value for it (param chaining).
 	ParamSources map[string]VocabParamSource `yaml:"param_sources,omitempty" json:"param_sources,omitempty"`

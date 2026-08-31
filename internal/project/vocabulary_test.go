@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestLoadVocabulary(t *testing.T) {
@@ -184,5 +186,29 @@ func TestValidateVocabulary_ParamSourcesOffAndRoleMap(t *testing.T) {
 	v.HTTPDefaultRole = "web"
 	if err := ValidateVocabulary(v); err != nil {
 		t.Fatalf("valid role map rejected: %v", err)
+	}
+}
+
+func TestVocabCrossFieldsRoundTrip(t *testing.T) {
+	in := &Vocabulary{
+		HTTPCrossRole: "web-rival",
+		HTTPRoutes: []VocabHTTPRoute{
+			{Method: "GET", Path: "/api/teams/:id", CrossExempt: true,
+				ParamSources: map[string]VocabParamSource{":id": {Route: "GET /api/teams", Pick: "0.id"}}},
+		},
+	}
+	block, err := yaml.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var out Vocabulary
+	if err := yaml.Unmarshal(block, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if out.HTTPCrossRole != "web-rival" {
+		t.Fatalf("http_cross_role = %q, want web-rival", out.HTTPCrossRole)
+	}
+	if !out.HTTPRoutes[0].CrossExempt {
+		t.Fatal("cross_exempt lost in round-trip")
 	}
 }
