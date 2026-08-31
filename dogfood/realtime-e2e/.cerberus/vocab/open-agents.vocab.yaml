@@ -1,23 +1,23 @@
 source:
     files:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/realtime/room.ts
-          hash: c4929554bbb1ef0243358350ea75edbea3556ccea1a4af0cb51607ca47ea5164
+          hash: a03df047783f8264e56defe5bac5e30a553a87255449dacd4877b13fd9f28ec3
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/worker.ts
           hash: f88abc5b12e5c2331d2c7af859bdc6a4451b17935453452dd5dfccdf581eaa9f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth/index.ts
           hash: 8f5c4dce9dab75b41af370fce9f49a1d316927c4984e514c9a68c60f1ae2077e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth.ts
-          hash: ffad8ecc05c9505041616f476a9965d16e5ae606205a82ecac19be33ccadc89f
+          hash: a24dd32a26b86bc27a371c69df29bb2d337a4b50ee95d92a73973de7d49022ba
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth/sessions.ts
           hash: 0116babc89b6d8953605a9a2cd27420c09b2090d39791e9c3da56b5be51d5e75
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/auth/tokens.ts
           hash: cd88d59fdf44bb90e8f50554253098e839ec47c148b5b83115aa43e56c42f956
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/oauth.ts
-          hash: 623415515e93975a746428abfaad727f35c92e5aa1c8e947c450bb3908821cac
+          hash: b496c1a8d9a45a08da22bd4d1f2c3be1e1b17ae0c161881854b80e2f49c7c1ef
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/dev.ts
-          hash: f82d395571c3938c21279e747e7aee3a1afb41c0543847661740b02a252e9e31
+          hash: 518016e71861a985803aea8318f4df1e84f7332280ccadd63c68f4e50d6a3142
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/bridge.ts
-          hash: a8ce85efa5cc1c6cdfcdbe431fc0e1cb383dbabb65a60d8cada1c10e4958115e
+          hash: 3fd2bb1fc639d808a93a77417728fd20f8e34a9754c7b2732c81304a57457024
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/errors-report.ts
           hash: a573053f5fc037c4f2b90a19d3e62f09a1f2b412e021b9ea82727f00cef9ea35
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/a2a.ts
@@ -27,7 +27,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/devices.ts
           hash: b4340ed7b2893d422eca1b86534e5add6ccffac122969b888e45328c5f815e04
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/sessions.ts
-          hash: 195b2815d992a53095932bd94300da2842b5d5587196743d910f779ba88f2bf6
+          hash: 16842e9a8849132d5201a4bc1b2074cf4fa41716d593a28711d2e15b80b72ee1
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/prompts.ts
           hash: 4063041465d1ea2abcea8ff9df28e9b962356c620ecc1a15faf38dc68ffffa9f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/agents.ts
@@ -47,7 +47,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/batch.ts
           hash: 0f6793589537685112b26f8a9e79487106d355d035a665e05c3267f3d5003c6f
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/missions.ts
-          hash: 26738e1dac0ae8853b768581eab6ceab4647f8a39e09a16f385a588de5c9b393
+          hash: 08ab8a6555ed6516fc9b6ef9c8cc5cb7d6c7eec39f5bd80433f9c19b704d671c
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/teams.ts
           hash: 2a034a92322ff593a1f0f4019dee656cdb730f5c0564c275d64872f9cf164c74
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin.ts
@@ -55,7 +55,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/index.ts
           hash: f28d7b9b1645cdc4d3adce1e9520f1eed78836390e8f1ed7f670ff3132da94b5
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/plans.ts
-          hash: 3948ab778d674fc884a59553f0732967e61c8d98512e655890d78f242de2c41c
+          hash: 72e88d43fc3a5ccb4e19cd743bad7b36716221a4e978cbce952b8cdd00e052fb
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/invoices.ts
           hash: 363e1b5ffe0fde8dc465993e33fd26b02cf61dbe54e5078437b088b59387f9bd
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/billing/payments.ts
@@ -73,7 +73,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-comparison/index.ts
           hash: a5b85f4c9274de090a47a2eb99ea35825b46e5f748a1643e5f0e7c425ab05b51
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/budget/index.ts
-          hash: cb64ad03fbe96211b0f45d2d26a9d9188dfe008d0474dd3e7123061628dca7de
+          hash: b167191e772a5600a684d52a53002b2d84073995d5da57860a0693096eea33f4
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ip-whitelist/index.ts
           hash: 7e21e0127dbe58610755ae001942fa63b43521b873915573151eb1218af2a09a
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/org-policies/index.ts
@@ -89,7 +89,7 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/remote-logs/index.ts
           hash: c2eb19d9be415b9ce8601500142c6ed5942862ec2eced35924d735a85599be8e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/diagnostics/index.ts
-          hash: d68d94b3b7563631f442a76206fd2bc6dd0510295276795355a82f0003d2f0ca
+          hash: b3c41955bc53e90fd2d6621d8f232dc8323fcac31442353bb0493ebaf9948fa5
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/database-ops.ts
           hash: 7b6a3086c11bf0709e4a3bb9308d950f1c7a188d659082d46511b2c5eea9dc77
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/tenants/index.ts
@@ -107,11 +107,11 @@ source:
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/productivity/index.ts
           hash: 7c876b7931f11c13480b2e907eaf70737e33d4850e687afdda05989298d47bbb
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/white-label/index.ts
-          hash: 2070fa09f01ebfbd831178b22f47d1283e5f8e1c0bede74b0d7d321f6c6a93e8
+          hash: 5195c678c61142a1bed14040d9c54bc492ae3d676a7084ed90351d0b49f130eb
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/learning-metrics.ts
           hash: f7e24af582b144a963b481cb7ba4df0be34eb1021674819b049892c23d629b52
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/ai-providers.ts
-          hash: 97585c6350a417bed3d480b5ba1e093f194ce3f3e7ff05d4c802a1b2f412b6c7
+          hash: 5fe359e29172838d7819e638ec89166e29715223cc37977ff94d504a70eb9e90
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/admin/missions.ts
           hash: 293965b5405801e33f48a5478187c7b864d81c00bfc51d611411d87b3780d80e
         - path: /home/mason/Documents/code_projects/private/open-agents/apps/api/src/routes/api-keys.ts
@@ -131,8 +131,8 @@ edges:
       route_field: payload.deviceId
       source:
         spans:
-            - start: 288
-              end: 288
+            - start: 401
+              end: 401
     - from_role: ""
       to_role: web
       type: orchestrator:schedule_alarm
@@ -141,8 +141,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 294
-              end: 294
+            - start: 407
+              end: 407
     - from_role: ""
       to_role: web
       type: device:online
@@ -151,8 +151,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 369
-              end: 369
+            - start: 482
+              end: 482
     - from_role: bridge
       to_role: web
       type: device:offline
@@ -162,8 +162,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 495
-              end: 495
+            - start: 608
+              end: 608
     - from_role: bridge
       to_role: web
       type: sessions:disconnected
@@ -173,8 +173,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 502
-              end: 502
+            - start: 615
+              end: 615
     - from_role: web
       to_role: bridge
       type: session:send
@@ -188,8 +188,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 544
-              end: 544
+            - start: 657
+              end: 657
     - from_role: web
       to_role: web
       type: session:send
@@ -204,8 +204,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 546
-              end: 546
+            - start: 659
+              end: 659
     - from_role: bridge
       to_role: web
       type: encrypted
@@ -216,8 +216,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: device:online
@@ -227,8 +227,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:created
@@ -239,8 +239,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:started
@@ -250,8 +250,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:stopped
@@ -261,8 +261,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:error
@@ -273,8 +273,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:message
@@ -285,8 +285,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:status
@@ -297,8 +297,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:cancelled
@@ -308,8 +308,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:resumed
@@ -319,8 +319,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:resume:failed
@@ -330,8 +330,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:resumed-with-context
@@ -341,8 +341,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:resume-with-context:failed
@@ -353,8 +353,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: chat:response
@@ -364,8 +364,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: chat:thought
@@ -376,8 +376,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: chat:permission
@@ -388,8 +388,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: permission:request
@@ -400,8 +400,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: acp:status
@@ -412,8 +412,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: acp:output
@@ -424,8 +424,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: acp:tool_call
@@ -436,8 +436,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: acp:tool_result
@@ -448,8 +448,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: agent:status
@@ -460,8 +460,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: tool:call
@@ -472,8 +472,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: session:usage
@@ -484,8 +484,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_started
@@ -495,8 +495,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_progress
@@ -513,8 +513,8 @@ edges:
             - workflow:task_question
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_completed
@@ -524,8 +524,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_failed
@@ -535,8 +535,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_result
@@ -553,8 +553,8 @@ edges:
             - workflow:task_question
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_error
@@ -571,8 +571,8 @@ edges:
             - workflow:task_question
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:task_question
@@ -589,8 +589,8 @@ edges:
             - workflow:task_question
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: workflow:merge_progress
@@ -601,8 +601,8 @@ edges:
       unsupported: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: prompts:synced
@@ -612,8 +612,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: mcp:synced
@@ -623,8 +623,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: mcp:list_response
@@ -634,8 +634,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: security:alert
@@ -646,8 +646,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: scanner:rules:synced
@@ -657,8 +657,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: scanner:status
@@ -668,8 +668,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: device:listDirResult
@@ -679,8 +679,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: config:synced
@@ -690,8 +690,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: rules:synced
@@ -701,8 +701,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: bridge
       to_role: web
       type: storage:synced
@@ -712,8 +712,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 553
-              end: 553
+            - start: 666
+              end: 666
     - from_role: web
       to_role: bridge
       type: session:start
@@ -727,8 +727,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: session:stop
@@ -742,8 +742,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: session:cancel
@@ -757,8 +757,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: session:resume
@@ -772,8 +772,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: session:resume-with-context
@@ -787,8 +787,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: session:resize
@@ -802,8 +802,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: chat:send
@@ -817,8 +817,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: permission:response
@@ -833,8 +833,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: control:takeover
@@ -848,8 +848,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: config:sync
@@ -863,8 +863,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: rules:sync
@@ -878,8 +878,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: storage:sync
@@ -893,8 +893,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: prompts:sync
@@ -908,8 +908,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: mcp:sync
@@ -923,8 +923,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: mcp:list
@@ -938,8 +938,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:start
@@ -953,8 +953,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:pause
@@ -968,8 +968,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:cancel
@@ -983,8 +983,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:start_task
@@ -998,8 +998,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:task_assign
@@ -1013,8 +1013,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:task_merge
@@ -1028,8 +1028,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:merge_all
@@ -1043,8 +1043,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:task_answer
@@ -1058,8 +1058,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: workflow:task_guidance
@@ -1073,8 +1073,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: acp:query_status
@@ -1089,8 +1089,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: scanner:toggle
@@ -1104,8 +1104,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: scanner:rules:sync
@@ -1119,8 +1119,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: device:restart
@@ -1134,8 +1134,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: web
       to_role: bridge
       type: device:listDir
@@ -1149,8 +1149,8 @@ edges:
         code: MISSING_DEVICE_ID
       source:
         spans:
-            - start: 573
-              end: 573
+            - start: 692
+              end: 692
     - from_role: ""
       to_role: web
       type: session:output-batch
@@ -1159,8 +1159,8 @@ edges:
         mode: broadcast_web
       source:
         spans:
-            - start: 615
-              end: 615
+            - start: 770
+              end: 770
     - from_role: bridge
       to_role: web
       type: session:output
@@ -1174,8 +1174,8 @@ edges:
       partial: true
       source:
         spans:
-            - start: 529
-              end: 529
+            - start: 642
+              end: 642
 http_routes:
     - method: POST
       path: /api/auth/register
@@ -1190,8 +1190,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 161
-              end: 161
+            - start: 215
+              end: 215
     - method: POST
       path: /api/auth/login
       mount: /api/auth
@@ -1205,8 +1205,23 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 252
-              end: 252
+            - start: 327
+              end: 327
+    - method: POST
+      path: /api/auth/oauth/exchange
+      mount: /api/auth
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+      auth: unknown
+      source:
+        spans:
+            - start: 449
+              end: 449
     - method: POST
       path: /api/auth/verify-email
       mount: /api/auth
@@ -1220,55 +1235,10 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 365
-              end: 365
+            - start: 483
+              end: 483
     - method: POST
       path: /api/auth/resend-verification
-      mount: /api/auth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      source:
-        spans:
-            - start: 406
-              end: 406
-    - method: POST
-      path: /api/auth/forgot-password
-      mount: /api/auth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      source:
-        spans:
-            - start: 445
-              end: 445
-    - method: POST
-      path: /api/auth/reset-password
-      mount: /api/auth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      source:
-        spans:
-            - start: 485
-              end: 485
-    - method: POST
-      path: /api/auth/change-password
       mount: /api/auth
       middlewares:
         - securityHeaders
@@ -1283,6 +1253,51 @@ http_routes:
             - start: 524
               end: 524
     - method: POST
+      path: /api/auth/forgot-password
+      mount: /api/auth
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+      auth: none
+      source:
+        spans:
+            - start: 572
+              end: 572
+    - method: POST
+      path: /api/auth/reset-password
+      mount: /api/auth
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+      auth: none
+      source:
+        spans:
+            - start: 612
+              end: 612
+    - method: POST
+      path: /api/auth/change-password
+      mount: /api/auth
+      middlewares:
+        - securityHeaders
+        - use:/*
+        - monitoringMiddleware
+        - sanitizeBody
+        - csrfProtection
+        - apiRateLimit
+      auth: none
+      source:
+        spans:
+            - start: 653
+              end: 653
+    - method: POST
       path: /api/auth/delete-account
       mount: /api/auth
       middlewares:
@@ -1296,8 +1311,8 @@ http_routes:
       partial: true
       source:
         spans:
-            - start: 571
-              end: 571
+            - start: 702
+              end: 702
     - method: PUT
       path: /api/auth/profile
       mount: /api/auth
@@ -1311,8 +1326,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 614
-              end: 614
+            - start: 792
+              end: 792
     - method: GET
       path: /api/auth/me
       mount: /api/auth
@@ -1326,8 +1341,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 650
-              end: 650
+            - start: 828
+              end: 828
     - method: POST
       path: /api/auth/refresh
       mount: /api/auth
@@ -1341,8 +1356,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 677
-              end: 677
+            - start: 855
+              end: 855
     - method: POST
       path: /api/auth/logout
       mount: /api/auth
@@ -1356,8 +1371,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 718
-              end: 718
+            - start: 896
+              end: 896
     - method: POST
       path: /api/auth/logout-all
       mount: /api/auth
@@ -1371,24 +1386,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 736
-              end: 736
-    - method: POST
-      path: /api/auth/dev/setup
-      mount: /api/auth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      partial: true
-      source:
-        spans:
-            - start: 764
-              end: 764
+            - start: 914
+              end: 914
     - method: GET
       path: /api/auth/sessions
       mount: /api/auth/sessions
@@ -1488,36 +1487,6 @@ http_routes:
             - start: 144
               end: 144
     - method: GET
-      path: /api/oauth/github
-      mount: /api/oauth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      source:
-        spans:
-            - start: 16
-              end: 16
-    - method: GET
-      path: /api/oauth/github/callback
-      mount: /api/oauth
-      middlewares:
-        - securityHeaders
-        - use:/*
-        - monitoringMiddleware
-        - sanitizeBody
-        - csrfProtection
-        - apiRateLimit
-      auth: none
-      source:
-        spans:
-            - start: 29
-              end: 29
-    - method: GET
       path: /api/oauth/google
       mount: /api/oauth
       middlewares:
@@ -1530,8 +1499,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 72
-              end: 72
+            - start: 56
+              end: 56
     - method: GET
       path: /api/oauth/google/callback
       mount: /api/oauth
@@ -1545,8 +1514,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 86
-              end: 86
+            - start: 76
+              end: 76
     - method: POST
       path: /api/dev/setup
       mount: /api/dev
@@ -1577,8 +1546,8 @@ http_routes:
       partial: true
       source:
         spans:
-            - start: 112
-              end: 112
+            - start: 125
+              end: 125
     - method: POST
       path: /api/devices/pair/verify
       middlewares:
@@ -3288,8 +3257,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 73
-              end: 73
+            - start: 113
+              end: 113
     - method: POST
       path: /api/missions
       mount: /api/missions
@@ -3305,8 +3274,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 81
-              end: 81
+            - start: 121
+              end: 121
     - method: GET
       path: /api/missions/agent-metrics
       mount: /api/missions
@@ -3322,8 +3291,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 182
-              end: 182
+            - start: 235
+              end: 235
     - method: GET
       path: /api/missions/online-devices
       mount: /api/missions
@@ -3339,8 +3308,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 189
-              end: 189
+            - start: 242
+              end: 242
     - method: GET
       path: /api/missions/routing-rules
       mount: /api/missions
@@ -3356,8 +3325,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 224
-              end: 224
+            - start: 277
+              end: 277
     - method: PUT
       path: /api/missions/routing-rules
       mount: /api/missions
@@ -3373,8 +3342,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 230
-              end: 230
+            - start: 283
+              end: 283
     - method: POST
       path: /api/missions/routing-rules/update-priorities
       mount: /api/missions
@@ -3390,8 +3359,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 238
-              end: 238
+            - start: 291
+              end: 291
     - method: GET
       path: /api/missions/learning-metrics
       mount: /api/missions
@@ -3407,8 +3376,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 244
-              end: 244
+            - start: 297
+              end: 297
     - method: POST
       path: /api/missions/internal/orchestrator/alarm
       mount: /api/missions
@@ -3425,8 +3394,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 259
-              end: 259
+            - start: 346
+              end: 346
     - method: POST
       path: /api/missions/internal/orchestrator/event
       mount: /api/missions
@@ -3443,8 +3412,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 282
-              end: 282
+            - start: 369
+              end: 369
     - method: POST
       path: /api/missions/internal/planner/decompose
       mount: /api/missions
@@ -3461,8 +3430,8 @@ http_routes:
       auth: none
       source:
         spans:
-            - start: 349
-              end: 349
+            - start: 438
+              end: 438
     - method: GET
       path: /api/missions/:id
       mount: /api/missions
@@ -3482,8 +3451,8 @@ http_routes:
             pick: missions.0.id
       source:
         spans:
-            - start: 513
-              end: 513
+            - start: 602
+              end: 602
     - method: POST
       path: /api/missions/:id/confirm
       mount: /api/missions
@@ -3499,8 +3468,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 524
-              end: 524
+            - start: 613
+              end: 613
     - method: POST
       path: /api/missions/:id/pause
       mount: /api/missions
@@ -3516,8 +3485,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 536
-              end: 536
+            - start: 638
+              end: 638
     - method: POST
       path: /api/missions/:id/resume
       mount: /api/missions
@@ -3533,8 +3502,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 548
-              end: 548
+            - start: 650
+              end: 650
     - method: POST
       path: /api/missions/:id/cancel
       mount: /api/missions
@@ -3550,8 +3519,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 560
-              end: 560
+            - start: 662
+              end: 662
     - method: POST
       path: /api/missions/:id/tasks/:taskId/cancel
       mount: /api/missions
@@ -3567,8 +3536,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 572
-              end: 572
+            - start: 674
+              end: 674
     - method: POST
       path: /api/missions/:id/tasks/:taskId/retry
       mount: /api/missions
@@ -3584,8 +3553,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 579
-              end: 579
+            - start: 681
+              end: 681
     - method: PUT
       path: /api/missions/:id/tasks/:taskId
       mount: /api/missions
@@ -3601,8 +3570,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 609
-              end: 609
+            - start: 711
+              end: 711
     - method: POST
       path: /api/missions/:id/rerun
       mount: /api/missions
@@ -3618,8 +3587,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 627
-              end: 627
+            - start: 729
+              end: 729
     - method: POST
       path: /api/missions/:id/rate
       mount: /api/missions
@@ -3635,8 +3604,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 740
-              end: 740
+            - start: 842
+              end: 842
     - method: POST
       path: /api/missions/:id/feedback
       mount: /api/missions
@@ -3652,8 +3621,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 748
-              end: 748
+            - start: 850
+              end: 850
     - method: GET
       path: /api/missions/:missionId/questions
       mount: /api/missions
@@ -3669,8 +3638,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 806
-              end: 806
+            - start: 908
+              end: 908
     - method: POST
       path: /api/missions/:missionId/tasks/:taskId/answer
       mount: /api/missions
@@ -3686,8 +3655,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 813
-              end: 813
+            - start: 915
+              end: 915
     - method: POST
       path: /api/missions/:missionId/tasks/:taskId/guidance
       mount: /api/missions
@@ -3703,8 +3672,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 827
-              end: 827
+            - start: 929
+              end: 929
     - method: POST
       path: /api/missions/:missionId/tasks/:taskId/merge
       mount: /api/missions
@@ -3720,8 +3689,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 840
-              end: 840
+            - start: 942
+              end: 942
     - method: POST
       path: /api/missions/:missionId/merge-all
       mount: /api/missions
@@ -3737,8 +3706,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 857
-              end: 857
+            - start: 959
+              end: 959
     - method: GET
       path: /api/missions/:missionId/devices
       mount: /api/missions
@@ -3754,8 +3723,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 894
-              end: 894
+            - start: 996
+              end: 996
     - method: DELETE
       path: /api/missions/:id
       mount: /api/missions
@@ -3775,8 +3744,8 @@ http_routes:
             pick: missions.0.id
       source:
         spans:
-            - start: 901
-              end: 901
+            - start: 1003
+              end: 1003
     - method: PUT
       path: /api/missions/:missionId/state/:key
       mount: /api/missions
@@ -3792,8 +3761,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 912
-              end: 912
+            - start: 1014
+              end: 1014
     - method: GET
       path: /api/missions/:missionId/state/:key
       mount: /api/missions
@@ -3809,8 +3778,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 936
-              end: 936
+            - start: 1038
+              end: 1038
     - method: GET
       path: /api/missions/:missionId/state
       mount: /api/missions
@@ -3826,8 +3795,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 953
-              end: 953
+            - start: 1055
+              end: 1055
     - method: ALL
       path: /api/workflows/jobs/*
       middlewares:
@@ -4128,8 +4097,8 @@ http_routes:
       auth: required
       source:
         spans:
-            - start: 41
-              end: 41
+            - start: 70
+              end: 70
     - method: GET
       path: /api/admin/billing/plans/:id
       mount: /api/admin/billing/plans
@@ -4151,8 +4120,8 @@ http_routes:
             pick: plans.0.id
       source:
         spans:
-            - start: 59
-              end: 59
+            - start: 88
+              end: 88
     - method: POST
       path: /api/admin/billing/plans
       mount: /api/admin/billing/plans
@@ -4173,8 +4142,8 @@ http_routes:
         price_monthly: 0
       source:
         spans:
-            - start: 75
-              end: 75
+            - start: 104
+              end: 104
     - method: PUT
       path: /api/admin/billing/plans/:id
       mount: /api/admin/billing/plans
@@ -4196,8 +4165,8 @@ http_routes:
             pick: plans.0.id
       source:
         spans:
-            - start: 105
-              end: 105
+            - start: 132
+              end: 132
     - method: DELETE
       path: /api/admin/billing/plans/:id
       mount: /api/admin/billing/plans
@@ -4219,8 +4188,8 @@ http_routes:
             pick: plans.0.id
       source:
         spans:
-            - start: 176
-              end: 176
+            - start: 201
+              end: 201
     - method: GET
       path: /api/admin/billing/invoices
       mount: /api/admin/billing/invoices
@@ -5189,8 +5158,8 @@ http_routes:
         - adminMiddleware
       auth: required
       min_query:
-        models: gpt-4o,claude-3
         metrics: accuracy,latency
+        models: gpt-4o,claude-3
       source:
         spans:
             - start: 99
@@ -7187,8 +7156,8 @@ http_routes:
             pick: providers.0.id
       source:
         spans:
-            - start: 130
-              end: 130
+            - start: 133
+              end: 133
     - method: DELETE
       path: /api/admin/ai-providers/:id
       mount: /api/admin/ai-providers
@@ -7210,8 +7179,8 @@ http_routes:
             pick: providers.0.id
       source:
         spans:
-            - start: 167
-              end: 167
+            - start: 170
+              end: 170
     - method: GET
       path: /api/admin/missions/stats
       mount: /api/admin/missions
@@ -7609,6 +7578,6 @@ ui:
 http_role_routes:
     - prefix: /api/admin
       role: admin
-    - prefix: /api/sessions/admin   # sessions.ts mounts adminMiddleware on /admin/* (admin-integrity routes)
+    - prefix: /api/sessions/admin
       role: admin
 http_default_role: web
