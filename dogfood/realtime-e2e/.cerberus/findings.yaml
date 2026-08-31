@@ -1742,12 +1742,12 @@ findings:
     - id: http-route-realtime-get-api-workflows-jobs-x-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-workflows-jobs-x-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 14
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 16
     - id: ui-vocab-devices-page-populated-c44d5ba9
       summary: browser error http://localhost:5183/dashboard/devices (30.003222788s)
       case_ref: ui-vocab-devices-page-populated
@@ -3246,75 +3246,75 @@ findings:
     - id: http-route-realtime-get-api-audit-summary-recent-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-audit-summary-recent-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 12
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 14
     - id: http-route-realtime-get-api-external-agents-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-external-agents-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 12
     - id: http-route-realtime-delete-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-external-agents-1-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 11
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 13
     - id: http-route-realtime-get-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-external-agents-1-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 11
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 13
     - id: http-route-realtime-put-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-put-api-external-agents-1-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 11
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 13
     - id: http-route-realtime-get-api-rules-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-rules-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 12
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 14
     - id: http-route-realtime-delete-api-rules-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-rules-1-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 12
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 14
     - id: http-route-realtime-put-api-rules-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-put-api-rules-1-authed
-      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-31T01:55:30Z"
-      count: 12
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 14
     - id: ui-vocab-missions-conn-status-19eb0336
       summary: 'browser expect failed text_present text=Connected: expect text_present "text=Connected": not satisfied within window (observed "") (30.002566574s)'
       case_ref: ui-vocab-missions-conn-status
@@ -7655,4 +7655,58 @@ findings:
       status: open
       first_seen: "2026-08-31T01:55:30Z"
       last_seen: "2026-08-31T01:55:30Z"
+      count: 1
+    - id: ui-vocab-missions-device-counter-6173d27e
+      summary: 'browser expect failed text_present text=devices online: expect text_present "text=devices online": not satisfied within window (observed "") (30.00332413s)'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T13:31:05Z"
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-8875046d
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (15.21103023s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T13:31:05Z"
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 1
+    - id: ui-vocab-missions-device-selector-count-3fc87169
+      summary: 'browser expect failed text_present text=4 devices online: expect text_present "text=4 devices online": not satisfied within window (observed "") (30.002492063s)'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T13:31:05Z"
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 1
+    - id: ui-vocab-missions-device-counter-adda064d
+      summary: 'browser expect failed text_present text=devices online: expect text_present "text=devices online": not satisfied within window (observed "") (30.004445947s)'
+      case_ref: ui-vocab-missions-device-counter
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T13:31:05Z"
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-47ae4d47
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (15.260384892s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T13:31:05Z"
+      last_seen: "2026-08-31T13:31:05Z"
+      count: 1
+    - id: ui-vocab-missions-device-selector-count-eb6c7805
+      summary: 'browser expect failed text_present text=4 devices online: expect text_present "text=4 devices online": not satisfied within window (observed "") (30.00211036s)'
+      case_ref: ui-vocab-missions-device-selector-count
+      session_ref: 8f426908-8f56-497e-99fe-3698f9677b5f
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T13:31:05Z"
+      last_seen: "2026-08-31T13:31:05Z"
       count: 1
