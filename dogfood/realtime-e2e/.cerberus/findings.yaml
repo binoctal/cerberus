@@ -1742,12 +1742,12 @@ findings:
     - id: http-route-realtime-get-api-workflows-jobs-x-authed-062a10cb
       summary: 'expect_status_class "2xx": got status 404 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-workflows-jobs-x-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T11:37:32Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 12
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 14
     - id: ui-vocab-devices-page-populated-c44d5ba9
       summary: browser error http://localhost:5183/dashboard/devices (30.003222788s)
       case_ref: ui-vocab-devices-page-populated
@@ -3246,12 +3246,12 @@ findings:
     - id: http-route-realtime-get-api-audit-summary-recent-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-audit-summary-recent-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 12
     - id: http-route-realtime-get-api-external-agents-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-external-agents-authed
@@ -3264,57 +3264,57 @@ findings:
     - id: http-route-realtime-delete-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-external-agents-1-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 11
     - id: http-route-realtime-get-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-external-agents-1-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 11
     - id: http-route-realtime-put-api-external-agents-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-put-api-external-agents-1-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 11
     - id: http-route-realtime-get-api-rules-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-get-api-rules-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 12
     - id: http-route-realtime-delete-api-rules-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-delete-api-rules-1-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 12
     - id: http-route-realtime-put-api-rules-1-authed-1aecf67c
       summary: 'expect_status_class "2xx": got status 403 (transport errors carry status 0)'
       case_ref: http-route-realtime-put-api-rules-1-authed
-      session_ref: 85ba10a1-42f3-451c-8332-f4d9cef48956
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
       tier: emulated
       status: open
       first_seen: "2026-08-28T16:59:54Z"
-      last_seen: "2026-08-30T04:58:10Z"
-      count: 10
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 12
     - id: ui-vocab-missions-conn-status-19eb0336
       summary: 'browser expect failed text_present text=Connected: expect text_present "text=Connected": not satisfied within window (observed "") (30.002566574s)'
       case_ref: ui-vocab-missions-conn-status
@@ -5061,4 +5061,2598 @@ findings:
       status: open
       first_seen: "2026-08-30T04:58:10Z"
       last_seen: "2026-08-30T04:58:10Z"
+      count: 1
+    - id: http-route-realtime-get-api-admin-ab-tests-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ab-tests
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ab-tests-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ab-tests-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-1-complete-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-1-complete
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-1-events-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-1-events
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ab-tests-1-results-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ab-tests-1-results
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-1-start-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-1-start
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-1-stop-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-1-stop
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ab-tests-1-variants-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ab-tests-1-variants
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ab-tests-1-variants-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ab-tests-1-variants
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-compare-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-compare
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-compare-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-compare-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-metrics-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-metrics
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-metrics-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-metrics-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-comparison-metrics-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ai-comparison-metrics
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-comparison-metrics-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ai-comparison-metrics-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-models-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-models
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-models-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-models-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-comparison-reports-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ai-comparison-reports
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-comparison-reports-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ai-comparison-reports-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ai-comparison-reports-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-ai-comparison-reports-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-ai-comparison-reports-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-comparison-reports-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-providers-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-providers
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-providers-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-providers-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-providers-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ai-providers
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ai-providers-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ai-providers-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ai-providers-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-ai-providers-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ai-providers-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-ai-providers-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-providers-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-providers-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ai-providers-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ai-providers-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-ai-providers-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-ai-providers-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-ai-providers-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-ai-providers-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-analytics-events-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-analytics-events
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-analytics-events-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-analytics-events-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-funnel-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-funnel
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-funnel-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-funnel-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-overview-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-overview
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-overview-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-overview-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-usage-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-usage
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-usage-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-usage-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-users-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-users
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-analytics-users-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-analytics-users-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-audit-export-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-audit-export
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-audit-export-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-audit-export-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-audit-export-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-audit-export
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-audit-export-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-audit-export-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-audit-export-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-audit-export-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-audit-export-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-audit-export-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-audit-export-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-audit-export-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-audit-export-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-audit-export-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-invoices-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-invoices-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-invoices-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-invoices
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-invoices-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-invoices-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-invoices-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-invoices-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-invoices-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-invoices-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-billing-invoices-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-invoices-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-billing-invoices-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-invoices-1-pay-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-invoices-1-pay
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-invoices-1-void-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-invoices-1-void
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-payments-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-payments
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-payments-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-payments-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-payments-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-payments
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-payments-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-payments-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-payments-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-payments-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-payments-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-payments-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-payments-1-status-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-billing-payments-1-status
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-plans-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-plans
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-plans-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-plans-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-plans-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-plans
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-billing-plans-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-billing-plans-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-billing-plans-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-billing-plans-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-billing-plans-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-billing-plans-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-plans-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-plans-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-billing-plans-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-billing-plans-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-plans-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-billing-plans-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-billing-plans-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-billing-plans-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-blacklist-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-blacklist
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-blacklist-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-blacklist-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-blacklist
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-blacklist-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-blacklist-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-blacklist-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-blacklist-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-blacklist-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-batch-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-blacklist-batch
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-batch-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-blacklist-batch-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-blacklist-check-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-blacklist-check
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-blacklist-check-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-blacklist-check-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-clean-expired-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-blacklist-clean-expired
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-blacklist-clean-expired-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-blacklist-clean-expired-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-budget-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-budget
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-budget-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-budget-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-budget-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-budget-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-budget-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-budget-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-budget-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-budget-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-budget-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-budget-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-costs-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-costs
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-costs-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-costs-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-costs-daily-trend-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-costs-daily-trend
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-costs-daily-trend-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-costs-daily-trend-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-costs-report-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-costs-report
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-budget-costs-report-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-budget-costs-report-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-check-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-check
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-check-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-check-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-reports-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-reports-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-compliance-reports-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-compliance-reports
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-compliance-reports-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-compliance-reports-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-reports-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-reports-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-reports-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-retention-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-retention
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-compliance-retention-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-compliance-retention-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-compliance-retention-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-compliance-retention
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-compliance-retention-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-compliance-retention-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-compliance-retention-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-compliance-retention-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-compliance-retention-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-compliance-retention-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-compliance-retention-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-compliance-retention-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-compliance-retention-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-compliance-retention-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-content-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-content
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-content-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-content-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-content-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-content
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-content-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-content-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-content-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-content-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-content-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-content-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-content-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-content-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-content-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-content-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-content-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-content-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-content-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-content-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-content-1-archive-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-content-1-archive
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-content-1-publish-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-content-1-publish
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-content-1-unpublish-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-content-1-unpublish
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-coupons-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-coupons
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-coupons-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-coupons-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-coupons-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-coupons
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-coupons-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-coupons-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-coupons-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-coupons-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-coupons-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-coupons-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-coupons-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-coupons-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-coupons-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-coupons-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-coupons-1-validate-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-coupons-1-validate
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-custom-stats-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-custom-stats
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-custom-stats-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-custom-stats-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-custom-stats-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-custom-stats
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-custom-stats-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-custom-stats-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-database-ops-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-database-ops
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-database-ops-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-database-ops-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-database-ops-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-database-ops
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-database-ops-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-database-ops-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-database-ops-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-database-ops-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-database-ops-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-database-ops-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-database-ops-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-database-ops-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-database-ops-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-database-ops-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-diagnostics-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-diagnostics
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-diagnostics-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-diagnostics-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-diagnostics-check-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-diagnostics-check
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-diagnostics-check-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-diagnostics-check-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-diagnostics-health-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-diagnostics-health
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-diagnostics-health-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-diagnostics-health-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-diagnostics-schema-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-diagnostics-schema
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-diagnostics-schema-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-diagnostics-schema-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ip-whitelist-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ip-whitelist
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-ip-whitelist-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-ip-whitelist-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ip-whitelist-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ip-whitelist
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ip-whitelist-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ip-whitelist-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ip-whitelist-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-ip-whitelist-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-ip-whitelist-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-ip-whitelist-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-ip-whitelist-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-ip-whitelist-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-ip-whitelist-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-ip-whitelist-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ip-whitelist-check-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ip-whitelist-check
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-ip-whitelist-check-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-ip-whitelist-check-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-learning-metrics-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-learning-metrics-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics-agent-comparison
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-learning-metrics-agent-comparison-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-learning-metrics-update-priorities-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-learning-metrics-update-priorities
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-learning-metrics-update-priorities-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-learning-metrics-update-priorities-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-mcp-marketplace-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-mcp-marketplace
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-mcp-marketplace-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-mcp-marketplace-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-mcp-marketplace-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-mcp-marketplace
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-mcp-marketplace-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-mcp-marketplace-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-mcp-marketplace-1-approve-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-mcp-marketplace-1-approve
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-mcp-marketplace-1-download-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-mcp-marketplace-1-download
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-mcp-marketplace-1-reject-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-mcp-marketplace-1-reject
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-mcp-marketplace-1-reviews-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-mcp-marketplace-1-reviews
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-missions
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-missions-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-missions-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-missions-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-missions-1-cancel-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-missions-1-cancel
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-missions-1-tasks-1-retry-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-missions-1-tasks-1-retry
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-stats-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-missions-stats
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-missions-stats-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-missions-stats-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-nps-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-nps
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-nps-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-nps-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-nps-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-nps
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-nps-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-nps-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-nps-1-responses-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-nps-1-responses
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-nps-1-responses-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-nps-1-responses
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-nps-1-stats-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-nps-1-stats
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-org-policies-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-org-policies
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-org-policies-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-org-policies-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-org-policies-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-org-policies
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-org-policies-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-org-policies-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-org-policies-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-org-policies-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-org-policies-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-org-policies-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-org-policies-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-org-policies-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-org-policies-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-org-policies-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-org-policies-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-org-policies-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-org-policies-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-org-policies-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-productivity-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-productivity
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-productivity-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-productivity-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-productivity-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-productivity
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-productivity-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-productivity-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-productivity-summary-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-productivity-summary
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-productivity-summary-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-productivity-summary-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-remote-logs-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-remote-logs
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-remote-logs-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-remote-logs-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-remote-logs-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-remote-logs
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-remote-logs-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-remote-logs-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-remote-logs-stats-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-remote-logs-stats
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-remote-logs-stats-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-remote-logs-stats-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-review-queue-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-review-queue
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-review-queue-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-review-queue-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-review-queue-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-review-queue
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-review-queue-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-review-queue-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-review-queue-1-approve-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-review-queue-1-approve
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-review-queue-1-reject-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-review-queue-1-reject
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-segments-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-segments
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-segments-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-segments-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-segments-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-segments
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-segments-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-segments-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-segments-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-segments-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-segments-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-segments-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-segments-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-segments-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-segments-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-segments-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-segments-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-segments-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-segments-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-segments-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-settings
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-settings-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-settings-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-settings-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-settings-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-settings-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-settings-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-settings-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-settings-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-settings-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-settings-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-settings-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-settings-1-history-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-settings-1-history
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-settings-1-rollback-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-settings-1-rollback
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-sso-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-sso
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-sso-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-sso-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-sso-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-sso
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-sso-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-sso-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-sso-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-sso-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-sso-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-sso-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-sso-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-sso-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-sso-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-sso-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-tenants
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-tenants-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-tenants-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-tenants
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-tenants-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-tenants-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-tenants-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-tenants-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-tenants-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-tenants-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-tenants-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-tenants-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-tenants-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-tenants-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-tenants-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-tenants-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-tenants-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-white-label-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-white-label
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-admin-white-label-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-admin-white-label-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-white-label-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-white-label
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-admin-white-label-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-admin-white-label-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-white-label-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-white-label-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-delete-api-admin-white-label-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-delete-api-admin-white-label-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-white-label-1-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-white-label-1
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-put-api-admin-white-label-1-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-put-api-admin-white-label-1-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-sessions-admin-cleanup-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-sessions-admin-cleanup
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-sessions-admin-cleanup-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-post-api-sessions-admin-cleanup-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-sessions-admin-integrity-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-sessions-admin-integrity
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-get-api-sessions-admin-integrity-authed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: http-route-realtime-get-api-sessions-admin-integrity-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 2
+    - id: http-route-realtime-post-api-teams-invitations-accept-authed-901a200e
+      summary: 'expect_status_class "2xx_4xx": got status 0 (transport errors carry status 0)'
+      case_ref: http-route-realtime-post-api-teams-invitations-accept-authed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-d3bfe3bb
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (15.150090092s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 1
+    - id: ui-vocab-devices-page-renders-43c36095
+      summary: 'browser expect failed text_present text=Devices: expect text_present "text=Devices": not satisfied within window (observed "") (15.113358834s)'
+      case_ref: ui-vocab-devices-page-renders
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: emulated
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 1
+    - id: ws-realtime-wf-mission-seed-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: ws-realtime-wf-mission-seed
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      tier: real
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
+      count: 1
+    - id: ws-realtime-wf-mission-fanout-a89c31f2
+      summary: 'http_request: no http token for actor "admin-actor"'
+      case_ref: ws-realtime-wf-mission-fanout
+      session_ref: 02e9020b-e7e3-4123-b8af-2462b38f252e
+      claim_refs:
+        - multi-device-orchestration
+      tier: real
+      status: open
+      first_seen: "2026-08-31T01:55:30Z"
+      last_seen: "2026-08-31T01:55:30Z"
       count: 1
