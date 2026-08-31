@@ -366,7 +366,8 @@ In `internal/head/scout/http_route_cases.go`:
 				// v1 is read-only (GET only): a genuinely vulnerable SUT must
 				// not be proven vulnerable by destroying the owner's data.
 				if rival := crossRoleFor(svc); rival != "" && method == "GET" &&
-					!r.CrossExempt && ownerScopedSources(svc, r, role) {
+					!r.CrossExempt && crossOwnerEligible(svc, role) &&
+					ownerScopedSources(svc, r, role) {
 					cases = append(cases, crossUserRouteCase(svc, host, r, method, role, rival))
 				}
 			}
@@ -377,6 +378,21 @@ In `internal/head/scout/http_route_cases.go`:
 (b) New helpers at the bottom of the file:
 
 ```go
+// crossOwnerEligible reports whether an owner role may carry the crossuser
+// tier: it must be an INTERACTIVE principal — credentialed, connects over WS
+// (not http_only), not owned by a real process (not process_bound). This is
+// the spec's "web role" expressed as mechanical role properties instead of a
+// hardcoded name (isAdminPath lesson): injection-only roles like admin are
+// vertical boundaries, and a second principal of the same role reading admin
+// data would be an escalation probe, not horizontal isolation.
+func crossOwnerEligible(svc project.Service, role string) bool {
+	if svc.Protocol == nil {
+		return false
+	}
+	r := svc.Protocol.Roles[role]
+	return r != nil && r.CredentialRef != "" && !r.HTTPOnly && !r.ProcessBound
+}
+
 // crossRoleFor resolves the vocabulary's cross-tier principal: it must be a
 // declared protocol role that carries a credential AND is http_only — a
 // connecting role as the rival would leak into client-role selection
