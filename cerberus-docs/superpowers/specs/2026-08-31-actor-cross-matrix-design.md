@@ -81,10 +81,16 @@ actor, so a second principal is purely declarative:
   devices, no captured userId). http_only keeps it out of all WS paths; no
   params/handshake needed since it never connects.
 - `dogfood/realtime-e2e/.cerberus/project.yaml` — add actor `web-rival-actor`
-  with `rival@openagents.local` / two-step auth identical to web-actor
-  (`/api/dev/setup` provision then `/api/dev/login` JWT), **with `plan: pro`**.
-  Rationale: a free-plan rival would conflate plan-gate 403 with isolation
-  403 — the tier must isolate exactly one variable.
+  with credentials `rival@openagents.local` and the **admin-actor auth shape,
+  not web-actor's**: `{email}`/`{password}` templated into BOTH bodies —
+  `/api/dev/setup` with `email`+`password`+`plan: pro`, then `/api/dev/login`
+  with `email`+`password` for the JWT. This is load-bearing: web-actor's
+  setup body carries only `plan: pro` and its login body is empty — that
+  shape provisions and logs in the DEFAULT dev user, i.e. the same principal
+  as the owner, every crossuser GET would return 200, and run40 would file
+  seven false IDOR findings. `plan: pro` matters for the same
+  one-variable-at-a-time reason: a free-plan rival would conflate plan-gate
+  403 with isolation 403.
 
 The vocab HTTP role map (`http_role_routes`) is untouched: `web-rival` never
 routes by prefix; only the crossuser generator names it explicitly.
