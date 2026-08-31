@@ -65,8 +65,12 @@ func httpRouteCases(svc project.Service) []agent.TestCase {
 				// runs as the rival principal and asserts the 4xx rejection.
 				// v1 is read-only (GET only): a genuinely vulnerable SUT must
 				// not be proven vulnerable by destroying the owner's data.
+				// The path must carry at least one :param (spec §1): a rival
+				// legitimately reads their OWN scoped collection list, so a
+				// param-free GET would false-red.
 				if rival := crossRoleFor(svc); rival != "" && method == "GET" &&
-					!r.CrossExempt && crossOwnerEligible(svc, role) &&
+					len(routeParams(r.Path)) > 0 && !r.CrossExempt &&
+					crossOwnerEligible(svc, role) &&
 					ownerScopedSources(svc, r, role) {
 					cases = append(cases, crossUserRouteCase(svc, host, r, method, role, rival))
 				}

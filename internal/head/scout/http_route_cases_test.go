@@ -439,6 +439,9 @@ func TestHTTPRouteCases_WiredIntoWSCases(t *testing.T) {
 // http_only), admin (credentialed, http_only); vocab opts into the cross
 // tier via http_cross_role and maps everything to web by default.
 func crossFixture(crossRole string, exemptTeams bool) project.Service {
+	// Param-free authed GET collection route: legitimately scoped to the
+	// caller's own data — a rival reading their own list is not an IDOR.
+	collection := project.VocabHTTPRoute{Method: "GET", Path: "/api/sessions", Auth: "required"}
 	sessions := project.VocabHTTPRoute{Method: "GET", Path: "/api/sessions/:id", Auth: "required",
 		ParamSources: map[string]project.VocabParamSource{":id": {Route: "GET /api/sessions", Pick: "0.id"}}}
 	teams := project.VocabHTTPRoute{Method: "GET", Path: "/api/teams/:id", Auth: "required", CrossExempt: exemptTeams,
@@ -458,7 +461,7 @@ func crossFixture(crossRole string, exemptTeams bool) project.Service {
 			HTTPCrossRole:   crossRole,
 			HTTPDefaultRole: "web",
 			HTTPRoleRoutes:  []project.VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}},
-			HTTPRoutes:      []project.VocabHTTPRoute{sessions, teams, post, adminSrc},
+			HTTPRoutes:      []project.VocabHTTPRoute{collection, sessions, teams, post, adminSrc},
 		},
 	}
 }
@@ -543,4 +546,26 @@ func countSuffix(cases []agent.TestCase, suffix string) int {
 		}
 	}
 	return n
+}
+
+// TestHTTPRouteCases_CrossUserParamFreeExcluded: ownerScopedSources is
+// vacuously true on param-free collection routes — with no :params the loop
+// never runs. Spec §1 requires the path carry at least one :param: a rival
+// legitimately reads their OWN scoped list (200), so a collection crossuser
+// case would false-red (dogfood: 33 emitted vs the spec's 7).
+func TestHTTPRouteCases_CrossUserParamFreeExcluded(t *testing.T) {
+	// teams exempt so the fixture's single eligible param'd route is
+	// GET /api/sessions/:id; the collection GET must not join it.
+	svc := crossFixture("web-rival", true)
+	cases := httpRouteCases(svc)
+	if findCase(cases, "http-route-realtime-get-api-sessions-crossuser") != nil {
+		t.Fatal("param-free collection route must not emit a crossuser case")
+	}
+	if got := countSuffix(cases, "-crossuser"); got != 1 {
+		t.Fatalf("crossuser cases = %d, want 1 (param'd routes only)", got)
+	}
+	// The collection route keeps its authed twin.
+	if findCase(cases, "http-route-realtime-get-api-sessions-authed") == nil {
+		t.Fatal("collection route must keep its authed case")
+	}
 }
