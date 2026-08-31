@@ -434,3 +434,113 @@ func TestHTTPRouteCases_WiredIntoWSCases(t *testing.T) {
 		t.Errorf("wired case class = %q", found.Steps[0].ExpectStatusClass)
 	}
 }
+
+// crossFixture: web role (credentialed, connects), web-rival (credentialed,
+// http_only), admin (credentialed, http_only); vocab opts into the cross
+// tier via http_cross_role and maps everything to web by default.
+func crossFixture(crossRole string, exemptTeams bool) project.Service {
+	sessions := project.VocabHTTPRoute{Method: "GET", Path: "/api/sessions/:id", Auth: "required",
+		ParamSources: map[string]project.VocabParamSource{":id": {Route: "GET /api/sessions", Pick: "0.id"}}}
+	teams := project.VocabHTTPRoute{Method: "GET", Path: "/api/teams/:id", Auth: "required", CrossExempt: exemptTeams,
+		ParamSources: map[string]project.VocabParamSource{":id": {Route: "GET /api/teams", Pick: "0.id"}}}
+	post := project.VocabHTTPRoute{Method: "POST", Path: "/api/sessions/:id", Auth: "required",
+		ParamSources: map[string]project.VocabParamSource{":id": {Route: "GET /api/sessions", Pick: "0.id"}}}
+	adminSrc := project.VocabHTTPRoute{Method: "GET", Path: "/api/admin/audit/:id", Auth: "required",
+		ParamSources: map[string]project.VocabParamSource{":id": {Route: "GET /api/admin/audit", Pick: "0.id"}}}
+	return project.Service{
+		Name: "realtime", URL: "http://localhost:8989/ws/{userId}",
+		Protocol: &project.Protocol{Roles: map[string]*project.ProtocolRole{
+			"web":       {CredentialRef: "web-actor"},
+			"web-rival": {CredentialRef: "web-rival-actor", HTTPOnly: true},
+			"admin":     {CredentialRef: "admin-actor", HTTPOnly: true},
+		}},
+		Vocabulary: &project.Vocabulary{
+			HTTPCrossRole:   crossRole,
+			HTTPDefaultRole: "web",
+			HTTPRoleRoutes:  []project.VocabRoleRoute{{Prefix: "/api/admin", Role: "admin"}},
+			HTTPRoutes:      []project.VocabHTTPRoute{sessions, teams, post, adminSrc},
+		},
+	}
+}
+
+func findCase(cases []agent.TestCase, id string) *agent.TestCase {
+	for i := range cases {
+		if cases[i].ID == id {
+			return &cases[i]
+		}
+	}
+	return nil
+}
+
+func TestHTTPRouteCases_CrossUserTier(t *testing.T) {
+	svc := crossFixture("web-rival", false)
+	cases := httpRouteCases(svc)
+
+	c := findCase(cases, "http-route-realtime-get-api-sessions-1-crossuser")
+	if c == nil {
+		t.Fatal("sessions detail route must emit a -crossuser case")
+	}
+	if len(c.Steps) != 2 {
+		t.Fatalf("crossuser = capture + target, got %d steps", len(c.Steps))
+	}
+	if c.Steps[0].AuthRole != "web" || c.Steps[0].ExpectStatusClass != "2xx" {
+		t.Fatalf("capture step must run as owner web asserting 2xx: %+v", c.Steps[0])
+	}
+	tgt := c.Steps[1]
+	if tgt.AuthRole != "web-rival" {
+		t.Fatalf("target step AuthRole = %q, want web-rival", tgt.AuthRole)
+	}
+	if tgt.ExpectStatusClass != "4xx" {
+		t.Fatalf("target must assert 4xx (isolation), got %q", tgt.ExpectStatusClass)
+	}
+	if !strings.Contains(tgt.URL, "{{case.p_id}}") {
+		t.Fatalf("target must use the captured owner id: %q", tgt.URL)
+	}
+	if !strings.Contains(c.Expectation, "cross-user isolation") {
+		t.Fatalf("expectation must name cross-user isolation: %q", c.Expectation)
+	}
+
+	// POST routes never get the tier (v1 is read-only).
+	if findCase(cases, "http-route-realtime-post-api-sessions-1-crossuser") != nil {
+		t.Fatal("POST route must not emit a crossuser case")
+	}
+	// Admin-sourced ids are not owner data.
+	if findCase(cases, "http-route-realtime-get-api-admin-audit-1-crossuser") != nil {
+		t.Fatal("admin-sourced route must not emit a crossuser case")
+	}
+}
+
+func TestHTTPRouteCases_CrossUserExemptAndGates(t *testing.T) {
+	// cross_exempt drops only the crossuser tier (authed stays).
+	svc := crossFixture("web-rival", true)
+	cases := httpRouteCases(svc)
+	if findCase(cases, "http-route-realtime-get-api-teams-1-crossuser") != nil {
+		t.Fatal("cross_exempt route must not emit a crossuser case")
+	}
+	if findCase(cases, "http-route-realtime-get-api-teams-1-authed") == nil {
+		t.Fatal("cross_exempt must NOT drop the authed tier")
+	}
+
+	// No cross role declared -> no tier at all (generic repos unaffected).
+	svc = crossFixture("", false)
+	if got := countSuffix(httpRouteCases(svc), "-crossuser"); got != 0 {
+		t.Fatalf("http_cross_role unset: %d crossuser cases, want 0", got)
+	}
+
+	// The cross role must be http_only: declaring a connecting role as the
+	// rival would be the client-leg hijack the spec forbids.
+	svc = crossFixture("web", false)
+	if got := countSuffix(httpRouteCases(svc), "-crossuser"); got != 0 {
+		t.Fatalf("non-http_only cross role: %d crossuser cases, want 0", got)
+	}
+}
+
+func countSuffix(cases []agent.TestCase, suffix string) int {
+	n := 0
+	for _, c := range cases {
+		if strings.HasSuffix(c.ID, suffix) {
+			n++
+		}
+	}
+	return n
+}
