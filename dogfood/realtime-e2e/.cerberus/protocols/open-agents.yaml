@@ -73,6 +73,13 @@ roles:
   admin:
     credential_ref: admin-actor
     http_only: true
+  # Second web principal for the -crossuser tier. http_only is load-bearing:
+  # client-role selection (real_responder_cases / acp_cases) takes the first
+  # credentialed non-real non-http_only role — without the flag this role is
+  # one rename away from hijacking the emulated-client leg.
+  web-rival:
+    credential_ref: web-rival-actor
+    http_only: true
   bridge2:
     credential_ref: bridge-pty-2
     process_bound: true

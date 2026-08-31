@@ -65,6 +65,38 @@ actors:
         headers:
           Origin: http://localhost:8989
       http_token_from: token
+  # Second web principal for the -crossuser isolation tier (spec:
+  # cerberus-docs/superpowers/specs/2026-08-31-actor-cross-matrix-design.md).
+  # The ADMIN auth shape, not web-actor's: {email}/{password} templated into
+  # BOTH bodies — web-actor's setup body (plan only) provisions the DEFAULT
+  # dev user, which would make the rival the same principal as the owner and
+  # every crossuser case a false 200. plan: pro isolates this tier's variable
+  # (a free-plan rival would conflate plan-gate 403 with isolation 403).
+  - name: web-rival-actor
+    credentials:
+      email: rival@openagents.local
+      password: rival123456
+    auth:
+      login:
+        method: POST
+        path: /api/dev/setup
+        body:
+          email: "{email}"
+          password: "{password}"
+          plan: pro
+        headers:
+          Origin: http://localhost:8989
+      # token_from omitted on purpose: provisioning-only flow (mirrors admin-actor)
+      inject_as: "Authorization: Bearer {token}"
+      http_login:
+        method: POST
+        path: /api/dev/login
+        body:
+          email: "{email}"
+          password: "{password}"
+        headers:
+          Origin: http://localhost:8989
+      http_token_from: token
   # Real bridge devices. Each pairs via the dev backdoor (new device under the
   # SAME dev user, so the web actor shares their DO room), runs in an isolated
   # HOME (bridge config lives at $HOME/.open-agents-bridge), and its deviceId

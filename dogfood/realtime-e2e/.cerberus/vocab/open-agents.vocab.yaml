@@ -7581,3 +7581,4 @@ http_role_routes:
     - prefix: /api/sessions/admin
       role: admin
 http_default_role: web
+http_cross_role: web-rival
