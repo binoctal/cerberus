@@ -328,68 +328,7 @@ func runProtocolVocabulary(ctx context.Context, workDir string, sources []string
 	// timeout-fail until the executor escalates. Extraction cannot know these
 	// marks — they encode live-probe knowledge about the running server.
 	if prev != nil {
-		marks := make(map[string]project.VocabEdge, len(prev.Edges))
-		for _, e := range prev.Edges {
-			marks[e.FromRole+"|"+e.ToRole+"|"+e.Type] = e
-		}
-		for i := range vocab.Edges {
-			if old, ok := marks[vocab.Edges[i].FromRole+"|"+vocab.Edges[i].ToRole+"|"+vocab.Edges[i].Type]; ok {
-				vocab.Edges[i].Partial = old.Partial
-				vocab.Edges[i].Unsupported = old.Unsupported
-			}
-		}
-		// A hand-curated auth middleware list wins over the name heuristic.
-		if len(prev.HTTPAuthMiddlewares) > 0 {
-			vocab.HTTPAuthMiddlewares = prev.HTTPAuthMiddlewares
-		}
-		// The hand-curated UI surface is not derivable from source; a
-		// re-extraction must never silently drop it.
-		if prev.UI != nil {
-			vocab.UI = prev.UI
-		}
-		// Same for the hand-curated HTTP role map (spec §3): which protocol
-		// role's JWT a path prefix takes is live-probe knowledge, not a
-		// source-derivable fact.
-		if len(prev.HTTPRoleRoutes) > 0 {
-			vocab.HTTPRoleRoutes = prev.HTTPRoleRoutes
-		}
-		if prev.HTTPDefaultRole != "" {
-			vocab.HTTPDefaultRole = prev.HTTPDefaultRole
-		}
-		// Route marks follow the same rule, keyed method|path. Hand-tuned
-		// param chains and hand-set auth (spec §5: the judgment layer rides
-		// the merge) win over re-derivation; middlewares/min_body are the
-		// fact layer and always come back fresh above. Auth preservation
-		// covers the judgment values none|required — "unknown" is the
-		// not-determined marker (a first pass emits it everywhere), so
-		// preserving it would freeze ignorance and block the curated-list
-		// derivation from ever marking a route required.
-		routeMarks := make(map[string]project.VocabHTTPRoute, len(prev.HTTPRoutes))
-		for _, r := range prev.HTTPRoutes {
-			routeMarks[r.Method+"|"+r.Path] = r
-		}
-		for i := range vocab.HTTPRoutes {
-			if old, ok := routeMarks[vocab.HTTPRoutes[i].Method+"|"+vocab.HTTPRoutes[i].Path]; ok {
-				vocab.HTTPRoutes[i].Partial = old.Partial
-				vocab.HTTPRoutes[i].Unsupported = old.Unsupported
-				if old.Auth == "none" || old.Auth == "required" {
-					vocab.HTTPRoutes[i].Auth = old.Auth
-				}
-				// min_query rides the judgment layer with the role map:
-				// handler-side manual query guards are live-probe
-				// knowledge, not source-derivable facts.
-				if old.MinQuery != nil {
-					vocab.HTTPRoutes[i].MinQuery = old.MinQuery
-				}
-				for p, ps := range old.ParamSources {
-					if vocab.HTTPRoutes[i].ParamSources == nil {
-						vocab.HTTPRoutes[i].ParamSources = map[string]project.VocabParamSource{}
-					}
-					vocab.HTTPRoutes[i].ParamSources[p] = ps
-				}
-				vocab.HTTPRoutes[i].ParamSourcesOff = old.ParamSourcesOff
-			}
-		}
+		project.MergeVocabJudgment(prev, vocab)
 	}
 	block, _ := yaml.Marshal(vocab)
 	fmt.Printf("Draft vocabulary %q (%d edges, %d http routes):\n%s\n", name, len(vocab.Edges), len(vocab.HTTPRoutes), string(block))
